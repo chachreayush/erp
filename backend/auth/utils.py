@@ -28,9 +28,8 @@ import hashlib  # Built-in Python library for hashing
 # jose — JSON Object Signing and Encryption library for JWT
 from jose import JWTError, jwt
 
-# passlib — secure password hashing library
-# CryptContext manages multiple hashing schemes
-from passlib.context import CryptContext
+# bcrypt — secure password hashing library
+import bcrypt
 
 # python-dotenv — read secret keys from .env file
 from dotenv import load_dotenv
@@ -58,16 +57,9 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(
 )
 
 
-# ── PASSWORD HASHING CONTEXT ─────────────────────────────────
-# CryptContext configures passlib to use bcrypt for hashing.
-# bcrypt is the industry standard for password hashing because:
-# 1. It's intentionally slow (making brute-force attacks expensive)
-# 2. It includes a built-in random salt (no two hashes are alike)
-# 3. It's self-upgrading — deprecated=["auto"] can update old hashes
-pwd_context = CryptContext(
-    schemes=["bcrypt"],      # Use bcrypt algorithm
-    deprecated="auto"        # Auto-handle any older hash schemes
-)
+# ── PASSWORD HASHING ─────────────────────────────────────────
+# We use bcrypt directly instead of passlib to ensure compatibility
+# with modern Python versions and latest bcrypt libraries.
 
 
 # ── PASSWORD UTILITIES ────────────────────────────────────────
@@ -92,7 +84,10 @@ def hash_password(plain_password: str) -> str:
     Returns:
         A bcrypt hash string — safe to store in the database
     """
-    return pwd_context.hash(plain_password)
+    # Hash password with a randomly generated salt
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(plain_password.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -112,7 +107,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         True if the password is correct, False if not
     """
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(
+            plain_password.encode('utf-8'), 
+            hashed_password.encode('utf-8')
+        )
+    except Exception:
+        return False
 
 
 # ── JWT TOKEN UTILITIES ───────────────────────────────────────
