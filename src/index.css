@@ -1,0 +1,218 @@
+/* ============================================================
+   index.css — Global Styles & Design System for Merge ERP
+   ============================================================
+   This file defines the entire visual design system:
+   - CSS custom properties (design tokens) for colors, spacing, fonts
+   - Base resets and body styles
+   - Utility classes used throughout the app
+   - Scrollbar styling for a premium feel
+   
+   DESIGN PHILOSOPHY:
+   The ERP uses a dark, professional theme inspired by modern
+   enterprise tools (Linear, Vercel, Notion). Clean, sharp, and
+   distraction-free so users can focus on data entry and billing.
+   ============================================================ */
+
+/* ── GOOGLE FONTS IMPORT ─────────────────────────────────────
+   Inter: Our primary font. Clean, highly legible at small sizes.
+   Perfect for dense ERP data tables and forms.
+   ──────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* ── CSS DESIGN TOKENS (Custom Properties) ───────────────────
+   These variables define the entire color palette and spacing.
+   Changing a value here updates it everywhere in the app.
+   All colors follow a dark mode enterprise aesthetic.
+   ──────────────────────────────────────────────────────────── */
+:root {
+  /* Primary brand color — used for buttons, active states, links */
+  --color-primary:        #4f46e5; /* Indigo-600 */
+  --color-primary-hover:  #4338ca; /* Indigo-700 — darker on hover */
+  --color-primary-light:  #eef2ff; /* Indigo-50 — subtle highlights */
+
+  /* Background layers — dark mode, layered depth */
+  --color-bg:             #0f0f11; /* Deepest background (app root) */
+  --color-bg-surface:     #18181b; /* Cards, panels, sidebar */
+  --color-bg-elevated:    #1f1f23; /* Modals, dropdowns, tooltips */
+  --color-bg-hover:       #27272a; /* Row hover, item hover states */
+
+  /* Border colors — subtle separators */
+  --color-border:         #27272a; /* Default border */
+  --color-border-strong:  #3f3f46; /* Emphasized border */
+
+  /* Text colors — accessible contrast ratios */
+  --color-text-primary:   #fafafa; /* Main text — headings, labels */
+  --color-text-secondary: #a1a1aa; /* Secondary text — descriptions */
+  --color-text-muted:     #52525b; /* Muted text — placeholders */
+
+  /* Semantic colors — for status indicators */
+  --color-success:        #22c55e; /* Green — approved, active */
+  --color-warning:        #f59e0b; /* Amber — pending, caution */
+  --color-danger:         #ef4444; /* Red — error, blocked, delete */
+  --color-info:           #3b82f6; /* Blue — information, sync */
+
+  /* Sidebar dimensions */
+  --sidebar-width:        240px;   /* Width of the left navigation sidebar */
+  --header-height:        56px;    /* Height of the top header bar */
+
+  /* Typography scale */
+  --font-family:          'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-size-xs:         11px;
+  --font-size-sm:         12px;
+  --font-size-base:       14px;
+  --font-size-md:         15px;
+  --font-size-lg:         18px;
+  --font-size-xl:         22px;
+  --font-size-2xl:        28px;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Border radius */
+  --radius-sm:  4px;
+  --radius-md:  8px;
+  --radius-lg:  12px;
+  --radius-xl:  16px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm:  0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.5);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.6);
+
+  /* Transitions */
+  --transition-fast:   0.1s ease;
+  --transition-normal: 0.2s ease;
+  --transition-slow:   0.3s ease;
+}
+
+/* ── GLOBAL RESET ────────────────────────────────────────────
+   Remove all default browser margins, paddings, and set a
+   consistent box model across every element in the app.
+   ──────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box; /* Include border and padding in element width */
+}
+
+/* ── BASE BODY STYLES ────────────────────────────────────────
+   Set the foundational styles for the entire application.
+   ──────────────────────────────────────────────────────────── */
+html, body, #root {
+  height: 100%;       /* Allow the app to fill the full window height */
+  width: 100%;
+  overflow: hidden;   /* Prevent double scrollbars — internal sections scroll */
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;  /* Crisp text on Mac/high-DPI screens */
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── CUSTOM SCROLLBAR ────────────────────────────────────────
+   Replace the ugly default OS scrollbar with a sleek dark one
+   that matches our design system. Only shows on hover.
+   ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent; /* Invisible track */
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: var(--radius-full);
+  transition: background var(--transition-fast);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted); /* Slightly lighter on hover */
+}
+
+/* ── TYPOGRAPHY ──────────────────────────────────────────────
+   Base heading and text styles applied globally.
+   ──────────────────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+}
+
+p {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: opacity var(--transition-fast);
+}
+
+a:hover {
+  opacity: 0.8;
+}
+
+/* ── FOCUS STYLES (Keyboard Navigation) ──────────────────────
+   CRITICAL for our keyboard-first requirement.
+   Every focusable element shows a clear, visible ring when
+   navigated to with Tab/arrow keys. This is not optional.
+   ──────────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Remove focus outline for mouse users (only show for keyboard) */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ── UTILITY CLASSES ─────────────────────────────────────────
+   Reusable single-purpose classes used throughout components.
+   ──────────────────────────────────────────────────────────── */
+
+/* Layout utilities */
+.flex        { display: flex; }
+.flex-col    { display: flex; flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-2       { gap: var(--space-2); }
+.gap-3       { gap: var(--space-3); }
+.gap-4       { gap: var(--space-4); }
+.w-full      { width: 100%; }
+.h-full      { height: 100%; }
+.flex-1      { flex: 1; }
+.overflow-auto { overflow: auto; }
+.overflow-hidden { overflow: hidden; }
+
+/* Text utilities */
+.text-sm     { font-size: var(--font-size-sm); }
+.text-xs     { font-size: var(--font-size-xs); }
+.text-muted  { color: var(--color-text-muted); }
+.text-secondary { color: var(--color-text-secondary); }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.truncate    { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Status badge colors */
+.badge-success { background: rgba(34,197,94,0.15); color: var(--color-success); }
+.badge-warning { background: rgba(245,158,11,0.15); color: var(--color-warning); }
+.badge-danger  { background: rgba(239,68,68,0.15);  color: var(--color-danger); }
+.badge-info    { background: rgba(59,130,246,0.15); color: var(--color-info); }
