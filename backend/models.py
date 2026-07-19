@@ -114,11 +114,14 @@ class Company(Base):
     # default=datetime.utcnow means the timestamp is set automatically.
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    # ── RELATIONSHIPS ────────────────────────────────────────────
-    # This tells SQLAlchemy that one Company can have MANY Users.
-    # Accessing company.users gives you a list of all users in that company.
-    # back_populates="company" links this to the User.company relationship.
-    users = relationship("User", back_populates="company")
+    # ── RELATIONSHIPS ───────────────────────────────────────────
+    # A company has many users. This line creates a list of all
+    # users belonging to this company. (Not stored in the db directly,
+    # SQLAlchemy builds this list for us on the fly).
+    users = relationship("User", back_populates="company", cascade="all, delete-orphan")
+    
+    # A company has many products (Inventory).
+    products = relationship("Product", back_populates="company", cascade="all, delete-orphan")
 
     def __repr__(self):
         """String representation for debugging — shows in logs and Python shell"""
@@ -210,46 +213,13 @@ class User(Base):
 # ── TABLE 3: Session ──────────────────────────────────────────
 class Session(Base):
     """
-    Tracks every active login session in the system.
-
-    WHY WE TRACK SESSIONS:
-    JWT tokens are "stateless" — the server normally can't invalidate
-    them before they expire. By storing session records here, we can:
-    1. Log the user out immediately by deleting their session record.
-    2. See all active sessions for a user (security audit).
-    3. Detect suspicious activity (too many sessions, unusual locations).
-
-    SECURITY: We store a HASH of the token, not the token itself.
-    If this table is stolen, attackers get the hash (useless),
-    not the actual tokens.
-
-    Table name in PostgreSQL: 'sessions'
+    Tracks active user logins.
     """
     __tablename__ = "sessions"
-
-    # ── COLUMNS ─────────────────────────────────────────────────
-
-    # id: Primary key UUID
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
-
-    # user_id: Which user owns this session
-    user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),  # Delete sessions if user deleted
-        nullable=False,
-        index=True
-    )
-
-    # token_hash: A SHA-256 hash of the JWT token.
-    # Used to quickly look up and validate/invalidate sessions.
-    token_hash = Column(String(255), nullable=False, unique=True, index=True)
-
-    # created_at: When the session was created (login time)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    token_hash = Column(String(255), unique=True, nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-
-    # expires_at: When this session automatically expires.
-    # The server checks this timestamp on every request — if the current
-    # time is past expires_at, the user must log in again.
     expires_at = Column(DateTime, nullable=False)
 
     # is_active: Allows instantly deactivating a session without deleting it.

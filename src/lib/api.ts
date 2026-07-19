@@ -206,4 +206,30 @@ export async function apiHealthCheck(): Promise<boolean> {
   }
 }
 
+// ── INVENTORY MODULE API ──────────────────────────────────────
+
+export interface Product {
+  id: string
+  company_id: string
+  name: string
+  sku: string | null
+  category: string | null
+  price: string | null
+  stock: string
+  status: string
+  created_at: string
+}
+
+export type ProductCreatePayload = Omit<Product, 'id' | 'company_id' | 'created_at'>
+
+export async function apiGetProducts(): Promise<Product[]> {
+  const response = await apiClient.get<Product[]>('/products/')
+  return response.data
+}
+
+export async function apiCreateProduct(payload: ProductCreatePayload): Promise<Product> {
+  const response = await apiClient.post<Product>('/products/', payload)
+  return response.data
+}
+
 export default apiClient

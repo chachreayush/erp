@@ -30,6 +30,7 @@ import ThemeProvider from './components/Layout/ThemeProvider'
 import LoginPage from './pages/Login'
 import DashboardPage from './pages/Dashboard'
 import SettingsPage from './pages/Settings'
+import ProductsPage from './pages/inventory/Products'
 
 // ── PROTECTED ROUTE WRAPPER ───────────────────────────────────
 // This component wraps any page that requires authentication.
@@ -83,7 +84,7 @@ function App() {
 
         {/* ERP Module routes — more will be added in later sprints */}
         {/* <Route path="finance"   element={<FinancePage />} /> */}
-        {/* <Route path="inventory" element={<InventoryPage />} /> */}
+        <Route path="inventory" element={<ProductsPage />} />
         {/* <Route path="sales"     element={<SalesPage />} /> */}
         {/* <Route path="crm"       element={<CRMPage />} /> */}
         {/* <Route path="hr"        element={<HRPage />} /> */}

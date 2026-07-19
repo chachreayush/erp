@@ -19,7 +19,7 @@
 # a clear 422 error to the client before the code even runs.
 # ============================================================
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, UUID4
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
@@ -165,3 +165,23 @@ class HealthResponse(BaseModel):
     version: str      # Current API version (e.g., "1.0.0")
     database: str     # "connected" or "disconnected" — DB health status
     timestamp: datetime  # Current server timestamp
+
+# ── PRODUCT (INVENTORY) SCHEMAS ───────────────────────────────
+
+class ProductBase(BaseModel):
+    name: str
+    sku: Optional[str] = None
+    category: Optional[str] = None
+    price: Optional[str] = None
+    stock: str = "0"
+    status: str = "active"
+
+class ProductCreate(ProductBase):
+    pass
+
+class ProductResponse(ProductBase):
+    id: UUID4
+    company_id: UUID4
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

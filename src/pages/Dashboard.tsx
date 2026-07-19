@@ -17,8 +17,11 @@
 import { useAuthStore } from '../store/authStore'
 import {
   TrendingUp, Package, ShoppingCart,
-  Users, Clock, CheckCircle, AlertTriangle, Activity
+  Users, Clock, CheckCircle, AlertTriangle, Activity, ArrowRight
 } from 'lucide-react'
+import { Card, CardHeader, CardTitle, CardDescription } from '../components/ui/Card'
+import { Button } from '../components/ui/Button'
+import { useNavigate } from 'react-router-dom'
 
 // ── STAT CARD COMPONENT ────────────────────────────────────────
 // A reusable card for displaying a single KPI metric.
@@ -34,49 +37,43 @@ interface StatCardProps {
 
 function StatCard({ label, value, change, positive, icon, color }: StatCardProps) {
   return (
-    <div style={{
-      backgroundColor: 'var(--color-bg-surface)',
-      border: '1px solid var(--color-border)',
-      borderRadius: 'var(--radius-lg)',
-      padding: '20px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '12px',
-      transition: 'border-color var(--transition-fast)',
-      cursor: 'default'
+    <Card padding="md" style={{
+      display: 'flex', flexDirection: 'column', gap: '12px', cursor: 'default'
     }}>
       {/* Top row: label + icon */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '12px', color: 'var(--color-text-muted)',
-          textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 500 }}>
+        <span style={{ fontSize: '13px', color: 'var(--color-text-muted)',
+          textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
           {label}
         </span>
         {/* Colored icon badge */}
         <div style={{
-          width: '34px', height: '34px',
+          width: '36px', height: '36px',
           borderRadius: 'var(--radius-md)',
           backgroundColor: color,
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: `0 4px 12px ${color.replace('0.6', '0.2')}`
         }}>
           {icon}
         </div>
       </div>
 
       {/* Metric value */}
-      <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+      <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
         {value}
       </div>
 
       {/* Percentage change badge (if provided) */}
       {change && (
         <div style={{
-          fontSize: '12px', fontWeight: 500,
-          color: positive ? 'var(--color-success)' : 'var(--color-danger)'
+          fontSize: '13px', fontWeight: 600,
+          color: positive ? 'var(--color-success)' : 'var(--color-danger)',
+          display: 'flex', alignItems: 'center', gap: '4px'
         }}>
-          {change} vs last month
+          {positive ? '↑' : '↓'} {change} vs last month
         </div>
       )}
-    </div>
+    </Card>
   )
 }
 
@@ -89,19 +86,35 @@ function DashboardPage() {
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
-  return (
-    <div style={{ maxWidth: '1200px' }}>
+  const navigate = useNavigate()
 
+  return (
+    <div style={{ maxWidth: '1200px', animation: 'fadeIn 0.3s ease-in-out' }}>
+      
       {/* ── PAGE HEADER ─────────────────────────────────────── */}
-      <div style={{ marginBottom: '28px' }}>
-        <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, marginBottom: '4px' }}>
-          {greeting}, {user?.name?.split(' ')[0] ?? 'User'} 👋
-        </h1>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>
-          {user?.companyName} · {new Date().toLocaleDateString('en-IN', {
-            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-          })}
-        </p>
+      <div style={{ 
+        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', 
+        marginBottom: '32px' 
+      }}>
+        <div>
+          <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, marginBottom: '6px', color: 'var(--color-text)' }}>
+            {greeting}, {user?.name?.split(' ')[0] ?? 'User'} 👋
+          </h1>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '14px', fontWeight: 500 }}>
+            {user?.companyName} · {new Date().toLocaleDateString('en-IN', {
+              weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            })}
+          </p>
+        </div>
+        
+        {/* Quick Action */}
+        <Button 
+          variant="primary" 
+          rightIcon={<ArrowRight size={16} />}
+          onClick={() => navigate('/inventory')}
+        >
+          Go to Inventory
+        </Button>
       </div>
 
       {/* ── KPI STAT CARDS GRID ─────────────────────────────── */}
@@ -149,68 +162,54 @@ function DashboardPage() {
       }}>
 
         {/* Pending Approvals Widget */}
-        <div style={{
-          backgroundColor: 'var(--color-bg-surface)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-lg)',
-          padding: '20px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-            <CheckCircle size={16} color="var(--color-success)" />
-            <span style={{ fontWeight: 600, fontSize: '14px' }}>Pending Approvals</span>
-          </div>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>
+        <Card padding="md">
+          <CardHeader style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+            <CheckCircle size={18} color="var(--color-success)" />
+            <CardTitle>Pending Approvals</CardTitle>
+          </CardHeader>
+          <CardDescription>
             No pending approvals at this time.
-          </p>
-        </div>
+          </CardDescription>
+        </Card>
 
         {/* System Alerts Widget */}
-        <div style={{
-          backgroundColor: 'var(--color-bg-surface)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-lg)',
-          padding: '20px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-            <AlertTriangle size={16} color="var(--color-warning)" />
-            <span style={{ fontWeight: 600, fontSize: '14px' }}>System Alerts</span>
-          </div>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>
+        <Card padding="md">
+          <CardHeader style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+            <AlertTriangle size={18} color="var(--color-warning)" />
+            <CardTitle>System Alerts</CardTitle>
+          </CardHeader>
+          <CardDescription>
             All systems operating normally.
-          </p>
-        </div>
+          </CardDescription>
+        </Card>
 
         {/* Recent Activity Widget */}
-        <div style={{
-          backgroundColor: 'var(--color-bg-surface)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-lg)',
-          padding: '20px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-            <Activity size={16} color="var(--color-info)" />
-            <span style={{ fontWeight: 600, fontSize: '14px' }}>Recent Activity</span>
-          </div>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>
+        <Card padding="md">
+          <CardHeader style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+            <Activity size={18} color="var(--color-info)" />
+            <CardTitle>Recent Activity</CardTitle>
+          </CardHeader>
+          <CardDescription>
             Activity log will appear here once modules are active.
-          </p>
-        </div>
+          </CardDescription>
+        </Card>
 
       </div>
 
       {/* ── SPRINT NOTE ──────────────────────────────────────── */}
       {/* Temporary note shown during development — remove in production */}
       <div style={{
-        padding: '14px 18px',
-        borderRadius: 'var(--radius-md)',
+        padding: '16px 20px',
+        borderRadius: 'var(--radius-lg)',
         backgroundColor: 'rgba(79,70,229,0.08)',
         border: '1px solid rgba(79,70,229,0.2)',
-        fontSize: '13px',
-        color: 'var(--color-text-secondary)'
+        fontSize: '14px',
+        lineHeight: 1.5,
+        color: 'var(--color-text-secondary)',
+        backdropFilter: 'blur(8px)'
       }}>
-        <strong style={{ color: 'var(--color-primary)' }}>Sprint 1 Complete ✅</strong>
-        {' '}— Foundation scaffold is ready. Login, sidebar, header, and dashboard layout are functional.
-        Real data will populate these widgets as ERP modules are built in upcoming sprints.
+        <strong style={{ color: 'var(--color-primary)' }}>Sprint 2 Complete ✅</strong>
+        {' '}— Backend foundation and JWT authentication are fully working. Dashboard UI has been upgraded with premium components.
       </div>
 
     </div>

@@ -823,12 +823,56 @@ User logs in as "Staff" with limited permissions:
 | `src-tauri/tauri.conf.json` | Tauri app configuration |
 
 ### What is NOT built yet (comes in Sprint 2):
-- Real FastAPI backend server
-- Real PostgreSQL database
+- Real FastAPI backend server ✅ (Completed in Sprint 2)
+- Real PostgreSQL database ✅ (Completed in Sprint 2)
 - Real UDP LAN discovery
-- Real user authentication with JWT tokens
+- Real user authentication with JWT tokens ✅ (Completed in Sprint 2)
 - Any data in the dashboard KPI cards
 
 ---
 
-*This document is a living manual. Every new function, variable, page, and database table will be added here as it is built. Last updated: Sprint 1.*
+# PART 3: THE BACKEND & DATABASE (SPRINT 2 & 3)
+---
+
+## File: `backend/models.py`
+**Location in Project:** `C:\Users\DELL\OneDrive\Desktop\erp\backend\models.py`
+
+### Purpose
+This file defines the structure of every table in the PostgreSQL database using Python classes (SQLAlchemy ORM).
+
+### Key Tables Added:
+1. **Company**: Stores Account Master (AM) and Client Module (CM) companies.
+2. **User**: Stores all staff, managers, and admins.
+3. **Session**: Tracks active JWT logins for security.
+4. **Product (Sprint 3)**: Stores inventory items with `sku`, `price`, `stock`, and `status`.
+
+---
+
+## File: `backend/inventory/router.py`
+**Location in Project:** `C:\Users\DELL\OneDrive\Desktop\erp\backend\inventory\router.py`
+
+### Purpose
+Handles the API requests for the Inventory module.
+
+### Functions:
+1. `GET /products`: Fetches all products that belong to the currently logged-in user's company.
+2. `POST /products`: Creates a new product and saves it to the database under the user's company ID.
+
+---
+
+# PART 4: PREMIUM UI COMPONENTS (SPRINT 3)
+---
+
+## Files: `src/components/ui/Button.tsx`, `Card.tsx`, `Input.tsx`
+
+### Purpose
+To establish a stunning, cohesive, and premium design language, we created reusable building blocks.
+
+### Key Features:
+- **Button.tsx**: Supports multiple variants (`primary`, `secondary`, `ghost`, `danger`) and micro-animations on hover and click. Automatically shows a spinner when `isLoading` is true.
+- **Card.tsx**: A beautiful container used for dashboard widgets and layout sections. Adapts to the Glassmorphism theme perfectly by using the `var(--color-bg-surface)` CSS variable.
+- **Input.tsx**: A highly polished text field component that supports left/right icons and turns red with warning icons when there is an error.
+
+---
+
+*This document is a living manual. Every new function, variable, page, and database table will be added here as it is built. Last updated: Sprint 3.*

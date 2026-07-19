@@ -31,6 +31,7 @@ import models  # Importing models registers them with SQLAlchemy's Base
 
 # Import route modules
 from auth.router import router as auth_router
+from inventory.router import router as inventory_router
 
 # Load environment variables from .env file
 load_dotenv()
@@ -106,6 +107,9 @@ app.add_middleware(
 
 # Authentication routes: /auth/login, /auth/logout, /auth/me
 app.include_router(auth_router)
+
+# Inventory routes
+app.include_router(inventory_router)
 
 # Future routers will be added here as modules are built:
 # app.include_router(finance_router)
