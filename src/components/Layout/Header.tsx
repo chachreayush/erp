@@ -52,7 +52,7 @@ function Header() {
 
       {/* ── LEFT: APP LOGO & NAME ────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        {/* Logo block — a colored square with "M" for Merge ERP */}
+        {/* Logo block — a colored square with "E" for ERP */}
         <div style={{
           width: '28px', height: '28px',
           borderRadius: '6px',
@@ -61,7 +61,7 @@ function Header() {
           fontSize: '14px', fontWeight: 800, color: 'white',
           letterSpacing: '-0.5px'
         }}>
-          M
+          E
         </div>
 
         {/* App name */}
@@ -71,7 +71,7 @@ function Header() {
           color: 'var(--color-text-primary)',
           letterSpacing: '-0.3px'
         }}>
-          Merge ERP
+          ERP
         </span>
       </div>
 

@@ -5,7 +5,7 @@ import { Palette, CheckCircle2 } from 'lucide-react'
 const THEME_OPTIONS: { id: ThemeOption; name: string; description: string; colors: string[] }[] = [
   {
     id: 'default',
-    name: 'Merge Default (Dark)',
+    name: 'ERP Default (Dark)',
     description: 'The standard dark enterprise theme.',
     colors: ['#0f0f11', '#18181b', '#4f46e5'] // BG, Surface, Primary
   },
@@ -50,7 +50,7 @@ function SettingsPage() {
           <h2 style={{ fontSize: '16px', fontWeight: 600 }}>Theme & Appearance</h2>
         </div>
         <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px', marginBottom: '20px' }}>
-          Customize how Merge ERP looks. Your preference is saved to this device.
+          Customize how the ERP looks. Your preference is saved to this device.
         </p>
 
         {/* Theme Picker Grid */}

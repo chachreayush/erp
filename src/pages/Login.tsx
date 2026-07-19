@@ -15,7 +15,7 @@
    - Connects to Supabase cloud for authentication
    
    DESIGN: Clean, centered, dark mode login card with the
-   Merge ERP brand. Premium feel with subtle animations.
+   ERP brand. Premium feel with subtle animations.
    ============================================================ */
 
 import { useState, useEffect, useRef } from 'react'
@@ -147,7 +147,7 @@ function LoginPage() {
           id:          'user-001',
           name:        'Admin User',
           username:    username,
-          email:       `${username}@mergerp.com`,
+          email:       `${username}@erp.local`,
           role:        'am_admin',
           companyId:   appMode === 'remote' ? companyId : 'LOCAL-0001',
           companyName: appMode === 'remote' ? `Company (${companyId})` : 'Main Office (LAN)',
@@ -211,11 +211,11 @@ function LoginPage() {
             fontSize: '22px', fontWeight: 800, color: 'white',
             boxShadow: '0 8px 24px rgba(79,70,229,0.35)'
           }}>
-            M
+            E
           </div>
 
           <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: '6px' }}>
-            Merge ERP
+            ERP
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
             Sign in to your account
