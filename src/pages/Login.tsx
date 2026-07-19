@@ -20,20 +20,9 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuthStore, AuthUser, UserPermissions, ModulePermission } from '../store/authStore'
+import { useAuthStore, AuthUser } from '../store/authStore'
 import { Wifi, Globe, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react'
-
-// ── HELPER: Create a full permission object ───────────────────
-// Creates a permission object granting ALL permissions.
-// Used temporarily for development/demo login.
-// In production, permissions come from the database.
-const fullPermissions = (): UserPermissions => {
-  const full: ModulePermission = { view: true, create: true, edit: true, delete: true, approve: true }
-  return {
-    finance: full, inventory: full, sales: full,
-    crm: full, hr: full, reports: full, settings: full
-  }
-}
+import { apiLogin, apiHealthCheck } from '../lib/api'
 
 // ── LOGIN PAGE COMPONENT ──────────────────────────────────────
 function LoginPage() {
@@ -63,31 +52,27 @@ function LoginPage() {
   // When the login page first loads, simulate LAN discovery.
   // In production, this will use Tauri's shell plugin to send
   // a UDP broadcast and listen for the server's response beacon.
-  //
-  // For now (Sprint 1), we use a 2-second timeout to simulate
-  // the discovery process and default to 'remote' mode.
-  // The actual UDP implementation will be added in Sprint 2.
+  // Sprint 2: Real LAN discovery using the /health API endpoint.
+  // Calls GET http://localhost:8000/health with a 2-second timeout.
+  // If it responds with {status:'ok'} -> LAN mode
+  // If no response -> Remote mode
   useEffect(() => {
-    // If appMode is already set (e.g., user refreshed the page),
-    // skip the detection step
     if (appMode) {
       setIsDetecting(false)
       return
     }
-
     setIsDetecting(true)
-
-    // Simulate LAN scan (replace with real UDP broadcast in Sprint 2)
-    const discoveryTimeout = setTimeout(() => {
-      // TODO: Replace with real Tauri UDP broadcast discovery
-      // For development: default to 'remote' mode
-      setAppMode('remote')
+    const detectServer = async () => {
+      const serverFound = await apiHealthCheck()
+      if (serverFound) {
+        setAppMode('lan', 'http://localhost:8000')
+      } else {
+        setAppMode('remote')
+      }
       setIsDetecting(false)
-    }, 2000) // 2 second scan timeout
-
-    // Cleanup: cancel timeout if component unmounts before it fires
-    return () => clearTimeout(discoveryTimeout)
-  }, []) // Empty deps = run once on component mount
+    }
+    detectServer()
+  }, [])
 
   // ── AUTO-FOCUS FIRST INPUT ────────────────────────────────────
   // Once detection is done, focus the first input so the user
@@ -104,73 +89,61 @@ function LoginPage() {
     if (e.key === 'Enter') handleSubmit()
   }
 
-  // ── FORM SUBMIT HANDLER ───────────────────────────────────────
-  // Called when the user clicks "Login" or presses Enter.
-  // Validates inputs, calls the appropriate auth endpoint,
-  // and redirects to the dashboard on success.
+  // ── FORM SUBMIT HANDLER — Sprint 2: Real FastAPI backend ────────
   const handleSubmit = async () => {
-    // ── VALIDATION ──────────────────────────────────────────────
-    // Check that required fields are filled based on current mode
     if (appMode === 'remote' && !companyId.trim()) {
-      setError('Please enter your Company ID')
-      return
+      setError('Please enter your Company ID'); return
     }
-    if (!username.trim()) {
-      setError('Please enter your username')
-      return
-    }
-    if (!password.trim()) {
-      setError('Please enter your password')
-      return
-    }
+    if (!username.trim()) { setError('Please enter your username'); return }
+    if (!password.trim()) { setError('Please enter your password'); return }
 
-    // Clear any previous error and show loading state
     setError(null)
     setIsSubmitting(true)
     setLoading(true)
 
     try {
-      // ── TODO: REPLACE WITH REAL API CALL ─────────────────────
-      // In production, this will call:
-      //   - LAN mode:    POST http://{serverUrl}/auth/login
-      //   - Remote mode: Supabase auth with company_id validation
-      //
-      // For Sprint 1 (development only), we accept a hardcoded
-      // admin credential so we can test the UI and navigation.
-      await new Promise(resolve => setTimeout(resolve, 800)) // Simulate network delay
+      // Call the real FastAPI POST /auth/login endpoint
+      const response = await apiLogin({
+        company_code: appMode === 'remote' ? companyId.trim().toUpperCase() : undefined,
+        username:     username.trim(),
+        password:     password,
+        is_lan:       appMode === 'lan' || appMode === 'server'
+      })
 
-      // Demo credentials check (REMOVE IN PRODUCTION)
-      // Any username/password works for now to test navigation
-      if (username && password) {
-        // Simulate a successful login response from the server
-        const mockUser: AuthUser = {
-          id:          'user-001',
-          name:        'Admin User',
-          username:    username,
-          email:       `${username}@erp.local`,
-          role:        'am_admin',
-          companyId:   appMode === 'remote' ? companyId : 'LOCAL-0001',
-          companyName: appMode === 'remote' ? `Company (${companyId})` : 'Main Office (LAN)',
-          isAmUser:    true,
-          permissions: fullPermissions() // Grant all permissions for demo
-        }
-
-        // Store the user in the auth store — triggers redirect via ProtectedRoute
-        login(mockUser, 'demo-token-' + Date.now())
-
-        // Navigate to the dashboard
-        navigate('/')
-      } else {
-        setError('Invalid username or password')
+      // Map snake_case API response to camelCase AuthUser shape
+      const authUser: AuthUser = {
+        id:          response.user.id,
+        name:        response.user.name,
+        username:    response.user.username,
+        email:       response.user.email ?? '',
+        role:        response.user.role as AuthUser['role'],
+        companyId:   response.user.company_id,
+        companyName: response.user.company_name,
+        isAmUser:    response.user.is_am_user,
+        permissions: response.user.permissions,
+        avatarUrl:   response.user.avatar_url ?? undefined
       }
-    } catch (err) {
-      // Handle unexpected errors (network failure, server down, etc.)
-      setError('Connection failed. Please check your network and try again.')
+
+      // Save real JWT token and user profile to global auth store
+      login(authUser, response.access_token)
+      navigate('/')
+
+    } catch (err: any) {
+      // Extract the server's error message from FastAPI error format: { detail: "..." }
+      const serverMessage = err?.response?.data?.detail
+      if (serverMessage) {
+        setError(serverMessage)
+      } else if (err?.code === 'ECONNABORTED' || err?.code === 'ERR_NETWORK') {
+        setError('Cannot connect to server. Check your network or try again.')
+      } else {
+        setError('Login failed. Please try again.')
+      }
     } finally {
       setIsSubmitting(false)
       setLoading(false)
     }
   }
+
 
   // ── RENDER ────────────────────────────────────────────────────
   return (

@@ -194,7 +194,7 @@ export const useAuthStore = create<AuthState>()(
     // name: The localStorage key where state is saved.
     // partialize: Only save these specific fields (not isLoading/error).
     {
-      name: 'merge-erp-auth',
+      name: 'erp-auth',
       partialize: (state) => ({
         user:      state.user,
         token:     state.token,

@@ -1,0 +1,264 @@
+# ============================================================
+# models.py — Database Table Definitions (SQLAlchemy ORM)
+# ============================================================
+# This file defines the structure of every table in the
+# PostgreSQL database using Python classes.
+#
+# WHAT IS AN ORM?
+# ORM = Object-Relational Mapper. Instead of writing raw SQL
+# like "CREATE TABLE users (...)", we write Python classes.
+# SQLAlchemy translates these classes into real SQL tables.
+#
+# BENEFIT: We can interact with the database using Python
+# objects (e.g., user.name = "Rahul") instead of SQL strings.
+# This is safer, cleaner, and less error-prone.
+#
+# SPRINT 2 TABLES:
+# 1. Company  — Stores AM + all CM companies
+# 2. User     — All user accounts across all companies
+# 3. Session  — Active login sessions (JWT tracking)
+# ============================================================
+
+# Column types and relationships from SQLAlchemy
+from sqlalchemy import (
+    Column,          # Defines a table column
+    String,          # Text column (variable length)
+    Boolean,         # True/False column
+    DateTime,        # Date + time column
+    ForeignKey,      # Links one table to another (relationship)
+    Text,            # Long text column (for descriptions)
+    Enum as SAEnum   # A column that only accepts specific values
+)
+from sqlalchemy.orm import relationship  # Defines relationships between tables
+from sqlalchemy.dialects.postgresql import UUID  # PostgreSQL-specific UUID type
+from database import Base  # The declarative base all models inherit from
+import uuid                # Python standard library for generating UUIDs
+from datetime import datetime  # For timestamps
+import enum                # Python standard library for enum definitions
+
+
+# ── PYTHON ENUMS ──────────────────────────────────────────────
+# These define the exact values a column is allowed to have.
+# The database enforces these — invalid values are rejected.
+
+class UserRole(str, enum.Enum):
+    """
+    Defines all possible user roles in the system.
+    Inherits from str so these values work cleanly with JSON/Pydantic.
+    """
+    AM_ADMIN     = "am_admin"      # Account Master Admin — God mode
+    CM_ADMIN     = "cm_admin"      # Client Module Admin
+    MANAGER      = "manager"       # Manager — approvals, team view
+    AREA_MANAGER = "area_manager"  # Regional/sales manager
+    STAFF        = "staff"         # Standard ERP staff
+    FIELD_STAFF  = "field_staff"   # Field/mobile staff
+    VIEWER       = "viewer"        # Read-only access
+
+
+# ── TABLE 1: Company ──────────────────────────────────────────
+class Company(Base):
+    """
+    Stores every company in the system.
+    There is ONE AM company (the software owner) and MANY CM companies (clients).
+
+    DATA ISOLATION RULE: Every piece of data in every other table
+    has a company_id that links it back to this table. This ensures
+    data from Company A can NEVER be seen by Company B users.
+
+    Table name in PostgreSQL: 'companies'
+    """
+    __tablename__ = "companies"  # The actual name of the table in the database
+
+    # ── COLUMNS ─────────────────────────────────────────────────
+
+    # id: Primary key — a UUID (universally unique ID like "a3b4c5...")
+    # Uses PostgreSQL's native UUID type for guaranteed uniqueness.
+    # default=uuid.uuid4 means a new random UUID is auto-generated
+    # whenever a new company is created — we never set this manually.
+    id = Column(
+        UUID(as_uuid=True),      # UUID type (stored as 128-bit value in DB)
+        primary_key=True,        # This is the primary key (must be unique)
+        default=uuid.uuid4,      # Auto-generate a new UUID on creation
+        nullable=False           # Cannot be empty
+    )
+
+    # name: The full company name shown in the UI
+    # e.g., "Mumbai Traders Pvt Ltd"
+    name = Column(String(255), nullable=False)
+
+    # company_code: The short unique code used for remote login
+    # e.g., "MUM-6135" — users type this when logging in remotely
+    # unique=True ensures no two companies can have the same code
+    company_code = Column(String(20), unique=True, nullable=False, index=True)
+
+    # is_am: Flags whether this is the Account Master company.
+    # Only ONE company in the entire system should have is_am=True.
+    # The AM company's admin can see ALL companies' data.
+    is_am = Column(Boolean, default=False, nullable=False)
+
+    # address: Optional physical address of the company
+    address = Column(Text, nullable=True)
+
+    # phone: Contact phone number
+    phone = Column(String(20), nullable=True)
+
+    # email: Primary contact email for the company
+    email = Column(String(255), nullable=True)
+
+    # is_active: Soft delete flag.
+    # Instead of deleting a company from the database (which would
+    # orphan all their data), we set is_active=False to "deactivate" them.
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    # created_at: When this company record was created.
+    # default=datetime.utcnow means the timestamp is set automatically.
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # ── RELATIONSHIPS ────────────────────────────────────────────
+    # This tells SQLAlchemy that one Company can have MANY Users.
+    # Accessing company.users gives you a list of all users in that company.
+    # back_populates="company" links this to the User.company relationship.
+    users = relationship("User", back_populates="company")
+
+    def __repr__(self):
+        """String representation for debugging — shows in logs and Python shell"""
+        return f"<Company {self.company_code}: {self.name}>"
+
+
+# ── TABLE 2: User ─────────────────────────────────────────────
+class User(Base):
+    """
+    Stores every user account in the system across all companies.
+
+    SECURITY NOTE: Passwords are NEVER stored as plain text.
+    Only the bcrypt-hashed version is stored. Even if someone
+    steals the database, they cannot recover original passwords.
+
+    Table name in PostgreSQL: 'users'
+    """
+    __tablename__ = "users"
+
+    # ── COLUMNS ─────────────────────────────────────────────────
+
+    # id: Primary key UUID — auto-generated, never set manually
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+
+    # company_id: Foreign key linking this user to their company.
+    # ForeignKey("companies.id") means this value must exist in
+    # the 'id' column of the 'companies' table.
+    # If a company is deleted, what happens to their users?
+    # ondelete="CASCADE" means users are deleted too — no orphaned records.
+    company_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("companies.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True  # Add index for fast lookups by company
+    )
+
+    # name: Full display name (e.g., "Rahul Sharma")
+    name = Column(String(255), nullable=False)
+
+    # username: The login username — must be unique WITHIN a company.
+    # Note: Two different companies CAN have a user named "admin" —
+    # the company_id + username combination must be unique.
+    username = Column(String(100), nullable=False, index=True)
+
+    # email: User's email address
+    email = Column(String(255), nullable=True)
+
+    # hashed_password: The bcrypt hash of the user's password.
+    # NEVER store plain text passwords.
+    # bcrypt automatically includes a salt and is designed to be slow
+    # (making brute-force attacks computationally expensive).
+    hashed_password = Column(String(255), nullable=False)
+
+    # role: The user's authority level — must be one of the UserRole enum values.
+    # SAEnum maps the Python UserRole enum to a PostgreSQL ENUM type.
+    role = Column(
+        SAEnum(UserRole),
+        nullable=False,
+        default=UserRole.STAFF  # Default role is standard staff
+    )
+
+    # is_active: Whether the user can log in.
+    # Set to False to disable an account without deleting the user's data.
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    # avatar_url: Optional URL to the user's profile picture.
+    avatar_url = Column(String(500), nullable=True)
+
+    # created_at: When the account was created
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # last_login: When the user last successfully logged in.
+    # Updated every time they log in. Useful for security auditing.
+    last_login = Column(DateTime, nullable=True)
+
+    # ── RELATIONSHIPS ────────────────────────────────────────────
+    # Link back to the Company this user belongs to.
+    # Accessing user.company gives the full Company object.
+    company = relationship("Company", back_populates="users")
+
+    # Link to all active sessions for this user.
+    # Accessing user.sessions gives a list of their login sessions.
+    sessions = relationship("Session", back_populates="user")
+
+    def __repr__(self):
+        return f"<User {self.username} @ {self.company_id}>"
+
+
+# ── TABLE 3: Session ──────────────────────────────────────────
+class Session(Base):
+    """
+    Tracks every active login session in the system.
+
+    WHY WE TRACK SESSIONS:
+    JWT tokens are "stateless" — the server normally can't invalidate
+    them before they expire. By storing session records here, we can:
+    1. Log the user out immediately by deleting their session record.
+    2. See all active sessions for a user (security audit).
+    3. Detect suspicious activity (too many sessions, unusual locations).
+
+    SECURITY: We store a HASH of the token, not the token itself.
+    If this table is stolen, attackers get the hash (useless),
+    not the actual tokens.
+
+    Table name in PostgreSQL: 'sessions'
+    """
+    __tablename__ = "sessions"
+
+    # ── COLUMNS ─────────────────────────────────────────────────
+
+    # id: Primary key UUID
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+
+    # user_id: Which user owns this session
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),  # Delete sessions if user deleted
+        nullable=False,
+        index=True
+    )
+
+    # token_hash: A SHA-256 hash of the JWT token.
+    # Used to quickly look up and validate/invalidate sessions.
+    token_hash = Column(String(255), nullable=False, unique=True, index=True)
+
+    # created_at: When the session was created (login time)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # expires_at: When this session automatically expires.
+    # The server checks this timestamp on every request — if the current
+    # time is past expires_at, the user must log in again.
+    expires_at = Column(DateTime, nullable=False)
+
+    # is_active: Allows instantly deactivating a session without deleting it.
+    # Set to False on logout — faster than a DELETE query.
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    # ── RELATIONSHIPS ────────────────────────────────────────────
+    # Link back to the User who owns this session
+    user = relationship("User", back_populates="sessions")
+
+    def __repr__(self):
+        return f"<Session user={self.user_id} expires={self.expires_at}>"
