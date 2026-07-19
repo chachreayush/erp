@@ -1,32 +1,14 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-
-  // ── APP IDENTITY ────────────────────────────────────────────────────────
-  // productName: The name shown in the window title bar and taskbar.
-  // identifier: A unique reverse-domain ID for this app (used by the OS).
-  // version: Current version of the ERP software.
   "productName": "Merge ERP",
   "version": "0.1.0",
   "identifier": "com.mergerp.desktop",
-
-  // ── BUILD CONFIGURATION ─────────────────────────────────────────────────
-  // beforeDevCommand: Runs the Vite dev server before Tauri launches in dev mode.
-  // devUrl: The local URL Tauri opens in development (Vite's default port).
-  // beforeBuildCommand: Builds the React app before Tauri bundles the .exe.
-  // frontendDist: Where the built React files are output (used for packaging).
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
-
-  // ── APPLICATION WINDOW ──────────────────────────────────────────────────
-  // Defines the main application window properties.
-  // width/height: Default window size on launch (optimized for ERP workflows).
-  // minWidth/minHeight: Minimum allowed size so the UI never breaks.
-  // maximized: Start maximized since ERP users need maximum screen space.
-  // decorations: true = native OS window chrome (title bar, close/min/max buttons).
   "app": {
     "windows": [
       {
@@ -41,16 +23,9 @@
       }
     ],
     "security": {
-      // csp: Content Security Policy. Set to null during development.
-      // Will be tightened in production to restrict what resources can load.
       "csp": null
     }
   },
-
-  // ── BUNDLE / INSTALLER CONFIGURATION ───────────────────────────────────
-  // active: true = create installer files when running `npm run tauri build`.
-  // targets: "all" = build for all supported targets (NSIS .exe on Windows).
-  // icon: The icon files used at different resolutions for the app.
   "bundle": {
     "active": true,
     "targets": "all",
