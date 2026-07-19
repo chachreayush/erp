@@ -1,0 +1,10 @@
+Category,Component,Technology,Purpose / Details
+Frontend (User Interface),Desktop UI Framework,Tauri 2.0,Builds a lightweight and extremely fast desktop application executable.
+Frontend (User Interface),UI Code,"React (TypeScript)","Industry standard for building rich, snappy, keyboard-first interfaces."
+Backend (The Brain),API Logic,"Python (FastAPI)","Blazing fast framework to handle billing rules, permissions, and business logic on the server."
+Backend (The Brain),Packaging / Installer,"PyInstaller & Inno Setup",Bundles the Python backend directly into the .exe so users don't have to install Python manually. Creates the Server Setup and Remote Setup installers.
+Databases (Data Storage),Main Server Database,PostgreSQL,"The primary, authoritative database handling heavy financial data. Runs only on the main office server."
+Databases (Data Storage),Remote Offline Cache,SQLite,"A tiny, file-based database embedded inside the remote client's app allowing them to work if the internet drops."
+Databases (Data Storage),Cloud Database Bridge,"Supabase (PostgreSQL)","A secure, managed cloud database acting as the synchronization bridge between remote users and the office server."
+Deployment & Connectivity,LAN Discovery,UDP Broadcast,"Allows the copy-pasted ERP.exe on a local network to instantly find the main server without manually typing IP addresses."
+Deployment & Connectivity,Mobile Framework (Future),"React Native (TypeScript)",Cross-platform framework for building Android and iOS applications sharing logic with the desktop app.

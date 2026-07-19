@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERP Software — Requirements Outline</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --accent: #7c3aed;
+            --bg: #ffffff;
+            --bg-alt: #f8fafc;
+            --bg-section: #f1f5f9;
+            --text: #1e293b;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --border: #e2e8f0;
+            --success: #059669;
+            --warning: #d97706;
+            --info: #0891b2;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: var(--text);
+            background: var(--bg);
+            line-height: 1.7;
+            font-size: 14px;
+        }
+
+        .page-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 50px;
+        }
+
+        /* Header */
+        .doc-header {
+            text-align: center;
+            padding: 40px 0 30px;
+            border-bottom: 3px solid var(--primary);
+            margin-bottom: 30px;
+        }
+
+        .doc-header h1 {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--primary);
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+
+        .doc-header .subtitle {
+            font-size: 16px;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .doc-meta {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 15px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .doc-meta span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Table of Contents */
+        .toc {
+            background: var(--bg-alt);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 25px 30px;
+            margin-bottom: 35px;
+        }
+
+        .toc h2 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .toc ol {
+            columns: 2;
+            column-gap: 30px;
+            padding-left: 20px;
+        }
+
+        .toc li {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            break-inside: avoid;
+        }
+
+        .toc li a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .toc li a:hover {
+            text-decoration: underline;
+        }
+
+        /* Section Styling */
+        .section {
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .section-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            background: var(--primary);
+            color: white;
+            font-weight: 700;
+            font-size: 15px;
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+
+        .section-header h2 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        h3 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--primary-dark);
+            margin: 18px 0 10px;
+        }
+
+        /* Content */
+        ul {
+            padding-left: 22px;
+            margin-bottom: 10px;
+        }
+
+        li {
+            margin-bottom: 5px;
+            color: var(--text-secondary);
+        }
+
+        li strong {
+            color: var(--text);
+        }
+
+        ul ul {
+            margin-top: 4px;
+            margin-bottom: 4px;
+        }
+
+        p {
+            margin-bottom: 10px;
+            color: var(--text-secondary);
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0 16px;
+            font-size: 13px;
+        }
+
+        thead th {
+            background: var(--primary);
+            color: white;
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        thead th:first-child {
+            border-radius: 6px 0 0 0;
+        }
+
+        thead th:last-child {
+            border-radius: 0 6px 0 0;
+        }
+
+        tbody td {
+            padding: 9px 14px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        tbody tr:nth-child(even) {
+            background: var(--bg-alt);
+        }
+
+        tbody td strong {
+            color: var(--text);
+        }
+
+        /* Info box */
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid var(--primary);
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 12px 0;
+            font-size: 13px;
+            color: var(--primary-dark);
+        }
+
+        /* Code / Hierarchy block */
+        .hierarchy-block {
+            background: var(--bg-section);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 2;
+            color: var(--text);
+            margin: 12px 0;
+        }
+
+        /* Divider */
+        hr {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 25px 0;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                font-size: 12px;
+            }
+            .page-container {
+                padding: 20px;
+                max-width: 100%;
+            }
+            .doc-header {
+                padding: 20px 0 15px;
+            }
+            .doc-header h1 {
+                font-size: 26px;
+            }
+            .section {
+                page-break-inside: avoid;
+            }
+            .toc {
+                page-break-after: always;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        /* Footer */
+        .doc-footer {
+            text-align: center;
+            padding: 25px 0;
+            margin-top: 30px;
+            border-top: 3px solid var(--primary);
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        /* Print button */
+        .print-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 50px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+            z-index: 1000;
+        }
+
+        .print-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <button class="print-btn no-print" onclick="window.print()">📄 Save as PDF / Print</button>
+
+    <div class="page-container">
+
+        <!-- Header -->
+        <div class="doc-header">
+            <h1>ERP Software</h1>
+            <div class="subtitle">Requirements Outline & Specification Document</div>
+            <div class="doc-meta">
+                <span>📄 Version 1.0</span>
+                <span>📅 July 19, 2026</span>
+                <span>📋 Status: Approved</span>
+            </div>
+        </div>
+
+        <!-- Table of Contents -->
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ol>
+                <li><a href="#s1">Multi-Tenant Architecture (AM / CM Model)</a></li>
+                <li><a href="#s2">Core ERP Modules</a></li>
+                <li><a href="#s3">Data Architecture & Storage Strategy</a></li>
+                <li><a href="#s4">Remote Order Placement & Approval Workflow</a></li>
+                <li><a href="#s5">User Experience & Interaction</a></li>
+                <li><a href="#s6">CRM Module</a></li>
+                <li><a href="#s7">HR Management Module</a></li>
+                <li><a href="#s8">Data Integrity & Audit</a></li>
+                <li><a href="#s9">Deployment & Installation</a></li>
+                <li><a href="#s10">Licensing & Subscription Model</a></li>
+                <li><a href="#s11">Cross-Platform Support</a></li>
+                <li><a href="#s12">Security & Authentication</a></li>
+                <li><a href="#s13">Backup & Disaster Recovery</a></li>
+                <li><a href="#s14">Notification & Alert System</a></li>
+                <li><a href="#s15">API & Integration Layer</a></li>
+                <li><a href="#s16">Multi-Language & Multi-Currency Support</a></li>
+                <li><a href="#s17">Dashboard & Reporting Enhancements</a></li>
+                <li><a href="#s18">Activity Log & User Tracking</a></li>
+                <li><a href="#s19">Scalability Considerations</a></li>
+                <li><a href="#s20">Proposed Unified Architecture & Connectivity Model</a></li>
+            </ol>
+        </div>
+
+        <!-- Section 1 -->
+        <div class="section" id="s1">
+            <div class="section-header">
+                <span class="section-number">1</span>
+                <h2>Multi-Tenant Architecture (AM / CM Model)</h2>
+            </div>
+
+            <h3>1.1 Account Master (AM) — Main Company</h3>
+            <ul>
+                <li>The primary login and top-level entity in the system.</li>
+                <li>AM has its own <strong>independent ERP ecosystem</strong> with full functionality.</li>
+                <li>AM has <strong>unrestricted access</strong> to view and manage any Client Module (CM) company and its data.</li>
+                <li>AM defines the <strong>master set of ERP functionalities</strong> that are available to all CMs.</li>
+                <li>AM grants, restricts, or revokes access to <strong>basic and special modules</strong> for each CM.</li>
+                <li>AM can <strong>modify CM permissions at any time</strong> after initial creation.</li>
+            </ul>
+
+            <h3>1.2 Client Module (CM) — Client Companies</h3>
+            <ul>
+                <li>Created by the AM.</li>
+                <li>Each CM receives access to modules as <strong>permitted by AM</strong> at the time of creation.</li>
+                <li>Each CM has its own <strong>CM Admin</strong> who can independently manage:
+                    <ul>
+                        <li>Roles</li>
+                        <li>Rules</li>
+                        <li>Restrictions</li>
+                        <li>Access controls</li>
+                    </ul>
+                </li>
+                <li><strong>Isolation Principle:</strong> Any roles, rules, restrictions, or access changes made by a CM affect <strong>only that CM</strong>. They have <strong>no impact</strong> on the AM or any other CM.</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <!-- Section 2 -->
+        <div class="section" id="s2">
+            <div class="section-header">
+                <span class="section-number">2</span>
+                <h2>Core ERP Modules</h2>
+            </div>
+            <p>All the standard functionalities found in leading ERP platforms (Odoo, ERPNext, SAP, Marg ERP) must be included. At a minimum, this covers:</p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Module Area</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Finance & Accounting</strong></td>
+                        <td>General ledger, accounts payable/receivable, billing, invoicing, taxation</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Inventory & Warehouse</strong></td>
+                        <td>Stock management, purchase orders, goods receipt, warehouse operations</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Sales & Purchase</strong></td>
+                        <td>Sales orders, purchase orders, pricing, quotations</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Manufacturing</strong></td>
+                        <td>Bill of materials, production planning (if applicable)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>CRM</strong></td>
+                        <td>Customer relationship management (see Section 6)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>HR Management</strong></td>
+                        <td>Human resources management (see Section 7)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Reporting & Analytics</strong></td>
+                        <td>Dashboards, financial reports, audit trails</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="info-box">Each module is available individually to AM and each CM as permitted.</div>
+        </div>
+
+        <hr>
+
+        <!-- Section 3 -->
+        <div class="section" id="s3">
+            <div class="section-header">
+                <span class="section-number">3</span>
+                <h2>Data Architecture & Storage Strategy</h2>
+            </div>
+
+            <h3>3.1 Offline-First / Local-First</h3>
+            <ul>
+                <li>All data is <strong>stored locally first</strong> on the user's machine/server.</li>
+                <li>A <strong>local relational data engine</strong> handles all core transactions to ensure <strong>zero lag</strong>, especially during peak billing hours.</li>
+                <li>Micro-second lags during peak hours are <strong>unacceptable</strong>.</li>
+            </ul>
+
+            <h3>3.2 Cloud Sync — Isolated Per Company</h3>
+            <ul>
+                <li>Data syncs to the cloud <strong>in the background</strong> when internet access is available.</li>
+                <li>Each company's shared data is stored on a <strong>separate cloud account</strong>:
+                    <ul>
+                        <li>AM shared data → <strong>AM's cloud account</strong></li>
+                        <li>CM1 shared data → <strong>CM1's cloud account</strong></li>
+                        <li>CM2 shared data → <strong>CM2's cloud account</strong></li>
+                        <li>...and so on.</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h3>3.3 Cloud-to-Local Data Protection</h3>
+            <ul>
+                <li>Changes made to the <strong>shared cloud database cannot directly alter</strong> the main data stored on the local system.</li>
+                <li>When cloud data changes (e.g., a remote user updates a record), the system sends a <strong>push notification</strong> to the local system.</li>
+                <li>The local admin/operator <strong>reviews and decides</strong> whether to accept those changes into the local master data.</li>
+                <li>This ensures the <strong>local database remains the authoritative source of truth</strong> and is protected from unintended remote modifications.</li>
+            </ul>
+
+            <h3>3.4 Multi-User Architecture</h3>
+            <ul>
+                <li>There is a <strong>main server</strong> and other users connect as <strong>clients</strong>.</li>
+                <li>Remote access is available via <strong>Windows, Android, and iOS</strong> applications.</li>
+                <li>Remote users sync to their respective company's shared database.</li>
+                <li>Read, write, and delete permissions for remote users are <strong>controlled by the CM Admin</strong>, which in turn is <strong>governed by the AM</strong>.</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <!-- Section 4 -->
+        <div class="section" id="s4">
+            <div class="section-header">
+                <span class="section-number">4</span>
+                <h2>Remote Order Placement & Approval Workflow</h2>
+            </div>
+
+            <h3>4.1 Remote Order Placement</h3>
+            <ul>
+                <li>Orders can be <strong>placed from remote applications</strong> (Android, iOS, Windows client).</li>
+                <li>Remote orders are <strong>not final</strong> — they enter an <strong>approval queue</strong>.</li>
+            </ul>
+
+            <h3>4.2 Company-Specific Approval Rules</h3>
+            <ul>
+                <li>Each company (CM) can <strong>individually configure</strong> its own approval workflow:
+                    <ul>
+                        <li>Number of approval stages.</li>
+                        <li>Which roles can approve at each stage.</li>
+                        <li>Auto-approval thresholds (e.g., orders below a certain value).</li>
+                    </ul>
+                </li>
+                <li>Approval rules are managed by the <strong>CM Admin</strong> and do not affect other CMs.</li>
+            </ul>
+
+            <h3>4.3 Final Approval & Billing on Windows Desktop</h3>
+            <ul>
+                <li>The <strong>final check, approval, and billing</strong> for all orders is done exclusively on the <strong>Windows desktop application</strong>.</li>
+                <li>The Windows app serves as the <strong>primary billing station</strong> — no billing is finalized on mobile apps.</li>
+                <li>Approved orders flow into the billing/invoicing module for completion.</li>
+            </ul>
+
+            <h3>4.4 Approval Hierarchy Example</h3>
+            <div class="hierarchy-block">
+                Field Staff (Mobile) → Places Order<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
+                Sales Area Manager → Approves / Rejects<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
+                Manager → Approves / Rejects<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
+                Admin (Windows Desktop) → Final Approval + Billing
+            </div>
+        </div>
+
+        <hr>
+
+        <!-- Section 5 -->
+        <div class="section" id="s5">
+            <div class="section-header">
+                <span class="section-number">5</span>
+                <h2>User Experience & Interaction</h2>
+            </div>
+
+            <h3>5.1 Keyboard-First Operation</h3>
+            <ul>
+                <li>All modules must function <strong>entirely without a mouse</strong>.</li>
+                <li>Every core transaction must be navigable via <strong>rapid keyboard hotkeys</strong> and directional keys.</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <!-- Section 6 -->
+        <div class="section" id="s6">
+            <div class="section-header">
+                <span class="section-number">6</span>
+                <h2>CRM Module</h2>
+            </div>
+
+            <ul>
+                <li>Available individually for AM, CM1, CM2, etc.</li>
+                <li>Exists as a <strong>separate section</strong> with data relations specific to each individual company.</li>
+            </ul>
+
+            <h3>Field Staff Features</h3>
+            <ul>
+                <li>Create, update, and delete records (deletions require <strong>CM Admin approval</strong>).</li>
+                <li>Daily planning records.</li>
+                <li><strong>Geo-tagging</strong> for field visits.</li>
+            </ul>
+
+            <h3>Hierarchy-Based Access</h3>
+            <ul>
+                <li>Admin → Full access & power</li>
+                <li>Managers</li>
+                <li>Sales Area Managers</li>
+                <li>...and so on down the hierarchy.</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <!-- Section 7 -->
+        <div class="section" id="s7">
+            <div class="section-header">
+                <span class="section-number">7</span>
+                <h2>HR Management Module</h2>
+            </div>
+            <ul>
+                <li>Available individually for AM, CM1, CM2, etc.</li>
+                <li>Exists as a <strong>separate section</strong> with data relations specific to each individual company.</li>
+                <li>Standard HR functionalities (employee records, attendance, payroll, leave management, etc.).</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <!-- Section 8 -->
+        <div class="section" id="s8">
+            <div class="section-header">
+                <span class="section-number">8</span>
+                <h2>Data Integrity & Audit</h2>
+            </div>
+            <ul>
+                <li><strong>Manual and Automatic File Repair.</strong></li>
+                <li><strong>Books Rewriting</strong> — ability to correct and rewrite financial books.</li>
+                <li><strong>Rechecking</strong> — automated rechecking of records for inconsistencies.</li>
+                <li><strong>Audit Logs</strong> — comprehensive audit trails for both <strong>AM and all CMs</strong>.</li>
+                <li><strong>No Data Duplicacy</strong> — strict system-level validation to prevent duplicate entries (e.g., invoices, inventory items, customer records).</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <!-- Section 9 -->
+        <div class="section" id="s9">
+            <div class="section-header">
+                <span class="section-number">9</span>
+                <h2>Deployment & Installation</h2>
+            </div>
+
+            <h3>9.1 Simple Setup</h3>
+            <ul>
+                <li>Software is packaged as a <strong>single setup file</strong> (e.g., <code>.exe</code> installer).</li>
+                <li>Installation follows a simple <strong>"double-click → Next → Next → Install"</strong> workflow.</li>
+            </ul>
+
+            <h3>9.2 Cloud Setup</h3>
+            <ul>
+                <li>Cloud configuration is done <strong>within the software</strong> itself.</li>
+                <li>Must be <strong>easy enough for a non-technical person</strong> to complete.</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <!-- Section 10 -->
+        <div class="section" id="s10">
+            <div class="section-header">
+                <span class="section-number">10</span>
+                <h2>Licensing & Subscription Model</h2>
+            </div>
+            <ul>
+                <li>Development of this software is <strong>cost-free</strong> (no licensing fees for the developer/owner).</li>
+                <li>If the software is <strong>distributed or sold</strong> to others:
+                    <ul>
+                        <li>A <strong>subscription model</strong> is enforced.</li>
+                        <li>Different <strong>subscription tiers/modules</strong> are available.</li>
+                        <li>The owner (AM) retains the ability to <strong>remotely terminate</strong> a user's subscription at any time.</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <!-- Section 11 -->
+        <div class="section" id="s11">
+            <div class="section-header">
+                <span class="section-number">11</span>
+                <h2>Cross-Platform Support</h2>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Platform</th>
+                        <th>Type</th>
+                        <th>Role</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Windows</strong></td>
+                        <td>Desktop application (primary)</td>
+                        <td><strong>Primary billing & final approval station</strong></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Android</strong></td>
+                        <td>Mobile application</td>
+                        <td>Remote access, order placement, field operations</td>
+                    </tr>
+                    <tr>
+                        <td><strong>iOS</strong></td>
+                        <td>Mobile application</td>
+                        <td>Remote access, order placement, field operations</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>All platforms connect to the shared database with permissions controlled by the CM/AM hierarchy.</p>
+        </div>
+
+        <hr>
+
+        <!-- Section 12 -->
+        <div class="section" id="s12">
+            <div class="section-header">
+                <span class="section-number">12</span>
+                <h2>Security & Authentication</h2>
+            </div>
+            <ul>
+                <li><strong>Two-factor authentication (2FA)</strong> for AM and CM Admin logins.</li>
+                <li><strong>Encrypted data storage</strong> (at rest and in transit).</li>
+            </ul>
+
+            <h3>Smart Session Management</h3>
+            <ul>
+                <li><strong>Persistent trusted devices</strong> — once a device is verified, it stays logged in without repeated authentication.</li>
+                <li><strong>Background token refresh</strong> — sessions renew silently in the background so users are never interrupted.</li>
+                <li><strong>Sensitive action re-verification</strong> — only prompt for password/PIN when performing high-risk actions (e.g., deleting records, changing permissions, financial approvals), not for routine use.</li>
+                <li><strong>Role-based session rules</strong> — AM Admin can configure session policies per role (e.g., field staff sessions last longer, admin sessions require periodic re-verification).</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <!-- Section 13 -->
+        <div class="section" id="s13">
+            <div class="section-header">
+                <span class="section-number">13</span>
+                <h2>Backup & Disaster Recovery</h2>
+            </div>
+            <ul>
+                <li><strong>Automated scheduled backups</strong> (local + cloud).</li>
+                <li><strong>Point-in-time recovery</strong> for databases.</li>
+                <li><strong>Backup encryption</strong> for sensitive financial data.</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <!-- Section 14 -->
+        <div class="section" id="s14">
+            <div class="section-header">
+                <span class="section-number">14</span>
+                <h2>Notification & Alert System</h2>
+            </div>
+            <p>In-app and push notifications for:</p>
+            <ul>
+                <li>Pending approvals (e.g., CM field staff deletion requests, remote order approvals).</li>
+                <li>Cloud-to-local data change requests (requiring local admin review).</li>
+                <li>Subscription expiry warnings.</li>
+                <li>Data sync failures.</li>
+                <li>Low inventory alerts.</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <!-- Section 15 -->
+        <div class="section" id="s15">
+            <div class="section-header">
+                <span class="section-number">15</span>
+                <h2>API & Integration Layer</h2>
+            </div>
+            <ul>
+                <li>A <strong>REST/GraphQL API</strong> so the ERP can integrate with third-party tools (payment gateways, e-commerce platforms, government tax portals like GST).</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <!-- Section 16 -->
+        <div class="section" id="s16">
+            <div class="section-header">
+                <span class="section-number">16</span>
+                <h2>Multi-Language & Multi-Currency Support</h2>
+            </div>
+            <ul>
+                <li>Support for <strong>multiple languages</strong> in the UI.</li>
+                <li><strong>Multi-currency handling</strong> for companies operating internationally.</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <!-- Section 17 -->
+        <div class="section" id="s17">
+            <div class="section-header">
+                <span class="section-number">17</span>
+                <h2>Dashboard & Reporting Enhancements</h2>
+            </div>
+            <ul>
+                <li><strong>Role-based dashboards</strong> — each user sees a dashboard relevant to their role.</li>
+                <li><strong>Custom report builder</strong> — allow CM Admins to build their own reports.</li>
+                <li><strong>Export options</strong> — PDF, Excel, CSV for all reports.</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <!-- Section 18 -->
+        <div class="section" id="s18">
+            <div class="section-header">
+                <span class="section-number">18</span>
+                <h2>Activity Log & User Tracking</h2>
+            </div>
+            <ul>
+                <li>Beyond audit logs, track <strong>user activity</strong> (who accessed what, when) for compliance purposes.</li>
+                <li>Full traceability of all user actions across AM and CMs.</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <!-- Section 19 -->
+        <div class="section" id="s19">
+            <div class="section-header">
+                <span class="section-number">19</span>
+                <h2>Scalability Considerations</h2>
+            </div>
+            <ul>
+                <li>Design the architecture to handle <strong>growth</strong> — from a single CM to hundreds of CMs without performance degradation.</li>
+                <li>Efficient database indexing and query optimization for large data volumes.</li>
+                <li>Modular architecture allowing new modules to be added without disrupting existing ones.</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <!-- Section 20 -->
+        <div class="section" id="s20">
+            <div class="section-header">
+                <span class="section-number">20</span>
+                <h2>Proposed Unified Architecture & Connectivity Model</h2>
+            </div>
+            
+            <h3>20.1 Unified Single Application (The "One-Exe" Model)</h3>
+            <p>The ERP will be distributed as a single executable file (<code>ERP.exe</code>) that dynamically adapts its behavior based on how and where it is launched. This eliminates the need for separate server, client, and remote applications.</p>
+            <ul>
+                <li><strong>Server Mode (Main Office PC):</strong> When run for the first time via the full setup installer, the application initializes the main local database, the backend services, and the administrative ERP interface.</li>
+                <li><strong>LAN Client Mode (Local Network):</strong> Designed to match the simplicity of Marg ERP. An administrator can simply copy the <code>ERP.exe</code> file and paste it onto any other computer on the same local network. <strong>No installation or configuration is required.</strong> When double-clicked, the application uses UDP broadcast to automatically discover the main server on the network within 1-2 seconds and connects instantly. Users never need to manually enter IP addresses or server paths.</li>
+                <li><strong>Remote Client Mode (Internet):</strong> If a user takes the exact same <code>ERP.exe</code> outside the office (or if the application fails to find a local server), it automatically switches to remote mode. It connects securely via the cloud bridge (using a shared cloud database) while maintaining a local offline cache so the user can continue working even if their internet connection drops.</li>
+            </ul>
+
+            <h3>20.2 Secure Remote Login & Credential Management</h3>
+            <p>Remote access is highly secure and strictly compartmentalized to ensure data isolation between the Account Master (AM) and Client Modules (CMs).</p>
+            <ul>
+                <li><strong>Three-Field Authentication:</strong> Remote users must authenticate using three specific pieces of information: a <strong>Company ID</strong>, a <strong>Username</strong>, and a <strong>Password</strong>.</li>
+                <li><strong>Auto-Generated, Permanent Company IDs:</strong> The server automatically generates a unique Company ID for the AM and every CM created. These IDs are <strong>permanent and never regenerate</strong>. This ensures that legitimate remote users are never disrupted or unexpectedly disconnected by administrative changes to the company ID.</li>
+                <li><strong>Smart Credential Caching:</strong> After the first successful login, the application securely remembers the Company ID and Username. For subsequent logins, the remote user only needs to enter their password.</li>
+                <li><strong>Seamless Company Routing:</strong> Because the Company ID is provided at login, the system automatically routes the user to the correct isolated database (AM or the specific CM) and applies their specific roles and permissions instantly.</li>
+            </ul>
+
+            <h3>20.3 Advanced Access Control & User Blocking</h3>
+            <p>Administrative control over user access is granular, ensuring maximum security without collateral disruption.</p>
+            <ul>
+                <li><strong>Individual User-Level Control:</strong> If a remote user's access needs to be revoked, the AM Admin or CM Admin can block or disable that <strong>individual user's account</strong>. </li>
+                <li><strong>Zero Disruption to Others:</strong> Because access is controlled at the individual user level (rather than by changing shared company credentials or regenerating the Company ID), blocking one employee will have absolutely zero impact on other remote users working within the same company.</li>
+                <li><strong>Hierarchical Authority:</strong> The AM Admin retains overarching authority and can instantly block, unblock, or modify permissions for any user across the entire ecosystem, including users belonging to any CM.</li>
+            </ul>
+        </div>
+
+        <!-- Footer -->
+        <div class="doc-footer">
+            <p><strong>ERP Software — Requirements Outline v1.0</strong></p>
+            <p>Document generated on July 19, 2026 • Confidential</p>
+        </div>
+
+    </div>
+</body>
+</html>
