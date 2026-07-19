@@ -24,10 +24,12 @@ import { useAuthStore } from './store/authStore'
 
 // ── LAYOUT COMPONENTS ─────────────────────────────────────────
 import AppShell from './components/Layout/AppShell'
+import ThemeProvider from './components/Layout/ThemeProvider'
 
 // ── PAGES ─────────────────────────────────────────────────────
 import LoginPage from './pages/Login'
 import DashboardPage from './pages/Dashboard'
+import SettingsPage from './pages/Settings'
 
 // ── PROTECTED ROUTE WRAPPER ───────────────────────────────────
 // This component wraps any page that requires authentication.
@@ -53,8 +55,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 // ── ROOT APP COMPONENT ────────────────────────────────────────
 function App() {
   return (
-    <Routes>
-      {/* ── PUBLIC ROUTES (No login required) ───────────────
+    <ThemeProvider>
+      <Routes>
+        {/* ── PUBLIC ROUTES (No login required) ───────────────
           /login: The login page shown to unauthenticated users.
           It auto-detects LAN vs Remote mode and shows the
           appropriate login form (2 fields vs 3 fields).
@@ -85,7 +88,7 @@ function App() {
         {/* <Route path="crm"       element={<CRMPage />} /> */}
         {/* <Route path="hr"        element={<HRPage />} /> */}
         {/* <Route path="reports"   element={<ReportsPage />} /> */}
-        {/* <Route path="settings"  element={<SettingsPage />} /> */}
+        <Route path="settings"  element={<SettingsPage />} />
       </Route>
 
       {/* ── CATCH-ALL REDIRECT ───────────────────────────────
@@ -94,6 +97,7 @@ function App() {
       ─────────────────────────────────────────────────────── */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </ThemeProvider>
   )
 }
 

@@ -24,7 +24,7 @@
    Changing a value here updates it everywhere in the app.
    All colors follow a dark mode enterprise aesthetic.
    ──────────────────────────────────────────────────────────── */
-:root {
+:root, .theme-default {
   /* Primary brand color — used for buttons, active states, links */
   --color-primary:        #4f46e5; /* Indigo-600 */
   --color-primary-hover:  #4338ca; /* Indigo-700 — darker on hover */
@@ -50,6 +50,78 @@
   --color-warning:        #f59e0b; /* Amber — pending, caution */
   --color-danger:         #ef4444; /* Red — error, blocked, delete */
   --color-info:           #3b82f6; /* Blue — information, sync */
+}
+
+/* ── OPTION 1: GLASSMORPHISM & GRADIENTS ─────────────── */
+.theme-glass {
+  --color-primary:        #8b5cf6; /* Vibrant Purple */
+  --color-primary-hover:  #7c3aed; 
+  --color-primary-light:  #f3e8ff; 
+
+  --color-bg:             #0f0e17; /* Very deep purple/black */
+  --color-bg-surface:     rgba(255, 255, 255, 0.03); /* Frosted glass look */
+  --color-bg-elevated:    rgba(255, 255, 255, 0.05); 
+  --color-bg-hover:       rgba(255, 255, 255, 0.08); 
+
+  --color-border:         rgba(255, 255, 255, 0.05);
+  --color-border-strong:  rgba(255, 255, 255, 0.1); 
+
+  --color-text-primary:   #ffffff; 
+  --color-text-secondary: #a7a9be; 
+  --color-text-muted:     #6b7280; 
+
+  --color-success:        #10b981; 
+  --color-warning:        #f59e0b; 
+  --color-danger:         #f43f5e; 
+  --color-info:           #3b82f6; 
+}
+
+/* ── OPTION 2: NEUMORPHIC MINIMALIST (LIGHT) ─────────── */
+.theme-minimal {
+  --color-primary:        #2563eb; /* Sharp Blue */
+  --color-primary-hover:  #1d4ed8; 
+  --color-primary-light:  #eff6ff; 
+
+  --color-bg:             #f8fafc; /* Very light gray */
+  --color-bg-surface:     #ffffff; /* Pure white cards */
+  --color-bg-elevated:    #ffffff; 
+  --color-bg-hover:       #f1f5f9; 
+
+  --color-border:         #e2e8f0; 
+  --color-border-strong:  #cbd5e1; 
+
+  --color-text-primary:   #0f172a; /* Slate 900 */
+  --color-text-secondary: #475569; /* Slate 600 */
+  --color-text-muted:     #94a3b8; /* Slate 400 */
+
+  --color-success:        #16a34a; 
+  --color-warning:        #d97706; 
+  --color-danger:         #dc2626; 
+  --color-info:           #2563eb; 
+}
+
+/* ── OPTION 3: ENTERPRISE CLASSIC PRO ────────────────── */
+.theme-enterprise {
+  --color-primary:        #0ea5e9; /* Light Blue */
+  --color-primary-hover:  #0284c7; 
+  --color-primary-light:  #e0f2fe; 
+
+  --color-bg:             #0f172a; /* Navy background */
+  --color-bg-surface:     #1e293b; /* Slightly lighter navy */
+  --color-bg-elevated:    #334155; 
+  --color-bg-hover:       #334155; 
+
+  --color-border:         #334155; 
+  --color-border-strong:  #475569; 
+
+  --color-text-primary:   #f1f5f9; 
+  --color-text-secondary: #94a3b8; 
+  --color-text-muted:     #64748b; 
+
+  --color-success:        #22c55e; 
+  --color-warning:        #eab308; 
+  --color-danger:         #ef4444; 
+  --color-info:           #3b82f6; 
 
   /* Sidebar dimensions */
   --sidebar-width:        240px;   /* Width of the left navigation sidebar */
