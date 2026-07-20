@@ -121,7 +121,7 @@ class Company(Base):
     users = relationship("User", back_populates="company", cascade="all, delete-orphan")
     
     # A company has many products (Inventory).
-    products = relationship("Product", back_populates="company", cascade="all, delete-orphan")
+    # products = relationship("Product", back_populates="company", cascade="all, delete-orphan")
 
     def __repr__(self):
         """String representation for debugging — shows in logs and Python shell"""

@@ -245,7 +245,7 @@ def authenticate_user(
     token_str, token_expires = create_access_token(
         user_id=str(user.id),
         company_id=str(user.company_id),
-        role=user.role.value  # .value converts enum to string (e.g., "am_admin")
+        role=user.role.value if hasattr(user.role, "value") else str(user.role)
     )
 
     # ── STEP 6: SAVE SESSION TO DATABASE ─────────────────────────

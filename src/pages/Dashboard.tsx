@@ -16,7 +16,7 @@
 
 import { useAuthStore } from '../store/authStore'
 import {
-  TrendingUp, Package, ShoppingCart,
+  TrendingUp, Package,
   Users, Clock, CheckCircle, AlertTriangle, Activity, ArrowRight
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription } from '../components/ui/Card'
