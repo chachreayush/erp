@@ -8,3 +8,5 @@ Databases (Data Storage),Remote Offline Cache,SQLite,"A tiny, file-based databas
 Databases (Data Storage),Cloud Database Bridge,"Supabase (PostgreSQL)","A secure, managed cloud database acting as the synchronization bridge between remote users and the office server."
 Deployment & Connectivity,LAN Discovery,UDP Broadcast,"Allows the copy-pasted ERP.exe on a local network to instantly find the main server without manually typing IP addresses."
 Deployment & Connectivity,Mobile Framework (Future),"React Native (TypeScript)",Cross-platform framework for building Android and iOS applications sharing logic with the desktop app.
+
+Frontend,Tauri,v2,Native Desktop App Container,Replaces standard web view with a native Windows app wrapper

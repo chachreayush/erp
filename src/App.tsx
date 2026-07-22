@@ -24,13 +24,17 @@ import { useAuthStore } from './store/authStore'
 
 // ── LAYOUT COMPONENTS ─────────────────────────────────────────
 import AppShell from './components/Layout/AppShell'
+import MargAppShell from './components/Layout/MargAppShell'
 import ThemeProvider from './components/Layout/ThemeProvider'
+import { useThemeStore } from './store/themeStore'
 
 // ── PAGES ─────────────────────────────────────────────────────
 import LoginPage from './pages/Login'
 import DashboardPage from './pages/Dashboard'
 import SettingsPage from './pages/Settings'
 import ProductsPage from './pages/inventory/Products'
+import FinancePage from './pages/finance/Finance'
+import ClientManagementPage from './pages/admin/ClientManagement'
 
 // ── PROTECTED ROUTE WRAPPER ───────────────────────────────────
 // This component wraps any page that requires authentication.
@@ -55,6 +59,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // ── ROOT APP COMPONENT ────────────────────────────────────────
 function App() {
+  const activeTheme = useThemeStore(state => state.activeTheme)
+  const CurrentShell = activeTheme === 'marg' ? MargAppShell : AppShell
+
   return (
     <ThemeProvider>
       <Routes>
@@ -74,22 +81,25 @@ function App() {
         path="/"
         element={
           <ProtectedRoute>
-            {/* AppShell renders sidebar + header, then the child page in the content area */}
-            <AppShell />
+            {/* Renders MargAppShell if 'marg' theme is active, otherwise modern AppShell */}
+            <CurrentShell />
           </ProtectedRoute>
         }
       >
         {/* index: The default page when navigating to "/" — the main dashboard */}
         <Route index element={<DashboardPage />} />
 
-        {/* ERP Module routes — more will be added in later sprints */}
-        {/* <Route path="finance"   element={<FinancePage />} /> */}
+        {/* ERP Module routes */}
+        <Route path="finance"   element={<FinancePage />} />
         <Route path="inventory" element={<ProductsPage />} />
         {/* <Route path="sales"     element={<SalesPage />} /> */}
         {/* <Route path="crm"       element={<CRMPage />} /> */}
         {/* <Route path="hr"        element={<HRPage />} /> */}
         {/* <Route path="reports"   element={<ReportsPage />} /> */}
         <Route path="settings"  element={<SettingsPage />} />
+        
+        {/* AM Admin Routes */}
+        <Route path="clients" element={<ClientManagementPage />} />
       </Route>
 
       {/* ── CATCH-ALL REDIRECT ───────────────────────────────

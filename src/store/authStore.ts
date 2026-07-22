@@ -85,6 +85,8 @@ interface AuthState {
   // ── STATE ───────────────────────────────────────────────────
   user:        AuthUser | null  // null = not logged in
   token:       string | null    // JWT access token for API requests
+  originalAmUser: AuthUser | null // To switch back from impersonation
+  originalAmToken: string | null
   appMode:     AppMode          // How this instance connects to the backend
   serverUrl:   string | null    // LAN server URL (e.g., "http://192.168.1.5:8000")
   isLoading:   boolean          // true while login request is in progress
@@ -98,6 +100,12 @@ interface AuthState {
   // login: Called after successful authentication. Stores the
   // user profile and token received from the backend.
   login:       (user: AuthUser, token: string) => void
+
+  // impersonate: Switch to a client company ERP
+  impersonate: (user: AuthUser, token: string) => void
+
+  // revertImpersonation: Switch back to the AM Admin firm
+  revertImpersonation: () => void
 
   // logout: Clears all session data and returns to login screen
   logout:      () => void
@@ -125,6 +133,8 @@ export const useAuthStore = create<AuthState>()(
       // ── INITIAL STATE ────────────────────────────────────────
       user:      null,  // No user logged in at start
       token:     null,  // No token at start
+      originalAmUser: null,
+      originalAmToken: null,
       appMode:   null,  // Mode not yet determined (discovery in progress)
       serverUrl: null,  // No server URL until LAN discovery completes
       isLoading: false, // Not loading at start
@@ -148,9 +158,41 @@ export const useAuthStore = create<AuthState>()(
         set({
           user,
           token,
+          originalAmUser: null,
+          originalAmToken: null,
           isLoading: false, // Hide loading spinner
           error: null        // Clear any previous error
         }),
+
+      // ── ACTION: impersonate ──────────────────────────────────
+      impersonate: (newUser, newToken) => {
+        const currentUser = get().user
+        const currentToken = get().token
+        if (!get().originalAmUser) {
+          set({
+            originalAmUser: currentUser,
+            originalAmToken: currentToken,
+            user: newUser,
+            token: newToken
+          })
+        } else {
+          set({ user: newUser, token: newToken })
+        }
+      },
+
+      // ── ACTION: revertImpersonation ──────────────────────────
+      revertImpersonation: () => {
+        const originalUser = get().originalAmUser
+        const originalToken = get().originalAmToken
+        if (originalUser && originalToken) {
+          set({
+            user: originalUser,
+            token: originalToken,
+            originalAmUser: null,
+            originalAmToken: null
+          })
+        }
+      },
 
       // ── ACTION: logout ───────────────────────────────────────
       // Wipes all user data. The persist middleware will also
@@ -159,6 +201,8 @@ export const useAuthStore = create<AuthState>()(
         set({
           user:      null,
           token:     null,
+          originalAmUser: null,
+          originalAmToken: null,
           isLoading: false,
           error:     null
           // Note: we keep appMode and serverUrl so the next login
@@ -198,6 +242,8 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         user:      state.user,
         token:     state.token,
+        originalAmUser: state.originalAmUser,
+        originalAmToken: state.originalAmToken,
         appMode:   state.appMode,
         serverUrl: state.serverUrl
       })

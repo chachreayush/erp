@@ -29,6 +29,17 @@ from models import UserRole  # Import the role enum from our models
 # ── AUTH REQUEST SCHEMAS ───────────────────────────────────────
 # These define what the client must send in the request body
 
+class ClientRegistrationRequest(BaseModel):
+    company_name: str = Field(..., min_length=2, max_length=255)
+    company_code: str = Field(..., min_length=2, max_length=20)
+    admin_name: str = Field(..., min_length=2, max_length=255)
+    admin_username: str = Field(..., min_length=2, max_length=100)
+    admin_password: str = Field(..., min_length=4)
+
+
+class ImpersonateRequest(BaseModel):
+    target_company_id: UUID4 = Field(..., description="The ID of the client company to switch to")
+
 class LoginRequest(BaseModel):
     """
     Data the frontend sends when a user tries to log in.

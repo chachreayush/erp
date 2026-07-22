@@ -122,7 +122,9 @@
   --color-warning:        #eab308; 
   --color-danger:         #ef4444; 
   --color-info:           #3b82f6; 
+}
 
+:root {
   /* Sidebar dimensions */
   --sidebar-width:        240px;   /* Width of the left navigation sidebar */
   --header-height:        56px;    /* Height of the top header bar */
@@ -162,6 +164,25 @@
   --transition-fast:   0.1s ease;
   --transition-normal: 0.2s ease;
   --transition-slow:   0.3s ease;
+}
+
+/* ── OPTION 4: MARG ERP CLASSIC ──────────────────────── */
+.theme-marg {
+  --color-bg:             #d4d0c8; /* Windows 95/98 Classic Gray */
+  --color-bg-surface:     #ffffff; /* White panels */
+  --color-bg-elevated:    #ece9d8; /* Windows XP Default Beige */
+  --color-bg-hover:       #c0c0c0; /* Darker gray for hover */
+
+  --color-border:         #808080; /* Windows 95 inset shadow border */
+  --color-border-strong:  #ffffff; /* Windows 95 outset highlight border */
+
+  --color-text-primary:   #000000; /* Pure black text */
+  --color-text-secondary: #000080; /* Classic Navy */
+  --color-text-muted:     #808080; /* Disabled gray text */
+
+  --color-primary:        #008080; /* Teal (default Windows 95 desktop background) */
+  --color-primary-hover:  #000080; /* Navy */
+  --color-primary-light:  #c0c0c0; 
 }
 
 /* ── GLOBAL RESET ────────────────────────────────────────────

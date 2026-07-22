@@ -107,6 +107,9 @@ app.add_middleware(
 
 # Authentication routes: /auth/login, /auth/logout, /auth/me
 app.include_router(auth_router)
+from api.companies import router as companies_router
+app.include_router(companies_router, prefix="/api")
+
 
 # Inventory routes
 app.include_router(inventory_router)

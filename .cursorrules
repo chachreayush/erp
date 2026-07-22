@@ -1,0 +1,25 @@
+# AI Assistant Documentation Rules
+
+When working on this project, you MUST strictly adhere to the following documentation rules:
+
+1. **Keep Documentation Synchronized**:
+   - Whenever you make architectural changes, add new tech stack components, or build significant new features (e.g., adding Tauri, new modules, new UI/UX layouts), you MUST update the project documentation files to reflect these changes.
+   - The primary documentation files are: `DOCS.md`, `Developer_and_User_Manual.md`, and `Technical_Stack.csv`.
+
+2. **Always Update Technical Stack**:
+   - If a new dependency is added (e.g., Tauri for desktop support, a new React library, or a Python package), you must add it to `Technical_Stack.csv` immediately.
+
+3. **Log New Features**:
+   - When a new workflow is introduced (e.g., the Marg ERP dense keyboard-navigable form layout, or Company/HSN creation flows), it must be documented in the Developer and User Manual.
+
+Failure to keep these documents updated will result in the project losing stability as institutional knowledge is lost. Never skip updating the documentation.
+
+# Environment Automation Rules
+
+When you (the AI agent) first enter this project or if you encounter a server restart / timeout, you **MUST** automatically start the following development servers in the background using `run_command`:
+
+1. **Vite Frontend Server**: `npx vite --port 50000`
+2. **FastAPI Backend Server**: `cd backend; $env:PYTHONIOENCODING="utf-8"; python -m uvicorn main:app --port 8001 --reload`
+3. **Tauri Desktop App**: `npm run tauri dev`
+
+Do not ask the user for permission to start these, just proactively launch them in the background so the user can immediately test the application.

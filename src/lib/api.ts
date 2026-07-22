@@ -211,13 +211,34 @@ export async function apiHealthCheck(): Promise<boolean> {
 export interface Product {
   id: string
   company_id: string
-  name: string
-  sku: string | null
-  category: string | null
-  price: string | null
-  stock: string
-  status: string
   created_at: string
+  
+  // ── Marg Profile Fields ──
+  status: 'continue' | 'close'
+  hide: 'yes' | 'no'
+  code: string
+  name: string
+  packing: string
+  unit: string
+  colour_type: 'normal' | 'red' | 'blue' | 'green'
+  item_type: 'normal' | 'cold storage' | 'costly'
+  company_name: string
+  salt: string
+  hsn_applicable: 'yes' | 'no'
+  hsn_code?: string
+  local_tax: 'taxable' | 'tax paid' | 'exempted'
+  central_tax: 'taxable' | 'tax paid' | 'exempted'
+  sgst_percent: number
+  cgst_percent: number
+  igst_percent: number
+  mrp: number
+  p_rate: number
+  pts_rate: number
+  rate_a: number
+  ptr_rate: number
+  item_discount_percent: number
+  discount_type: 'applicable' | 'no discount' | 'no sch discount' | 'no schem'
+  category: 'na' | 'schedule h' | 'schedule h1' | 'narcotics'
 }
 
 export type ProductCreatePayload = Omit<Product, 'id' | 'company_id' | 'created_at'>

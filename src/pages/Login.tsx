@@ -65,7 +65,7 @@ function LoginPage() {
     const detectServer = async () => {
       const serverFound = await apiHealthCheck()
       if (serverFound) {
-        setAppMode('lan', 'http://localhost:8000')
+        setAppMode('lan', import.meta.env.VITE_API_URL || 'http://localhost:8000')
       } else {
         setAppMode('remote')
       }
@@ -91,7 +91,7 @@ function LoginPage() {
 
   // ── FORM SUBMIT HANDLER — Sprint 2: Real FastAPI backend ────────
   const handleSubmit = async () => {
-    if (appMode === 'remote' && !companyId.trim()) {
+    if (!companyId.trim()) {
       setError('Please enter your Company ID'); return
     }
     if (!username.trim()) { setError('Please enter your username'); return }
@@ -104,7 +104,7 @@ function LoginPage() {
     try {
       // Call the real FastAPI POST /auth/login endpoint
       const response = await apiLogin({
-        company_code: appMode === 'remote' ? companyId.trim().toUpperCase() : undefined,
+        company_code: companyId.trim().toUpperCase(),
         username:     username.trim(),
         password:     password,
         is_lan:       appMode === 'lan' || appMode === 'server'
@@ -130,9 +130,11 @@ function LoginPage() {
 
     } catch (err: any) {
       // Extract the server's error message from FastAPI error format: { detail: "..." }
-      const serverMessage = err?.response?.data?.detail
-      if (serverMessage) {
-        setError(serverMessage)
+      const detail = err?.response?.data?.detail
+      if (typeof detail === 'string') {
+        setError(detail)
+      } else if (Array.isArray(detail)) {
+        setError(detail.map((d: any) => `${d.loc?.at(-1)}: ${d.msg}`).join(', '))
       } else if (err?.code === 'ECONNABORTED' || err?.code === 'ERR_NETWORK') {
         setError('Cannot connect to server. Check your network or try again.')
       } else {
@@ -232,11 +234,9 @@ function LoginPage() {
         {!isDetecting && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-            {/* COMPANY ID FIELD — only shown in remote mode
-                In LAN mode, the server is already identified by its network address.
-                In remote mode, the Company ID tells the system which company's
-                cloud database to connect to. */}
-            {appMode === 'remote' && (
+            {/* COMPANY ID FIELD — Always shown
+                In a multi-tenant environment, we always need to know which
+                company the user belongs to, even if they are on a LAN. */}
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600,
                   color: 'var(--color-text-secondary)', marginBottom: '6px', textTransform: 'uppercase',
@@ -257,13 +257,11 @@ function LoginPage() {
                   Provided by your company administrator
                 </p>
               </div>
-            )}
 
             {/* USERNAME FIELD */}
             <div>
               <label style={labelStyle}>Username</label>
               <input
-                // Only auto-focus if in LAN mode (Company ID handles it in remote)
                 ref={appMode !== 'remote' ? firstInputRef : undefined}
                 type="text"
                 value={username}

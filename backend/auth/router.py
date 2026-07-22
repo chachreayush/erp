@@ -27,7 +27,7 @@ from database import get_db
 from schemas import LoginRequest, LoginResponse, UserProfileSchema, ErrorResponse
 from auth.service import authenticate_user, build_permissions_for_role
 from auth.utils import verify_access_token, hash_token_for_storage
-from models import Session as SessionModel, User, Company
+from models import Session as SessionModel, User, Company, UserRole
 
 # Create a router — a mini-FastAPI app that handles a group of related endpoints.
 # This router is registered in main.py with the prefix "/auth",
@@ -238,4 +238,57 @@ def get_me(
         is_am_user=company.is_am if company else False,
         permissions=permissions,
         avatar_url=current_user.avatar_url
+    )
+
+import schemas
+
+@router.post("/impersonate", response_model=LoginResponse)
+def impersonate(request: schemas.ImpersonateRequest, current_user: User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    if current_user.role != UserRole.AM_ADMIN.value:
+        raise HTTPException(status_code=403, detail="Only Account Master Admins can impersonate clients.")
+    
+    target_company = db.query(Company).filter(Company.id == request.target_company_id, Company.is_am == False).first()
+    if not target_company:
+        raise HTTPException(status_code=404, detail="Client company not found.")
+    
+    # Generate an impersonation JWT
+    from auth.utils import create_access_token
+    from datetime import timedelta
+    access_token_expires = timedelta(hours=24)
+    access_token, token_expiry = create_access_token(
+        user_id=str(current_user.id),
+        company_id=str(target_company.id),
+        role=UserRole.CM_ADMIN.value,
+        expires_delta=access_token_expires
+    )
+    
+    # Register the session
+    new_session = SessionModel(
+        user_id=current_user.id,
+        token_hash=hash_token_for_storage(access_token),
+        expires_at=token_expiry
+    )
+    db.add(new_session)
+    db.commit()
+    
+    # Return as if we logged in as a CM admin of that company
+    profile = UserProfileSchema(
+        id=current_user.id,
+        name=current_user.name,
+        username=current_user.username,
+        email=current_user.email,
+        role=UserRole.CM_ADMIN.value,
+        company_id=target_company.id,
+        company_name=target_company.name,
+        company_code=target_company.company_code,
+        is_am_user=False,
+        permissions=build_permissions_for_role(UserRole.CM_ADMIN),
+        avatar_url=None
+    )
+    
+    return LoginResponse(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=7200,
+        user=profile
     )

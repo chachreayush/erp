@@ -19,7 +19,9 @@ import { useState } from 'react'
 function Header() {
   // Get user data and logout action from the global auth store
   const user = useAuthStore(state => state.user)
+  const originalAmUser = useAuthStore(state => state.originalAmUser)
   const logout = useAuthStore(state => state.logout)
+  const revertImpersonation = useAuthStore(state => state.revertImpersonation)
 
   // Controls visibility of the user dropdown menu
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -74,6 +76,33 @@ function Header() {
           ERP
         </span>
       </div>
+
+      {/* ── CENTER: IMPERSONATION WARNING ────────────────────── */}
+      {originalAmUser && (
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '12px',
+            padding: '6px 12px', backgroundColor: 'var(--color-danger-light)',
+            color: 'var(--color-danger)', borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--color-danger)', fontSize: '13px', fontWeight: 600
+          }}>
+            <span>Viewing as Client: {user?.companyName}</span>
+            <button
+              onClick={() => {
+                revertImpersonation()
+                navigate('/clients')
+              }}
+              style={{
+                backgroundColor: 'var(--color-danger)', color: 'white',
+                border: 'none', borderRadius: '4px', padding: '4px 8px',
+                cursor: 'pointer', fontSize: '12px', fontWeight: 700
+              }}
+            >
+              Return to Admin
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── RIGHT: NOTIFICATIONS + USER MENU ─────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -136,13 +165,12 @@ function Header() {
               flexShrink: 0
             }}>
               {/* Extract initials from user's full name (e.g., "Rahul Sharma" → "RS") */}
-              {user?.name
-                ?.split(' ')
-                .map(n => n[0])
+              {(user?.name || 'User')
+                .split(' ')
+                .map(n => n[0] || '')
                 .slice(0, 2)
                 .join('')
                 .toUpperCase()
-                ?? 'U'
               }
             </div>
 

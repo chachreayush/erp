@@ -9,6 +9,14 @@
 
   <body>
     <div id="root"></div>
+    <script>
+      window.addEventListener('error', function(e) {
+        alert("CRASH: " + e.message + "\n" + e.filename + ":" + e.lineno);
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        alert("PROMISE REJECTION: " + e.reason);
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

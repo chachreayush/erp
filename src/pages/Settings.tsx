@@ -26,6 +26,12 @@ const THEME_OPTIONS: { id: ThemeOption; name: string; description: string; color
     name: 'Enterprise Classic Pro',
     description: 'Solid, robust navy blue layout.',
     colors: ['#0f172a', '#1e293b', '#0ea5e9']
+  },
+  {
+    id: 'marg',
+    name: 'Marg ERP Classic',
+    description: 'The authentic legacy layout and styling.',
+    colors: ['#d4d0c8', '#ffffff', '#008080']
   }
 ]
 

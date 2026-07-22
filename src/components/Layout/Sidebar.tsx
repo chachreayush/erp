@@ -30,6 +30,7 @@ import {
   BarChart3,       // Reports & Analytics
   Settings,        // Settings & Admin
   Building2,       // Company name display
+  Building,        // Client Management
   Wifi,            // LAN connection indicator
   Globe,           // Remote connection indicator
 } from 'lucide-react'
@@ -252,9 +253,34 @@ function Sidebar() {
             </button>
           )
         })}
+
+        {/* ── CLIENT MANAGEMENT (AM ONLY) ──────────────────────── */}
+        {user?.role === 'am_admin' && (
+          <button
+            onClick={() => navigate('/clients')}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+              padding: '9px 12px', marginBottom: '2px', borderRadius: 'var(--radius-md)',
+              border: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '13px',
+              fontWeight: isActive('/clients') ? 600 : 400,
+              backgroundColor: isActive('/clients') ? 'rgba(79,70,229,0.15)' : 'transparent',
+              color: isActive('/clients') ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+              transition: 'all var(--transition-fast)',
+              borderLeft: isActive('/clients') ? '2px solid var(--color-primary)' : '2px solid transparent',
+            }}
+            title="Client Management"
+          >
+            <span style={{ flexShrink: 0, opacity: isActive('/clients') ? 1 : 0.7 }}>
+              <Building size={18} />
+            </span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              Client Management
+            </span>
+          </button>
+        )}
       </nav>
 
-      {/* ── BOTTOM USER INFO SECTION ────────────────────────────
+      {/* ── USER INFO / LOGOUT SECTION ────────────────────────────
           Shows the logged-in user's name at the bottom of the sidebar. */}
       <div style={{
         padding: '12px 16px',
