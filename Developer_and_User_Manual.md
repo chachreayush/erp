@@ -1023,33 +1023,6 @@ Because the PostgreSQL database enforces `UserRole` as a strict Enum type, Pytho
 # APPENDIX: FULL SOURCE CODES
 ---
 
-## 1. src/lib/api.ts
-\\\ ypescript
-\; Get-Content src\lib\api.ts | Add-Content Developer_and_User_Manual.md; Add-Content Developer_and_User_Manual.md \
-\\\
-
-## 2. backend/api/bulletins.py
-\\\python
-\; Get-Content backend\api\bulletins.py | Add-Content Developer_and_User_Manual.md; Add-Content Developer_and_User_Manual.md \
-\\\
-
-## 3. src/pages/bulletin/BulletinBoard.tsx
-\\\ sx
-\; Get-Content src\pages\bulletin\BulletinBoard.tsx | Add-Content Developer_and_User_Manual.md; Add-Content Developer_and_User_Manual.md \
-\\\
-
-## 4. src/components/ui/BulletinModal.tsx
-\\\ sx
-\; Get-Content src\components\ui\BulletinModal.tsx | Add-Content Developer_and_User_Manual.md; Add-Content Developer_and_User_Manual.md \
-\\\
-
-
-
----
-
-# APPENDIX: FULL SOURCE CODES
----
-
 ## api.ts
 `typescript
 /* ============================================================
