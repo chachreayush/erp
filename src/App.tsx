@@ -35,6 +35,7 @@ import SettingsPage from './pages/Settings'
 import ProductsPage from './pages/inventory/Products'
 import FinancePage from './pages/finance/Finance'
 import ClientManagementPage from './pages/admin/ClientManagement'
+import BulletinBoard from './pages/bulletin/BulletinBoard'
 
 // ── PROTECTED ROUTE WRAPPER ───────────────────────────────────
 // This component wraps any page that requires authentication.
@@ -87,11 +88,13 @@ function App() {
         }
       >
         {/* index: The default page when navigating to "/" — the main dashboard */}
-        <Route index element={<DashboardPage />} />
+        <Route index element={<BulletinBoard />} />
+        <Route path="dashboard" element={<DashboardPage />} />
 
         {/* ERP Module routes */}
         <Route path="finance"   element={<FinancePage />} />
         <Route path="inventory" element={<ProductsPage />} />
+        <Route path="bulletin"  element={<BulletinBoard />} />
         {/* <Route path="sales"     element={<SalesPage />} /> */}
         {/* <Route path="crm"       element={<CRMPage />} /> */}
         {/* <Route path="hr"        element={<HRPage />} /> */}

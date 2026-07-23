@@ -64,3 +64,9 @@ export const CardDescription = ({ children, style, ...props }: React.HTMLAttribu
     {children}
   </p>
 )
+
+export const CardContent = ({ children, style, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div style={{ ...style }} {...props}>
+    {children}
+  </div>
+)

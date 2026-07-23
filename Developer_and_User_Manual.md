@@ -928,6 +928,41 @@ Handles all company operations, specifically client provisioning.
 
 ---
 
+
+---
+
+# PART 5: MULTI-TENANT ARCHITECTURE & CLIENT PROVISIONING
+---
+
+## File: `src/pages/admin/ClientManagement.tsx` & `RegisterClientModal.tsx`
+**Location in Project:** `C:\Users\DELL\OneDrive\Desktop\erp\src\pages\admin\ClientManagement.tsx`
+
+### Purpose
+Allows the Account Master (Admin) to view all client environments and create new isolated client databases on the fly. 
+
+### Key Features
+1. **Dynamic Provisioning**: Clicking "Register New Client" opens a modal. Submitting the form calls a backend endpoint that instantly provisions a new logical workspace for the client in the PostgreSQL database.
+2. **Instant Impersonation**: Admins can click "Switch to ERP" on any client card. This immediately replaces their global token with a scoped `CM_ADMIN` token for that specific client, securely locking them into the client's isolated database space.
+3. **Data Safety**: When returning a Pydantic Validation Error (e.g. for a too-short password), the React frontend catches the array of errors and parses them into a human-readable string to prevent React rendering crashes.
+
+---
+
+## File: `backend/api/companies.py`
+**Location in Project:** `C:\Users\DELL\OneDrive\Desktop\erp\backend\api\companies.py`
+
+### Purpose
+Handles all company operations, specifically client provisioning.
+
+### Functions:
+1. `POST /register`: Registers a new client company.
+   - Verifies the requester is an `AM_ADMIN`.
+   - Creates the `Company` record in PostgreSQL (`is_am=False`).
+   - Hashes the requested client admin password using `auth.utils.hash_password` (bcrypt).
+   - Creates the `User` record mapped to the newly created `Company`.
+   - Uses a database transaction (`db.flush()`) to ensure either both company and user are created, or neither is.
+
+---
+
 ## File: `backend/auth/utils.py` & `authStore.ts`
 ### Purpose
 Manages password security and session states.
@@ -935,3 +970,49 @@ Manages password security and session states.
 - **Frontend Syncing**: The React `authStore.ts` explicitly maps the backend `is_am_user` (snake_case) to the frontend `isAmUser` (camelCase) to ensure the Dashboard conditional rendering logic correctly directs clients to the `ClientDashboard.tsx`.
 
 ---
+
+# PART 7: API CLIENT AND PERMISSION HARDENING
+---
+
+## File: `src/lib/api.ts`
+**Location in Project:** `C:\Users\DELL\OneDrive\Desktop\erp2\src\lib\api.ts`
+
+### Purpose
+This is the unified HTTP client used by the React frontend to communicate with the FastAPI backend. It utilizes **Axios**, which allows us to intercept every request and response.
+
+### The Request Interceptor (Token Injection)
+```typescript
+apiClient.interceptors.request.use((config) => {
+  // We read the token DIRECTLY from the live Zustand store memory.
+  // This guarantees we always have the correct token, regardless of
+  // whether the user is on Desktop (sessionStorage) or Web (localStorage).
+  const token = useAuthStore.getState().token;
+  
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+```
+**Explanation:**
+Before any request leaves the browser, this interceptor halts it, reaches into the `authStore`, grabs the active JWT token, and attaches it as a `Bearer` token in the `Authorization` header. This completely eliminates asynchronous storage delays that can cause silent `401 Unauthorized` errors.
+
+---
+
+## File: `backend/api/bulletins.py`
+**Location in Project:** `C:\Users\DELL\OneDrive\Desktop\erp2\backend\api\bulletins.py`
+
+### Purpose
+Defines the CRUD routes for the Bulletin Board system. Contains strict permission checks to ensure only Admins can broadcast announcements.
+
+### Enum Role Validation
+```python
+@router.post("/", response_model=BulletinResponse)
+def create_bulletin(bulletin_in: BulletinCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # SQLAlchemy returns Enums as object instances, not plain strings.
+    # We MUST use .value to cast it to a string for comparison.
+    if current_user.role.value not in ["am_admin", "cm_admin"]:
+        raise HTTPException(status_code=403, detail="Not authorized to create bulletins")
+```
+**Explanation:**
+Because the PostgreSQL database enforces `UserRole` as a strict Enum type, Python receives the `current_user.role` as an `Enum` object instance (e.g., `UserRole.AM_ADMIN`). While Python can sometimes dynamically equate string-based enums, explicitly calling `.value` guarantees 100% type safety and prevents hidden `403 Forbidden` authorization bugs during role verification.

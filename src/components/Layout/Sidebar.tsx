@@ -33,6 +33,7 @@ import {
   Building,        // Client Management
   Wifi,            // LAN connection indicator
   Globe,           // Remote connection indicator
+  Megaphone,       // Bulletin Board
 } from 'lucide-react'
 
 // ── NAV ITEM DEFINITION ───────────────────────────────────────
@@ -51,7 +52,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   {
     label:  'Dashboard',
-    path:   '/',
+    path:   '/dashboard',
     icon:   <LayoutDashboard size={18} />,
     module: undefined // Dashboard is always visible to all logged-in users
   },
@@ -96,7 +97,7 @@ const NAV_ITEMS: NavItem[] = [
     path:   '/settings',
     icon:   <Settings size={18} />,
     module: 'settings'
-  },
+  }
 ]
 
 // ── SIDEBAR COMPONENT ─────────────────────────────────────────
@@ -278,6 +279,29 @@ function Sidebar() {
             </span>
           </button>
         )}
+
+        {/* ── BULLETIN BOARD (ALWAYS VISIBLE, BELOW MANAGE CLIENTS) ── */}
+        <button
+          onClick={() => navigate('/bulletin')}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+            padding: '9px 12px', marginBottom: '2px', borderRadius: 'var(--radius-md)',
+            border: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '13px',
+            fontWeight: isActive('/bulletin') ? 600 : 400,
+            backgroundColor: isActive('/bulletin') ? 'rgba(79,70,229,0.15)' : 'transparent',
+            color: isActive('/bulletin') ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+            transition: 'all var(--transition-fast)',
+            borderLeft: isActive('/bulletin') ? '2px solid var(--color-primary)' : '2px solid transparent',
+          }}
+          title="Bulletin Board"
+        >
+          <span style={{ flexShrink: 0, opacity: isActive('/bulletin') ? 1 : 0.7 }}>
+            <Megaphone size={18} />
+          </span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            Bulletin Board
+          </span>
+        </button>
       </nav>
 
       {/* ── USER INFO / LOGOUT SECTION ────────────────────────────

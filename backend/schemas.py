@@ -19,7 +19,7 @@
 # a clear 422 error to the client before the code even runs.
 # ============================================================
 
-from pydantic import BaseModel, EmailStr, Field, UUID4
+from pydantic import BaseModel, EmailStr, Field, UUID4, ConfigDict
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
@@ -163,7 +163,34 @@ class ErrorResponse(BaseModel):
     All API errors use this shape so the frontend always knows
     exactly where to find the error message.
     """
-    detail: str  # The human-readable error message (e.g., "Invalid password")
+    detail: str
+
+# ── BULLETIN SCHEMAS ──────────────────────────────────────────
+class BulletinBase(BaseModel):
+    title: str = Field(..., max_length=255)
+    content: str
+    priority: str = Field(default="general") # 'important' or 'general'
+
+class BulletinCreate(BulletinBase):
+    is_global: bool = False
+    target_company_id: Optional[UUID] = None
+
+class BulletinUpdate(BaseModel):
+    title: Optional[str] = Field(None, max_length=255)
+    content: Optional[str] = None
+    priority: Optional[str] = None
+    is_global: Optional[bool] = None
+
+class BulletinResponse(BulletinBase):
+    id: UUID
+    company_id: UUID
+    author_id: UUID
+    is_global: bool
+    created_at: datetime
+    updated_at: datetime
+    author_name: str = Field(default="Unknown")
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ── HEALTH CHECK SCHEMA ───────────────────────────────────────

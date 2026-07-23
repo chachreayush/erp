@@ -232,3 +232,26 @@ class Session(Base):
 
     def __repr__(self):
         return f"<Session user={self.user_id} expires={self.expires_at}>"
+
+# ── TABLE 4: Bulletin ──────────────────────────────────────────
+class Bulletin(Base):
+    """
+    Company-wide or global announcements and bulletins.
+    """
+    __tablename__ = "bulletins"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    author_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    priority = Column(String(50), nullable=False, default="general") # 'important' or 'general'
+    is_global = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # ── RELATIONSHIPS ────────────────────────────────────────────
+    company = relationship("Company")
+    author = relationship("User")
+
+    def __repr__(self):
+        return f"<Bulletin {self.title} priority={self.priority}>"

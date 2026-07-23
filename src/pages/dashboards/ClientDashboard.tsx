@@ -3,7 +3,44 @@ import { TrendingUp, Package, CheckCircle, Activity, ArrowRight, AlertTriangle }
 import { StatCard } from '../../components/ui/StatCard'
 import { Button } from '../../components/ui/Button'
 import { useNavigate } from 'react-router-dom'
-import { Card, CardHeader, CardTitle, CardDescription } from '../../components/ui/Card'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card'
+import { api } from '../../lib/api'
+import { useEffect, useState } from 'react'
+import { AlertCircle, Megaphone } from 'lucide-react'
+
+// Lightweight Dashboard Widget for Bulletins
+function DashboardBulletinWidget() {
+  const [bulletin, setBulletin] = useState<any>(null)
+  
+  useEffect(() => {
+    api.bulletins.getAll().then(res => {
+      // Pick the most recent important bulletin, or just the most recent general one
+      const data = res.data
+      if (data.length > 0) {
+        const important = data.find((b: any) => b.priority === 'important')
+        setBulletin(important || data[0])
+      }
+    }).catch(() => {})
+  }, [])
+
+  if (!bulletin) return null
+
+  const isImportant = bulletin.priority === 'important'
+
+  return (
+    <Card style={{ marginBottom: '28px', borderLeft: isImportant ? '4px solid var(--color-danger)' : '4px solid var(--color-primary)' }}>
+      <CardHeader style={{ paddingBottom: '12px', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
+        {isImportant ? <AlertCircle size={18} color="var(--color-danger)" /> : <Megaphone size={18} color="var(--color-primary)" />}
+        <CardTitle style={{ fontSize: '15px' }}>{bulletin.title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p style={{ fontSize: '14px', color: 'var(--color-text-muted)' }}>
+          {bulletin.content.length > 150 ? bulletin.content.substring(0, 150) + '...' : bulletin.content}
+        </p>
+      </CardContent>
+    </Card>
+  )
+}
 
 export default function ClientDashboard() {
   const user = useAuthStore(state => state.user)
@@ -48,6 +85,8 @@ export default function ClientDashboard() {
           </Button>
         </div>
       </div>
+
+      <DashboardBulletinWidget />
 
       {/* ── KPI STAT CARDS GRID ─────────────────────────────── */}
       <div style={{

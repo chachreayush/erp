@@ -17,7 +17,7 @@ class CompanyResponse(BaseModel):
     is_am: bool
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 @router.get("/", response_model=List[CompanyResponse])
 def list_companies(current_user = Depends(get_current_user), db: DBSession = Depends(get_db)):

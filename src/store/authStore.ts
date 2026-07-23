@@ -24,7 +24,7 @@
    ============================================================ */
 
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware' // Saves state to localStorage so session survives page refresh
+import { persist, createJSONStorage } from 'zustand/middleware' // Saves state to appropriate storage
 
 // ── TYPE DEFINITIONS ──────────────────────────────────────────
 
@@ -239,6 +239,12 @@ export const useAuthStore = create<AuthState>()(
     // partialize: Only save these specific fields (not isLoading/error).
     {
       name: 'erp-auth',
+      storage: createJSONStorage(() => {
+        // Mobile users: localStorage (persistent until logout/app deletion)
+        // Desktop users (Tauri/Browser): sessionStorage (cleared on system restart/software close)
+        const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        return isMobile ? localStorage : sessionStorage;
+      }),
       partialize: (state) => ({
         user:      state.user,
         token:     state.token,

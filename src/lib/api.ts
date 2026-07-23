@@ -21,6 +21,7 @@
    ============================================================ */
 
 import axios from 'axios'
+import { useAuthStore } from '../store/authStore'
 
 // ── GET THE SERVER URL ─────────────────────────────────────────
 // The server URL depends on the connection mode (LAN vs Remote):
@@ -63,28 +64,16 @@ export const apiClient = axios.create({
 // The token is added automatically.
 apiClient.interceptors.request.use(
   (config) => {
-    // Read the saved auth state from localStorage.
-    // The Zustand persist middleware saves state as a JSON string
-    // under the key 'erp-auth' (defined in authStore.ts).
-    const savedAuth = localStorage.getItem('erp-auth')
+    // Read the token directly from the global Zustand store.
+    // This perfectly bypasses the need to guess if it's in localStorage
+    // or sessionStorage, and it guarantees we have the exact token
+    // that the app is currently using for this session.
+    const token = useAuthStore.getState().token
 
-    if (savedAuth) {
-      try {
-        // Parse the JSON string back to an object
-        const authState = JSON.parse(savedAuth)
-
-        // Extract the token from the saved state
-        const token = authState?.state?.token
-
-        if (token) {
-          // Add the Authorization header in the format the backend expects:
-          // "Bearer eyJhbGciOiJIUzI1NiIs..."
-          config.headers.Authorization = `Bearer ${token}`
-        }
-      } catch (e) {
-        // JSON parse error — corrupted localStorage. Ignore and continue.
-        console.warn('Could not read auth token from localStorage:', e)
-      }
+    if (token) {
+      // Add the Authorization header in the format the backend expects:
+      // "Bearer eyJhbGciOiJIUzI1NiIs..."
+      config.headers.Authorization = `Bearer ${token}`
     }
 
     return config // Return the modified config to proceed with the request
@@ -203,6 +192,25 @@ export async function apiHealthCheck(): Promise<boolean> {
     return response.data?.status === 'ok'
   } catch {
     return false // Server not reachable
+  }
+}
+
+// ── COMPANIES API ───────────────────────────────────────────────
+export const api = {
+  auth: {
+    login: apiLogin,
+    logout: apiLogout,
+    getMe: apiGetMe,
+  },
+  companies: {
+    getAll: () => apiClient.get('/api/companies/'),
+    register: (data: any) => apiClient.post('/api/companies/register', data),
+  },
+  bulletins: {
+    getAll: () => apiClient.get('/api/bulletins/'),
+    create: (data: any) => apiClient.post('/api/bulletins/', data),
+    update: (id: string, data: any) => apiClient.put(`/api/bulletins/${id}`, data),
+    delete: (id: string) => apiClient.delete(`/api/bulletins/${id}`)
   }
 }
 
