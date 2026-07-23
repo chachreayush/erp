@@ -1016,3 +1016,30 @@ def create_bulletin(bulletin_in: BulletinCreate, db: Session = Depends(get_db), 
 ```
 **Explanation:**
 Because the PostgreSQL database enforces `UserRole` as a strict Enum type, Python receives the `current_user.role` as an `Enum` object instance (e.g., `UserRole.AM_ADMIN`). While Python can sometimes dynamically equate string-based enums, explicitly calling `.value` guarantees 100% type safety and prevents hidden `403 Forbidden` authorization bugs during role verification.
+ 
+
+---
+
+# APPENDIX: FULL SOURCE CODES
+---
+
+## 1. src/lib/api.ts
+\\\ ypescript
+\; Get-Content src\lib\api.ts | Add-Content Developer_and_User_Manual.md; Add-Content Developer_and_User_Manual.md \
+\\\
+
+## 2. backend/api/bulletins.py
+\\\python
+\; Get-Content backend\api\bulletins.py | Add-Content Developer_and_User_Manual.md; Add-Content Developer_and_User_Manual.md \
+\\\
+
+## 3. src/pages/bulletin/BulletinBoard.tsx
+\\\ sx
+\; Get-Content src\pages\bulletin\BulletinBoard.tsx | Add-Content Developer_and_User_Manual.md; Add-Content Developer_and_User_Manual.md \
+\\\
+
+## 4. src/components/ui/BulletinModal.tsx
+\\\ sx
+\; Get-Content src\components\ui\BulletinModal.tsx | Add-Content Developer_and_User_Manual.md; Add-Content Developer_and_User_Manual.md \
+\\\
+
