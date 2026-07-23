@@ -1043,3 +1043,776 @@ Because the PostgreSQL database enforces `UserRole` as a strict Enum type, Pytho
 \; Get-Content src\components\ui\BulletinModal.tsx | Add-Content Developer_and_User_Manual.md; Add-Content Developer_and_User_Manual.md \
 \\\
 
+
+
+---
+
+# APPENDIX: FULL SOURCE CODES
+---
+
+## api.ts
+`typescript
+/* ============================================================
+   api.ts — Central Axios HTTP Client
+   ============================================================
+   This file creates a single, pre-configured Axios instance
+   that is used for ALL API calls throughout the entire frontend.
+
+   WHY A CENTRAL CLIENT?
+   Instead of writing `axios.get('http://localhost:8000/...',
+   { headers: { Authorization: 'Bearer ...' } })` in every
+   single component, we configure it ONCE here and every
+   component just imports and uses `apiClient`.
+
+   FEATURES:
+   1. BASE URL: Automatically prepends the server URL so we
+      only need to write "/auth/login" instead of the full URL.
+   2. AUTH INTERCEPTOR: Automatically attaches the JWT token
+      to every outgoing request — no manual header setting.
+   3. ERROR INTERCEPTOR: Globally handles 401 (unauthorized)
+      responses — automatically logs the user out if the token
+      has expired.
+   ============================================================ */
+
+import axios from 'axios'
+import { useAuthStore } from '../store/authStore'
+
+// ── GET THE SERVER URL ─────────────────────────────────────────
+// The server URL depends on the connection mode (LAN vs Remote):
+// - LAN Mode:    http://<server-lan-ip>:8000
+// - Remote Mode: the Supabase or cloud URL (Sprint 3+)
+// - Development: always http://localhost:8000
+//
+// For Sprint 2, we default to localhost:8000.
+// In Sprint 3, this will dynamically read from the authStore's serverUrl.
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+// ── CREATE AXIOS INSTANCE ─────────────────────────────────────
+// axios.create() builds a new Axios client with preset configuration.
+// This is our "smart" HTTP client that knows how to talk to our backend.
+export const apiClient = axios.create({
+  // baseURL: Prefix for all requests. "/auth/login" becomes "http://localhost:8000/auth/login"
+  baseURL: API_BASE_URL,
+
+  // timeout: If the server doesn't respond in 10 seconds, fail with an error.
+  // Prevents the UI from hanging indefinitely on network issues.
+  timeout: 10000, // 10 seconds
+
+  // headers: Default headers sent with every request.
+  // "Content-Type: application/json" tells the server we're sending JSON.
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
+
+// ── REQUEST INTERCEPTOR ────────────────────────────────────────
+// An interceptor is a function that runs BEFORE every request is sent.
+// This one reads the saved JWT token from localStorage and adds it
+// to the Authorization header automatically.
+//
+// Without this, we'd need to manually add the token to every API call:
+//   apiClient.get('/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+// With this interceptor, we just write:
+//   apiClient.get('/auth/me')
+// The token is added automatically.
+apiClient.interceptors.request.use(
+  (config) => {
+    // Read the token directly from the global Zustand store.
+    // This perfectly bypasses the need to guess if it's in localStorage
+    // or sessionStorage, and it guarantees we have the exact token
+    // that the app is currently using for this session.
+    const token = useAuthStore.getState().token
+
+    if (token) {
+      // Add the Authorization header in the format the backend expects:
+      // "Bearer eyJhbGciOiJIUzI1NiIs..."
+      config.headers.Authorization = `Bearer ${token}`
+    }
+
+    return config // Return the modified config to proceed with the request
+  },
+  (error) => {
+    // If the request setup itself fails (very rare), reject with the error
+    return Promise.reject(error)
+  }
+)
+
+
+// ── RESPONSE INTERCEPTOR ──────────────────────────────────────
+// An interceptor that runs AFTER every response is received.
+// This one handles global error cases — specifically 401 Unauthorized.
+//
+// When the server returns 401, it means the JWT token has expired
+// or been invalidated. We automatically log the user out and redirect
+// to the login page so they don't get stuck in a broken state.
+apiClient.interceptors.response.use(
+  (response) => {
+    // Success response (2xx) — return it unchanged
+    return response
+  },
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expired or invalid — clear local auth state and redirect to login
+
+      // Clear the saved auth state from localStorage
+      localStorage.removeItem('erp-auth')
+
+      // Redirect to login page.
+      // We use window.location instead of React Router here because
+      // this interceptor runs outside the React component tree.
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
+    }
+
+    // For all other errors, reject the promise so the calling code
+    // can handle it with try/catch or .catch()
+    return Promise.reject(error)
+  }
+)
+
+
+// ── TYPED API FUNCTIONS ───────────────────────────────────────
+// These are typed wrapper functions for each backend endpoint.
+// Using these instead of raw apiClient calls gives TypeScript
+// type checking on request and response data.
+
+import type { AuthUser } from '../store/authStore'
+
+// Shape of the login request body (mirrors backend LoginRequest schema)
+export interface LoginRequestPayload {
+  company_code?: string   // Optional — only required for remote mode
+  username: string
+  password: string
+  is_lan: boolean
+}
+
+// Shape of the login API response (mirrors backend LoginResponse schema)
+export interface LoginApiResponse {
+  access_token: string
+  token_type:   string
+  expires_in:   number
+  user: {
+    id:           string
+    name:         string
+    username:     string
+    email:        string | null
+    role:         string
+    company_id:   string
+    company_name: string
+    company_code: string
+    is_am_user:   boolean
+    permissions:  AuthUser['permissions']
+    avatar_url:   string | null
+  }
+}
+
+/**
+ * Calls POST /auth/login with the user's credentials.
+ * Returns the JWT token and user profile on success.
+ * Throws an AxiosError with the server's error message on failure.
+ */
+export async function apiLogin(payload: LoginRequestPayload): Promise<LoginApiResponse> {
+  const response = await apiClient.post<LoginApiResponse>('/auth/login', payload)
+  return response.data
+}
+
+/**
+ * Calls POST /auth/logout to invalidate the current session on the server.
+ * The frontend should also clear the local authStore after calling this.
+ */
+export async function apiLogout(): Promise<void> {
+  await apiClient.post('/auth/logout')
+}
+
+/**
+ * Calls GET /auth/me to fetch the current user's profile.
+ * Used on app startup to restore the session if a saved token exists.
+ */
+export async function apiGetMe(): Promise<LoginApiResponse['user']> {
+  const response = await apiClient.get<LoginApiResponse['user']>('/auth/me')
+  return response.data
+}
+
+/**
+ * Calls GET /health to check if the backend server is reachable.
+ * Returns true if the server is running and database is connected.
+ * Used in LAN discovery to confirm server presence.
+ */
+export async function apiHealthCheck(): Promise<boolean> {
+  try {
+    const response = await apiClient.get('/health', { timeout: 2000 }) // 2s timeout for discovery
+    return response.data?.status === 'ok'
+  } catch {
+    return false // Server not reachable
+  }
+}
+
+// ── COMPANIES API ───────────────────────────────────────────────
+export const api = {
+  auth: {
+    login: apiLogin,
+    logout: apiLogout,
+    getMe: apiGetMe,
+  },
+  companies: {
+    getAll: () => apiClient.get('/api/companies/'),
+    register: (data: any) => apiClient.post('/api/companies/register', data),
+  },
+  bulletins: {
+    getAll: () => apiClient.get('/api/bulletins/'),
+    create: (data: any) => apiClient.post('/api/bulletins/', data),
+    update: (id: string, data: any) => apiClient.put(`/api/bulletins/${id}`, data),
+    delete: (id: string) => apiClient.delete(`/api/bulletins/${id}`)
+  }
+}
+
+// ── INVENTORY MODULE API ──────────────────────────────────────
+
+export interface Product {
+  id: string
+  company_id: string
+  created_at: string
+  
+  // ── Marg Profile Fields ──
+  status: 'continue' | 'close'
+  hide: 'yes' | 'no'
+  code: string
+  name: string
+  packing: string
+  unit: string
+  colour_type: 'normal' | 'red' | 'blue' | 'green'
+  item_type: 'normal' | 'cold storage' | 'costly'
+  company_name: string
+  salt: string
+  hsn_applicable: 'yes' | 'no'
+  hsn_code?: string
+  local_tax: 'taxable' | 'tax paid' | 'exempted'
+  central_tax: 'taxable' | 'tax paid' | 'exempted'
+  sgst_percent: number
+  cgst_percent: number
+  igst_percent: number
+  mrp: number
+  p_rate: number
+  pts_rate: number
+  rate_a: number
+  ptr_rate: number
+  item_discount_percent: number
+  discount_type: 'applicable' | 'no discount' | 'no sch discount' | 'no schem'
+  category: 'na' | 'schedule h' | 'schedule h1' | 'narcotics'
+}
+
+export type ProductCreatePayload = Omit<Product, 'id' | 'company_id' | 'created_at'>
+
+export async function apiGetProducts(): Promise<Product[]> {
+  const response = await apiClient.get<Product[]>('/products/')
+  return response.data
+}
+
+export async function apiCreateProduct(payload: ProductCreatePayload): Promise<Product> {
+  const response = await apiClient.post<Product>('/products/', payload)
+  return response.data
+}
+
+export default apiClient
+
+`
+
+## bulletins.py
+`python
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from typing import List
+from uuid import UUID
+
+from database import get_db
+from models import Bulletin, User
+from schemas import BulletinCreate, BulletinUpdate, BulletinResponse
+from auth.router import get_current_user
+
+router = APIRouter(
+    prefix="/bulletins",
+    tags=["Bulletins"]
+)
+
+@router.get("/", response_model=List[BulletinResponse])
+def get_bulletins(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Fetch all bulletins for the current user's company or global ones.
+    """
+    bulletins = db.query(Bulletin).filter(
+        (Bulletin.company_id == current_user.company_id) | (Bulletin.is_global == True)
+    ).order_by(Bulletin.created_at.desc()).all()
+    
+    # We map author_name manually to avoid complex joins in the schema if we want it simple
+    result = []
+    for b in bulletins:
+        author_name = b.author.name if b.author else "Unknown"
+        # Create a dict from the model and inject author_name
+        b_dict = {
+            "id": b.id,
+            "company_id": b.company_id,
+            "author_id": b.author_id,
+            "title": b.title,
+            "content": b.content,
+            "priority": b.priority,
+            "is_global": b.is_global,
+            "created_at": b.created_at,
+            "updated_at": b.updated_at,
+            "author_name": author_name
+        }
+        result.append(b_dict)
+        
+    return result
+
+@router.post("/", response_model=BulletinResponse)
+def create_bulletin(bulletin_in: BulletinCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Create a new bulletin. Only am_admin or cm_admin can do this.
+    """
+    if current_user.role.value not in ["am_admin", "cm_admin"]:
+        raise HTTPException(status_code=403, detail="Not authorized to create bulletins")
+        
+    company_id_to_use = current_user.company_id
+    is_global_val = False
+    
+    if current_user.role.value == "am_admin":
+        if bulletin_in.is_global:
+            is_global_val = True
+        elif bulletin_in.target_company_id:
+            company_id_to_use = bulletin_in.target_company_id
+
+    bulletin = Bulletin(
+        company_id=company_id_to_use,
+        author_id=current_user.id,
+        title=bulletin_in.title,
+        content=bulletin_in.content,
+        priority=bulletin_in.priority,
+        is_global=is_global_val
+    )
+    db.add(bulletin)
+    db.commit()
+    db.refresh(bulletin)
+    
+    author_name = bulletin.author.name if bulletin.author else "Unknown"
+    return {**bulletin.__dict__, "author_name": author_name}
+
+@router.put("/{bulletin_id}", response_model=BulletinResponse)
+def update_bulletin(bulletin_id: UUID, bulletin_in: BulletinUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Update a bulletin. Only am_admin or cm_admin can do this.
+    """
+    if current_user.role.value not in ["am_admin", "cm_admin"]:
+        raise HTTPException(status_code=403, detail="Not authorized to update bulletins")
+        
+    bulletin = db.query(Bulletin).filter(
+        Bulletin.id == bulletin_id, 
+        (Bulletin.company_id == current_user.company_id) | (Bulletin.author_id == current_user.id)
+    ).first()
+    if not bulletin:
+        raise HTTPException(status_code=404, detail="Bulletin not found")
+        
+    update_data = bulletin_in.model_dump(exclude_unset=True)
+    
+    # Only am_admin can set is_global
+    if "is_global" in update_data and current_user.role.value != "am_admin":
+        del update_data["is_global"]
+
+    for key, value in update_data.items():
+        setattr(bulletin, key, value)
+        
+    db.commit()
+    db.refresh(bulletin)
+    
+    author_name = bulletin.author.name if bulletin.author else "Unknown"
+    return {**bulletin.__dict__, "author_name": author_name}
+
+@router.delete("/{bulletin_id}")
+def delete_bulletin(bulletin_id: UUID, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Delete a bulletin.
+    """
+    if current_user.role.value not in ["am_admin", "cm_admin"]:
+        raise HTTPException(status_code=403, detail="Not authorized to delete bulletins")
+        
+    bulletin = db.query(Bulletin).filter(
+        Bulletin.id == bulletin_id, 
+        (Bulletin.company_id == current_user.company_id) | (Bulletin.author_id == current_user.id)
+    ).first()
+    if not bulletin:
+        raise HTTPException(status_code=404, detail="Bulletin not found")
+        
+    db.delete(bulletin)
+    db.commit()
+    return {"ok": True}
+
+`
+
+## BulletinBoard.tsx
+`tsx
+import React, { useEffect, useState } from 'react'
+import { useAuthStore } from '../../store/authStore'
+import { api } from '../../lib/api'
+import { AlertCircle, Megaphone, Plus } from 'lucide-react'
+import { Button } from '../../components/ui/Button'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card'
+import BulletinModal from '../../components/ui/BulletinModal'
+
+export interface Bulletin {
+  id: string
+  company_id: string
+  author_id: string
+  title: string
+  content: string
+  priority: 'important' | 'general'
+  created_at: string
+  updated_at: string
+  author_name: string
+}
+
+export default function BulletinBoard() {
+  const user = useAuthStore(state => state.user)
+  const [bulletins, setBulletins] = useState<Bulletin[]>([])
+  const [loading, setLoading] = useState(true)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingBulletin, setEditingBulletin] = useState<Bulletin | null>(null)
+
+  const canEdit = user?.role === 'am_admin' || user?.role === 'cm_admin'
+
+  const fetchBulletins = async () => {
+    setLoading(true)
+    try {
+      const res = await api.bulletins.getAll()
+      setBulletins(res.data)
+    } catch (err) {
+      console.error('Failed to fetch bulletins', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchBulletins()
+  }, [])
+
+  const handleCreate = () => {
+    setEditingBulletin(null)
+    setIsModalOpen(true)
+  }
+
+  const handleEdit = (bulletin: Bulletin) => {
+    setEditingBulletin(bulletin)
+    setIsModalOpen(true)
+  }
+
+  const importantBulletins = bulletins.filter(b => b.priority === 'important')
+  const generalBulletins = bulletins.filter(b => b.priority === 'general')
+
+  return (
+    <div style={{ maxWidth: '1200px', animation: 'fadeIn 0.3s ease-in-out' }}>
+      
+      {/* ── PAGE HEADER ─────────────────────────────────────── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+        <div>
+          <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 800, marginBottom: '6px', color: 'var(--color-text)' }}>
+            Bulletin Board
+          </h1>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '15px', fontWeight: 500 }}>
+            Company-wide announcements and important notices.
+          </p>
+        </div>
+        
+        {canEdit && (
+          <Button onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Plus size={18} />
+            Post New Bulletin
+          </Button>
+        )}
+      </div>
+
+      {loading ? (
+        <p>Loading bulletins...</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+          
+          {/* ── IMPORTANT SECTION ───────────────────────────── */}
+          <section>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-danger)' }}>
+              <AlertCircle size={20} />
+              Important Announcements
+            </h2>
+            
+            {importantBulletins.length === 0 ? (
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '14px' }}>No important announcements right now.</p>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+                {importantBulletins.map(b => (
+                  <Card key={b.id} style={{ borderLeft: '4px solid var(--color-danger)' }}>
+                    <CardHeader style={{ paddingBottom: '12px' }}>
+                      <CardTitle style={{ fontSize: '16px', lineHeight: 1.4 }}>{b.title}</CardTitle>
+                      <CardDescription>By {b.author_name} • {new Date(b.created_at).toLocaleDateString()}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', whiteSpace: 'pre-wrap' }}>{b.content}</p>
+                      {canEdit && (
+                        <div style={{ marginTop: '16px', textAlign: 'right' }}>
+                          <Button variant="secondary" onClick={() => handleEdit(b)} size="sm">Edit</Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* ── GENERAL SECTION ────────────────────────────── */}
+          <section>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-primary)' }}>
+              <Megaphone size={20} />
+              General Notices
+            </h2>
+            
+            {generalBulletins.length === 0 ? (
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '14px' }}>No general notices.</p>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+                {generalBulletins.map(b => (
+                  <Card key={b.id}>
+                    <CardHeader style={{ paddingBottom: '12px' }}>
+                      <CardTitle style={{ fontSize: '16px', lineHeight: 1.4 }}>{b.title}</CardTitle>
+                      <CardDescription>By {b.author_name} • {new Date(b.created_at).toLocaleDateString()}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', whiteSpace: 'pre-wrap' }}>{b.content}</p>
+                      {canEdit && (
+                        <div style={{ marginTop: '16px', textAlign: 'right' }}>
+                          <Button variant="secondary" onClick={() => handleEdit(b)} size="sm">Edit</Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </section>
+
+        </div>
+      )}
+
+      {/* ── MODAL ────────────────────────────────────────── */}
+      {isModalOpen && (
+        <BulletinModal 
+          isOpen={isModalOpen} 
+          onClose={() => setIsModalOpen(false)} 
+          onSuccess={() => { setIsModalOpen(false); fetchBulletins(); }}
+          editingBulletin={editingBulletin}
+        />
+      )}
+    </div>
+  )
+}
+
+`
+
+## BulletinModal.tsx
+`tsx
+import React, { useState, useEffect } from 'react'
+import { Modal } from './Modal'
+import { Button } from './Button'
+import { Input } from './Input'
+import { api } from '../../lib/api'
+import { useAuthStore } from '../../store/authStore'
+
+interface BulletinModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onSuccess: () => void
+  editingBulletin?: any
+}
+
+export default function BulletinModal({ isOpen, onClose, onSuccess, editingBulletin }: BulletinModalProps) {
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
+  const [priority, setPriority] = useState<'general' | 'important'>('general')
+  const [broadcastTarget, setBroadcastTarget] = useState<string>('internal')
+  const [companies, setCompanies] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  
+  const user = useAuthStore(state => state.user)
+  const isAmAdmin = user?.role === 'am_admin'
+
+  useEffect(() => {
+    if (isAmAdmin) {
+      api.companies.getAll().then(res => setCompanies(res.data)).catch(() => {})
+    }
+  }, [isAmAdmin])
+
+  useEffect(() => {
+    if (editingBulletin) {
+      setTitle(editingBulletin.title)
+      setContent(editingBulletin.content)
+      setPriority(editingBulletin.priority)
+      if (editingBulletin.is_global) {
+        setBroadcastTarget('global')
+      } else if (user && editingBulletin.company_id !== user.company_id) {
+        setBroadcastTarget(editingBulletin.company_id)
+      } else {
+        setBroadcastTarget('internal')
+      }
+    } else {
+      setTitle('')
+      setContent('')
+      setPriority('general')
+      setBroadcastTarget('internal')
+    }
+    setError(null)
+  }, [editingBulletin, isOpen, user])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    try {
+      const payload: any = { title, content, priority }
+      if (isAmAdmin) {
+        payload.is_global = broadcastTarget === 'global'
+        if (broadcastTarget !== 'global' && broadcastTarget !== 'internal') {
+          payload.target_company_id = broadcastTarget
+        }
+      }
+      
+      if (editingBulletin) {
+        await api.bulletins.update(editingBulletin.id, payload)
+      } else {
+        await api.bulletins.create(payload)
+      }
+      onSuccess()
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        setError('Your session has expired. You will be redirected to log in again.');
+      } else {
+        const msg = err.response?.data?.detail;
+        setError(typeof msg === 'string' ? msg : 'An error occurred while saving the bulletin.');
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!editingBulletin || !window.confirm('Are you sure you want to delete this bulletin?')) return
+    setLoading(true)
+    try {
+      await api.bulletins.delete(editingBulletin.id)
+      onSuccess()
+    } catch (err: any) {
+      setError('Failed to delete bulletin.')
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={editingBulletin ? 'Edit Bulletin' : 'Post New Bulletin'}>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        
+        {error && (
+          <div style={{ padding: '12px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-danger)', borderRadius: '6px', fontSize: '14px' }}>
+            {error}
+          </div>
+        )}
+
+        <Input
+          label="Bulletin Title"
+          required
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="e.g., Office closed for holidays"
+        />
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>Content</label>
+          <textarea
+            required
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            style={{ 
+              padding: '10px 12px', 
+              borderRadius: '8px', 
+              border: '1px solid var(--color-border)',
+              backgroundColor: 'var(--color-bg-secondary)',
+              color: 'var(--color-text)',
+              minHeight: '120px',
+              fontFamily: 'inherit',
+              resize: 'vertical'
+            }}
+            placeholder="Write the announcement details here..."
+          />
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>Priority</label>
+          <select
+            value={priority}
+            onChange={(e) => setPriority(e.target.value as 'general' | 'important')}
+            style={{ 
+              padding: '10px 12px', 
+              borderRadius: '8px', 
+              border: '1px solid var(--color-border)',
+              backgroundColor: 'var(--color-bg-secondary)',
+              color: 'var(--color-text)'
+            }}
+          >
+            <option value="general">General Notice (Blue)</option>
+            <option value="important">Important / Urgent (Red)</option>
+          </select>
+        </div>
+
+        {isAmAdmin && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)' }}>Broadcast Target</label>
+            <select
+              value={broadcastTarget}
+              onChange={(e) => setBroadcastTarget(e.target.value)}
+              style={{ 
+                padding: '10px 12px', 
+                borderRadius: '8px', 
+                border: '1px solid var(--color-border)',
+                backgroundColor: 'var(--color-bg-secondary)',
+                color: 'var(--color-text)'
+              }}
+            >
+              <option value="internal">Internal (My Company Only)</option>
+              <option value="global">Global (All Client Companies)</option>
+              {companies.map(c => (
+                <option key={c.id} value={c.id}>Specific Client: {c.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px' }}>
+          {editingBulletin ? (
+            <Button type="button" variant="secondary" style={{ color: 'var(--color-danger)', borderColor: 'var(--color-danger)' }} onClick={handleDelete} disabled={loading}>
+              Delete
+            </Button>
+          ) : <div></div>}
+          
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>Cancel</Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Saving...' : 'Save Bulletin'}
+            </Button>
+          </div>
+        </div>
+
+      </form>
+    </Modal>
+  )
+}
+
+`
+
