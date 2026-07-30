@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Card, CardHeader, CardTitle } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { X, Building2, User, Key } from 'lucide-react'
-import { apiClient } from '../../lib/api'
+import { apiRegisterOrganization } from '../../lib/api'
 
 interface RegisterClientModalProps {
   isOpen: boolean
@@ -12,8 +12,8 @@ interface RegisterClientModalProps {
 
 export function RegisterClientModal({ isOpen, onClose, onSuccess }: RegisterClientModalProps) {
   const [formData, setFormData] = useState({
-    company_name: '',
-    company_code: '',
+    org_name: '',
+    org_code: '',
     admin_name: '',
     admin_username: '',
     admin_password: ''
@@ -37,11 +37,11 @@ export function RegisterClientModal({ isOpen, onClose, onSuccess }: RegisterClie
     setError(null)
     
     try {
-      await apiClient.post('/api/companies/register', formData)
+      await apiRegisterOrganization(formData)
       onSuccess() // Close modal and refresh list
       setFormData({
-        company_name: '',
-        company_code: '',
+        org_name: '',
+        org_code: '',
         admin_name: '',
         admin_username: '',
         admin_password: ''
@@ -108,12 +108,12 @@ export function RegisterClientModal({ isOpen, onClose, onSuccess }: RegisterClie
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>Company Name</label>
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>Organization Name</label>
             <div style={{ position: 'relative' }}>
               <Building2 size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
               <input 
-                name="company_name"
-                value={formData.company_name}
+                name="org_name"
+                value={formData.org_name}
                 onChange={handleChange}
                 required
                 placeholder="e.g. Delta Logistics"
@@ -127,10 +127,10 @@ export function RegisterClientModal({ isOpen, onClose, onSuccess }: RegisterClie
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>Company Code</label>
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>Organization Code</label>
             <input 
-              name="company_code"
-              value={formData.company_code}
+              name="org_code"
+              value={formData.org_code}
               onChange={handleChange}
               required
               placeholder="e.g. DELTA-2026"

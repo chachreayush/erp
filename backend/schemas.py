@@ -30,29 +30,29 @@ from models import UserRole  # Import the role enum from our models
 # These define what the client must send in the request body
 
 class ClientRegistrationRequest(BaseModel):
-    company_name: str = Field(..., min_length=2, max_length=255)
-    company_code: str = Field(..., min_length=2, max_length=20)
+    org_name: str = Field(..., min_length=2, max_length=255)
+    org_code: str = Field(..., min_length=2, max_length=20)
     admin_name: str = Field(..., min_length=2, max_length=255)
     admin_username: str = Field(..., min_length=2, max_length=100)
     admin_password: str = Field(..., min_length=4)
 
 
 class ImpersonateRequest(BaseModel):
-    target_company_id: UUID4 = Field(..., description="The ID of the client company to switch to")
+    target_org_id: UUID4 = Field(..., description="The ID of the client organization to switch to")
 
 class LoginRequest(BaseModel):
     """
     Data the frontend sends when a user tries to log in.
 
     LAN Mode:   only username + password are required
-    Remote Mode: company_code + username + password are required
+    Remote Mode: org_code + username + password are required
     """
-    # company_code: The short company identifier (e.g., "MUM-6135")
-    # Optional because LAN users don't need to specify their company —
-    # the server already knows which company it belongs to.
-    company_code: Optional[str] = Field(
+    # org_code: The short organization identifier (e.g., "MUM-6135")
+    # Optional because LAN users don't need to specify their organization —
+    # the server already knows which organization it belongs to.
+    org_code: Optional[str] = Field(
         default=None,
-        description="Required for remote login. The company's unique code."
+        description="Required for remote login. The organization's unique code."
     )
 
     # username: The login username — required always
@@ -72,7 +72,7 @@ class LoginRequest(BaseModel):
     )
 
     # is_lan: Flag from the frontend indicating whether this is a LAN login.
-    # If True, we skip company_code validation and use the local company.
+    # If True, we skip org_code validation and use the local organization.
     is_lan: bool = Field(
         default=False,
         description="True if connecting via local network, False if remote"
@@ -121,10 +121,10 @@ class UserProfileSchema(BaseModel):
     username:    str                   # Login username
     email:       Optional[str]         # Email (optional)
     role:        UserRole              # Role enum value
-    company_id:  UUID                  # The user's company UUID
-    company_name: str                  # Human-readable company name
-    company_code: str                  # Company short code (e.g., "MUM-6135")
-    is_am_user:  bool                  # True if belongs to AM company
+    organization_id:  UUID                  # The user's organization UUID
+    org_name: str                  # Human-readable organization name
+    org_code: str                  # Organization short code (e.g., "MUM-6135")
+    is_am_user:  bool                  # True if belongs to AM organization
     permissions: UserPermissionsSchema # Full module permissions
     avatar_url:  Optional[str]         # Profile picture URL (optional)
 
@@ -173,7 +173,7 @@ class BulletinBase(BaseModel):
 
 class BulletinCreate(BulletinBase):
     is_global: bool = False
-    target_company_id: Optional[UUID] = None
+    target_org_id: Optional[UUID] = None
 
 class BulletinUpdate(BaseModel):
     title: Optional[str] = Field(None, max_length=255)
@@ -183,7 +183,7 @@ class BulletinUpdate(BaseModel):
 
 class BulletinResponse(BulletinBase):
     id: UUID
-    company_id: UUID
+    organization_id: UUID
     author_id: UUID
     is_global: bool
     created_at: datetime
@@ -224,7 +224,7 @@ class InvoiceCreate(InvoiceBase):
 
 class InvoiceResponse(InvoiceBase):
     id: UUID4
-    company_id: UUID4
+    organization_id: UUID4
     created_at: datetime
     date: datetime
     items: list[InvoiceItemResponse] = []
@@ -254,7 +254,7 @@ class ProductBase(BaseModel):
     unit: Optional[str] = None
     colour_type: str = "normal"
     item_type: str = "normal"
-    company_name: Optional[str] = None
+    org_name: Optional[str] = None
     salt: Optional[str] = None
     
     # Taxes & HSN
@@ -281,7 +281,90 @@ class ProductCreate(ProductBase):
 
 class ProductResponse(ProductBase):
     id: UUID4
-    company_id: UUID4
+    organization_id: UUID4
     created_at: datetime
 
+    model_config = ConfigDict(from_attributes=True)
+
+# ── MASTER DATA SCHEMAS ────────────────────────────────────────
+
+class LedgerBase(BaseModel):
+    name: str
+    group_name: str
+    mobile: Optional[str] = None
+    state: Optional[str] = None
+    opening_balance: float = 0
+    op_type: str = 'Dr'
+    closing_balance: float = 0
+    cl_type: str = 'Dr'
+
+class LedgerCreate(LedgerBase):
+    pass
+
+class LedgerResponse(LedgerBase):
+    id: UUID4
+    organization_id: UUID4
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class SaltBase(BaseModel):
+    formula: str
+    indications: Optional[str] = None
+    dosage: Optional[str] = None
+    side_effects: Optional[str] = None
+    precautions: Optional[str] = None
+    labels: Optional[str] = None
+
+class SaltCreate(SaltBase):
+    pass
+
+class SaltResponse(SaltBase):
+    id: UUID4
+    organization_id: UUID4
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class ManufacturerBase(BaseModel):
+    name: str
+    short_code: Optional[str] = None
+    default_discount: float = 0
+    supplier: Optional[str] = None
+
+class ManufacturerCreate(ManufacturerBase):
+    pass
+
+class ManufacturerResponse(ManufacturerBase):
+    id: UUID4
+    organization_id: UUID4
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class HSNCodeBase(BaseModel):
+    code: str
+    description: Optional[str] = None
+    igst: float = 0
+    cgst: float = 0
+    sgst: float = 0
+
+class HSNCodeCreate(HSNCodeBase):
+    pass
+
+class HSNCodeResponse(HSNCodeBase):
+    id: UUID4
+    organization_id: UUID4
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class StateCodeBase(BaseModel):
+    name: str
+    gst_code: Optional[str] = None
+    capital: Optional[str] = None
+
+class StateCodeCreate(StateCodeBase):
+    pass
+
+class StateCodeResponse(StateCodeBase):
+    id: UUID4
+    organization_id: UUID4
+    created_at: datetime
     model_config = ConfigDict(from_attributes=True)

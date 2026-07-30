@@ -108,3 +108,19 @@ To keep inventory and accounts correct, items move through the software in a spe
 1. *(Example: "In our pharmacy, Brk/Exp Receive must always deduct 10% value if the product is expired more than 6 months...")*
 2. 
 3. 
+
+---
+
+## 3. Organizations (CM Clients) & Multi-Tenancy Updates
+
+### Backend Alignment (ackend/api/organizations.py)
+- The system enforces a strict Multi-Tenant architecture. 
+- The top-level hierarchy for all Client Master (CM) environments is officially named **Organizations**.
+- All data records (products, sales, ledgers) are isolated by organization_id.
+- The pi/organizations.py router exclusively handles fetching organizations and registering new client databases with their CM Admin accounts.
+
+### Frontend Alignment (src/pages/admin/ClientManagement.tsx)
+- The Client Management dashboard has been refactored to align with the backend Organizations terminology.
+- ClientCompany interfaces were replaced with Organization interfaces containing org_code.
+- **Impersonation**: The handleSwitchToClient action successfully exchanges an AM Admin token for a CM Admin token by dispatching 	arget_org_id to /auth/impersonate.
+

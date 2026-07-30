@@ -108,9 +108,9 @@ app.add_middleware(
 # Authentication routes: /auth/login, /auth/logout, /auth/me
 app.include_router(auth_router)
 
-# Companies routes
-from api.companies import router as companies_router
-app.include_router(companies_router, prefix="/api")
+# Organizations routes
+from api.organizations import router as organizations_router
+app.include_router(organizations_router, prefix="/api")
 
 # Bulletins routes
 from api.bulletins import router as bulletins_router
@@ -121,7 +121,9 @@ from api.sales import router as sales_router
 app.include_router(sales_router, prefix="/api")
 
 # Future routers will be added here as modules are built:
+from api.master import router as master_router
 app.include_router(inventory_router)
+app.include_router(master_router, prefix="/api/master", tags=["Master Data"])
 # app.include_router(hr_router)
 # app.include_router(reports_router)
 
@@ -141,15 +143,15 @@ def startup_event():
     Runs on server startup.
     Creates database tables if they don't exist (dev auto-migration).
     """
-    print("🚀 ERP Backend starting up...")
+    print("ERP Backend starting up...")
     print(f"   Environment: {APP_ENV}")
 
     # Create all database tables defined in models.py
     # This is equivalent to running CREATE TABLE IF NOT EXISTS for each model
     Base.metadata.create_all(bind=engine)
-    print("✅ Database tables verified/created successfully.")
-    print(f"✅ API documentation available at: http://localhost:{os.getenv('BACKEND_PORT', 8000)}/docs")
-    print("✅ Server is ready to accept connections.")
+    print("Database tables verified/created successfully.")
+    print(f"API documentation available at: http://localhost:{os.getenv('BACKEND_PORT', 8000)}/docs")
+    print("Server is ready to accept connections.")
 
 
 # ── HEALTH CHECK ENDPOINT ─────────────────────────────────────

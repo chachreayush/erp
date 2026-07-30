@@ -1815,26 +1815,18 @@ export default function BulletinModal({ isOpen, onClose, onSuccess, editingBulle
 
 
 
+---
 
-## File: \src/pages/master/MasterPage.tsx\
-**Location in Project:** \C:\Users\DELL\OneDrive\Desktop\erp\src\pages\master\MasterPage.tsx\
+## 3. Organizations (CM Clients) & Multi-Tenancy Updates
 
-### Purpose
-The Master Data page is a heavy-duty data entry engine used to manage core ERP entities (Ledgers, Salts, Companies, HSN codes, States, and Balances). It is heavily optimized for rapid data entry without requiring a mouse, heavily inspired by classical ERPs like Tally or Marg.
+### Backend Alignment (ackend/api/organizations.py)
+- The system enforces a strict Multi-Tenant architecture. 
+- The top-level hierarchy for all Client Master (CM) environments is officially named **Organizations**.
+- All data records (products, sales, ledgers) are isolated by organization_id.
+- The pi/organizations.py router exclusively handles fetching organizations and registering new client databases with their CM Admin accounts.
 
-### Keyboard & Navigation Workflow
-To optimize for lightning-fast data entry, the modal supports comprehensive keyboard navigation:
-1. **Adding & Editing:** Pressing \F2\ opens the modal to create a new record and focuses the first input field instantly. Pressing \Enter\ or \F3\ on an existing row opens the record in **View Mode** (read-only) and highlights the **Edit** button.
-2. **Field Traversal:** While editing, pressing the \Enter\ key bypasses standard form submission and instead shifts the cursor to the next input field. Once the final field is reached, the focus securely locks onto the **Exit without saving (Esc)** button.
-3. **Arrow Key Navigation:** 
-   - \ArrowDown\ and \ArrowUp\ move the focus to the next/previous input field vertically.
-   - \ArrowRight\ and \ArrowLeft\ toggle focus between form action buttons horizontally (e.g., swapping between *Cancel* and *Yes, Exit*).
-4. **Escape Protection:** Pressing \ESC\ while creating or editing a draft triggers a safety prompt (\showUnsavedPrompt\). The cursor is locked onto the *Cancel* button to prevent accidental data loss. If *Cancel* is selected, the cursor perfectly snaps back to the first input field to resume work. If *Yes, Exit* is selected, the modal closes and focus jumps directly back to the active header tab.
-5. **Continuous Add:** Hitting **Save** on a new record does not close the modal. Instead, it saves the draft and instantly resets the form to blank, allowing continuous bulk entry.
-
-### Variables
-- \modalMode\: Controls the state of the modal (\'create'\ | \'view'\ | \'edit'\). View mode disables all inputs.
-- \showUnsavedPrompt\: Triggers the protective secondary modal asking if the user wants to discard changes.
-- \ocusedZone\: Tracks if the keyboard focus is currently on the top navigation tabs (\'tabs'\), the list table (\'list'\), or neither (\'none'\).
-
+### Frontend Alignment (src/pages/admin/ClientManagement.tsx)
+- The Client Management dashboard has been refactored to align with the backend Organizations terminology.
+- ClientCompany interfaces were replaced with Organization interfaces containing org_code.
+- **Impersonation**: The handleSwitchToClient action successfully exchanges an AM Admin token for a CM Admin token by dispatching 	arget_org_id to /auth/impersonate.
 

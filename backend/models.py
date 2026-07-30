@@ -14,8 +14,8 @@
 # This is safer, cleaner, and less error-prone.
 #
 # SPRINT 2 TABLES:
-# 1. Company  — Stores AM + all CM companies
-# 2. User     — All user accounts across all companies
+# 1. Organization  — Stores AM + all CM organizations
+# 2. User     — All user accounts across all organizations
 # 3. Session  — Active login sessions (JWT tracking)
 # ============================================================
 
@@ -55,26 +55,26 @@ class UserRole(str, enum.Enum):
     VIEWER       = "viewer"        # Read-only access
 
 
-# ── TABLE 1: Company ──────────────────────────────────────────
-class Company(Base):
+# ── TABLE 1: Organization ──────────────────────────────────────────
+class Organization(Base):
     """
-    Stores every company in the system.
-    There is ONE AM company (the software owner) and MANY CM companies (clients).
+    Stores every organization in the system.
+    There is ONE AM organization (the software owner) and MANY CM organizations (clients).
 
     DATA ISOLATION RULE: Every piece of data in every other table
-    has a company_id that links it back to this table. This ensures
-    data from Company A can NEVER be seen by Company B users.
+    has a organization_id that links it back to this table. This ensures
+    data from Organization A can NEVER be seen by Organization B users.
 
-    Table name in PostgreSQL: 'companies'
+    Table name in PostgreSQL: 'organizations'
     """
-    __tablename__ = "companies"  # The actual name of the table in the database
+    __tablename__ = "organizations"  # The actual name of the table in the database
 
     # ── COLUMNS ─────────────────────────────────────────────────
 
     # id: Primary key — a UUID (universally unique ID like "a3b4c5...")
     # Uses PostgreSQL's native UUID type for guaranteed uniqueness.
     # default=uuid.uuid4 means a new random UUID is auto-generated
-    # whenever a new company is created — we never set this manually.
+    # whenever a new organization is created — we never set this manually.
     id = Column(
         UUID(as_uuid=True),      # UUID type (stored as 128-bit value in DB)
         primary_key=True,        # This is the primary key (must be unique)
@@ -82,56 +82,56 @@ class Company(Base):
         nullable=False           # Cannot be empty
     )
 
-    # name: The full company name shown in the UI
+    # name: The full organization name shown in the UI
     # e.g., "Mumbai Traders Pvt Ltd"
     name = Column(String(255), nullable=False)
 
-    # company_code: The short unique code used for remote login
+    # org_code: The short unique code used for remote login
     # e.g., "MUM-6135" — users type this when logging in remotely
-    # unique=True ensures no two companies can have the same code
-    company_code = Column(String(20), unique=True, nullable=False, index=True)
+    # unique=True ensures no two organizations can have the same code
+    org_code = Column(String(20), unique=True, nullable=False, index=True)
 
-    # is_am: Flags whether this is the Account Master company.
-    # Only ONE company in the entire system should have is_am=True.
-    # The AM company's admin can see ALL companies' data.
+    # is_am: Flags whether this is the Account Master organization.
+    # Only ONE organization in the entire system should have is_am=True.
+    # The AM organization's admin can see ALL organizations' data.
     is_am = Column(Boolean, default=False, nullable=False)
 
-    # address: Optional physical address of the company
+    # address: Optional physical address of the organization
     address = Column(Text, nullable=True)
 
     # phone: Contact phone number
     phone = Column(String(20), nullable=True)
 
-    # email: Primary contact email for the company
+    # email: Primary contact email for the organization
     email = Column(String(255), nullable=True)
 
     # is_active: Soft delete flag.
-    # Instead of deleting a company from the database (which would
+    # Instead of deleting a organization from the database (which would
     # orphan all their data), we set is_active=False to "deactivate" them.
     is_active = Column(Boolean, default=True, nullable=False)
 
-    # created_at: When this company record was created.
+    # created_at: When this organization record was created.
     # default=datetime.utcnow means the timestamp is set automatically.
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # ── RELATIONSHIPS ───────────────────────────────────────────
-    # A company has many users. This line creates a list of all
-    # users belonging to this company. (Not stored in the db directly,
+    # A organization has many users. This line creates a list of all
+    # users belonging to this organization. (Not stored in the db directly,
     # SQLAlchemy builds this list for us on the fly).
-    users = relationship("User", back_populates="company", cascade="all, delete-orphan")
+    users = relationship("User", back_populates="organization", cascade="all, delete-orphan")
     
-    # A company has many products (Inventory).
-    products = relationship("Product", back_populates="company", cascade="all, delete-orphan")
+    # A organization has many products (Inventory).
+    products = relationship("Product", back_populates="organization", cascade="all, delete-orphan")
 
     def __repr__(self):
         """String representation for debugging — shows in logs and Python shell"""
-        return f"<Company {self.company_code}: {self.name}>"
+        return f"<Organization {self.org_code}: {self.name}>"
 
 
 # ── TABLE 2: User ─────────────────────────────────────────────
 class User(Base):
     """
-    Stores every user account in the system across all companies.
+    Stores every user account in the system across all organizations.
 
     SECURITY NOTE: Passwords are NEVER stored as plain text.
     Only the bcrypt-hashed version is stored. Even if someone
@@ -146,24 +146,24 @@ class User(Base):
     # id: Primary key UUID — auto-generated, never set manually
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
 
-    # company_id: Foreign key linking this user to their company.
-    # ForeignKey("companies.id") means this value must exist in
-    # the 'id' column of the 'companies' table.
-    # If a company is deleted, what happens to their users?
+    # organization_id: Foreign key linking this user to their organization.
+    # ForeignKey("organizations.id") means this value must exist in
+    # the 'id' column of the 'organizations' table.
+    # If a organization is deleted, what happens to their users?
     # ondelete="CASCADE" means users are deleted too — no orphaned records.
-    company_id = Column(
+    organization_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("companies.id", ondelete="CASCADE"),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
         nullable=False,
-        index=True  # Add index for fast lookups by company
+        index=True  # Add index for fast lookups by organization
     )
 
     # name: Full display name (e.g., "Rahul Sharma")
     name = Column(String(255), nullable=False)
 
-    # username: The login username — must be unique WITHIN a company.
-    # Note: Two different companies CAN have a user named "admin" —
-    # the company_id + username combination must be unique.
+    # username: The login username — must be unique WITHIN a organization.
+    # Note: Two different organizations CAN have a user named "admin" —
+    # the organization_id + username combination must be unique.
     username = Column(String(100), nullable=False, index=True)
 
     # email: User's email address
@@ -198,16 +198,16 @@ class User(Base):
     last_login = Column(DateTime, nullable=True)
 
     # ── RELATIONSHIPS ────────────────────────────────────────────
-    # Link back to the Company this user belongs to.
-    # Accessing user.company gives the full Company object.
-    company = relationship("Company", back_populates="users")
+    # Link back to the Organization this user belongs to.
+    # Accessing user.organization gives the full Organization object.
+    organization = relationship("Organization", back_populates="users")
 
     # Link to all active sessions for this user.
     # Accessing user.sessions gives a list of their login sessions.
     sessions = relationship("Session", back_populates="user")
 
     def __repr__(self):
-        return f"<User {self.username} @ {self.company_id}>"
+        return f"<User {self.username} @ {self.organization_id}>"
 
 
 # ── TABLE 3: Session ──────────────────────────────────────────
@@ -236,11 +236,11 @@ class Session(Base):
 # ── TABLE 4: Bulletin ──────────────────────────────────────────
 class Bulletin(Base):
     """
-    Company-wide or global announcements and bulletins.
+    Organization-wide or global announcements and bulletins.
     """
     __tablename__ = "bulletins"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     author_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     title = Column(String(255), nullable=False)
     content = Column(Text, nullable=False)
@@ -250,7 +250,7 @@ class Bulletin(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     # ── RELATIONSHIPS ────────────────────────────────────────────
-    company = relationship("Company")
+    organization = relationship("Organization")
     author = relationship("User")
 
     def __repr__(self):
@@ -262,13 +262,13 @@ from sqlalchemy import Numeric, Integer
 
 class Product(Base):
     """
-    Stores products/inventory items for each company.
+    Stores products/inventory items for each organization.
     Includes comprehensive fields for Marg-style ERP features.
     """
     __tablename__ = "products"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # ── Marg Profile Fields ──
@@ -280,7 +280,7 @@ class Product(Base):
     unit = Column(String(50), nullable=True)
     colour_type = Column(String(50), nullable=True, default="normal")
     item_type = Column(String(50), nullable=True, default="normal")
-    company_name = Column(String(255), nullable=True) # Manufacturer name
+    org_name = Column(String(255), nullable=True) # Manufacturer name
     salt = Column(String(255), nullable=True)
     
     # ── Taxes & HSN ──
@@ -303,7 +303,7 @@ class Product(Base):
     category = Column(String(100), nullable=True, default="na")
 
     # ── RELATIONSHIPS ────────────────────────────────────────────
-    company = relationship("Company", back_populates="products")
+    organization = relationship("Organization", back_populates="products")
 
     def __repr__(self):
         return f"<Product {self.code}: {self.name}>"
@@ -314,7 +314,7 @@ class Invoice(Base):
     __tablename__ = "invoices"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     invoice_number = Column(String(100), nullable=False)
@@ -327,7 +327,7 @@ class Invoice(Base):
     grand_total = Column(Numeric(12, 2), nullable=False, default=0)
     
     # -- RELATIONSHIPS --------------------------------------------
-    company = relationship("Company")
+    organization = relationship("Organization")
     items = relationship("InvoiceItem", back_populates="invoice", cascade="all, delete-orphan")
 
     def __repr__(self):
@@ -364,16 +364,84 @@ class Ledger(Base):
     __tablename__ = "ledgers"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     name = Column(String(255), nullable=False)
     group_name = Column(String(100), nullable=False) # e.g. 'Cash-in-Hand', 'Bank Accounts'
-    balance = Column(Numeric(15, 2), nullable=False, default=0)
+    mobile = Column(String(20), nullable=True)
+    state = Column(String(100), nullable=True)
+    opening_balance = Column(Numeric(15, 2), nullable=False, default=0)
+    op_type = Column(String(2), nullable=False, default='Dr') # Dr or Cr
+    closing_balance = Column(Numeric(15, 2), nullable=False, default=0)
+    cl_type = Column(String(2), nullable=False, default='Dr') # Dr or Cr
 
     # -- RELATIONSHIPS --------------------------------------------
-    company = relationship("Company")
+    organization = relationship("Organization")
 
     def __repr__(self):
-        return f"<Ledger {self.name}: {self.balance}>"
+        return f"<Ledger {self.name}: {self.closing_balance}>"
+
+
+# -- TABLE 9: Salt (Master Data) ---------------------------------
+class Salt(Base):
+    __tablename__ = "salts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    formula = Column(String(255), nullable=False)
+    indications = Column(Text, nullable=True)
+    dosage = Column(Text, nullable=True)
+    side_effects = Column(Text, nullable=True)
+    precautions = Column(Text, nullable=True)
+    labels = Column(String(100), nullable=True) # e.g. Sch H
+
+    organization = relationship("Organization")
+
+# -- TABLE 10: Manufacturer (Master Data) ---------------------------------
+class Manufacturer(Base):
+    __tablename__ = "manufacturers"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    name = Column(String(255), nullable=False)
+    short_code = Column(String(50), nullable=True)
+    default_discount = Column(Numeric(5, 2), nullable=False, default=0)
+    supplier = Column(String(255), nullable=True)
+
+    organization = relationship("Organization")
+
+# -- TABLE 11: HSNCode (Master Data) ---------------------------------
+class HSNCode(Base):
+    __tablename__ = "hsn_codes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    code = Column(String(50), nullable=False)
+    description = Column(Text, nullable=True)
+    igst = Column(Numeric(5, 2), nullable=False, default=0)
+    cgst = Column(Numeric(5, 2), nullable=False, default=0)
+    sgst = Column(Numeric(5, 2), nullable=False, default=0)
+
+    organization = relationship("Organization")
+
+# -- TABLE 12: StateCode (Master Data) ---------------------------------
+class StateCode(Base):
+    __tablename__ = "state_codes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    name = Column(String(255), nullable=False)
+    gst_code = Column(String(10), nullable=True)
+    capital = Column(String(255), nullable=True)
+
+    organization = relationship("Organization")
 

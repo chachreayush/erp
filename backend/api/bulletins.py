@@ -16,10 +16,10 @@ router = APIRouter(
 @router.get("/", response_model=List[BulletinResponse])
 def get_bulletins(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """
-    Fetch all bulletins for the current user's company or global ones.
+    Fetch all bulletins for the current user's organization or global ones.
     """
     bulletins = db.query(Bulletin).filter(
-        (Bulletin.company_id == current_user.company_id) | (Bulletin.is_global == True)
+        (Bulletin.organization_id == current_user.organization_id) | (Bulletin.is_global == True)
     ).order_by(Bulletin.created_at.desc()).all()
     
     # We map author_name manually to avoid complex joins in the schema if we want it simple
@@ -29,7 +29,7 @@ def get_bulletins(db: Session = Depends(get_db), current_user: User = Depends(ge
         # Create a dict from the model and inject author_name
         b_dict = {
             "id": b.id,
-            "company_id": b.company_id,
+            "organization_id": b.organization_id,
             "author_id": b.author_id,
             "title": b.title,
             "content": b.content,
@@ -51,17 +51,17 @@ def create_bulletin(bulletin_in: BulletinCreate, db: Session = Depends(get_db), 
     if current_user.role.value not in ["am_admin", "cm_admin"]:
         raise HTTPException(status_code=403, detail="Not authorized to create bulletins")
         
-    company_id_to_use = current_user.company_id
+    organization_id_to_use = current_user.organization_id
     is_global_val = False
     
     if current_user.role.value == "am_admin":
         if bulletin_in.is_global:
             is_global_val = True
-        elif bulletin_in.target_company_id:
-            company_id_to_use = bulletin_in.target_company_id
+        elif bulletin_in.target_org_id:
+            organization_id_to_use = bulletin_in.target_org_id
 
     bulletin = Bulletin(
-        company_id=company_id_to_use,
+        organization_id=organization_id_to_use,
         author_id=current_user.id,
         title=bulletin_in.title,
         content=bulletin_in.content,
@@ -85,7 +85,7 @@ def update_bulletin(bulletin_id: UUID, bulletin_in: BulletinUpdate, db: Session 
         
     bulletin = db.query(Bulletin).filter(
         Bulletin.id == bulletin_id, 
-        (Bulletin.company_id == current_user.company_id) | (Bulletin.author_id == current_user.id)
+        (Bulletin.organization_id == current_user.organization_id) | (Bulletin.author_id == current_user.id)
     ).first()
     if not bulletin:
         raise HTTPException(status_code=404, detail="Bulletin not found")
@@ -115,7 +115,7 @@ def delete_bulletin(bulletin_id: UUID, db: Session = Depends(get_db), current_us
         
     bulletin = db.query(Bulletin).filter(
         Bulletin.id == bulletin_id, 
-        (Bulletin.company_id == current_user.company_id) | (Bulletin.author_id == current_user.id)
+        (Bulletin.organization_id == current_user.organization_id) | (Bulletin.author_id == current_user.id)
     ).first()
     if not bulletin:
         raise HTTPException(status_code=404, detail="Bulletin not found")

@@ -23,10 +23,10 @@ def get_invoices(
     current_user: models.User = Depends(get_current_user)
 ):
     """
-    Fetch all invoices for the current user's company.
+    Fetch all invoices for the current user's organization.
     """
     invoices = db.query(models.Invoice)\
-        .filter(models.Invoice.company_id == current_user.company_id)\
+        .filter(models.Invoice.organization_id == current_user.organization_id)\
         .order_by(desc(models.Invoice.created_at))\
         .all()
     return invoices
@@ -44,7 +44,7 @@ def create_invoice(
     """
     # 1. Create the parent Invoice record
     new_invoice = models.Invoice(
-        company_id=current_user.company_id,
+        organization_id=current_user.organization_id,
         invoice_number=invoice_data.invoice_number,
         customer_name=invoice_data.customer_name,
         subtotal=invoice_data.subtotal,

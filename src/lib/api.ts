@@ -302,4 +302,159 @@ export async function apiCreateInvoice(payload: InvoiceCreatePayload): Promise<I
   return response.data
 }
 
+// ── MASTER DATA API ──────────────────────────────────────────
+
+export interface Ledger {
+  id?: string
+  name: string
+  group_name: string
+  mobile?: string
+  state?: string
+  opening_balance: number
+  op_type: string
+  closing_balance: number
+  cl_type: string
+}
+
+export async function apiGetLedgers(): Promise<Ledger[]> {
+  const response = await apiClient.get<Ledger[]>('/api/master/ledgers')
+  return response.data
+}
+export async function apiCreateLedger(payload: Ledger): Promise<Ledger> {
+  const response = await apiClient.post<Ledger>('/api/master/ledgers', payload)
+  return response.data
+}
+export async function apiUpdateLedger(id: string, payload: Ledger): Promise<Ledger> {
+  const response = await apiClient.put<Ledger>(`/api/master/ledgers/${id}`, payload)
+  return response.data
+}
+export async function apiDeleteLedger(id: string): Promise<void> {
+  await apiClient.delete(`/api/master/ledgers/${id}`)
+}
+
+export interface Salt {
+  id?: string
+  formula: string
+  indications?: string
+  dosage?: string
+  side_effects?: string
+  precautions?: string
+  labels?: string
+}
+
+export async function apiGetSalts(): Promise<Salt[]> {
+  const response = await apiClient.get<Salt[]>('/api/master/salts')
+  return response.data
+}
+export async function apiCreateSalt(payload: Salt): Promise<Salt> {
+  const response = await apiClient.post<Salt>('/api/master/salts', payload)
+  return response.data
+}
+export async function apiUpdateSalt(id: string, payload: Salt): Promise<Salt> {
+  const response = await apiClient.put<Salt>(`/api/master/salts/${id}`, payload)
+  return response.data
+}
+export async function apiDeleteSalt(id: string): Promise<void> {
+  await apiClient.delete(`/api/master/salts/${id}`)
+}
+
+export interface Manufacturer {
+  id?: string
+  name: string
+  short_code?: string
+  default_discount: number
+  supplier?: string
+}
+
+export async function apiGetManufacturers(): Promise<Manufacturer[]> {
+  const response = await apiClient.get<Manufacturer[]>('/api/master/manufacturers')
+  return response.data
+}
+export async function apiCreateManufacturer(payload: Manufacturer): Promise<Manufacturer> {
+  const response = await apiClient.post<Manufacturer>('/api/master/manufacturers', payload)
+  return response.data
+}
+export async function apiUpdateManufacturer(id: string, payload: Manufacturer): Promise<Manufacturer> {
+  const response = await apiClient.put<Manufacturer>(`/api/master/manufacturers/${id}`, payload)
+  return response.data
+}
+export async function apiDeleteManufacturer(id: string): Promise<void> {
+  await apiClient.delete(`/api/master/manufacturers/${id}`)
+}
+
+export interface HSNCode {
+  id?: string
+  code: string
+  description?: string
+  igst: number
+  cgst: number
+  sgst: number
+}
+
+export async function apiGetHSNCodes(): Promise<HSNCode[]> {
+  const response = await apiClient.get<HSNCode[]>('/api/master/hsn')
+  return response.data
+}
+export async function apiCreateHSNCode(payload: HSNCode): Promise<HSNCode> {
+  const response = await apiClient.post<HSNCode>('/api/master/hsn', payload)
+  return response.data
+}
+export async function apiUpdateHSNCode(id: string, payload: HSNCode): Promise<HSNCode> {
+  const response = await apiClient.put<HSNCode>(`/api/master/hsn/${id}`, payload)
+  return response.data
+}
+export async function apiDeleteHSNCode(id: string): Promise<void> {
+  await apiClient.delete(`/api/master/hsn/${id}`)
+}
+
+export interface StateCode {
+  id?: string
+  name: string
+  gst_code?: string
+  capital?: string
+}
+
+export async function apiGetStateCodes(): Promise<StateCode[]> {
+  const response = await apiClient.get<StateCode[]>('/api/master/states')
+  return response.data
+}
+export async function apiCreateStateCode(payload: StateCode): Promise<StateCode> {
+  const response = await apiClient.post<StateCode>('/api/master/states', payload)
+  return response.data
+}
+export async function apiUpdateStateCode(id: string, payload: StateCode): Promise<StateCode> {
+  const response = await apiClient.put<StateCode>(`/api/master/states/${id}`, payload)
+  return response.data
+}
+export async function apiDeleteStateCode(id: string): Promise<void> {
+  await apiClient.delete(`/api/master/states/${id}`)
+}
+
+// ── ORGANIZATIONS API ────────────────────────────────────────
+
+export interface Organization {
+  id: string
+  name: string
+  org_code: string
+  is_am: boolean
+}
+
+export interface ClientRegistrationRequest {
+  org_name: string
+  org_code: string
+  admin_name: string
+  admin_username: string
+  admin_password: string
+}
+
+export async function apiGetOrganizations(): Promise<Organization[]> {
+  const response = await apiClient.get<Organization[]>('/api/organizations/')
+  return response.data
+}
+
+export async function apiRegisterOrganization(payload: ClientRegistrationRequest): Promise<Organization> {
+  const response = await apiClient.post<Organization>('/api/organizations/register', payload)
+  return response.data
+}
+
 export default apiClient

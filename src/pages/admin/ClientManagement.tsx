@@ -3,43 +3,35 @@ import { Building2, Plus, ArrowRight, Activity, Users } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { useAuthStore } from '../../store/authStore'
-import { apiClient } from '../../lib/api'
+import { apiClient, apiGetOrganizations, Organization } from '../../lib/api'
 import { useNavigate } from 'react-router-dom'
-
-interface ClientCompany {
-  id: string
-  name: string
-  company_code: string
-  is_am: boolean
-}
-
 import { RegisterClientModal } from './RegisterClientModal'
 
 export default function ClientManagementPage() {
-  const [clients, setClients] = useState<ClientCompany[]>([])
+  const [organizations, setOrganizations] = useState<Organization[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false)
   const impersonate = useAuthStore(state => state.impersonate)
   const navigate = useNavigate()
 
   useEffect(() => {
-    fetchClients()
+    fetchOrganizations()
   }, [])
 
-  const fetchClients = async () => {
+  const fetchOrganizations = async () => {
     try {
-      const response = await apiClient.get('/api/companies/')
-      setClients(response.data)
+      const data = await apiGetOrganizations()
+      setOrganizations(data)
     } catch (error) {
-      console.error("Failed to fetch clients", error)
+      console.error("Failed to fetch organizations", error)
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleSwitchToClient = async (companyId: string) => {
+  const handleSwitchToClient = async (orgId: string) => {
     try {
-      const response = await apiClient.post('/auth/impersonate', { target_company_id: companyId })
+      const response = await apiClient.post('/auth/impersonate', { target_org_id: orgId })
       // Response contains the new token and user object acting as cm_admin
       
       const authUser = {
@@ -48,8 +40,8 @@ export default function ClientManagementPage() {
         username:    response.data.user.username,
         email:       response.data.user.email ?? '',
         role:        response.data.user.role,
-        companyId:   response.data.user.company_id,
-        companyName: response.data.user.company_name,
+        companyId:   response.data.user.organization_id, // keep mapped for frontend state
+        companyName: response.data.user.org_name,
         isAmUser:    response.data.user.is_am_user,
         permissions: response.data.user.permissions,
         avatarUrl:   response.data.user.avatar_url ?? undefined
@@ -75,7 +67,7 @@ export default function ClientManagementPage() {
             Client Management
           </h1>
           <p style={{ color: 'var(--color-text-muted)' }}>
-            View all Client Master (CM) companies and jump directly into their ERP environments.
+            View all Client Master (CM) organizations and jump directly into their ERP environments.
           </p>
         </div>
         <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setIsRegisterModalOpen(true)}>
@@ -85,11 +77,11 @@ export default function ClientManagementPage() {
 
       {/* ── CLIENT LIST ───────────────────────────────────────── */}
       {isLoading ? (
-        <div>Loading clients...</div>
+        <div>Loading organizations...</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '24px' }}>
-          {clients.map(client => (
-            <Card key={client.id} padding="lg" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {organizations.map(org => (
+            <Card key={org.id} padding="lg" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <div style={{
                   width: '48px', height: '48px', borderRadius: 'var(--radius-md)',
@@ -99,9 +91,9 @@ export default function ClientManagementPage() {
                   <Building2 size={24} />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>{client.name}</h3>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>{org.name}</h3>
                   <div style={{ fontSize: '13px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
-                    Code: <strong>{client.company_code}</strong>
+                    Code: <strong>{org.org_code}</strong>
                   </div>
                 </div>
               </div>
@@ -125,15 +117,15 @@ export default function ClientManagementPage() {
                 variant="secondary" 
                 style={{ width: '100%', justifyContent: 'center' }}
                 rightIcon={<ArrowRight size={16} />}
-                onClick={() => handleSwitchToClient(client.id)}
+                onClick={() => handleSwitchToClient(org.id)}
               >
                 Switch to ERP
               </Button>
             </Card>
           ))}
-          {clients.length === 0 && (
+          {organizations.length === 0 && (
             <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '48px', color: 'var(--color-text-muted)' }}>
-              No client companies found. Create one to get started.
+              No client organizations found. Create one to get started.
             </div>
           )}
         </div>
@@ -144,7 +136,7 @@ export default function ClientManagementPage() {
         onClose={() => setIsRegisterModalOpen(false)} 
         onSuccess={() => {
           setIsRegisterModalOpen(false)
-          fetchClients()
+          fetchOrganizations()
         }}
       />
     </div>

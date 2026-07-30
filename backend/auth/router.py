@@ -27,7 +27,7 @@ from database import get_db
 from schemas import LoginRequest, LoginResponse, UserProfileSchema, ErrorResponse
 from auth.service import authenticate_user, build_permissions_for_role
 from auth.utils import verify_access_token, hash_token_for_storage
-from models import Session as SessionModel, User, Company, UserRole
+from models import Session as SessionModel, User, Organization, UserRole
 
 # Create a router — a mini-FastAPI app that handles a group of related endpoints.
 # This router is registered in main.py with the prefix "/auth",
@@ -135,8 +135,8 @@ def login(
     """
     Authenticates a user and returns a JWT access token.
 
-    - **LAN Mode**: Pass `is_lan: true`. Company code is ignored.
-    - **Remote Mode**: Pass `is_lan: false` and include `company_code`.
+    - **LAN Mode**: Pass `is_lan: true`. Organization code is ignored.
+    - **Remote Mode**: Pass `is_lan: false` and include `org_code`.
 
     On success, the response contains:
     - `access_token`: Store this and send it as `Authorization: Bearer <token>`
@@ -150,7 +150,7 @@ def login(
 
     except ValueError as e:
         # ValueError from service.py = a known business logic error
-        # (wrong password, company not found, etc.)
+        # (wrong password, organization not found, etc.)
         # Convert to HTTP 401 Unauthorized
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -220,8 +220,8 @@ def get_me(
 
     Requires: `Authorization: Bearer <token>` header
     """
-    # Fetch the user's company for the response
-    company = db.query(Company).filter(Company.id == current_user.company_id).first()
+    # Fetch the user's organization for the response
+    organization = db.query(Organization).filter(Organization.id == current_user.organization_id).first()
 
     # Build the permission set for the user's role
     permissions = build_permissions_for_role(current_user.role)
@@ -232,10 +232,10 @@ def get_me(
         username=current_user.username,
         email=current_user.email,
         role=current_user.role,
-        company_id=current_user.company_id,
-        company_name=company.name if company else "Unknown",
-        company_code=company.company_code if company else "",
-        is_am_user=company.is_am if company else False,
+        organization_id=current_user.organization_id,
+        org_name=organization.name if organization else "Unknown",
+        org_code=organization.org_code if organization else "",
+        is_am_user=organization.is_am if organization else False,
         permissions=permissions,
         avatar_url=current_user.avatar_url
     )
@@ -247,9 +247,9 @@ def impersonate(request: schemas.ImpersonateRequest, current_user: User = Depend
     if current_user.role != UserRole.AM_ADMIN.value:
         raise HTTPException(status_code=403, detail="Only Account Master Admins can impersonate clients.")
     
-    target_company = db.query(Company).filter(Company.id == request.target_company_id, Company.is_am == False).first()
-    if not target_company:
-        raise HTTPException(status_code=404, detail="Client company not found.")
+    target_organization = db.query(Organization).filter(Organization.id == request.target_org_id, Organization.is_am == False).first()
+    if not target_organization:
+        raise HTTPException(status_code=404, detail="Client organization not found.")
     
     # Generate an impersonation JWT
     from auth.utils import create_access_token
@@ -257,7 +257,7 @@ def impersonate(request: schemas.ImpersonateRequest, current_user: User = Depend
     access_token_expires = timedelta(hours=24)
     access_token, token_expiry = create_access_token(
         user_id=str(current_user.id),
-        company_id=str(target_company.id),
+        organization_id=str(target_organization.id),
         role=UserRole.CM_ADMIN.value,
         expires_delta=access_token_expires
     )
@@ -271,16 +271,16 @@ def impersonate(request: schemas.ImpersonateRequest, current_user: User = Depend
     db.add(new_session)
     db.commit()
     
-    # Return as if we logged in as a CM admin of that company
+    # Return as if we logged in as a CM admin of that organization
     profile = UserProfileSchema(
         id=current_user.id,
         name=current_user.name,
         username=current_user.username,
         email=current_user.email,
         role=UserRole.CM_ADMIN.value,
-        company_id=target_company.id,
-        company_name=target_company.name,
-        company_code=target_company.company_code,
+        organization_id=target_organization.id,
+        org_name=target_organization.name,
+        org_code=target_organization.org_code,
         is_am_user=False,
         permissions=build_permissions_for_role(UserRole.CM_ADMIN),
         avatar_url=None

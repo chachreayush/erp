@@ -9,18 +9,18 @@ router = APIRouter(prefix="/products", tags=["Inventory"])
 @router.get("/", response_model=list[schemas.ProductResponse])
 def get_products(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     """
-    Fetch all products for the current user's company.
+    Fetch all products for the current user's organization.
     """
-    products = db.query(models.Product).filter(models.Product.company_id == current_user.company_id).all()
+    products = db.query(models.Product).filter(models.Product.organization_id == current_user.organization_id).all()
     return products
 
 @router.post("/", response_model=schemas.ProductResponse)
 def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     """
-    Create a new product for the current user's company.
+    Create a new product for the current user's organization.
     """
     new_product = models.Product(
-        company_id=current_user.company_id,
+        organization_id=current_user.organization_id,
         status=product.status,
         hide=product.hide,
         code=product.code,
@@ -29,7 +29,7 @@ def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)
         unit=product.unit,
         colour_type=product.colour_type,
         item_type=product.item_type,
-        company_name=product.company_name,
+        org_name=product.org_name,
         salt=product.salt,
         hsn_applicable=product.hsn_applicable,
         hsn_code=product.hsn_code,

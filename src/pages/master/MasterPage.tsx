@@ -5,6 +5,14 @@ import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Modal } from '../../components/ui/Modal'
+import { 
+  apiGetLedgers, apiCreateLedger, apiUpdateLedger, apiDeleteLedger,
+  apiGetSalts, apiCreateSalt, apiUpdateSalt, apiDeleteSalt,
+  apiGetManufacturers, apiCreateManufacturer, apiUpdateManufacturer, apiDeleteManufacturer,
+  apiGetHSNCodes, apiCreateHSNCode, apiUpdateHSNCode, apiDeleteHSNCode,
+  apiGetStateCodes, apiCreateStateCode, apiUpdateStateCode, apiDeleteStateCode
+} from '../../lib/api'
+
 
 // Types for different master data items
 interface LedgerItem { id: string; name: string; group: string; mobile: string; state: string; balance: number; type: 'Dr' | 'Cr' }
@@ -28,48 +36,17 @@ export default function MasterPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
 
   // Initial Data State
-  const [ledgers, setLedgers] = useState<LedgerItem[]>([
-    { id: '1', name: 'Mankind Pharma Ltd (Supplier)', group: 'Sundry Creditors', mobile: '9876543210', state: '07-Delhi', balance: 145000, type: 'Cr' },
-    { id: '2', name: 'Apollo Pharmacy (Customer)', group: 'Sundry Debtors', mobile: '9811223344', state: '27-Maharashtra', balance: 52000, type: 'Dr' },
-    { id: '3', name: 'HDFC Bank Account', group: 'Bank Accounts', mobile: '-', state: '07-Delhi', balance: 850000, type: 'Dr' },
-    { id: '4', name: 'Cash in Hand', group: 'Cash-in-Hand', mobile: '-', state: '-', balance: 24500, type: 'Dr' }
-  ])
+  const [ledgers, setLedgers] = useState<LedgerItem[]>([])
 
-  const [salts, setSalts] = useState<SaltItem[]>([
-    { id: '1', name: 'Paracetamol + Caffeine', indications: 'Fever, Mild Pain', dosage: '500mg/65mg BID', sideEffects: 'Nausea', precautions: 'Avoid with alcohol', labels: 'Normal' },
-    { id: '2', name: 'Amoxicillin 500mg + Clavulanate 125mg', indications: 'Bacterial Infections', dosage: '625mg TID', sideEffects: 'Diarrhea', precautions: 'Penicillin allergy', labels: 'Schedule H1' },
-    { id: '3', name: 'Azithromycin 500mg', indications: 'Respiratory Infections', dosage: '500mg OD', sideEffects: 'Upset stomach', precautions: 'Liver disease', labels: 'Schedule H' },
-    { id: '4', name: 'Pantoprazole 40mg + Domperidone 30mg', indications: 'GERD, Acid Reflux', dosage: '1 capsule before breakfast', sideEffects: 'Headache', precautions: 'Long term use risk', labels: 'Normal' }
-  ])
+  const [salts, setSalts] = useState<SaltItem[]>([])
 
-  const [companies, setCompanies] = useState<CompanyItem[]>([
-    { id: '1', name: 'Cipla Ltd', code: 'CIP', discount: 10.0, supplier: 'Direct Depot' },
-    { id: '2', name: 'Sun Pharmaceutical Industries Ltd', code: 'SUN', discount: 8.5, supplier: 'Apex Distributors' },
-    { id: '3', name: 'Mankind Pharma Ltd', code: 'MAN', discount: 12.0, supplier: 'Mankind C&F' },
-    { id: '4', name: 'Abbott Healthcare Pvt Ltd', code: 'ABB', discount: 7.5, supplier: 'Sharma Agencies' }
-  ])
+  const [companies, setCompanies] = useState<CompanyItem[]>([])
 
-  const [hsns, setHsns] = useState<HSNItem[]>([
-    { id: '1', code: '3004', description: 'Medicaments consisting of mixed or unmixed products', igst: 12, cgst: 6, sgst: 6 },
-    { id: '2', code: '3005', description: 'Wadding, gauze, bandages and similar medical dressings', igst: 5, cgst: 2.5, sgst: 2.5 },
-    { id: '3', code: '3304', description: 'Beauty or make-up preparations and skincare products', igst: 18, cgst: 9, sgst: 9 },
-    { id: '4', code: '2106', description: 'Food preparations not elsewhere specified (Protein supplements)', igst: 18, cgst: 9, sgst: 9 }
-  ])
+  const [hsns, setHsns] = useState<HSNItem[]>([])
 
-  const [states, setStates] = useState<StateItem[]>([
-    { id: '1', name: 'Delhi', code: '07', capital: 'New Delhi' },
-    { id: '2', name: 'Maharashtra', code: '27', capital: 'Mumbai' },
-    { id: '3', name: 'Gujarat', code: '24', capital: 'Gandhinagar' },
-    { id: '4', name: 'Uttar Pradesh', code: '09', capital: 'Lucknow' },
-    { id: '5', name: 'Karnataka', code: '29', capital: 'Bengaluru' }
-  ])
+  const [states, setStates] = useState<StateItem[]>([])
 
-  const [balances, setBalances] = useState<BalanceItem[]>([
-    { id: '1', ledgerName: 'Mankind Pharma Ltd (Supplier)', openingBalance: 120000, opType: 'Cr', closingBalance: 145000, clType: 'Cr' },
-    { id: '2', ledgerName: 'Apollo Pharmacy (Customer)', openingBalance: 35000, opType: 'Dr', closingBalance: 52000, clType: 'Dr' },
-    { id: '3', ledgerName: 'HDFC Bank Account', openingBalance: 720000, opType: 'Dr', closingBalance: 850000, clType: 'Dr' },
-    { id: '4', ledgerName: 'Cash in Hand', openingBalance: 18000, opType: 'Dr', closingBalance: 24500, clType: 'Dr' }
-  ])
+  const [balances, setBalances] = useState<BalanceItem[]>([])
 
   // Form states for modal inputs
   const [formData, setFormData] = useState<any>({})
@@ -80,6 +57,33 @@ export default function MasterPage() {
   const [selectedItemIndex, setSelectedItemIndex] = useState(0)
   
   const [modalMode, setModalMode] = useState<'create' | 'view' | 'edit'>('create')
+
+  const loadData = async () => {
+    try {
+      const [l, s, m, h, st] = await Promise.all([
+        apiGetLedgers(),
+        apiGetSalts(),
+        apiGetManufacturers(),
+        apiGetHSNCodes(),
+        apiGetStateCodes()
+      ])
+      
+      setLedgers(l.map(x => ({ id: x.id as string, name: x.name, group: x.group_name, mobile: x.mobile || '', state: x.state || '', balance: x.opening_balance, type: x.op_type as 'Dr'|'Cr' })))
+      setSalts(s.map(x => ({ id: x.id as string, name: x.formula, indications: x.indications || '', dosage: x.dosage || '', sideEffects: x.side_effects || '', precautions: x.precautions || '', labels: x.labels || '' })))
+      setCompanies(m.map(x => ({ id: x.id as string, name: x.name, code: x.short_code || '', discount: x.default_discount, supplier: x.supplier || '' })))
+      setHsns(h.map(x => ({ id: x.id as string, code: x.code, description: x.description || '', igst: x.igst, cgst: x.cgst, sgst: x.sgst })))
+      setStates(st.map(x => ({ id: x.id as string, name: x.name, code: x.gst_code || '', capital: x.capital || '' })))
+      
+      setBalances(l.map(x => ({ id: x.id as string, ledgerName: x.name, openingBalance: x.opening_balance, opType: x.op_type as 'Dr'|'Cr', closingBalance: x.closing_balance, clType: x.cl_type as 'Dr'|'Cr' })))
+    } catch(e) {
+      console.error("Failed to load master data", e)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
   const [showUnsavedPrompt, setShowUnsavedPrompt] = useState(false)
   const firstInputRef = useRef<HTMLInputElement>(null)
   const editButtonRef = useRef<HTMLButtonElement>(null)
@@ -142,44 +146,70 @@ export default function MasterPage() {
     setTimeout(() => editButtonRef.current?.focus(), 50)
   }
 
-  const handleDeleteItem = (id: string) => {
+  const handleDeleteItem = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this master record?")) return
-    if (activeTab === 'ledger') setLedgers(ledgers.filter(i => i.id !== id))
-    else if (activeTab === 'salt') setSalts(salts.filter(i => i.id !== id))
-    else if (activeTab === 'company') setCompanies(companies.filter(i => i.id !== id))
-    else if (activeTab === 'hsn') setHsns(hsns.filter(i => i.id !== id))
-    else if (activeTab === 'state') setStates(states.filter(i => i.id !== id))
-    else if (activeTab === 'balances') setBalances(balances.filter(i => i.id !== id))
+    
+    try {
+      if (activeTab === 'ledger') await apiDeleteLedger(id)
+      else if (activeTab === 'salt') await apiDeleteSalt(id)
+      else if (activeTab === 'company') await apiDeleteManufacturer(id)
+      else if (activeTab === 'hsn') await apiDeleteHSNCode(id)
+      else if (activeTab === 'state') await apiDeleteStateCode(id)
+      else if (activeTab === 'balances') await apiDeleteLedger(id)
+      
+      await loadData()
+    } catch(e) {
+      console.error(e)
+      alert("Failed to delete record")
+    }
   }
 
-  const handleSaveForm = (e: React.FormEvent) => {
+  const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault()
     const isEdit = !!editingId
-    const targetId = isEdit ? editingId : Date.now().toString()
-    const savedItem = { ...formData, id: targetId }
-
-    if (activeTab === 'ledger') {
-      setLedgers(isEdit ? ledgers.map(i => i.id === targetId ? savedItem : i) : [savedItem, ...ledgers])
-    } else if (activeTab === 'salt') {
-      setSalts(isEdit ? salts.map(i => i.id === targetId ? savedItem : i) : [savedItem, ...salts])
-    } else if (activeTab === 'company') {
-      setCompanies(isEdit ? companies.map(i => i.id === targetId ? savedItem : i) : [savedItem, ...companies])
-    } else if (activeTab === 'hsn') {
-      const igst = Number(formData.igst) || 0
-      savedItem.cgst = igst / 2
-      savedItem.sgst = igst / 2
-      setHsns(isEdit ? hsns.map(i => i.id === targetId ? savedItem : i) : [savedItem, ...hsns])
-    } else if (activeTab === 'state') {
-      setStates(isEdit ? states.map(i => i.id === targetId ? savedItem : i) : [savedItem, ...states])
-    } else if (activeTab === 'balances') {
-      setBalances(isEdit ? balances.map(i => i.id === targetId ? savedItem : i) : [savedItem, ...balances])
-    }
     
-    if (modalMode === 'create') {
-      handleOpenAddModal()
-    } else {
-      setModalMode('view')
-      setFormData(savedItem)
+    try {
+      if (activeTab === 'ledger') {
+        const payload: any = { name: formData.name, group_name: formData.group, mobile: formData.mobile, state: formData.state, opening_balance: Number(formData.balance)||0, op_type: formData.type||'Dr', closing_balance: Number(formData.balance)||0, cl_type: formData.type||'Dr' }
+        if (isEdit) await apiUpdateLedger(editingId as string, payload)
+        else await apiCreateLedger(payload)
+      } else if (activeTab === 'salt') {
+        const payload: any = { formula: formData.name, indications: formData.indications, dosage: formData.dosage, side_effects: formData.sideEffects, precautions: formData.precautions, labels: formData.labels }
+        if (isEdit) await apiUpdateSalt(editingId as string, payload)
+        else await apiCreateSalt(payload)
+      } else if (activeTab === 'company') {
+        const payload: any = { name: formData.name, short_code: formData.code, default_discount: Number(formData.discount)||0, supplier: formData.supplier }
+        if (isEdit) await apiUpdateManufacturer(editingId as string, payload)
+        else await apiCreateManufacturer(payload)
+      } else if (activeTab === 'hsn') {
+        const igst = Number(formData.igst) || 0
+        const payload: any = { code: formData.code, description: formData.description, igst: igst, cgst: igst/2, sgst: igst/2 }
+        if (isEdit) await apiUpdateHSNCode(editingId as string, payload)
+        else await apiCreateHSNCode(payload)
+      } else if (activeTab === 'state') {
+        const payload: any = { name: formData.name, gst_code: formData.code, capital: formData.capital }
+        if (isEdit) await apiUpdateStateCode(editingId as string, payload)
+        else await apiCreateStateCode(payload)
+      } else if (activeTab === 'balances') {
+        if (isEdit) {
+           const existing = ledgers.find(l => l.id === editingId)
+           if (existing) {
+              const payload: any = { name: existing.name, group_name: existing.group, mobile: existing.mobile, state: existing.state, opening_balance: Number(formData.openingBalance)||0, op_type: formData.opType||'Dr', closing_balance: Number(formData.closingBalance)||0, cl_type: formData.clType||'Dr' }
+              await apiUpdateLedger(editingId as string, payload)
+           }
+        }
+      }
+      
+      await loadData()
+      
+      if (modalMode === 'create') {
+        handleOpenAddModal()
+      } else {
+        setModalMode('view')
+      }
+    } catch (error) {
+      console.error(error)
+      alert('Failed to save record.')
     }
   }
 

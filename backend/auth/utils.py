@@ -120,7 +120,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_access_token(
     user_id: str,
-    company_id: str,
+    organization_id: str,
     role: str,
     expires_delta: Optional[timedelta] = None
 ) -> tuple[str, datetime]:
@@ -129,7 +129,7 @@ def create_access_token(
 
     WHAT GOES INTO THE TOKEN (the "payload"):
     - sub (subject): The user's ID — identifies WHO the token belongs to
-    - company_id: Their company — for data isolation checks
+    - organization_id: Their organization — for data isolation checks
     - role: Their role — for permission decisions
     - exp (expiry): When the token stops being valid
 
@@ -138,7 +138,7 @@ def create_access_token(
 
     Args:
         user_id:      The user's UUID as a string
-        company_id:   The user's company UUID as a string
+        organization_id:   The user's organization UUID as a string
         role:         The user's role string (e.g., "am_admin")
         expires_delta: How long until expiry. Defaults to setting in .env.
 
@@ -156,7 +156,7 @@ def create_access_token(
     # Build the token payload — the data encoded inside the JWT
     payload = {
         "sub": user_id,          # Subject: who this token belongs to
-        "company_id": company_id, # For data isolation
+        "organization_id": organization_id, # For data isolation
         "role": role,             # For permission checks
         "exp": expire,            # Expiry timestamp — jose validates this automatically
         "iat": datetime.utcnow()  # Issued-at timestamp (for auditing)

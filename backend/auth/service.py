@@ -20,7 +20,7 @@ from typing import Optional
 from uuid import UUID
 
 # Our own modules
-from models import User, Company, Session as SessionModel, UserRole
+from models import User, Organization, Session as SessionModel, UserRole
 from schemas import (
     LoginRequest, LoginResponse, UserProfileSchema,
     UserPermissionsSchema, ModulePermissionSchema
@@ -65,7 +65,7 @@ def build_permissions_for_role(role: UserRole) -> UserPermissionsSchema:
 
     # ── AM_ADMIN: Complete system access ────────────────────────
     # The Account Master Admin is the god-mode user.
-    # Has full access to every module in every company.
+    # Has full access to every module in every organization.
     if role == UserRole.AM_ADMIN:
         all_full = full()
         return UserPermissionsSchema(
@@ -73,8 +73,8 @@ def build_permissions_for_role(role: UserRole) -> UserPermissionsSchema:
             crm=all_full, hr=all_full, reports=all_full, settings=all_full
         )
 
-    # ── CM_ADMIN: Full access within their company ───────────────
-    # Same as AM_ADMIN but only for their own company's data.
+    # ── CM_ADMIN: Full access within their organization ───────────────
+    # Same as AM_ADMIN but only for their own organization's data.
     # Data isolation is enforced at the database query level,
     # not at the permission level — so permissions are the same as AM_ADMIN.
     elif role == UserRole.CM_ADMIN:
@@ -160,8 +160,8 @@ def authenticate_user(
     The main login function. Validates credentials and creates a session.
 
     COMPLETE FLOW:
-    1. Find the company (from company_code or use local company in LAN mode)
-    2. Find the user by username within that company
+    1. Find the organization (from org_code or use local organization in LAN mode)
+    2. Find the user by username within that organization
     3. Verify the password against the stored bcrypt hash
     4. Build the user's permission set based on their role
     5. Create a JWT access token
@@ -171,53 +171,53 @@ def authenticate_user(
     Args:
         request:        The LoginRequest data from the frontend
         db:             The database session (injected by FastAPI)
-        is_server_mode: If True, this machine is the server — use local AM company
+        is_server_mode: If True, this machine is the server — use local AM organization
 
     Returns:
         LoginResponse with token and user profile on success
 
     Raises:
         ValueError: With a human-readable error message on any failure
-                   (wrong password, user not found, company not found, etc.)
+                   (wrong password, user not found, organization not found, etc.)
     """
 
     # ── STEP 1: FIND THE COMPANY ─────────────────────────────────
     if request.is_lan or is_server_mode:
-        # LAN MODE: The server knows it belongs to the AM company.
-        # Find the AM company (there should be exactly one).
-        company = db.query(Company).filter(
-            Company.is_am == True,
-            Company.is_active == True
+        # LAN MODE: The server knows it belongs to the AM organization.
+        # Find the AM organization (there should be exactly one).
+        organization = db.query(Organization).filter(
+            Organization.is_am == True,
+            Organization.is_active == True
         ).first()
 
-        if not company:
+        if not organization:
             raise ValueError(
-                "No AM company found in the database. "
-                "Please run the seed script to create the initial company."
+                "No AM organization found in the database. "
+                "Please run the seed script to create the initial organization."
             )
     else:
-        # REMOTE MODE: Use the company_code the user typed to find their company
-        if not request.company_code:
-            raise ValueError("Company ID is required for remote login.")
+        # REMOTE MODE: Use the org_code the user typed to find their organization
+        if not request.org_code:
+            raise ValueError("Organization ID is required for remote login.")
 
-        company = db.query(Company).filter(
-            Company.company_code == request.company_code.upper(),  # Normalize to uppercase
-            Company.is_active == True  # Only active companies can log in
+        organization = db.query(Organization).filter(
+            Organization.org_code == request.org_code.upper(),  # Normalize to uppercase
+            Organization.is_active == True  # Only active organizations can log in
         ).first()
 
-        if not company:
+        if not organization:
             raise ValueError(
-                f"Company '{request.company_code}' not found or is inactive. "
-                "Please check your Company ID."
+                f"Organization '{request.org_code}' not found or is inactive. "
+                "Please check your Organization ID."
             )
 
     # ── STEP 2: FIND THE USER ─────────────────────────────────────
-    # Look up the user by username within the specific company.
-    # The same username can exist in multiple companies — that's fine.
-    # We filter by BOTH company_id AND username for exact match.
+    # Look up the user by username within the specific organization.
+    # The same username can exist in multiple organizations — that's fine.
+    # We filter by BOTH organization_id AND username for exact match.
     user = db.query(User).filter(
         User.username == request.username,
-        User.company_id == company.id,
+        User.organization_id == organization.id,
         User.is_active == True  # Disabled accounts cannot log in
     ).first()
 
@@ -244,7 +244,7 @@ def authenticate_user(
     # ── STEP 5: CREATE JWT TOKEN ─────────────────────────────────
     token_str, token_expires = create_access_token(
         user_id=str(user.id),
-        company_id=str(user.company_id),
+        organization_id=str(user.organization_id),
         role=user.role.value if hasattr(user.role, "value") else str(user.role)
     )
 
@@ -282,10 +282,10 @@ def authenticate_user(
         username=user.username,
         email=user.email,
         role=user.role,
-        company_id=user.company_id,
-        company_name=company.name,
-        company_code=company.company_code,
-        is_am_user=company.is_am,
+        organization_id=user.organization_id,
+        org_name=organization.name,
+        org_code=organization.org_code,
+        is_am_user=organization.is_am,
         permissions=permissions,
         avatar_url=user.avatar_url
     )

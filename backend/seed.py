@@ -2,7 +2,7 @@
 # seed.py — Initial Database Data Setup Script
 # ============================================================
 # This script creates the very first records in the database:
-# 1. The AM (Account Master) company — your main company
+# 1. The AM (Account Master) organization — your main organization
 # 2. A default am_admin user you can log into immediately
 #
 # HOW TO RUN:
@@ -31,8 +31,8 @@ from datetime import datetime
 # ── SEED CONFIGURATION ────────────────────────────────────────
 # Change these values to match your business before running!
 
-AM_COMPANY_NAME = "My Company"        # Your company's full name
-AM_COMPANY_CODE = "AM-0001"           # The unique code for the AM company
+AM_COMPANY_NAME = "My Organization"        # Your organization's full name
+AM_COMPANY_CODE = "AM-0001"           # The unique code for the AM organization
 
 ADMIN_USERNAME  = "admin"             # Default admin login username
 ADMIN_PASSWORD  = "Admin@123"         # CHANGE THIS immediately after first login!
@@ -42,7 +42,7 @@ ADMIN_EMAIL     = "admin@erp.local"   # Admin email address
 
 def run_seed():
     """
-    Creates the initial AM company and admin user in the database.
+    Creates the initial AM organization and admin user in the database.
     Safe to run multiple times — checks for existing records first.
     """
     print("=" * 60)
@@ -59,33 +59,33 @@ def run_seed():
 
     try:
         # ── CREATE AM COMPANY ────────────────────────────────────
-        print("\n[2/4] Checking for AM company...")
+        print("\n[2/4] Checking for AM organization...")
 
-        existing_company = db.query(models.Company).filter(
-            models.Company.company_code == AM_COMPANY_CODE
+        existing_organization = db.query(models.Organization).filter(
+            models.Organization.org_code == AM_COMPANY_CODE
         ).first()
 
-        if existing_company:
-            print(f"      ⏭  Company '{AM_COMPANY_CODE}' already exists — skipping.")
-            company = existing_company
+        if existing_organization:
+            print(f"      ⏭  Organization '{AM_COMPANY_CODE}' already exists — skipping.")
+            organization = existing_organization
         else:
-            company = models.Company(
+            organization = models.Organization(
                 name=AM_COMPANY_NAME,
-                company_code=AM_COMPANY_CODE,
-                is_am=True,  # This is the Account Master company
+                org_code=AM_COMPANY_CODE,
+                is_am=True,  # This is the Account Master organization
                 is_active=True
             )
-            db.add(company)
+            db.add(organization)
             db.flush()  # flush() sends the INSERT but doesn't commit yet
-                        # This gives us the company.id for the user below
-            print(f"      ✅ Created AM company: '{AM_COMPANY_NAME}' ({AM_COMPANY_CODE})")
+                        # This gives us the organization.id for the user below
+            print(f"      ✅ Created AM organization: '{AM_COMPANY_NAME}' ({AM_COMPANY_CODE})")
 
         # ── CREATE ADMIN USER ────────────────────────────────────
         print("\n[3/4] Checking for admin user...")
 
         existing_user = db.query(models.User).filter(
             models.User.username == ADMIN_USERNAME,
-            models.User.company_id == company.id
+            models.User.organization_id == organization.id
         ).first()
 
         if existing_user:
@@ -95,7 +95,7 @@ def run_seed():
             hashed = hash_password(ADMIN_PASSWORD)
 
             admin_user = models.User(
-                company_id=company.id,
+                organization_id=organization.id,
                 name=ADMIN_NAME,
                 username=ADMIN_USERNAME,
                 email=ADMIN_EMAIL,
@@ -115,7 +115,7 @@ def run_seed():
         print("\n" + "=" * 60)
         print("  ✅ SEED COMPLETE!")
         print("=" * 60)
-        print(f"\n  Company:  {AM_COMPANY_NAME} ({AM_COMPANY_CODE})")
+        print(f"\n  Organization:  {AM_COMPANY_NAME} ({AM_COMPANY_CODE})")
         print(f"  Username: {ADMIN_USERNAME}")
         print(f"  Password: {ADMIN_PASSWORD}")
         print("\n  ⚠️  IMPORTANT: Change the admin password after first login!")
