@@ -1830,3 +1830,8 @@ export default function BulletinModal({ isOpen, onClose, onSuccess, editingBulle
 - ClientCompany interfaces were replaced with Organization interfaces containing org_code.
 - **Impersonation**: The handleSwitchToClient action successfully exchanges an AM Admin token for a CM Admin token by dispatching 	arget_org_id to /auth/impersonate.
 
+
+### Update 2026-07-31
+- Resolved schema mismatches in Master Data tables (Ledgers, HSN, States) by allowing SQLAlchemy to recreate missing columns.
+- Fixed login schema expecting company_code instead of org_code.
+- Added PROJECT_MEMORY.md and CONVERSATION_LOG.md to repository for persistent AI context.

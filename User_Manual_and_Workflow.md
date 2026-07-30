@@ -124,3 +124,7 @@ To keep inventory and accounts correct, items move through the software in a spe
 - ClientCompany interfaces were replaced with Organization interfaces containing org_code.
 - **Impersonation**: The handleSwitchToClient action successfully exchanges an AM Admin token for a CM Admin token by dispatching 	arget_org_id to /auth/impersonate.
 
+
+### Update 2026-07-31
+- Master Data Setup: Ledgers and Tax codes are fully wired and saving to the database.
+- Memory Log: Implemented a persistent memory file (PROJECT_MEMORY.md) to maintain perfect context across sessions.
