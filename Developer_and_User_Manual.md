@@ -844,7 +844,7 @@ This file defines the structure of every table in the PostgreSQL database using 
 1. **Company**: Stores Account Master (AM) and Client Module (CM) companies.
 2. **User**: Stores all staff, managers, and admins.
 3. **Session**: Tracks active JWT logins for security.
-4. **Product (Sprint 3)**: Stores inventory items with `sku`, `price`, `stock`, and `status`.
+4. **Product (Sprint 3)**: Stores inventory items with comprehensive Marg ERP fields including `code`, `packing`, 3 types of taxes (`igst_percent`, `sgst_percent`, `cgst_percent`), and 5 price brackets (`mrp`, `p_rate`, `pts_rate`, `ptr_rate`, `rate_a`).
 
 ---
 
@@ -1786,6 +1786,55 @@ export default function BulletinModal({ isOpen, onClose, onSuccess, editingBulle
     </Modal>
   )
 }
-
 `
+
+
+# PART 10: SALES & BILLING MODULE (POS)
+---
+
+## 1. Backend: Invoicing Tables & API
+
+### File: `backend/api/sales.py`
+- Handles routing for creation and retrieval of Sales Invoices.
+- **GET `/api/sales/invoices`**: Fetches all invoices registered to the user's company, ordered by creation date descending.
+- **POST `/api/sales/invoices`**: Handles creation of a new invoice, saving parent invoice details and its line items inside a transactional flush and commit sequence.
+
+### File: `backend/schemas.py`
+- Defines the validated shape of `InvoiceCreate`, `InvoiceItemCreate`, `InvoiceResponse`, and `InvoiceItemResponse`.
+
+---
+
+## 2. Frontend: Billing & POS Interface
+
+### File: `src/pages/sales/Billing.tsx`
+- A premium, dense Point of Sale screen for generating invoices.
+- **Customer details panel** for manual name input and dynamic auto-generated invoice numbering.
+- **Product Lookup Modal** enabling real-time search across products within the user's company. Selecting a product populates line items dynamically.
+- **Automated Pricing & Taxes**: Real-time frontend calculations of IGST, subtotal, and grand totals.
+- **Save & Print**: Commits the entire transaction to the Postgres backend via `apiCreateInvoice`.
+
+
+
+
+## File: \src/pages/master/MasterPage.tsx\
+**Location in Project:** \C:\Users\DELL\OneDrive\Desktop\erp\src\pages\master\MasterPage.tsx\
+
+### Purpose
+The Master Data page is a heavy-duty data entry engine used to manage core ERP entities (Ledgers, Salts, Companies, HSN codes, States, and Balances). It is heavily optimized for rapid data entry without requiring a mouse, heavily inspired by classical ERPs like Tally or Marg.
+
+### Keyboard & Navigation Workflow
+To optimize for lightning-fast data entry, the modal supports comprehensive keyboard navigation:
+1. **Adding & Editing:** Pressing \F2\ opens the modal to create a new record and focuses the first input field instantly. Pressing \Enter\ or \F3\ on an existing row opens the record in **View Mode** (read-only) and highlights the **Edit** button.
+2. **Field Traversal:** While editing, pressing the \Enter\ key bypasses standard form submission and instead shifts the cursor to the next input field. Once the final field is reached, the focus securely locks onto the **Exit without saving (Esc)** button.
+3. **Arrow Key Navigation:** 
+   - \ArrowDown\ and \ArrowUp\ move the focus to the next/previous input field vertically.
+   - \ArrowRight\ and \ArrowLeft\ toggle focus between form action buttons horizontally (e.g., swapping between *Cancel* and *Yes, Exit*).
+4. **Escape Protection:** Pressing \ESC\ while creating or editing a draft triggers a safety prompt (\showUnsavedPrompt\). The cursor is locked onto the *Cancel* button to prevent accidental data loss. If *Cancel* is selected, the cursor perfectly snaps back to the first input field to resume work. If *Yes, Exit* is selected, the modal closes and focus jumps directly back to the active header tab.
+5. **Continuous Add:** Hitting **Save** on a new record does not close the modal. Instead, it saves the draft and instantly resets the form to blank, allowing continuous bulk entry.
+
+### Variables
+- \modalMode\: Controls the state of the modal (\'create'\ | \'view'\ | \'edit'\). View mode disables all inputs.
+- \showUnsavedPrompt\: Triggers the protective secondary modal asking if the user wants to discard changes.
+- \ocusedZone\: Tracks if the keyboard focus is currently on the top navigation tabs (\'tabs'\), the list table (\'list'\), or neither (\'none'\).
+
 

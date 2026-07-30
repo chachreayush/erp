@@ -78,6 +78,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
   // Handle hover effect dynamically via mouse events since we are using inline styles
   const [isHovered, setIsHovered] = React.useState(false)
   const [isActive, setIsActive] = React.useState(false)
+  const [isFocused, setIsFocused] = React.useState(false)
 
   const dynamicStyle: React.CSSProperties = {
     ...baseStyle,
@@ -87,6 +88,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
     transform: isActive && !disabled && !isLoading ? 'scale(0.97)' : (isHovered && !disabled && !isLoading ? 'translateY(-1px)' : 'none'),
     filter: isHovered && !disabled && !isLoading && variant === 'primary' ? 'brightness(1.1)' : 'none',
     backgroundColor: isHovered && !disabled && !isLoading && variant === 'ghost' ? 'rgba(128, 128, 128, 0.1)' : variantStyles[variant].backgroundColor,
+    outline: isFocused ? '2px solid var(--color-primary)' : 'none',
+    outlineOffset: '2px'
   }
 
   return (
@@ -98,6 +101,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
       onMouseLeave={(e) => { setIsHovered(false); setIsActive(false); props.onMouseLeave?.(e) }}
       onMouseDown={(e) => { setIsActive(true); props.onMouseDown?.(e) }}
       onMouseUp={(e) => { setIsActive(false); props.onMouseUp?.(e) }}
+      onFocus={(e) => { setIsFocused(true); props.onFocus?.(e) }}
+      onBlur={(e) => { setIsFocused(false); props.onBlur?.(e) }}
       {...props}
     >
       {isLoading && <Loader2 size={16} className="animate-spin" />}

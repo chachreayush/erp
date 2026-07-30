@@ -261,4 +261,45 @@ export async function apiCreateProduct(payload: ProductCreatePayload): Promise<P
   return response.data
 }
 
+// ── SALES MODULE API ──────────────────────────────────────────
+
+export interface InvoiceItem {
+  id?: string
+  invoice_id?: string
+  product_id?: string
+  product_name: string
+  quantity: number
+  rate: number
+  igst_percent: number
+  line_total: number
+}
+
+export interface Invoice {
+  id?: string
+  company_id?: string
+  created_at?: string
+  date?: string
+  
+  customer_name: string
+  invoice_number: string
+  
+  subtotal: number
+  tax_total: number
+  grand_total: number
+  
+  items: InvoiceItem[]
+}
+
+export type InvoiceCreatePayload = Omit<Invoice, 'id' | 'company_id' | 'created_at' | 'date'>
+
+export async function apiGetInvoices(): Promise<Invoice[]> {
+  const response = await apiClient.get<Invoice[]>('/api/sales/invoices')
+  return response.data
+}
+
+export async function apiCreateInvoice(payload: InvoiceCreatePayload): Promise<Invoice> {
+  const response = await apiClient.post<Invoice>('/api/sales/invoices', payload)
+  return response.data
+}
+
 export default apiClient

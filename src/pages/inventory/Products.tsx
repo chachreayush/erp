@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, Download, Package } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
@@ -26,6 +27,10 @@ const MOCK_HSN = [
 const formatCurrency = (val: number) => `₹${val.toFixed(2)}`
 
 export default function ProductsPage() {
+  const [searchParams] = useSearchParams()
+  const actionParam = searchParams.get('action')
+  const [modifyingProductId, setModifyingProductId] = useState<string | null>(null)
+
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
@@ -127,31 +132,103 @@ export default function ProductsPage() {
   const fetchProducts = async () => {
     setIsLoading(true)
     try {
-      const data = await apiGetProducts()
-      setProducts(data)
+      const apiData = await apiGetProducts()
+      const localData = JSON.parse(localStorage.getItem('erp_inventory_items') || '[]')
+      const mergedMap = new Map()
+      ;[...localData, ...apiData].forEach(p => {
+        if (p && p.name) {
+          mergedMap.set(p.name.trim().toLowerCase(), p)
+        }
+      })
+      const finalProducts = Array.from(mergedMap.values())
+      setProducts(finalProducts)
+      localStorage.setItem('erp_inventory_items', JSON.stringify(finalProducts))
     } catch (error) {
-      console.error("Failed to fetch products:", error)
+      console.error("Failed to fetch products from API, loading from localStorage:", error)
+      const localData = JSON.parse(localStorage.getItem('erp_inventory_items') || '[]')
+      setProducts(localData)
     } finally {
       setIsLoading(false)
     }
   }
 
+  useEffect(() => {
+    if (actionParam === 'create') {
+      setModifyingProductId(null)
+      setIsAdding(true)
+    } else if (actionParam === 'modify') {
+      setIsAdding(false)
+    }
+  }, [actionParam])
+
+  const handleModifyProduct = (product: Product) => {
+    setModifyingProductId(product.id)
+    setNewProduct({
+      status: (product.status as any) || 'continue',
+      hide: (product.hide as any) || 'no',
+      code: product.code || '1',
+      name: product.name || '',
+      packing: product.packing || '',
+      unit: product.unit || '',
+      colour_type: (product.colour_type as any) || 'normal',
+      item_type: (product.item_type as any) || 'normal',
+      company_name: product.company_name || '',
+      salt: product.salt || '',
+      hsn_applicable: (product.hsn_applicable as any) || 'no',
+      hsn_code: product.hsn_code || '',
+      local_tax: (product.local_tax as any) || 'taxable',
+      central_tax: (product.central_tax as any) || 'taxable',
+      sgst_percent: product.sgst_percent || 0,
+      cgst_percent: product.cgst_percent || 0,
+      igst_percent: product.igst_percent || 0,
+      mrp: product.mrp || 0,
+      p_rate: product.p_rate || 0,
+      pts_rate: product.pts_rate || 0,
+      rate_a: product.rate_a || 0,
+      ptr_rate: product.ptr_rate || 0,
+      item_discount_percent: product.item_discount_percent || 0,
+      discount_type: (product.discount_type as any) || 'applicable',
+      category: (product.category as any) || 'na'
+    })
+    setIsAdding(true)
+  }
+
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    try {
-      const created = await apiCreateProduct(newProduct)
-      setProducts([created, ...products])
+    if (modifyingProductId) {
+      const updatedProducts = products.map(p => 
+        p.id === modifyingProductId ? { ...p, ...newProduct } : p
+      )
+      setProducts(updatedProducts)
+      localStorage.setItem('erp_inventory_items', JSON.stringify(updatedProducts))
       setIsAdding(false)
-      // Reset form
-      setNewProduct({
-        ...newProduct,
-        code: (parseInt(newProduct.code) + 1).toString(), // Auto-increment code
-        name: '', packing: '', unit: '', salt: '',
-        mrp: 0, p_rate: 0, pts_rate: 0, rate_a: 0, ptr_rate: 0
-      })
-    } catch (error) {
-      console.error("Failed to create product:", error)
+      setModifyingProductId(null)
+      return
     }
+
+    let created: Product
+    try {
+      created = await apiCreateProduct(newProduct)
+    } catch (error) {
+      console.error("Failed to create product via API, saving to localStorage:", error)
+      created = {
+        ...newProduct,
+        id: 'local_' + Date.now(),
+        company_id: '1',
+        created_at: new Date().toISOString()
+      } as Product
+    }
+    const updatedProducts = [created, ...products]
+    setProducts(updatedProducts)
+    localStorage.setItem('erp_inventory_items', JSON.stringify(updatedProducts))
+    setIsAdding(false)
+    // Reset form
+    setNewProduct({
+      ...newProduct,
+      code: (parseInt(newProduct.code) || updatedProducts.length + 1).toString(), // Auto-increment code
+      name: '', packing: '', unit: '', salt: '',
+      mrp: 0, p_rate: 0, pts_rate: 0, rate_a: 0, ptr_rate: 0
+    })
   }
 
   // ── Enter Navigation Logic ──
@@ -201,7 +278,7 @@ export default function ProductsPage() {
           <Button variant="secondary" leftIcon={<Download size={16} />}>
             Export
           </Button>
-          <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setIsAdding(true)}>
+          <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => { setModifyingProductId(null); setIsAdding(true); }}>
             Add Product
           </Button>
         </div>
@@ -210,8 +287,8 @@ export default function ProductsPage() {
       {/* ── ADD PRODUCT MODAL (MARG WORKFLOW) ──────────────────── */}
       <Modal 
         isOpen={isAdding} 
-        onClose={() => setIsAdding(false)} 
-        title="Item Creation (Product Profile)"
+        onClose={() => { setIsAdding(false); setModifyingProductId(null); }} 
+        title={modifyingProductId ? "Modify Item (Product Profile)" : "Item Creation (Product Profile)"}
         maxWidth="1000px" // Very wide modal for dense layout
       >
         <form onSubmit={handleCreateSubmit} onKeyDown={handleFormKeyDown}>
@@ -413,6 +490,24 @@ export default function ProductsPage() {
       />
 
       {/* ── PRODUCT DATA TABLE ──────────────────────────────── */}
+      {actionParam === 'modify' && (
+        <div style={{
+          marginBottom: '16px',
+          padding: '12px 16px',
+          backgroundColor: 'rgba(79, 70, 229, 0.1)',
+          border: '1px solid var(--color-primary)',
+          borderRadius: 'var(--radius-md)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          color: 'var(--color-primary)',
+          fontWeight: 500,
+          fontSize: '14px'
+        }}>
+          <span>✏️ <b>Modify Product Mode:</b> Click on any product or click "Modify" below to update its item setup, GST rates, and pricing formulas.</span>
+        </div>
+      )}
+
       <Card padding="none">
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
@@ -423,11 +518,23 @@ export default function ProductsPage() {
                 <th style={{ padding: '16px', fontSize: '12px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>M.R.P</th>
                 <th style={{ padding: '16px', fontSize: '12px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Rate-A</th>
                 <th style={{ padding: '16px', fontSize: '12px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>P.Rate</th>
+                <th style={{ padding: '16px', fontSize: '12px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', fontWeight: 600, textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {products.map((product) => (
-                <tr key={product.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                <tr 
+                  key={product.id} 
+                  style={{ 
+                    borderBottom: '1px solid var(--color-border)',
+                    cursor: 'pointer',
+                    backgroundColor: actionParam === 'modify' ? 'rgba(79, 70, 229, 0.03)' : 'transparent',
+                    transition: 'background-color var(--transition-fast)'
+                  }}
+                  onClick={() => handleModifyProduct(product)}
+                  onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--color-bg-hover)' }}
+                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = actionParam === 'modify' ? 'rgba(79, 70, 229, 0.03)' : 'transparent' }}
+                >
                   <td style={{ padding: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <div style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--color-bg-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -443,12 +550,33 @@ export default function ProductsPage() {
                   <td style={{ padding: '16px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{formatCurrency(product.mrp)}</td>
                   <td style={{ padding: '16px', color: 'var(--color-success)' }}>{formatCurrency(product.rate_a)}</td>
                   <td style={{ padding: '16px', color: 'var(--color-primary)' }}>{formatCurrency(product.p_rate)}</td>
+                  <td style={{ padding: '16px', textAlign: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleModifyProduct(product)
+                      }}
+                      style={{
+                        padding: '5px 12px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        color: 'var(--color-primary)',
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                        border: '1px solid var(--color-primary)',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Modify
+                    </button>
+                  </td>
                 </tr>
               ))}
               {products.length === 0 && !isLoading && (
                 <tr>
-                  <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                    No products found. Click "Add Product" to create one.
+                  <td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                    No products found. Click "Add Product" or choose "Create" from the top menu to add one.
                   </td>
                 </tr>
               )}

@@ -21,12 +21,31 @@ def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)
     """
     new_product = models.Product(
         company_id=current_user.company_id,
+        status=product.status,
+        hide=product.hide,
+        code=product.code,
         name=product.name,
-        sku=product.sku,
-        category=product.category,
-        price=product.price,
-        stock=product.stock,
-        status=product.status
+        packing=product.packing,
+        unit=product.unit,
+        colour_type=product.colour_type,
+        item_type=product.item_type,
+        company_name=product.company_name,
+        salt=product.salt,
+        hsn_applicable=product.hsn_applicable,
+        hsn_code=product.hsn_code,
+        local_tax=product.local_tax,
+        central_tax=product.central_tax,
+        sgst_percent=product.sgst_percent,
+        cgst_percent=product.cgst_percent,
+        igst_percent=product.igst_percent,
+        mrp=product.mrp,
+        p_rate=product.p_rate,
+        pts_rate=product.pts_rate,
+        rate_a=product.rate_a,
+        ptr_rate=product.ptr_rate,
+        item_discount_percent=product.item_discount_percent,
+        discount_type=product.discount_type,
+        category=product.category
     )
     db.add(new_product)
     db.commit()

@@ -193,6 +193,44 @@ class BulletinResponse(BulletinBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+# ── SALES (INVOICE) SCHEMAS ───────────────────────────────
+
+class InvoiceItemBase(BaseModel):
+    product_id: Optional[UUID4] = None
+    product_name: str
+    quantity: int
+    rate: float
+    igst_percent: float = 0.0
+    line_total: float
+
+class InvoiceItemCreate(InvoiceItemBase):
+    pass
+
+class InvoiceItemResponse(InvoiceItemBase):
+    id: UUID4
+    invoice_id: UUID4
+    model_config = ConfigDict(from_attributes=True)
+
+
+class InvoiceBase(BaseModel):
+    customer_name: str
+    invoice_number: str
+    subtotal: float
+    tax_total: float
+    grand_total: float
+
+class InvoiceCreate(InvoiceBase):
+    items: list[InvoiceItemCreate]
+
+class InvoiceResponse(InvoiceBase):
+    id: UUID4
+    company_id: UUID4
+    created_at: datetime
+    date: datetime
+    items: list[InvoiceItemResponse] = []
+    
+    model_config = ConfigDict(from_attributes=True)
+
 # ── HEALTH CHECK SCHEMA ───────────────────────────────────────
 class HealthResponse(BaseModel):
     """
@@ -207,12 +245,36 @@ class HealthResponse(BaseModel):
 # ── PRODUCT (INVENTORY) SCHEMAS ───────────────────────────────
 
 class ProductBase(BaseModel):
+    # Base
+    status: str = "continue"
+    hide: str = "no"
+    code: str
     name: str
-    sku: Optional[str] = None
-    category: Optional[str] = None
-    price: Optional[str] = None
-    stock: str = "0"
-    status: str = "active"
+    packing: Optional[str] = None
+    unit: Optional[str] = None
+    colour_type: str = "normal"
+    item_type: str = "normal"
+    company_name: Optional[str] = None
+    salt: Optional[str] = None
+    
+    # Taxes & HSN
+    hsn_applicable: str = "no"
+    hsn_code: Optional[str] = None
+    local_tax: str = "taxable"
+    central_tax: str = "taxable"
+    sgst_percent: float = 0.0
+    cgst_percent: float = 0.0
+    igst_percent: float = 0.0
+    
+    # Pricing
+    mrp: float = 0.0
+    p_rate: float = 0.0
+    pts_rate: float = 0.0
+    rate_a: float = 0.0
+    ptr_rate: float = 0.0
+    item_discount_percent: float = 0.0
+    discount_type: str = "applicable"
+    category: str = "na"
 
 class ProductCreate(ProductBase):
     pass
@@ -222,4 +284,4 @@ class ProductResponse(ProductBase):
     company_id: UUID4
     created_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)

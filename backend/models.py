@@ -121,7 +121,7 @@ class Company(Base):
     users = relationship("User", back_populates="company", cascade="all, delete-orphan")
     
     # A company has many products (Inventory).
-    # products = relationship("Product", back_populates="company", cascade="all, delete-orphan")
+    products = relationship("Product", back_populates="company", cascade="all, delete-orphan")
 
     def __repr__(self):
         """String representation for debugging — shows in logs and Python shell"""
@@ -255,3 +255,125 @@ class Bulletin(Base):
 
     def __repr__(self):
         return f"<Bulletin {self.title} priority={self.priority}>"
+
+
+# ── TABLE 5: Product (Inventory) ──────────────────────────────
+from sqlalchemy import Numeric, Integer
+
+class Product(Base):
+    """
+    Stores products/inventory items for each company.
+    Includes comprehensive fields for Marg-style ERP features.
+    """
+    __tablename__ = "products"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # ── Marg Profile Fields ──
+    status = Column(String(50), nullable=False, default="continue")
+    hide = Column(String(50), nullable=False, default="no")
+    code = Column(String(100), nullable=False, index=True) # SKU or item code
+    name = Column(String(255), nullable=False, index=True)
+    packing = Column(String(100), nullable=True)
+    unit = Column(String(50), nullable=True)
+    colour_type = Column(String(50), nullable=True, default="normal")
+    item_type = Column(String(50), nullable=True, default="normal")
+    company_name = Column(String(255), nullable=True) # Manufacturer name
+    salt = Column(String(255), nullable=True)
+    
+    # ── Taxes & HSN ──
+    hsn_applicable = Column(String(50), nullable=True, default="no")
+    hsn_code = Column(String(100), nullable=True)
+    local_tax = Column(String(50), nullable=True, default="taxable")
+    central_tax = Column(String(50), nullable=True, default="taxable")
+    sgst_percent = Column(Numeric(5, 2), nullable=False, default=0)
+    cgst_percent = Column(Numeric(5, 2), nullable=False, default=0)
+    igst_percent = Column(Numeric(5, 2), nullable=False, default=0)
+    
+    # ── Pricing ──
+    mrp = Column(Numeric(10, 2), nullable=False, default=0)
+    p_rate = Column(Numeric(10, 2), nullable=False, default=0)
+    pts_rate = Column(Numeric(10, 2), nullable=False, default=0)
+    rate_a = Column(Numeric(10, 2), nullable=False, default=0)
+    ptr_rate = Column(Numeric(10, 2), nullable=False, default=0)
+    item_discount_percent = Column(Numeric(5, 2), nullable=False, default=0)
+    discount_type = Column(String(50), nullable=True, default="applicable")
+    category = Column(String(100), nullable=True, default="na")
+
+    # ── RELATIONSHIPS ────────────────────────────────────────────
+    company = relationship("Company", back_populates="products")
+
+    def __repr__(self):
+        return f"<Product {self.code}: {self.name}>"
+
+
+# -- TABLE 6: Invoice (Sales/Purchase) ------------------------
+class Invoice(Base):
+    __tablename__ = "invoices"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    invoice_number = Column(String(100), nullable=False)
+    date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    customer_name = Column(String(255), nullable=False)
+    
+    # Financials
+    subtotal = Column(Numeric(12, 2), nullable=False, default=0)
+    tax_total = Column(Numeric(12, 2), nullable=False, default=0)
+    grand_total = Column(Numeric(12, 2), nullable=False, default=0)
+    
+    # -- RELATIONSHIPS --------------------------------------------
+    company = relationship("Company")
+    items = relationship("InvoiceItem", back_populates="invoice", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<Invoice {self.invoice_number}>"
+
+
+# -- TABLE 7: InvoiceItem --------------------------------------
+class InvoiceItem(Base):
+    __tablename__ = "invoice_items"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    invoice_id = Column(UUID(as_uuid=True), ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_id = Column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="SET NULL"), nullable=True)
+
+    product_name = Column(String(255), nullable=False) # Store name in case product is deleted
+    quantity = Column(Integer, nullable=False, default=1)
+    rate = Column(Numeric(10, 2), nullable=False)
+    
+    # Taxes applied at time of sale
+    igst_percent = Column(Numeric(5, 2), nullable=False, default=0)
+    
+    line_total = Column(Numeric(12, 2), nullable=False)
+
+    # -- RELATIONSHIPS --------------------------------------------
+    invoice = relationship("Invoice", back_populates="items")
+    product = relationship("Product")
+
+    def __repr__(self):
+        return f"<InvoiceItem {self.product_name} x {self.quantity}>"
+
+
+# -- TABLE 8: Ledger (Finance) ---------------------------------
+class Ledger(Base):
+    __tablename__ = "ledgers"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    name = Column(String(255), nullable=False)
+    group_name = Column(String(100), nullable=False) # e.g. 'Cash-in-Hand', 'Bank Accounts'
+    balance = Column(Numeric(15, 2), nullable=False, default=0)
+
+    # -- RELATIONSHIPS --------------------------------------------
+    company = relationship("Company")
+
+    def __repr__(self):
+        return f"<Ledger {self.name}: {self.balance}>"
+

@@ -126,7 +126,7 @@ const MargAppShell = () => {
             <div className="marg-action-gray marg-action-search">Search <Search size={12}/></div>
           </div>
 
-          <div className="marg-dashboard-area">
+          <div className="marg-dashboard-area" style={location.pathname !== '/' ? { justifyContent: 'flex-start', alignItems: 'stretch', flex: 1, height: '100%' } : undefined}>
             
             {/* Marg Logos / Badges area - ONLY render if on Dashboard */}
             {location.pathname === '/' && (
@@ -145,7 +145,7 @@ const MargAppShell = () => {
               </div>
             )}
 
-            <div className="marg-outlet-container" style={{ height: location.pathname !== '/' ? '100%' : 'auto', flex: location.pathname !== '/' ? 1 : 'none' }}>
+            <div className="marg-outlet-container" style={{ height: location.pathname !== '/' ? '100%' : 'auto', flex: location.pathname !== '/' ? 1 : 'none', marginTop: location.pathname !== '/' ? '0' : 'auto', borderTop: location.pathname !== '/' ? 'none' : '1px solid #e5e7eb', paddingBottom: location.pathname !== '/' ? '0' : '16px' }}>
                <Outlet /> 
             </div>
 

@@ -31,7 +31,7 @@ import models  # Importing models registers them with SQLAlchemy's Base
 
 # Import route modules
 from auth.router import router as auth_router
-# from inventory.router import router as inventory_router
+from inventory.router import router as inventory_router
 
 # Load environment variables from .env file
 load_dotenv()
@@ -116,9 +116,12 @@ app.include_router(companies_router, prefix="/api")
 from api.bulletins import router as bulletins_router
 app.include_router(bulletins_router, prefix="/api")
 
+# Sales routes
+from api.sales import router as sales_router
+app.include_router(sales_router, prefix="/api")
+
 # Future routers will be added here as modules are built:
-# app.include_router(finance_router)
-# app.include_router(inventory_router)
+app.include_router(inventory_router)
 # app.include_router(hr_router)
 # app.include_router(reports_router)
 

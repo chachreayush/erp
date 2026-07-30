@@ -16,6 +16,7 @@
       using React Router's useLocation hook.
    ============================================================ */
 
+import React, { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 
@@ -37,30 +38,26 @@ import {
 } from 'lucide-react'
 
 // ── NAV ITEM DEFINITION ───────────────────────────────────────
-// Defines the shape of each navigation menu item
 interface NavItem {
-  label:      string              // Display text (e.g., "Finance")
-  path:       string              // URL route (e.g., "/finance")
-  icon:       React.ReactNode     // Icon component to show
-  module?:    string              // Which permission module to check
-                                  // undefined = always visible (e.g., Dashboard)
+  label:      string
+  path:       string
+  icon:       React.ReactNode
+  module?:    string
 }
 
 // ── NAV ITEMS CONFIGURATION ───────────────────────────────────
-// The ordered list of all navigation items.
-// Each item's visibility is controlled by the user's permissions.
 const NAV_ITEMS: NavItem[] = [
   {
     label:  'Dashboard',
     path:   '/dashboard',
     icon:   <LayoutDashboard size={18} />,
-    module: undefined // Dashboard is always visible to all logged-in users
+    module: undefined
   },
   {
     label:  'Finance & Accounting',
     path:   '/finance',
     icon:   <Receipt size={18} />,
-    module: 'finance' // Only shown if user has finance.view = true
+    module: 'finance'
   },
   {
     label:  'Inventory',
@@ -100,40 +97,74 @@ const NAV_ITEMS: NavItem[] = [
   }
 ]
 
-// ── SIDEBAR COMPONENT ─────────────────────────────────────────
-function Sidebar() {
-  // Get the current URL path to highlight the active nav item
-  const location = useLocation()
+interface SidebarProps {
+  salesSubMenuOpen: boolean
+  setSalesSubMenuOpen: (open: boolean) => void
+  salesPurchaseRef: React.RefObject<HTMLButtonElement | null>
+}
 
-  // Navigate programmatically when a nav item is clicked
+// ── SIDEBAR COMPONENT ─────────────────────────────────────────
+function Sidebar({ salesSubMenuOpen, setSalesSubMenuOpen, salesPurchaseRef }: SidebarProps) {
+  const location = useLocation()
   const navigate = useNavigate()
 
-  // Read user and permission checker from the global auth store
   const user = useAuthStore(state => state.user)
   const hasPermission = useAuthStore(state => state.hasPermission)
   const appMode = useAuthStore(state => state.appMode)
 
-  // ── FILTER NAV ITEMS BY PERMISSION ──────────────────────────
-  // Only include nav items the current user has VIEW permission for.
-  // 'module: undefined' items (Dashboard) are always included.
   const visibleNavItems = NAV_ITEMS.filter(item => {
-    if (!item.module) return true // No module restriction = always show
+    if (!item.module) return true
     return hasPermission(item.module as any, 'view')
   })
 
-  // ── CHECK IF A NAV ITEM IS ACTIVE ───────────────────────────
-  // Dashboard ("/") is only active when exactly at root.
-  // Other pages are active when the path starts with their route.
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/'
     return location.pathname.startsWith(path)
   }
 
+  // Flatten all buttons into a single array for unified keyboard navigation
+  const sidebarButtons = [
+    ...visibleNavItems.map(item => ({ label: item.label, path: item.path, icon: item.icon })),
+    ...(user?.role === 'am_admin' ? [{ label: 'Client Management', path: '/clients', icon: <Building size={18} /> }] : []),
+    { label: 'Bulletin Board', path: '/bulletin', icon: <Megaphone size={18} /> }
+  ]
+
+  const buttonRefs = useRef<(HTMLButtonElement | null)[]>([])
+
+  // Focus Dashboard on mount
+  useEffect(() => {
+    // We delay slightly to ensure DOM is ready
+    const timer = setTimeout(() => {
+      buttonRefs.current[0]?.focus()
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [])
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const nextIndex = (index + 1) % sidebarButtons.length
+      buttonRefs.current[nextIndex]?.focus()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const prevIndex = (index - 1 + sidebarButtons.length) % sidebarButtons.length
+      buttonRefs.current[prevIndex]?.focus()
+    } else if (e.key === 'Enter') {
+      const item = sidebarButtons[index]
+      if (item.label === 'Sales & Purchase') {
+        e.preventDefault()
+        setSalesSubMenuOpen(true)
+      } else {
+        navigate(item.path)
+      }
+    }
+  }
+
   return (
     <aside
       style={{
-        width: 'var(--sidebar-width)',       // 240px (defined in CSS variables)
-        minWidth: 'var(--sidebar-width)',     // Prevent shrinking
+        width: 'var(--sidebar-width)',
+        minWidth: 'var(--sidebar-width)',
         height: '100%',
         backgroundColor: 'var(--color-bg-surface)',
         borderRight: '1px solid var(--color-border)',
@@ -142,15 +173,12 @@ function Sidebar() {
         overflow: 'hidden'
       }}
     >
-      {/* ── COMPANY INFO SECTION ───────────────────────────────
-          Shows the company name and connection mode indicator at the top.
-          Gives the user immediate context of which company they're in. */}
+      {/* ── COMPANY INFO SECTION ─────────────────────────────── */}
       <div style={{
         padding: '16px',
         borderBottom: '1px solid var(--color-border)',
-        flexShrink: 0 // Don't let this section shrink
+        flexShrink: 0
       }}>
-        {/* Company icon and name */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
           <div style={{
             width: '32px', height: '32px',
@@ -162,7 +190,6 @@ function Sidebar() {
             <Building2 size={16} color="white" />
           </div>
           <div style={{ minWidth: 0 }}>
-            {/* Company name — truncated if too long */}
             <div style={{
               fontSize: '13px', fontWeight: 600,
               color: 'var(--color-text-primary)',
@@ -170,27 +197,24 @@ function Sidebar() {
             }}>
               {user?.companyName ?? 'Loading...'}
             </div>
-            {/* User's role label */}
             <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', textTransform: 'capitalize' }}>
               {user?.role?.replace('_', ' ') ?? ''}
             </div>
           </div>
         </div>
 
-        {/* Connection mode badge: shows LAN or Remote status */}
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: '5px',
           padding: '3px 8px',
           borderRadius: '999px',
           fontSize: '11px',
           backgroundColor: appMode === 'remote'
-            ? 'rgba(59,130,246,0.15)'  // Blue for remote
-            : 'rgba(34,197,94,0.15)',   // Green for LAN/server
+            ? 'rgba(59,130,246,0.15)'
+            : 'rgba(34,197,94,0.15)',
           color: appMode === 'remote'
             ? 'var(--color-info)'
             : 'var(--color-success)'
         }}>
-          {/* Show different icon and label based on connection mode */}
           {appMode === 'remote'
             ? <><Globe size={10} /> Remote</>
             : <><Wifi size={10} /> LAN Connected</>
@@ -198,20 +222,33 @@ function Sidebar() {
         </div>
       </div>
 
-      {/* ── NAVIGATION ITEMS ────────────────────────────────────
-          The main nav menu. Scrollable if items exceed sidebar height. */}
+      {/* ── NAVIGATION ITEMS ──────────────────────────────────── */}
       <nav
         style={{ flex: 1, overflowY: 'auto', padding: '8px' }}
-        aria-label="Main navigation" // Screen reader label for accessibility
+        aria-label="Main navigation"
       >
-        {visibleNavItems.map((item) => {
+        {sidebarButtons.map((item, index) => {
           const active = isActive(item.path)
+          const isSalesPurchase = item.label === 'Sales & Purchase'
 
           return (
             <button
               key={item.path}
-              onClick={() => navigate(item.path)} // Navigate on click
-              // onKeyDown handled naturally by browser for Enter/Space on buttons
+              ref={(el) => {
+                buttonRefs.current[index] = el
+                if (isSalesPurchase) {
+                  // Assign the ref passed from AppShell
+                  (salesPurchaseRef as any).current = el
+                }
+              }}
+              onClick={() => {
+                if (isSalesPurchase) {
+                  setSalesSubMenuOpen(true)
+                } else {
+                  navigate(item.path)
+                }
+              }}
+              onKeyDown={(e) => handleKeyDown(e, index)}
               style={{
                 width: '100%',
                 display: 'flex',
@@ -225,87 +262,32 @@ function Sidebar() {
                 textAlign: 'left',
                 fontSize: '13px',
                 fontWeight: active ? 600 : 400,
-                // Active item: highlighted with primary color background
-                // Inactive item: transparent background (shows on hover via CSS)
                 backgroundColor: active
-                  ? 'rgba(79,70,229,0.15)'       // Indigo tint for active
+                  ? 'rgba(79,70,229,0.15)'
                   : 'transparent',
                 color: active
-                  ? 'var(--color-primary)'        // Primary color for active text
-                  : 'var(--color-text-secondary)', // Muted for inactive
+                  ? 'var(--color-primary)'
+                  : 'var(--color-text-secondary)',
                 transition: 'all var(--transition-fast)',
-                // Left border indicator for active state
                 borderLeft: active
                   ? '2px solid var(--color-primary)'
                   : '2px solid transparent',
               }}
-              // Accessibility: Mark the active page for screen readers
               aria-current={active ? 'page' : undefined}
-              title={item.label} // Tooltip on hover
+              title={item.label}
             >
-              {/* Module icon */}
               <span style={{ flexShrink: 0, opacity: active ? 1 : 0.7 }}>
                 {item.icon}
               </span>
-              {/* Module label */}
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {item.label}
               </span>
             </button>
           )
         })}
-
-        {/* ── CLIENT MANAGEMENT (AM ONLY) ──────────────────────── */}
-        {user?.role === 'am_admin' && (
-          <button
-            onClick={() => navigate('/clients')}
-            style={{
-              width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
-              padding: '9px 12px', marginBottom: '2px', borderRadius: 'var(--radius-md)',
-              border: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '13px',
-              fontWeight: isActive('/clients') ? 600 : 400,
-              backgroundColor: isActive('/clients') ? 'rgba(79,70,229,0.15)' : 'transparent',
-              color: isActive('/clients') ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-              transition: 'all var(--transition-fast)',
-              borderLeft: isActive('/clients') ? '2px solid var(--color-primary)' : '2px solid transparent',
-            }}
-            title="Client Management"
-          >
-            <span style={{ flexShrink: 0, opacity: isActive('/clients') ? 1 : 0.7 }}>
-              <Building size={18} />
-            </span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              Client Management
-            </span>
-          </button>
-        )}
-
-        {/* ── BULLETIN BOARD (ALWAYS VISIBLE, BELOW MANAGE CLIENTS) ── */}
-        <button
-          onClick={() => navigate('/bulletin')}
-          style={{
-            width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
-            padding: '9px 12px', marginBottom: '2px', borderRadius: 'var(--radius-md)',
-            border: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '13px',
-            fontWeight: isActive('/bulletin') ? 600 : 400,
-            backgroundColor: isActive('/bulletin') ? 'rgba(79,70,229,0.15)' : 'transparent',
-            color: isActive('/bulletin') ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-            transition: 'all var(--transition-fast)',
-            borderLeft: isActive('/bulletin') ? '2px solid var(--color-primary)' : '2px solid transparent',
-          }}
-          title="Bulletin Board"
-        >
-          <span style={{ flexShrink: 0, opacity: isActive('/bulletin') ? 1 : 0.7 }}>
-            <Megaphone size={18} />
-          </span>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            Bulletin Board
-          </span>
-        </button>
       </nav>
 
-      {/* ── USER INFO / LOGOUT SECTION ────────────────────────────
-          Shows the logged-in user's name at the bottom of the sidebar. */}
+      {/* ── USER INFO / LOGOUT SECTION ──────────────────────────── */}
       <div style={{
         padding: '12px 16px',
         borderTop: '1px solid var(--color-border)',
