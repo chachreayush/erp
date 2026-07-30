@@ -128,7 +128,7 @@ import type { AuthUser } from '../store/authStore'
 
 // Shape of the login request body (mirrors backend LoginRequest schema)
 export interface LoginRequestPayload {
-  company_code?: string   // Optional — only required for remote mode
+  org_code?: string       // Optional — only required for remote mode
   username: string
   password: string
   is_lan: boolean
@@ -140,17 +140,17 @@ export interface LoginApiResponse {
   token_type:   string
   expires_in:   number
   user: {
-    id:           string
-    name:         string
-    username:     string
-    email:        string | null
-    role:         string
-    company_id:   string
-    company_name: string
-    company_code: string
-    is_am_user:   boolean
-    permissions:  AuthUser['permissions']
-    avatar_url:   string | null
+    id:              string
+    name:            string
+    username:        string
+    email:           string | null
+    role:            string
+    organization_id: string
+    org_name:        string
+    org_code:        string
+    is_am_user:      boolean
+    permissions:     AuthUser['permissions']
+    avatar_url:      string | null
   }
 }
 

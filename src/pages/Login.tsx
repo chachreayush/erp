@@ -104,7 +104,7 @@ function LoginPage() {
     try {
       // Call the real FastAPI POST /auth/login endpoint
       const response = await apiLogin({
-        company_code: companyId.trim().toUpperCase(),
+        org_code:     companyId.trim().toUpperCase(),
         username:     username.trim(),
         password:     password,
         is_lan:       appMode === 'lan' || appMode === 'server'
@@ -117,8 +117,8 @@ function LoginPage() {
         username:    response.user.username,
         email:       response.user.email ?? '',
         role:        response.user.role as AuthUser['role'],
-        companyId:   response.user.company_id,
-        companyName: response.user.company_name,
+        companyId:   response.user.organization_id, // Keep frontend store as companyId for now
+        companyName: response.user.org_name,
         isAmUser:    response.user.is_am_user,
         permissions: response.user.permissions,
         avatarUrl:   response.user.avatar_url ?? undefined

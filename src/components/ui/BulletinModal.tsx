@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Modal } from './Modal'
 import { Button } from './Button'
 import { Input } from './Input'
-import { api } from '../../lib/api'
+import { api, apiGetOrganizations } from '../../lib/api'
 import { useAuthStore } from '../../store/authStore'
 
 interface BulletinModalProps {
@@ -26,7 +26,7 @@ export default function BulletinModal({ isOpen, onClose, onSuccess, editingBulle
 
   useEffect(() => {
     if (isAmAdmin) {
-      api.companies.getAll().then(res => setCompanies(res.data)).catch(() => {})
+      apiGetOrganizations().then(orgs => setCompanies(orgs)).catch(() => {})
     }
   }, [isAmAdmin])
 
@@ -37,8 +37,8 @@ export default function BulletinModal({ isOpen, onClose, onSuccess, editingBulle
       setPriority(editingBulletin.priority)
       if (editingBulletin.is_global) {
         setBroadcastTarget('global')
-      } else if (user && editingBulletin.company_id !== user.company_id) {
-        setBroadcastTarget(editingBulletin.company_id)
+      } else if (user && editingBulletin.organization_id !== user.companyId) {
+        setBroadcastTarget(editingBulletin.organization_id)
       } else {
         setBroadcastTarget('internal')
       }
@@ -61,7 +61,7 @@ export default function BulletinModal({ isOpen, onClose, onSuccess, editingBulle
       if (isAmAdmin) {
         payload.is_global = broadcastTarget === 'global'
         if (broadcastTarget !== 'global' && broadcastTarget !== 'internal') {
-          payload.target_company_id = broadcastTarget
+          payload.target_org_id = broadcastTarget
         }
       }
       
