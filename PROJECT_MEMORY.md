@@ -198,3 +198,10 @@ JWT_SECRET_KEY=fallback_dev_key_change_in_production
 - [ ] Purchase module
 - [ ] HR module
 - [ ] Reports module
+
+### August 2026 - Sales Module Upgrade & Series Isolation
+- [x] Migrated Sales to robust grid-based SalesBill.tsx component.
+- [x] Eliminated Party Inv No requirement for Sales entries.
+- [x] Implemented 'Smart Batch Filtering' in Sales/Purchase (hiding 0 qty batches, revealed via ArrowUp).
+- [x] Implemented isolated default auto-increment series (e.g. S0001, SC0001, P0001) based on prefix across ALL billing modules.
+- [x] Implemented strict local duplicate validation for Entry Numbers across all forms.

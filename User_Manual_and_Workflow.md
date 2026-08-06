@@ -128,3 +128,7 @@ To keep inventory and accounts correct, items move through the software in a spe
 ### Update 2026-07-31
 - Master Data Setup: Ledgers and Tax codes are fully wired and saving to the database.
 - Memory Log: Implemented a persistent memory file (PROJECT_MEMORY.md) to maintain perfect context across sessions.
+
+### Feature Updates (August 2026)
+- The F3 Batch Modal now hides zero-quantity batches by default. To view them, press the **ArrowUp** key when selecting the topmost batch.
+- Each transaction type (Sales Bill, Challan, Purchase, Brk/Exp, GST) now maintains an independent auto-incrementing Entry No series (e.g. S0001, CRN0001). The system automatically prevents you from creating duplicates.

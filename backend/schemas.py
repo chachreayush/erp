@@ -214,6 +214,7 @@ class InvoiceItemResponse(InvoiceItemBase):
 
 class InvoiceBase(BaseModel):
     customer_name: str
+    invoice_type: str = "bill"
     invoice_number: str
     subtotal: float
     tax_total: float
@@ -254,7 +255,7 @@ class ProductBase(BaseModel):
     unit: Optional[str] = None
     colour_type: str = "normal"
     item_type: str = "normal"
-    org_name: Optional[str] = None
+    company_name: Optional[str] = None
     salt: Optional[str] = None
     
     # Taxes & HSN
@@ -288,6 +289,18 @@ class ProductResponse(ProductBase):
 
 # ── MASTER DATA SCHEMAS ────────────────────────────────────────
 
+class StationBase(BaseModel):
+    name: str
+
+class StationCreate(StationBase):
+    pass
+
+class StationResponse(StationBase):
+    id: UUID4
+    organization_id: UUID4
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
 class LedgerBase(BaseModel):
     name: str
     group_name: str
@@ -297,6 +310,27 @@ class LedgerBase(BaseModel):
     op_type: str = 'Dr'
     closing_balance: float = 0
     cl_type: str = 'Dr'
+    
+    station: Optional[str] = None
+    plot_no: Optional[str] = None
+    locality: Optional[str] = None
+    road_street: Optional[str] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
+    pincode: Optional[str] = None
+    email: Optional[str] = None
+    website: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone_number: Optional[str] = None
+    freeze_upto: float = 0
+    dl_no: Optional[str] = None
+    restrict_item: Optional[str] = None
+    ledger_type: Optional[str] = 'Unregistered'
+    gstin: Optional[str] = None
+    tax_type: Optional[str] = None
+    pan_no: Optional[str] = None
+    ledger_date: Optional[datetime] = None
+    colour: Optional[str] = None
 
 class LedgerCreate(LedgerBase):
     pass
@@ -327,8 +361,27 @@ class SaltResponse(SaltBase):
 class ManufacturerBase(BaseModel):
     name: str
     short_code: Optional[str] = None
+    status: str = 'continue'
+    prohibited: bool = False
     default_discount: float = 0
-    supplier: Optional[str] = None
+    
+    room_no: Optional[str] = None
+    floor: Optional[str] = None
+    rack_no: Optional[str] = None
+    rack_row_no: Optional[str] = None
+    dump_days: Optional[int] = 0
+    
+    is_supplier: bool = False
+    supplier_ledger_id: Optional[UUID4] = None
+    
+    email: Optional[str] = None
+    cc: Optional[str] = None
+    bcc: Optional[str] = None
+    website: Optional[str] = None
+    contact_number: Optional[str] = None
+    field_staff_name: Optional[str] = None
+    field_staff_contact: Optional[str] = None
+    address: Optional[str] = None
 
 class ManufacturerCreate(ManufacturerBase):
     pass
@@ -345,6 +398,7 @@ class HSNCodeBase(BaseModel):
     igst: float = 0
     cgst: float = 0
     sgst: float = 0
+    type: str = "Goods"
 
 class HSNCodeCreate(HSNCodeBase):
     pass

@@ -280,7 +280,7 @@ class Product(Base):
     unit = Column(String(50), nullable=True)
     colour_type = Column(String(50), nullable=True, default="normal")
     item_type = Column(String(50), nullable=True, default="normal")
-    org_name = Column(String(255), nullable=True) # Manufacturer name
+    company_name = Column(String(255), nullable=True) # Manufacturer name
     salt = Column(String(255), nullable=True)
     
     # ── Taxes & HSN ──
@@ -317,6 +317,7 @@ class Invoice(Base):
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    invoice_type = Column(String(50), nullable=False, default="bill")
     invoice_number = Column(String(100), nullable=False)
     date = Column(DateTime, default=datetime.utcnow, nullable=False)
     customer_name = Column(String(255), nullable=False)
@@ -359,7 +360,19 @@ class InvoiceItem(Base):
         return f"<InvoiceItem {self.product_name} x {self.quantity}>"
 
 
-# -- TABLE 8: Ledger (Finance) ---------------------------------
+# -- TABLE 8: Station (Master Data) ---------------------------------
+class Station(Base):
+    __tablename__ = "stations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    name = Column(String(255), nullable=False)
+    
+    def __repr__(self):
+        return f"<Station {self.name}>"
+
+# -- TABLE 9: Ledger (Finance) ---------------------------------
 class Ledger(Base):
     __tablename__ = "ledgers"
 
@@ -375,6 +388,29 @@ class Ledger(Base):
     op_type = Column(String(2), nullable=False, default='Dr') # Dr or Cr
     closing_balance = Column(Numeric(15, 2), nullable=False, default=0)
     cl_type = Column(String(2), nullable=False, default='Dr') # Dr or Cr
+
+    # --- New Fields ---
+    station = Column(String(255), nullable=True)
+    plot_no = Column(String(255), nullable=True)
+    locality = Column(String(255), nullable=True)
+    road_street = Column(String(255), nullable=True)
+    city = Column(String(100), nullable=True)
+    district = Column(String(100), nullable=True)
+    pincode = Column(String(20), nullable=True)
+    email = Column(String(255), nullable=True)
+    website = Column(String(255), nullable=True)
+    contact_person = Column(String(255), nullable=True)
+    phone_number = Column(String(50), nullable=True)
+    freeze_upto = Column(Numeric(15, 2), nullable=False, default=0)
+    dl_no = Column(String(100), nullable=True)
+    restrict_item = Column(String(500), nullable=True)
+    ledger_type = Column(String(50), nullable=True, default='Unregistered')
+    gstin = Column(String(50), nullable=True)
+    tax_type = Column(String(50), nullable=True)
+    pan_no = Column(String(50), nullable=True)
+    ledger_date = Column(DateTime, default=datetime.utcnow, nullable=True)
+    colour = Column(String(50), nullable=True)
+
 
     # -- RELATIONSHIPS --------------------------------------------
     organization = relationship("Organization")
@@ -410,10 +446,30 @@ class Manufacturer(Base):
 
     name = Column(String(255), nullable=False)
     short_code = Column(String(50), nullable=True)
+    status = Column(String(20), nullable=False, default='continue') # 'continue' or 'close'
+    prohibited = Column(Boolean, nullable=False, default=False)
     default_discount = Column(Numeric(5, 2), nullable=False, default=0)
-    supplier = Column(String(255), nullable=True)
+    
+    room_no = Column(String(50), nullable=True)
+    floor = Column(String(50), nullable=True)
+    rack_no = Column(String(50), nullable=True)
+    rack_row_no = Column(String(50), nullable=True)
+    dump_days = Column(Integer, nullable=True, default=0)
+    
+    is_supplier = Column(Boolean, nullable=False, default=False)
+    supplier_ledger_id = Column(UUID(as_uuid=True), ForeignKey("ledgers.id", ondelete="SET NULL"), nullable=True)
+    
+    email = Column(String(255), nullable=True)
+    cc = Column(String(255), nullable=True)
+    bcc = Column(String(255), nullable=True)
+    website = Column(String(255), nullable=True)
+    contact_number = Column(String(50), nullable=True)
+    field_staff_name = Column(String(255), nullable=True)
+    field_staff_contact = Column(String(50), nullable=True)
+    address = Column(Text, nullable=True)
 
     organization = relationship("Organization")
+    supplier_ledger = relationship("Ledger")
 
 # -- TABLE 11: HSNCode (Master Data) ---------------------------------
 class HSNCode(Base):
@@ -428,6 +484,7 @@ class HSNCode(Base):
     igst = Column(Numeric(5, 2), nullable=False, default=0)
     cgst = Column(Numeric(5, 2), nullable=False, default=0)
     sgst = Column(Numeric(5, 2), nullable=False, default=0)
+    type = Column(String(50), nullable=False, default="Goods")
 
     organization = relationship("Organization")
 

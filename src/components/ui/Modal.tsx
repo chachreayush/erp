@@ -7,6 +7,7 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   maxWidth?: string;
+  footer?: React.ReactNode;
 }
 
 export const Modal: React.FC<ModalProps> = ({ 
@@ -14,7 +15,8 @@ export const Modal: React.FC<ModalProps> = ({
   onClose, 
   title, 
   children,
-  maxWidth = '500px'
+  maxWidth = '500px',
+  footer
 }) => {
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -64,7 +66,8 @@ export const Modal: React.FC<ModalProps> = ({
           justifyContent: 'space-between',
           padding: '16px 20px',
           borderBottom: '1px solid var(--color-border)',
-          backgroundColor: 'var(--color-bg)'
+          backgroundColor: 'var(--color-bg)',
+          flexShrink: 0
         }}>
           <h2 style={{ 
             margin: 0, 
@@ -90,14 +93,29 @@ export const Modal: React.FC<ModalProps> = ({
           </button>
         </div>
 
-        {/* Content */}
+        {/* Scrollable Content */}
         <div style={{
-          padding: '20px',
+          padding: '16px 20px',
           overflowY: 'auto',
           flex: 1
         }}>
           {children}
         </div>
+
+        {/* Sticky Footer (buttons) */}
+        {footer && (
+          <div style={{
+            padding: '12px 20px',
+            borderTop: '1px solid var(--color-border)',
+            backgroundColor: 'var(--color-bg)',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '8px',
+            flexShrink: 0
+          }}>
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );

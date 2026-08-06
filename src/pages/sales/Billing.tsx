@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams, useLocation } from 'react-router-dom'
-import { Plus, Trash2, Search, FileText, CheckCircle2, ListFilter, Printer } from 'lucide-react'
+import { Trash2, Search, FileText, CheckCircle2, ListFilter, Printer } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Modal } from '../../components/ui/Modal'
-import { apiGetProducts, Product, apiCreateInvoice, InvoiceCreatePayload, InvoiceItem, apiGetInvoices, Invoice } from '../../lib/api'
+import { apiGetProducts, Product, apiCreateInvoice, InvoiceCreatePayload, InvoiceItem, apiGetInvoices, Invoice, apiGetLedgers, Ledger } from '../../lib/api'
 
 export default function BillingPage() {
   const [searchParams] = useSearchParams()
@@ -15,6 +15,7 @@ export default function BillingPage() {
   const path = location.pathname
 
   const [products, setProducts] = useState<Product[]>([])
+  const [ledgers, setLedgers] = useState<Ledger[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [invoices, setInvoices] = useState<Invoice[]>([])
 
@@ -22,6 +23,7 @@ export default function BillingPage() {
   const [customerName, setCustomerName] = useState('')
   const [invoiceNumber, setInvoiceNumber] = useState('')
   const [items, setItems] = useState<InvoiceItem[]>([])
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   
   // Product Search Modal
   const [isProductModalOpen, setIsProductModalOpen] = useState(false)
@@ -118,8 +120,15 @@ export default function BillingPage() {
 
   // Load prefix/postfix depending on type
   useEffect(() => {
-    setInvoiceNumber(`${config.prefix}-${Date.now().toString().slice(-6)}`)
-  }, [type, path])
+    if (!type.startsWith('modify')) {
+      const storedLastNo = localStorage.getItem(`last_no_${config.prefix}`);
+      if (storedLastNo) {
+        setInvoiceNumber(storedLastNo);
+      } else {
+        setInvoiceNumber(`${config.prefix}0001`);
+      }
+    }
+  }, [type, path, config.prefix])
 
   useEffect(() => {
     fetchProducts()
@@ -130,6 +139,9 @@ export default function BillingPage() {
 
   const fetchProducts = async () => {
     try {
+      const l = await apiGetLedgers()
+      setLedgers(l)
+      
       const apiData = await apiGetProducts()
       const localData = JSON.parse(localStorage.getItem('erp_inventory_items') || '[]')
       const map = new Map()
@@ -147,7 +159,7 @@ export default function BillingPage() {
   const fetchInvoices = async () => {
     setIsLoading(true)
     try {
-      const data = await apiGetInvoices()
+      const data = await apiGetInvoices(type)
       setInvoices(data)
     } catch (err) {
       console.error('Failed to load invoices', err)
@@ -156,7 +168,41 @@ export default function BillingPage() {
     }
   }
 
+  const playBellSound = () => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); 
+      oscillator.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.5);
+      
+      gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+      
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.5);
+    } catch (e) {
+      console.error("Audio API not supported");
+    }
+  }
+
   const addProductToInvoice = (product: Product) => {
+    if (customerName && product.category) {
+      const currentLedger = ledgers.find(l => l.name === customerName);
+      if (currentLedger && currentLedger.restrict_item) {
+        const bans = currentLedger.restrict_item.split(',').filter(Boolean);
+        if (bans.includes(product.category) && !bans.includes('ALL')) {
+          playBellSound();
+          return;
+        }
+      }
+    }
+    
     const existingItemIndex = items.findIndex(item => item.product_id === product.id)
     
     if (existingItemIndex >= 0) {
@@ -179,6 +225,12 @@ export default function BillingPage() {
     
     setIsProductModalOpen(false)
     setSearchQuery('')
+    
+    setFormErrors(prev => {
+      const err = { ...prev }
+      delete err.items
+      return err
+    })
   }
 
   const updateQuantity = (index: number, newQty: number) => {
@@ -204,19 +256,25 @@ export default function BillingPage() {
   }
 
   // Financial Calculations
-  const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.rate), 0)
+  const subtotal = items.reduce((sum, item) => sum + item.line_total, 0)
   const taxTotal = items.reduce((sum, item) => sum + ((item.quantity * item.rate) * (item.igst_percent / 100)), 0)
   const grandTotal = subtotal + taxTotal
 
   const handleSaveInvoice = async () => {
-    if (items.length === 0 || !customerName) {
-      alert("Please enter customer name and add at least one item.")
+    const newErrors: Record<string, string> = {}
+    if (!customerName) newErrors.customerName = "Please select a customer/ledger"
+    if (items.length === 0) newErrors.items = "Please add at least one item to the invoice"
+    
+    if (Object.keys(newErrors).length > 0) {
+      setFormErrors(newErrors)
       return
     }
+    setFormErrors({})
     
     setIsLoading(true)
     try {
       const payload: InvoiceCreatePayload = {
+        invoice_type: type,
         customer_name: customerName,
         invoice_number: invoiceNumber,
         subtotal: Number(subtotal.toFixed(2)),
@@ -229,11 +287,29 @@ export default function BillingPage() {
       }
       
       await apiCreateInvoice(payload)
-      setShowSuccess(true)
+        
+        const savedInvoices = JSON.parse(localStorage.getItem('saved_billing_invoices') || '[]');
+        if (!type.startsWith('modify')) {
+          savedInvoices.push({ prefix: config.prefix, invoiceNumber: invoiceNumber.trim() });
+          localStorage.setItem('saved_billing_invoices', JSON.stringify(savedInvoices));
+        }
+
+        const currentNumStr = invoiceNumber.replace(config.prefix, '');
+        const currentNum = parseInt(currentNumStr, 10);
+        const nextNum = isNaN(currentNum) ? 1 : currentNum + 1;
+        const nextInvoiceNo = `${config.prefix}${nextNum.toString().padStart(4, '0')}`;
+        
+        if (!type.startsWith('modify')) {
+          localStorage.setItem(`last_no_${config.prefix}`, nextInvoiceNo);
+        }
+
+        setShowSuccess(true)
       
       setTimeout(() => {
         setCustomerName('')
-        setInvoiceNumber(`${config.prefix}-${Date.now().toString().slice(-6)}`)
+        if (!type.startsWith('modify')) {
+            setInvoiceNumber(localStorage.getItem(`last_no_${config.prefix}`) || `${config.prefix}0001`)
+          }
         setItems([])
         setShowSuccess(false)
       }, 2000)
@@ -353,15 +429,24 @@ export default function BillingPage() {
           <Card className="p-6">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Transaction Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Customer / Ledger Name *</label>
-                <Input 
-                  value={customerName}
-                  onChange={e => setCustomerName(e.target.value)}
-                  placeholder="Enter ledger/customer name..."
-                  className="w-full"
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: formErrors.customerName ? '#ef4444' : undefined }}>Customer / Ledger Name *</label>
+                  <select 
+                    value={customerName}
+                    onChange={e => {
+                      setCustomerName(e.target.value)
+                      if(formErrors.customerName) setFormErrors(prev => ({...prev, customerName: ''}))
+                    }}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    style={{ border: `1px solid ${formErrors.customerName ? '#ef4444' : 'var(--color-border, #d1d5db)'}` }}
+                  >
+                    <option value="">-- Select Customer/Ledger --</option>
+                    {ledgers.map(l => (
+                      <option key={l.id} value={l.name}>{l.name}</option>
+                    ))}
+                  </select>
+                  {formErrors.customerName && <span style={{ fontSize: '11px', color: '#ef4444', marginTop: '2px', display: 'block' }}>{formErrors.customerName}</span>}
+                </div>
               <div>
                 <label className="block text-sm font-medium mb-1">
                   Number
@@ -377,7 +462,10 @@ export default function BillingPage() {
 
           <Card className="p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Line Items</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Line Items</h3>
+                {formErrors.items && <span className="text-sm font-medium text-red-500 bg-red-50 px-2 py-0.5 rounded">{formErrors.items}</span>}
+              </div>
               <Button size="sm" onClick={() => setIsProductModalOpen(true)}>
                 <Search className="w-4 h-4 mr-2" /> Browse Products
               </Button>

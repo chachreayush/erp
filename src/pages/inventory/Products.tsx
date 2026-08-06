@@ -6,22 +6,13 @@ import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Modal } from '../../components/ui/Modal'
 import { LookupModal } from '../../components/ui/LookupModal'
-import { CreateCompanyModal } from '../../components/ui/CreateCompanyModal'
-import { CreateHSNModal } from '../../components/ui/CreateHSNModal'
-import { apiGetProducts, apiCreateProduct, ProductCreatePayload, Product } from '../../lib/api'
-
-// Mock Data for Lookups
-const MOCK_COMPANIES = [
-  { id: '1', label: 'Cipla Ltd' },
-  { id: '2', label: 'Sun Pharma' },
-  { id: '3', label: 'Mankind Pharma' },
-]
-
-const MOCK_HSN = [
-  { id: '1', label: '3004', description: 'Medicaments (IGST 12%)', data: { igst: 12 } },
-  { id: '2', label: '3005', description: 'Wadding, gauze, bandages (IGST 5%)', data: { igst: 5 } },
-  { id: '3', label: '3304', description: 'Beauty or make-up prep (IGST 18%)', data: { igst: 18 } },
-]
+import { CompanyMasterModal } from '../../components/ui/CompanyMasterModal'
+import { HSNMasterModal } from '../../components/ui/HSNMasterModal'
+import { SaltMasterModal } from '../../components/ui/SaltMasterModal'
+import { 
+  apiGetProducts, apiCreateProduct, ProductCreatePayload, Product,
+  apiGetManufacturers, apiGetSalts, apiGetHSNCodes
+} from '../../lib/api'
 
 // Simple helper to format currency
 const formatCurrency = (val: number) => `₹${val.toFixed(2)}`
@@ -36,11 +27,20 @@ export default function ProductsPage() {
   const [isAdding, setIsAdding] = useState(false)
   const [isCompanyLookupOpen, setIsCompanyLookupOpen] = useState(false)
   const [isHsnLookupOpen, setIsHsnLookupOpen] = useState(false)
-  const [isCreatingCompany, setIsCreatingCompany] = useState(false)
-  const [isCreatingHSN, setIsCreatingHSN] = useState(false)
+  const [isSaltLookupOpen, setIsSaltLookupOpen] = useState(false)
   
-  const [companies, setCompanies] = useState(MOCK_COMPANIES)
-  const [hsns, setHsns] = useState(MOCK_HSN)
+  const [isCompanyMasterOpen, setIsCompanyMasterOpen] = useState(false)
+  const [modifyCompanyData, setModifyCompanyData] = useState<any>(null)
+
+  const [isHsnMasterOpen, setIsHsnMasterOpen] = useState(false)
+  const [modifyHsnData, setModifyHsnData] = useState<any>(null)
+
+  const [isSaltMasterOpen, setIsSaltMasterOpen] = useState(false)
+  const [modifySaltData, setModifySaltData] = useState<any>(null)
+  
+  const [companies, setCompanies] = useState<{id: string, label: string, data?: any}[]>([])
+  const [hsns, setHsns] = useState<{id: string, label: string, description?: string, data?: any}[]>([])
+  const [salts, setSalts] = useState<{id: string, label: string, data?: any}[]>([])
 
   // Marg ERP form state
   const [newProduct, setNewProduct] = useState<ProductCreatePayload>({
@@ -127,7 +127,28 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetchProducts()
+    fetchMasterData()
   }, [])
+
+  const fetchMasterData = async () => {
+    try {
+      const [mans, slts, hsnData] = await Promise.all([
+        apiGetManufacturers(),
+        apiGetSalts(),
+        apiGetHSNCodes()
+      ])
+      setCompanies(mans.map(m => ({ id: m.id || '', label: m.name, data: m })))
+      setSalts(slts.map(s => ({ id: s.id || '', label: s.formula, data: s })))
+      setHsns(hsnData.map(h => ({
+        id: h.id || '',
+        label: h.code,
+        description: `${h.description || ''} (IGST ${h.igst}%)`,
+        data: h
+      })))
+    } catch (e) {
+      console.error('Failed to fetch master data:', e)
+    }
+  }
 
   const fetchProducts = async () => {
     setIsLoading(true)
@@ -193,8 +214,26 @@ export default function ProductsPage() {
     setIsAdding(true)
   }
 
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    const newErrors: Record<string, string> = {}
+    if (!newProduct.name) newErrors.name = "Required"
+    if (!newProduct.category) newErrors.category = "Required"
+    if (!newProduct.hsn_code) newErrors.hsn_code = "Required"
+    
+    if (Number(newProduct.mrp) < 0) newErrors.mrp = "Cannot be negative"
+    if (Number(newProduct.p_rate) < 0) newErrors.p_rate = "Cannot be negative"
+    if (Number(newProduct.pts_rate) < 0) newErrors.pts_rate = "Cannot be negative"
+    
+    if (Object.keys(newErrors).length > 0) {
+      setFormErrors(newErrors)
+      return
+    }
+    setFormErrors({})
+
     if (modifyingProductId) {
       const updatedProducts = products.map(p => 
         p.id === modifyingProductId ? { ...p, ...newProduct } : p
@@ -310,7 +349,7 @@ export default function ProductsPage() {
                 <option value="yes">Yes</option>
               </Input>
               <Input variant="dense" label="Code" value={newProduct.code} onChange={e => setNewProduct({...newProduct, code: e.target.value})} />
-              <Input variant="dense" label="Product Name *" required value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} />
+              <Input variant="dense" label="Product Name *" error={formErrors.name} required value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} />
               <Input variant="dense" label="Packing" placeholder="10x10" value={newProduct.packing} onChange={e => setNewProduct({...newProduct, packing: e.target.value})} />
               <Input variant="dense" label="Unit" placeholder="Tabs" value={newProduct.unit} onChange={e => setNewProduct({...newProduct, unit: e.target.value})} />
               <Input variant="dense" label="Colour Type" as="select" value={newProduct.colour_type} onChange={handleSelect('colour_type')}>
@@ -338,7 +377,20 @@ export default function ProductsPage() {
                   }
                 }} 
               />
-              <Input variant="dense" label="Salt" value={newProduct.salt} onChange={e => setNewProduct({...newProduct, salt: e.target.value})} />
+              <Input 
+                variant="dense" 
+                label="Salt" 
+                placeholder="Press Enter to search..." 
+                value={newProduct.salt} 
+                onChange={e => setNewProduct({...newProduct, salt: e.target.value})}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setIsSaltLookupOpen(true)
+                  }
+                }} 
+              />
               <Input variant="dense" label="Category" as="select" value={newProduct.category} onChange={handleSelect('category')}>
                 <option value="na">N/A</option>
                 <option value="schedule h">Schedule H</option>
@@ -388,11 +440,11 @@ export default function ProductsPage() {
               <Input variant="dense" label="IGST %" type="number" step="0.01" value={newProduct.igst_percent} onChange={e => handleIGSTChange(Number(e.target.value))} />
               
               <div style={{ marginTop: '8px', borderTop: '1px solid var(--color-border)', paddingTop: '12px' }}>
-                <Input variant="dense" label="M.R.P (₹)" type="number" step="0.01" required value={newProduct.mrp} onChange={e => setNewProduct({...newProduct, mrp: Number(e.target.value)})} />
+                <Input variant="dense" label="M.R.P (₹)" error={formErrors.mrp} type="number" step="0.01" required value={newProduct.mrp} onChange={e => setNewProduct({...newProduct, mrp: Number(e.target.value)})} />
                 <Input variant="dense" label="Rate-A" type="number" step="0.01" value={newProduct.rate_a} onChange={e => setNewProduct({...newProduct, rate_a: Number(e.target.value)})} />
                 <Input variant="dense" label="P.T.R" type="number" step="0.01" value={newProduct.ptr_rate} onChange={e => setNewProduct({...newProduct, ptr_rate: Number(e.target.value)})} />
-                <Input variant="dense" label="P.Rate" type="number" step="0.01" value={newProduct.p_rate} onChange={e => setNewProduct({...newProduct, p_rate: Number(e.target.value)})} />
-                <Input variant="dense" label="P.T.S" type="number" step="0.01" value={newProduct.pts_rate} onChange={e => setNewProduct({...newProduct, pts_rate: Number(e.target.value)})} />
+                <Input variant="dense" label="P.Rate" error={formErrors.p_rate} type="number" step="0.01" value={newProduct.p_rate} onChange={e => setNewProduct({...newProduct, p_rate: Number(e.target.value)})} />
+                <Input variant="dense" label="P.T.S" error={formErrors.pts_rate} type="number" step="0.01" value={newProduct.pts_rate} onChange={e => setNewProduct({...newProduct, pts_rate: Number(e.target.value)})} />
                 <Input variant="dense" label="Item Discount %" type="number" step="0.01" value={newProduct.item_discount_percent} onChange={e => setNewProduct({...newProduct, item_discount_percent: Number(e.target.value)})} />
                 <Input variant="dense" label="Discount Status" as="select" value={newProduct.discount_type} onChange={handleSelect('discount_type')}>
                   <option value="applicable">Applicable</option>
@@ -423,7 +475,38 @@ export default function ProductsPage() {
         }}
         onCreateNew={() => {
           setIsCompanyLookupOpen(false)
-          setIsCreatingCompany(true)
+          setModifyCompanyData(null)
+          setIsCompanyMasterOpen(true)
+        }}
+        onModify={(item) => {
+          if (item.data) {
+            setIsCompanyLookupOpen(false)
+            setModifyCompanyData(item.data)
+            setIsCompanyMasterOpen(true)
+          }
+        }}
+      />
+
+      <LookupModal
+        isOpen={isSaltLookupOpen}
+        onClose={() => setIsSaltLookupOpen(false)}
+        title="Select Salt Formula"
+        items={salts}
+        onSelect={(item) => {
+          setNewProduct({ ...newProduct, salt: item.label })
+          setIsSaltLookupOpen(false)
+        }}
+        onCreateNew={() => {
+          setIsSaltLookupOpen(false)
+          setModifySaltData(null)
+          setIsSaltMasterOpen(true)
+        }}
+        onModify={(item) => {
+          if (item.data) {
+            setIsSaltLookupOpen(false)
+            setModifySaltData(item.data)
+            setIsSaltMasterOpen(true)
+          }
         }}
       />
 
@@ -433,7 +516,6 @@ export default function ProductsPage() {
         title="Select HSN Code"
         items={hsns}
         onSelect={(item) => {
-          // If the item has attached GST data, auto-fill it
           if (item.data) {
             setNewProduct({ 
               ...newProduct, 
@@ -449,43 +531,80 @@ export default function ProductsPage() {
         }}
         onCreateNew={() => {
           setIsHsnLookupOpen(false)
-          setIsCreatingHSN(true)
+          setModifyHsnData(null)
+          setIsHsnMasterOpen(true)
+        }}
+        onModify={(item) => {
+          if (item.data) {
+            setIsHsnLookupOpen(false)
+            setModifyHsnData(item.data)
+            setIsHsnMasterOpen(true)
+          }
         }}
       />
 
-      {/* ── CREATION MODALS ──────────────────────────────────── */}
-      <CreateCompanyModal 
-        isOpen={isCreatingCompany} 
-        onClose={() => setIsCreatingCompany(false)} 
-        onSave={(newComp) => {
-          // Add to local list and select
-          const newLookupItem = { id: Date.now().toString(), label: newComp.name }
-          setCompanies([...companies, newLookupItem])
-          setNewProduct({ ...newProduct, company_name: newComp.name })
-          setIsCreatingCompany(false)
+      {/* 🚀 MASTER MODALS 
+      =============================================================== */}
+      <CompanyMasterModal 
+        isOpen={isCompanyMasterOpen} 
+        initialData={modifyCompanyData}
+        onClose={() => setIsCompanyMasterOpen(false)} 
+        onSave={(savedItem) => {
+          // If we updated an existing item, replace it in the list. Otherwise append.
+          const newLookupItem = { id: savedItem.id, label: savedItem.name, data: savedItem }
+          setCompanies(prev => {
+            const exists = prev.findIndex(p => p.id === savedItem.id)
+            if (exists >= 0) {
+              const next = [...prev]; next[exists] = newLookupItem; return next;
+            }
+            return [...prev, newLookupItem]
+          })
+          setNewProduct({ ...newProduct, company_name: savedItem.name })
         }} 
       />
 
-      <CreateHSNModal 
-        isOpen={isCreatingHSN} 
-        onClose={() => setIsCreatingHSN(false)} 
-        onSave={(newHsn) => {
-          // Add to local list and select
+      <SaltMasterModal 
+        isOpen={isSaltMasterOpen} 
+        initialData={modifySaltData}
+        onClose={() => setIsSaltMasterOpen(false)} 
+        onSave={(savedItem) => {
+          const newLookupItem = { id: savedItem.id, label: savedItem.formula, data: savedItem }
+          setSalts(prev => {
+            const exists = prev.findIndex(p => p.id === savedItem.id)
+            if (exists >= 0) {
+              const next = [...prev]; next[exists] = newLookupItem; return next;
+            }
+            return [...prev, newLookupItem]
+          })
+          setNewProduct({ ...newProduct, salt: savedItem.formula })
+        }} 
+      />
+
+      <HSNMasterModal 
+        isOpen={isHsnMasterOpen} 
+        initialData={modifyHsnData}
+        onClose={() => setIsHsnMasterOpen(false)} 
+        onSave={(savedItem) => {
           const newLookupItem = { 
-            id: Date.now().toString(), 
-            label: newHsn.code, 
-            description: `${newHsn.description} (IGST ${newHsn.igst}%)`,
-            data: { igst: newHsn.igst }
+            id: savedItem.id, 
+            label: savedItem.code, 
+            description: `${savedItem.description || ''} (IGST ${savedItem.igst}%)`,
+            data: savedItem 
           }
-          setHsns([...hsns, newLookupItem])
+          setHsns(prev => {
+            const exists = prev.findIndex(p => p.id === savedItem.id)
+            if (exists >= 0) {
+              const next = [...prev]; next[exists] = newLookupItem; return next;
+            }
+            return [...prev, newLookupItem]
+          })
           setNewProduct({ 
             ...newProduct, 
-            hsn_code: newHsn.code,
-            igst_percent: newHsn.igst,
-            cgst_percent: newHsn.cgst,
-            sgst_percent: newHsn.sgst
+            hsn_code: savedItem.code,
+            igst_percent: savedItem.igst,
+            cgst_percent: savedItem.cgst,
+            sgst_percent: savedItem.sgst
           })
-          setIsCreatingHSN(false)
         }} 
       />
 

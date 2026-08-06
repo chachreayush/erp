@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from database import get_db
@@ -19,16 +19,19 @@ router = APIRouter(
 # ── GET INVOICES ───────────────────────────────────────────────
 @router.get("/invoices", response_model=List[schemas.InvoiceResponse])
 def get_invoices(
+    invoice_type: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
     """
-    Fetch all invoices for the current user's organization.
+    Fetch all invoices for the current user's organization, optionally filtered by type.
     """
-    invoices = db.query(models.Invoice)\
-        .filter(models.Invoice.organization_id == current_user.organization_id)\
-        .order_by(desc(models.Invoice.created_at))\
-        .all()
+    query = db.query(models.Invoice).filter(models.Invoice.organization_id == current_user.organization_id)
+    
+    if invoice_type:
+        query = query.filter(models.Invoice.invoice_type == invoice_type)
+        
+    invoices = query.order_by(desc(models.Invoice.created_at)).all()
     return invoices
 
 
@@ -45,6 +48,7 @@ def create_invoice(
     # 1. Create the parent Invoice record
     new_invoice = models.Invoice(
         organization_id=current_user.organization_id,
+        invoice_type=invoice_data.invoice_type,
         invoice_number=invoice_data.invoice_number,
         customer_name=invoice_data.customer_name,
         subtotal=invoice_data.subtotal,

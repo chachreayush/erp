@@ -156,7 +156,7 @@ function Header() {
   const [masterSubDropdownOpen, setMasterSubDropdownOpen] = useState(false)
 
   // Keyboard navigation indexes
-  const [focusedMainIndex, setFocusedMainIndex] = useState(0)
+  const [_focusedMainIndex, setFocusedMainIndex] = useState(0)
   const [focusedParentIndex, setFocusedParentIndex] = useState(0) 
   const [focusedSubIndex, setFocusedSubIndex] = useState(-1) 
   
@@ -319,7 +319,7 @@ function Header() {
   }
 
   // Inventory dropdown key handlers
-  const handleInvParentDropdownKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+  const handleInvParentDropdownKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, _index: number) => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault()
       setFocusedInvParentIndex(0)

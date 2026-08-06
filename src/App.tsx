@@ -37,6 +37,7 @@ import FinancePage from './pages/finance/Finance'
 import ClientManagementPage from './pages/admin/ClientManagement'
 import BulletinBoard from './pages/bulletin/BulletinBoard'
 import BillingPage from './pages/sales/Billing'
+import SalesBill from './pages/sales/SalesBill'
 import PurchaseBill from './pages/purchase/PurchaseBill'
 import MasterPage from './pages/master/MasterPage'
 
@@ -99,7 +100,7 @@ function App() {
         <Route path="finance"          element={<FinancePage />} />
         <Route path="inventory"        element={<ProductsPage />} />
         <Route path="bulletin"         element={<BulletinBoard />} />
-        <Route path="sales"            element={<BillingPage />} />
+        <Route path="sales"            element={<SalesBill />} />
         <Route path="purchase"         element={<PurchaseBill />} />
         <Route path="sales-return"     element={<BillingPage />} />
         <Route path="purchase-return"  element={<BillingPage />} />

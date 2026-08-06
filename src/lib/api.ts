@@ -280,6 +280,7 @@ export interface Invoice {
   created_at?: string
   date?: string
   
+  invoice_type?: string
   customer_name: string
   invoice_number: string
   
@@ -292,8 +293,9 @@ export interface Invoice {
 
 export type InvoiceCreatePayload = Omit<Invoice, 'id' | 'company_id' | 'created_at' | 'date'>
 
-export async function apiGetInvoices(): Promise<Invoice[]> {
-  const response = await apiClient.get<Invoice[]>('/api/sales/invoices')
+export async function apiGetInvoices(invoiceType?: string): Promise<Invoice[]> {
+  const url = invoiceType ? `/api/sales/invoices?invoice_type=${encodeURIComponent(invoiceType)}` : '/api/sales/invoices'
+  const response = await apiClient.get<Invoice[]>(url)
   return response.data
 }
 
@@ -303,6 +305,11 @@ export async function apiCreateInvoice(payload: InvoiceCreatePayload): Promise<I
 }
 
 // ── MASTER DATA API ──────────────────────────────────────────
+
+export interface Station {
+  id?: string
+  name: string
+}
 
 export interface Ledger {
   id?: string
@@ -314,8 +321,47 @@ export interface Ledger {
   op_type: string
   closing_balance: number
   cl_type: string
+  
+  station?: string
+  plot_no?: string
+  locality?: string
+  road_street?: string
+  city?: string
+  district?: string
+  pincode?: string
+  email?: string
+  website?: string
+  contact_person?: string
+  phone_number?: string
+  freeze_upto?: number
+  dl_no?: string
+  restrict_item?: string
+  ledger_type?: string
+  gstin?: string
+  tax_type?: string
+  pan_no?: string
+  ledger_date?: string
+  colour?: string
 }
 
+// ── STATIONS ──────────────────────────────────────────────────
+export async function apiGetStations(): Promise<Station[]> {
+  const response = await apiClient.get<Station[]>('/api/master/stations')
+  return response.data
+}
+export async function apiCreateStation(payload: Station): Promise<Station> {
+  const response = await apiClient.post<Station>('/api/master/stations', payload)
+  return response.data
+}
+export async function apiUpdateStation(id: string, payload: Station): Promise<Station> {
+  const response = await apiClient.put<Station>(`/api/master/stations/${id}`, payload)
+  return response.data
+}
+export async function apiDeleteStation(id: string): Promise<void> {
+  await apiClient.delete(`/api/master/stations/${id}`)
+}
+
+// ── LEDGERS ──────────────────────────────────────────────────
 export async function apiGetLedgers(): Promise<Ledger[]> {
   const response = await apiClient.get<Ledger[]>('/api/master/ledgers')
   return response.data
@@ -359,18 +405,57 @@ export async function apiDeleteSalt(id: string): Promise<void> {
 }
 
 export interface Manufacturer {
-  id?: string
-  name: string
-  short_code?: string
-  default_discount: number
-  supplier?: string
+  id: string;
+  name: string;
+  short_code?: string;
+  status: string;
+  prohibited: boolean;
+  default_discount: number;
+  room_no?: string;
+  floor?: string;
+  rack_no?: string;
+  rack_row_no?: string;
+  dump_days?: number;
+  is_supplier: boolean;
+  supplier_ledger_id?: string;
+  email?: string;
+  cc?: string;
+  bcc?: string;
+  website?: string;
+  contact_number?: string;
+  field_staff_name?: string;
+  field_staff_contact?: string;
+  address?: string;
+}
+
+export interface ManufacturerCreate {
+  name: string;
+  short_code?: string;
+  status: string;
+  prohibited: boolean;
+  default_discount: number;
+  room_no?: string;
+  floor?: string;
+  rack_no?: string;
+  rack_row_no?: string;
+  dump_days?: number;
+  is_supplier: boolean;
+  supplier_ledger_id?: string;
+  email?: string;
+  cc?: string;
+  bcc?: string;
+  website?: string;
+  contact_number?: string;
+  field_staff_name?: string;
+  field_staff_contact?: string;
+  address?: string;
 }
 
 export async function apiGetManufacturers(): Promise<Manufacturer[]> {
   const response = await apiClient.get<Manufacturer[]>('/api/master/manufacturers')
   return response.data
 }
-export async function apiCreateManufacturer(payload: Manufacturer): Promise<Manufacturer> {
+export async function apiCreateManufacturer(payload: ManufacturerCreate): Promise<Manufacturer> {
   const response = await apiClient.post<Manufacturer>('/api/master/manufacturers', payload)
   return response.data
 }
@@ -389,6 +474,7 @@ export interface HSNCode {
   igst: number
   cgst: number
   sgst: number
+  type: string
 }
 
 export async function apiGetHSNCodes(): Promise<HSNCode[]> {

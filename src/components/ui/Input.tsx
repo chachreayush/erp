@@ -2,8 +2,10 @@ import React from 'react'
 import { AlertCircle } from 'lucide-react'
 
 // ── INPUT COMPONENT ───────────────────────────────────────────
-// A premium styled text input with support for icons, error
-// states, and smooth focus animations.
+// Unified input with consistent font/spacing across all modals.
+// variant='standard' — for full-page forms
+// variant='dense'    — for inline label forms
+// variant='compact'  — for modals/dialogs (default for modals)
 // ──────────────────────────────────────────────────────────────
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -13,83 +15,112 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   rightIcon?: React.ReactNode
   fullWidth?: boolean
   as?: 'input' | 'select'
-  variant?: 'standard' | 'dense'
+  variant?: 'standard' | 'dense' | 'compact'
   children?: React.ReactNode
 }
 
-export const Input = React.forwardRef<HTMLInputElement | HTMLSelectElement, InputProps>(({
-  label,
-  error,
-  leftIcon,
-  rightIcon,
-  fullWidth = true,
-  as = 'input',
-  variant = 'standard',
-  children,
-  style,
-  className,
-  ...props
-}, ref) => {
+// Shared design tokens for modal forms — use these everywhere
+export const MODAL_FIELD: React.CSSProperties = {
+  width: '100%',
+  padding: '8px 10px',
+  borderRadius: '6px',
+  border: '1px solid var(--color-border)',
+  background: 'var(--color-bg-surface)',
+  color: 'var(--color-text-primary)',
+  fontSize: '13px',
+  fontFamily: 'inherit',
+  boxSizing: 'border-box',
+}
+
+export const MODAL_LABEL: React.CSSProperties = {
+  display: 'block',
+  fontSize: '11px',
+  fontWeight: 600,
+  color: 'var(--color-text-secondary)',
+  marginBottom: '4px',
+}
+
+export const MODAL_GAP = '10px'
+
+export const Input = React.forwardRef<HTMLInputElement | HTMLSelectElement, InputProps>((
+  {
+    label,
+    error,
+    leftIcon,
+    rightIcon,
+    fullWidth = true,
+    as = 'input',
+    variant = 'standard',
+    children,
+    style,
+    className,
+    ...props
+  },
+  ref
+) => {
   const [isFocused, setIsFocused] = React.useState(false)
   const isDense = variant === 'dense'
+  const isCompact = variant === 'compact'
 
   const containerStyle: React.CSSProperties = {
     display: 'flex',
     flexDirection: isDense ? 'row' : 'column',
     alignItems: isDense ? 'center' : 'stretch',
-    gap: isDense ? '8px' : '6px',
+    gap: isDense ? '8px' : isCompact ? '4px' : '6px',
     width: fullWidth ? '100%' : 'auto',
-    marginBottom: isDense ? '4px' : '16px'
+    marginBottom: isDense ? '4px' : isCompact ? '0px' : '0px',
   }
 
   const labelStyle: React.CSSProperties = {
-    fontSize: isDense ? '12px' : '13px',
+    fontSize: isCompact ? '11px' : isDense ? '12px' : '12px',
     fontWeight: 600,
-    color: error ? '#ef4444' : 'var(--color-text)',
-    marginLeft: isDense ? '0' : '2px',
-    width: isDense ? '120px' : 'auto', // Fixed width for inline labels
+    color: error ? '#ef4444' : 'var(--color-text-secondary)',
+    marginLeft: isDense ? '0' : '0px',
+    width: isDense ? '120px' : 'auto',
     flexShrink: 0,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    transition: 'color 0.2s ease'
+    transition: 'color 0.2s ease',
   }
 
   const inputWrapperStyle: React.CSSProperties = {
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
-    flex: 1, // Take up remaining space in dense mode
+    flex: 1,
     backgroundColor: 'var(--color-bg-input)',
     border: `1px solid ${error ? '#ef4444' : (isFocused ? 'var(--color-border-strong)' : 'var(--color-border)')}`,
-    borderRadius: isDense ? '2px' : 'var(--radius-md)',
+    borderRadius: isDense ? '2px' : '6px',
     transition: 'all 0.1s ease',
     boxShadow: isFocused ? '0 0 0 1px var(--color-primary)' : 'none',
   }
 
   const iconWrapperStyle = (position: 'left' | 'right'): React.CSSProperties => ({
     position: 'absolute',
-    [position]: isDense ? '4px' : '12px',
+    [position]: isDense ? '4px' : '10px',
     color: error ? '#ef4444' : (isFocused ? 'var(--color-primary)' : 'var(--color-text-muted)'),
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     pointerEvents: 'none',
-    transition: 'color 0.2s ease'
+    transition: 'color 0.2s ease',
   })
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
-    padding: isDense 
-      ? `4px ${rightIcon ? '24px' : '8px'} 4px ${leftIcon ? '24px' : '8px'}` 
-      : `12px ${rightIcon ? '40px' : '16px'} 12px ${leftIcon ? '40px' : '16px'}`,
+    padding: isDense
+      ? `4px ${rightIcon ? '24px' : '8px'} 4px ${leftIcon ? '24px' : '8px'}`
+      : isCompact
+      ? `8px ${rightIcon ? '32px' : '10px'} 8px ${leftIcon ? '32px' : '10px'}`
+      : `10px ${rightIcon ? '40px' : '14px'} 10px ${leftIcon ? '40px' : '14px'}`,
     backgroundColor: 'transparent',
     border: 'none',
     outline: 'none',
     color: 'var(--color-text)',
-    fontSize: isDense ? '12px' : '15px',
+    fontSize: isCompact ? '13px' : isDense ? '12px' : '13px',
     fontFamily: 'inherit',
-    ...style
+    ...style,
   }
 
   return (
@@ -124,7 +155,7 @@ export const Input = React.forwardRef<HTMLInputElement | HTMLSelectElement, Inpu
       </div>
       
       {error && (
-        <span style={{ fontSize: '12px', color: '#ef4444', marginLeft: '2px', marginTop: '2px' }}>
+        <span style={{ fontSize: '11px', color: '#ef4444', marginLeft: '2px', marginTop: '2px' }}>
           {error}
         </span>
       )}

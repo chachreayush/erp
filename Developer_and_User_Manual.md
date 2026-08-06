@@ -1835,3 +1835,8 @@ export default function BulletinModal({ isOpen, onClose, onSuccess, editingBulle
 - Resolved schema mismatches in Master Data tables (Ledgers, HSN, States) by allowing SQLAlchemy to recreate missing columns.
 - Fixed login schema expecting company_code instead of org_code.
 - Added PROJECT_MEMORY.md and CONVERSATION_LOG.md to repository for persistent AI context.
+
+### Recent Updates (August 2026)
+- **Sales Module:** Migrated to robust grid-based \SalesBill.tsx\. Party Inv No logic stripped for Sales entries.
+- **Smart Batch Filtering:** In F3 Batch Modals, 0-quantity batches are hidden by default. Pressing \ArrowUp\ reveals them.
+- **Series Isolation & Auto-Increment:** Implemented distinct Entry No series separated by prefix (e.g. S0001, SC0001, P0001, CRN0001) across all billing modules (\SalesBill\, \PurchaseBill\, \Billing.tsx\). Added strict validation against duplicates.

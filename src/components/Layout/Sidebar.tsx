@@ -104,7 +104,7 @@ interface SidebarProps {
 }
 
 // ── SIDEBAR COMPONENT ─────────────────────────────────────────
-function Sidebar({ salesSubMenuOpen, setSalesSubMenuOpen, salesPurchaseRef }: SidebarProps) {
+function Sidebar({ salesSubMenuOpen: _salesSubMenuOpen, setSalesSubMenuOpen, salesPurchaseRef }: SidebarProps) {
   const location = useLocation()
   const navigate = useNavigate()
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { api } from '../../lib/api'
 import { AlertCircle, Megaphone, Plus } from 'lucide-react'

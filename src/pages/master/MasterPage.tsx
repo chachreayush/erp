@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Plus, Edit, Trash2, Search, Building2, Tag, MapPin, DollarSign, Layers, CheckCircle } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
-import { Input } from '../../components/ui/Input'
+import { Input, MODAL_FIELD, MODAL_LABEL, MODAL_GAP } from '../../components/ui/Input'
 import { Modal } from '../../components/ui/Modal'
 import { 
   apiGetLedgers, apiCreateLedger, apiUpdateLedger, apiDeleteLedger,
@@ -12,12 +12,17 @@ import {
   apiGetHSNCodes, apiCreateHSNCode, apiUpdateHSNCode, apiDeleteHSNCode,
   apiGetStateCodes, apiCreateStateCode, apiUpdateStateCode, apiDeleteStateCode
 } from '../../lib/api'
+import { CompanyForm } from '../../components/master/CompanyForm'
+import { SaltForm } from '../../components/master/SaltForm'
+import { HSNForm } from '../../components/master/HSNForm'
+import { LedgerForm } from '../../components/master/LedgerForm'
+import { validateGST, validatePhone, validateEmail, validatePincode } from '../../lib/validation'
 
 
 // Types for different master data items
 interface LedgerItem { id: string; name: string; group: string; mobile: string; state: string; balance: number; type: 'Dr' | 'Cr' }
 interface SaltItem { id: string; name: string; indications: string; dosage: string; sideEffects: string; precautions: string; labels: string }
-interface CompanyItem { id: string; name: string; code: string; discount: number; supplier: string }
+interface CompanyItem { id: string; name: string; code: string; discount: number; status: string; prohibited: boolean; room_no?: string; floor?: string; rack_no?: string; rack_row_no?: string; dump_days?: number; is_supplier: string; supplier_ledger_id?: string; email?: string; cc?: string; bcc?: string; website?: string; contact_number?: string; field_staff_name?: string; field_staff_contact?: string; address?: string; }
 interface HSNItem { id: string; code: string; description: string; igst: number; cgst: number; sgst: number }
 interface StateItem { id: string; name: string; code: string; capital: string }
 interface BalanceItem { id: string; ledgerName: string; openingBalance: number; opType: 'Dr' | 'Cr'; closingBalance: number; clType: 'Dr' | 'Cr' }
@@ -50,6 +55,7 @@ export default function MasterPage() {
 
   // Form states for modal inputs
   const [formData, setFormData] = useState<any>({})
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   
   // Track selected row index and focus zone for keyboard shortcuts
   const [focusedZone, setFocusedZone] = useState<'tabs' | 'list' | 'none'>('tabs')
@@ -68,9 +74,31 @@ export default function MasterPage() {
         apiGetStateCodes()
       ])
       
-      setLedgers(l.map(x => ({ id: x.id as string, name: x.name, group: x.group_name, mobile: x.mobile || '', state: x.state || '', balance: x.opening_balance, type: x.op_type as 'Dr'|'Cr' })))
+      setLedgers(l.map(x => ({ ...x, id: x.id as string, mobile: x.mobile || '', state: x.state || '', group: x.group_name, balance: x.opening_balance, type: x.op_type as 'Dr'|'Cr' })))
       setSalts(s.map(x => ({ id: x.id as string, name: x.formula, indications: x.indications || '', dosage: x.dosage || '', sideEffects: x.side_effects || '', precautions: x.precautions || '', labels: x.labels || '' })))
-      setCompanies(m.map(x => ({ id: x.id as string, name: x.name, code: x.short_code || '', discount: x.default_discount, supplier: x.supplier || '' })))
+      setCompanies(m.map(x => ({ 
+        id: x.id as string, 
+        name: x.name, 
+        code: x.short_code || '', 
+        discount: x.default_discount, 
+        status: x.status,
+        prohibited: x.prohibited,
+        room_no: x.room_no,
+        floor: x.floor,
+        rack_no: x.rack_no,
+        rack_row_no: x.rack_row_no,
+        dump_days: x.dump_days,
+        is_supplier: x.is_supplier ? 'yes' : 'no',
+        supplier_ledger_id: x.supplier_ledger_id,
+        email: x.email,
+        cc: x.cc,
+        bcc: x.bcc,
+        website: x.website,
+        contact_number: x.contact_number,
+        field_staff_name: x.field_staff_name,
+        field_staff_contact: x.field_staff_contact,
+        address: x.address
+      })))
       setHsns(h.map(x => ({ id: x.id as string, code: x.code, description: x.description || '', igst: x.igst, cgst: x.cgst, sgst: x.sgst })))
       setStates(st.map(x => ({ id: x.id as string, name: x.name, code: x.gst_code || '', capital: x.capital || '' })))
       
@@ -125,6 +153,14 @@ export default function MasterPage() {
     }
   }, [showUnsavedPrompt])
 
+  const handleCloseModal = () => {
+    setFormData({})
+    setFormErrors({})
+    setIsModalOpen(false)
+    setEditingId(null)
+    setModalMode('create')
+  }
+
   const handleOpenAddModal = () => {
     setEditingId(null)
     setModalMode('create')
@@ -167,10 +203,44 @@ export default function MasterPage() {
   const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault()
     const isEdit = !!editingId
+    const newErrors: Record<string, string> = {}
     
     try {
       if (activeTab === 'ledger') {
-        const payload: any = { name: formData.name, group_name: formData.group, mobile: formData.mobile, state: formData.state, opening_balance: Number(formData.balance)||0, op_type: formData.type||'Dr', closing_balance: Number(formData.balance)||0, cl_type: formData.type||'Dr' }
+        if (!formData.name) newErrors.name = "Required"
+        if (!formData.group) newErrors.group = "Required"
+        if (!formData.station) newErrors.station = "Required"
+        
+        if (formData.ledger_type !== 'Unregistered') {
+          if (!formData.gstin) newErrors.gstin = "Required for registered ledgers"
+          else {
+            const err = validateGST(formData.gstin)
+            if (err) newErrors.gstin = err
+          }
+        }
+
+        const phoneErr = validatePhone(formData.mobile)
+        if (phoneErr) newErrors.mobile = phoneErr
+
+        const emailErr = validateEmail(formData.email)
+        if (emailErr) newErrors.email = emailErr
+
+        const pinErr = validatePincode(formData.pincode)
+        if (pinErr) newErrors.pincode = pinErr
+
+        if (Object.keys(newErrors).length > 0) {
+          setFormErrors(newErrors)
+          return
+        }
+
+        const payload: any = { 
+          ...formData,
+          opening_balance: Number(formData.opening_balance ?? formData.balance) || 0,
+          op_type: formData.op_type ?? formData.type ?? 'Dr',
+          closing_balance: Number(formData.closing_balance ?? formData.balance) || 0,
+          cl_type: formData.cl_type ?? formData.type ?? 'Dr',
+          group_name: formData.group ?? formData.group_name
+        }
         if (isEdit) await apiUpdateLedger(editingId as string, payload)
         else await apiCreateLedger(payload)
       } else if (activeTab === 'salt') {
@@ -178,7 +248,28 @@ export default function MasterPage() {
         if (isEdit) await apiUpdateSalt(editingId as string, payload)
         else await apiCreateSalt(payload)
       } else if (activeTab === 'company') {
-        const payload: any = { name: formData.name, short_code: formData.code, default_discount: Number(formData.discount)||0, supplier: formData.supplier }
+        const payload: any = { 
+          name: formData.name, 
+          short_code: formData.code, 
+          status: formData.status || 'continue',
+          prohibited: !!formData.prohibited,
+          default_discount: Number(formData.discount)||0, 
+          room_no: formData.room_no,
+          floor: formData.floor,
+          rack_no: formData.rack_no,
+          rack_row_no: formData.rack_row_no,
+          dump_days: Number(formData.dump_days)||0,
+          is_supplier: formData.is_supplier === 'yes' ? true : false,
+          supplier_ledger_id: formData.is_supplier === 'yes' ? (formData.supplier_ledger_id || null) : null,
+          email: formData.email,
+          cc: formData.cc,
+          bcc: formData.bcc,
+          website: formData.website,
+          contact_number: formData.contact_number,
+          field_staff_name: formData.field_staff_name,
+          field_staff_contact: formData.field_staff_contact,
+          address: formData.address
+        }
         if (isEdit) await apiUpdateManufacturer(editingId as string, payload)
         else await apiCreateManufacturer(payload)
       } else if (activeTab === 'hsn') {
@@ -585,7 +676,13 @@ export default function MasterPage() {
                     <td style={{ padding: '8px 16px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{item.name}</td>
                     <td style={{ padding: '8px 16px', fontWeight: 700, color: 'var(--color-primary)' }}>{item.code}</td>
                     <td style={{ padding: '8px 16px', color: '#059669', fontWeight: 600 }}>{item.discount}%</td>
-                    <td style={{ padding: '8px 16px', color: 'var(--color-text-secondary)' }}>{item.supplier}</td>
+                    <td style={{ padding: '8px 16px', color: 'var(--color-text-secondary)' }}>
+                      {item.is_supplier === 'yes' ? (
+                        <span style={{ padding: '3px 8px', borderRadius: '4px', backgroundColor: '#d1fae5', color: '#047857', fontSize: '11px', fontWeight: 700 }}>Supplier</span>
+                      ) : (
+                        <span style={{ padding: '3px 8px', borderRadius: '4px', backgroundColor: '#f3f4f6', color: '#4b5563', fontSize: '11px', fontWeight: 700 }}>Standard</span>
+                      )}
+                    </td>
                     <td style={{ padding: '8px 16px', textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                         <button type="button" onClick={(e) => { e.stopPropagation(); handleEditItem(item); }} style={{ padding: '5px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-primary)' }}><Edit size={16} /></button>
@@ -671,93 +768,75 @@ export default function MasterPage() {
           else setIsModalOpen(false)
         }}
         title={`${editingId ? 'Modify' : 'Add New'} ${tabs.find(t => t.id === activeTab)?.label}`}
-        maxWidth="600px"
+        maxWidth={activeTab === 'company' || activeTab === 'ledger' ? 'min(95vw, 1100px)' : '600px'}
+        footer={
+          modalMode === 'view' ? (
+            <>
+              <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>Close View</Button>
+              <Button 
+                type="button" 
+                variant="primary" 
+                onClick={() => { handleDeleteItem(formData.id); setIsModalOpen(false) }}
+                style={{ backgroundColor: '#ef4444', borderColor: '#ef4444' }}
+              >Delete</Button>
+              <Button 
+                ref={editButtonRef}
+                type="button" 
+                variant="primary" 
+                onClick={() => { setModalMode('edit'); setTimeout(() => firstInputRef.current?.focus(), 50) }}
+              >Edit</Button>
+            </>
+          ) : (
+            <>
+              <Button id="btn-exit-without-saving" type="button" variant="secondary" onClick={() => setShowUnsavedPrompt(true)}>Exit without saving (Esc)</Button>
+              <Button type="submit" form="master-form" variant="primary">Save</Button>
+            </>
+          )
+        }
       >
-        <form onSubmit={handleSaveForm} onKeyDown={handleFormKeyDown} style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '4px' }}>
+        <form id="master-form" onSubmit={handleSaveForm} onKeyDown={handleFormKeyDown} style={{ display: 'flex', flexDirection: 'column', gap: MODAL_GAP, marginTop: '4px' }}>
           
-          {activeTab === 'ledger' && <>
-            <Input ref={firstInputRef} disabled={modalMode === 'view'} label="Ledger / Party Name *" required value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Apollo Pharmacy (Customer)" />
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Account Group *</label>
-              <select disabled={modalMode === 'view'} value={formData.group || 'Sundry Debtors'} onChange={e => setFormData({ ...formData, group: e.target.value })} style={{ width: '100%', padding: '9px 12px', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', color: 'var(--color-text-primary)' }}>
-                <option value="Sundry Debtors">Sundry Debtors (Customers)</option>
-                <option value="Sundry Creditors">Sundry Creditors (Suppliers)</option>
-                <option value="Bank Accounts">Bank Accounts</option>
-                <option value="Cash-in-Hand">Cash-in-Hand</option>
-                <option value="Direct Expenses">Direct Expenses</option>
-                <option value="Indirect Expenses">Indirect Expenses</option>
-              </select>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <Input disabled={modalMode === 'view'} label="Mobile Number" value={formData.mobile || ''} onChange={e => setFormData({ ...formData, mobile: e.target.value })} placeholder="10 digit mobile" />
-              <Input disabled={modalMode === 'view'} label="State & Code" value={formData.state || ''} onChange={e => setFormData({ ...formData, state: e.target.value })} placeholder="e.g. 07-Delhi" />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px', alignItems: 'flex-end' }}>
-              <Input disabled={modalMode === 'view'} label="Opening / Current Balance" type="number" value={formData.balance || 0} onChange={e => setFormData({ ...formData, balance: Number(e.target.value) })} />
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Type</label>
-                <select disabled={modalMode === 'view'} value={formData.type || 'Dr'} onChange={e => setFormData({ ...formData, type: e.target.value as any })} style={{ width: '100%', padding: '9px 12px', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', color: 'var(--color-text-primary)' }}>
-                  <option value="Dr">Dr (Debit)</option>
-                  <option value="Cr">Cr (Credit)</option>
-                </select>
-              </div>
-            </div>
-          </>}
+          {activeTab === 'ledger' && (
+            <LedgerForm formData={formData} setFormData={setFormData} errors={formErrors} modalMode={modalMode} firstInputRef={firstInputRef as any} />
+          )}
 
-          {activeTab === 'salt' && <>
-            <Input ref={firstInputRef} disabled={modalMode === 'view'} label="Pharmaceutical Salt Formula *" required value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Paracetamol + Caffeine" />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-              <Input disabled={modalMode === 'view'} label="Indications" value={formData.indications || ''} onChange={e => setFormData({ ...formData, indications: e.target.value })} placeholder="e.g. Fever" />
-              <Input disabled={modalMode === 'view'} label="Dosage" value={formData.dosage || ''} onChange={e => setFormData({ ...formData, dosage: e.target.value })} placeholder="e.g. 500mg BID" />
-              <Input disabled={modalMode === 'view'} label="Labels (e.g. Sch H)" value={formData.labels || ''} onChange={e => setFormData({ ...formData, labels: e.target.value })} placeholder="e.g. Normal" />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <Input disabled={modalMode === 'view'} label="Side Effects" value={formData.sideEffects || ''} onChange={e => setFormData({ ...formData, sideEffects: e.target.value })} placeholder="e.g. Nausea, Dizziness" />
-              <Input disabled={modalMode === 'view'} label="Special Precautions" value={formData.precautions || ''} onChange={e => setFormData({ ...formData, precautions: e.target.value })} placeholder="e.g. Avoid alcohol" />
-            </div>
-          </>}
+          {activeTab === 'salt' && (
+            <SaltForm formData={formData} setFormData={setFormData} errors={formErrors} modalMode={modalMode} firstInputRef={firstInputRef as any} />
+          )}
 
-          {activeTab === 'company' && <>
-            <Input ref={firstInputRef} disabled={modalMode === 'view'} label="Company / Manufacturer Name *" required value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Cipla Ltd" />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <Input disabled={modalMode === 'view'} label="Short Code *" required value={formData.code || ''} onChange={e => setFormData({ ...formData, code: e.target.value })} placeholder="e.g. CIP" />
-              <Input disabled={modalMode === 'view'} label="Default Discount (%)" type="number" step="0.01" value={formData.discount || 0} onChange={e => setFormData({ ...formData, discount: Number(e.target.value) })} />
-            </div>
-            <Input disabled={modalMode === 'view'} label="Default Supplier / Distributor" value={formData.supplier || ''} onChange={e => setFormData({ ...formData, supplier: e.target.value })} placeholder="e.g. Apex Distributors" />
-          </>}
+          {activeTab === 'company' && (
+            <CompanyForm formData={formData} setFormData={setFormData} errors={formErrors} modalMode={modalMode} firstInputRef={firstInputRef as any} />
+          )}
 
-          {activeTab === 'hsn' && <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <Input ref={firstInputRef} disabled={modalMode === 'view'} label="HSN / SAC Code *" required value={formData.code || ''} onChange={e => setFormData({ ...formData, code: e.target.value })} placeholder="e.g. 3004" />
-              <Input disabled={modalMode === 'view'} label="Total IGST Tax Rate (%) *" type="number" step="0.01" value={formData.igst || 12} onChange={e => setFormData({ ...formData, igst: Number(e.target.value) })} />
-            </div>
-            <Input disabled={modalMode === 'view'} label="Commodity Description" value={formData.description || ''} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="e.g. Medicaments consisting of mixed products" />
-            <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', margin: 0 }}>Note: CGST and SGST will be automatically calculated as half of IGST.</p>
-          </>}
+          {activeTab === 'hsn' && (
+            <HSNForm formData={formData} setFormData={setFormData} errors={formErrors} modalMode={modalMode} firstInputRef={firstInputRef as any} />
+          )}
 
           {activeTab === 'state' && <>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
-              <Input ref={firstInputRef} disabled={modalMode === 'view'} label="State Name *" required value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Delhi" />
-              <Input disabled={modalMode === 'view'} label="GST State Code *" required value={formData.code || ''} onChange={e => setFormData({ ...formData, code: e.target.value })} placeholder="e.g. 07" />
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: MODAL_GAP }}>
+              <Input ref={firstInputRef} disabled={modalMode === 'view'} variant="compact" label="State Name *" required value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Delhi" />
+              <Input disabled={modalMode === 'view'} variant="compact" label="GST State Code *" required value={formData.code || ''} onChange={e => setFormData({ ...formData, code: e.target.value })} placeholder="e.g. 07" />
             </div>
-            <Input disabled={modalMode === 'view'} label="Capital City" value={formData.capital || ''} onChange={e => setFormData({ ...formData, capital: e.target.value })} placeholder="e.g. New Delhi" />
+            <Input disabled={modalMode === 'view'} variant="compact" label="Capital City" value={formData.capital || ''} onChange={e => setFormData({ ...formData, capital: e.target.value })} placeholder="e.g. New Delhi" />
           </>}
 
           {activeTab === 'balances' && <>
-            <Input ref={firstInputRef} disabled={modalMode === 'view'} label="Account / Ledger Name *" required value={formData.ledgerName || ''} onChange={e => setFormData({ ...formData, ledgerName: e.target.value })} placeholder="Select or enter account name" />
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px', alignItems: 'flex-end' }}>
-              <Input disabled={modalMode === 'view'} label="Opening Balance" type="number" step="0.01" value={formData.openingBalance || 0} onChange={e => setFormData({ ...formData, openingBalance: Number(e.target.value) })} />
+            <Input ref={firstInputRef} disabled={modalMode === 'view'} variant="compact" label="Account / Ledger Name *" required value={formData.ledgerName || ''} onChange={e => setFormData({ ...formData, ledgerName: e.target.value })} placeholder="Select or enter account name" />
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: MODAL_GAP, alignItems: 'flex-end' }}>
+              <Input disabled={modalMode === 'view'} variant="compact" label="Opening Balance" type="number" step="0.01" value={formData.openingBalance || 0} onChange={e => setFormData({ ...formData, openingBalance: Number(e.target.value) })} />
               <div>
-                <select disabled={modalMode === 'view'} value={formData.opType || 'Dr'} onChange={e => setFormData({ ...formData, opType: e.target.value as any })} style={{ width: '100%', padding: '9px 12px', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', color: 'var(--color-text-primary)' }}>
+                <label style={MODAL_LABEL}>Dr / Cr</label>
+                <select disabled={modalMode === 'view'} value={formData.opType || 'Dr'} onChange={e => setFormData({ ...formData, opType: e.target.value as any })} style={MODAL_FIELD}>
                   <option value="Dr">Dr</option>
                   <option value="Cr">Cr</option>
                 </select>
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px', alignItems: 'flex-end' }}>
-              <Input disabled={modalMode === 'view'} label="Closing Balance" type="number" step="0.01" value={formData.closingBalance || 0} onChange={e => setFormData({ ...formData, closingBalance: Number(e.target.value) })} />
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: MODAL_GAP, alignItems: 'flex-end' }}>
+              <Input disabled={modalMode === 'view'} variant="compact" label="Closing Balance" type="number" step="0.01" value={formData.closingBalance || 0} onChange={e => setFormData({ ...formData, closingBalance: Number(e.target.value) })} />
               <div>
-                <select disabled={modalMode === 'view'} value={formData.clType || 'Dr'} onChange={e => setFormData({ ...formData, clType: e.target.value as any })} style={{ width: '100%', padding: '9px 12px', borderRadius: '6px', border: '1px solid var(--color-border)', background: 'var(--color-bg-surface)', color: 'var(--color-text-primary)' }}>
+                <label style={MODAL_LABEL}>Dr / Cr</label>
+                <select disabled={modalMode === 'view'} value={formData.clType || 'Dr'} onChange={e => setFormData({ ...formData, clType: e.target.value as any })} style={MODAL_FIELD}>
                   <option value="Dr">Dr</option>
                   <option value="Cr">Cr</option>
                 </select>
@@ -765,42 +844,9 @@ export default function MasterPage() {
             </div>
           </>}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
-            {modalMode === 'view' ? (
-              <>
-                <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)}>Close View</Button>
-                <Button 
-                  type="button" 
-                  variant="primary" 
-                  onClick={() => {
-                    handleDeleteItem(formData.id)
-                    setIsModalOpen(false)
-                  }}
-                  style={{ backgroundColor: '#ef4444', borderColor: '#ef4444' }}
-                >
-                  Delete
-                </Button>
-                <Button 
-                  ref={editButtonRef}
-                  type="button" 
-                  variant="primary" 
-                  onClick={() => {
-                    setModalMode('edit')
-                    setTimeout(() => firstInputRef.current?.focus(), 50)
-                  }}
-                >
-                  Edit
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button id="btn-exit-without-saving" type="button" variant="secondary" onClick={() => setShowUnsavedPrompt(true)}>Exit without saving (Esc)</Button>
-                <Button type="submit" variant="primary">Save</Button>
-              </>
-            )}
-          </div>
         </form>
-      </Modal>
+      </Modal
+>
 
       <Modal
         isOpen={showUnsavedPrompt}

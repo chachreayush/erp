@@ -215,3 +215,43 @@ def delete_state_code(state_id: UUID, db: Session = Depends(get_db), current_use
     db.delete(db_state)
     db.commit()
     return {"message": "State Code deleted successfully"}
+
+# "?"? STATIONS "?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?
+@router.get("/stations", response_model=List[schemas.StationResponse])
+def get_stations(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    org_id = get_org_id(current_user)
+    return db.query(models.Station).filter(models.Station.organization_id == org_id).all()
+
+@router.post("/stations", response_model=schemas.StationResponse)
+def create_station(station: schemas.StationCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    org_id = get_org_id(current_user)
+    db_station = models.Station(**station.model_dump(), organization_id=org_id)
+    db.add(db_station)
+    db.commit()
+    db.refresh(db_station)
+    return db_station
+
+@router.put("/stations/{station_id}", response_model=schemas.StationResponse)
+def update_station(station_id: UUID, station: schemas.StationCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    org_id = get_org_id(current_user)
+    db_station = db.query(models.Station).filter(models.Station.id == station_id, models.Station.organization_id == org_id).first()
+    if not db_station:
+        raise HTTPException(status_code=404, detail="Station not found")
+    
+    for key, value in station.model_dump().items():
+        setattr(db_station, key, value)
+        
+    db.commit()
+    db.refresh(db_station)
+    return db_station
+
+@router.delete("/stations/{station_id}")
+def delete_station(station_id: UUID, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    org_id = get_org_id(current_user)
+    db_station = db.query(models.Station).filter(models.Station.id == station_id, models.Station.organization_id == org_id).first()
+    if not db_station:
+        raise HTTPException(status_code=404, detail="Station not found")
+    
+    db.delete(db_station)
+    db.commit()
+    return {"message": "Station deleted successfully"}
