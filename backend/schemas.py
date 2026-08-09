@@ -198,9 +198,22 @@ class BulletinResponse(BulletinBase):
 class InvoiceItemBase(BaseModel):
     product_id: Optional[UUID4] = None
     product_name: str
+    pack: Optional[str] = None
+    batch: Optional[str] = None
+    expiry: Optional[str] = None
     quantity: int
+    free_quantity: int = 0
     rate: float
+    discount_percent: float = 0.0
+    mrp: float = 0.0
+    cgst_percent: float = 0.0
+    sgst_percent: float = 0.0
     igst_percent: float = 0.0
+    rate_a: float = 0.0
+    rate_b: float = 0.0
+    rate_c: float = 0.0
+    cost: float = 0.0
+    hsn: Optional[str] = None
     line_total: float
 
 class InvoiceItemCreate(InvoiceItemBase):
@@ -216,9 +229,17 @@ class InvoiceBase(BaseModel):
     customer_name: str
     invoice_type: str = "bill"
     invoice_number: str
+    party_invoice_number: Optional[str] = None
     subtotal: float
+    bill_discount: float = 0.0
     tax_total: float
     grand_total: float
+    ledger1_name: Optional[str] = None
+    ledger1_amount: float = 0.0
+    ledger2_name: Optional[str] = None
+    ledger2_amount: float = 0.0
+    ledger3_name: Optional[str] = None
+    ledger3_amount: float = 0.0
 
 class InvoiceCreate(InvoiceBase):
     items: list[InvoiceItemCreate]
@@ -255,12 +276,12 @@ class ProductBase(BaseModel):
     unit: Optional[str] = None
     colour_type: str = "normal"
     item_type: str = "normal"
-    company_name: Optional[str] = None
-    salt: Optional[str] = None
+    company_id: Optional[UUID4] = None
+    salt_id: Optional[UUID4] = None
     
     # Taxes & HSN
     hsn_applicable: str = "no"
-    hsn_code: Optional[str] = None
+    hsn_id: Optional[UUID4] = None
     local_tax: str = "taxable"
     central_tax: str = "taxable"
     sgst_percent: float = 0.0
@@ -284,6 +305,11 @@ class ProductResponse(ProductBase):
     id: UUID4
     organization_id: UUID4
     created_at: datetime
+    
+    # Nested master records
+    company: Optional["ManufacturerResponse"] = None
+    salt_relation: Optional["SaltResponse"] = None
+    hsn_relation: Optional["HSNCodeResponse"] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -305,7 +331,7 @@ class LedgerBase(BaseModel):
     name: str
     group_name: str
     mobile: Optional[str] = None
-    state: Optional[str] = None
+    state_id: Optional[UUID4] = None
     opening_balance: float = 0
     op_type: str = 'Dr'
     closing_balance: float = 0
@@ -339,6 +365,9 @@ class LedgerResponse(LedgerBase):
     id: UUID4
     organization_id: UUID4
     created_at: datetime
+    
+    state_relation: Optional["StateCodeResponse"] = None
+    
     model_config = ConfigDict(from_attributes=True)
 
 class SaltBase(BaseModel):

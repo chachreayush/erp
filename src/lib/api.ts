@@ -218,7 +218,9 @@ export const api = {
 
 export interface Product {
   id: string
-  company_id: string
+  company_id?: string
+  salt_id?: string
+  hsn_id?: string
   created_at: string
   
   // ── Marg Profile Fields ──
@@ -230,10 +232,13 @@ export interface Product {
   unit: string
   colour_type: 'normal' | 'red' | 'blue' | 'green'
   item_type: 'normal' | 'cold storage' | 'costly'
-  company_name: string
-  salt: string
+  
+  // Master Database Relations
+  company?: Manufacturer
+  salt_relation?: Salt
+  hsn_relation?: HSNCode
+
   hsn_applicable: 'yes' | 'no'
-  hsn_code?: string
   local_tax: 'taxable' | 'tax paid' | 'exempted'
   central_tax: 'taxable' | 'tax paid' | 'exempted'
   sgst_percent: number
@@ -249,7 +254,7 @@ export interface Product {
   category: 'na' | 'schedule h' | 'schedule h1' | 'narcotics'
 }
 
-export type ProductCreatePayload = Omit<Product, 'id' | 'company_id' | 'created_at'>
+export type ProductCreatePayload = Omit<Product, 'id' | 'created_at'>
 
 export async function apiGetProducts(): Promise<Product[]> {
   const response = await apiClient.get<Product[]>('/products/')
@@ -316,7 +321,8 @@ export interface Ledger {
   name: string
   group_name: string
   mobile?: string
-  state?: string
+  state_id?: string
+  state_relation?: StateCode
   opening_balance: number
   op_type: string
   closing_balance: number
@@ -523,6 +529,39 @@ export interface Organization {
   name: string
   org_code: string
   is_am: boolean
+}
+
+// ── PURCHASES MODULE API ──────────────────────────────────────────────────────────
+export async function apiCreatePurchaseInvoice(payload: any): Promise<any> {
+  const response = await apiClient.post<any>('/api/purchases/invoices', payload)
+  return response.data
+}
+
+// ── BATCHES API ──────────────────────────────────────────────────────────
+export interface Batch {
+  id: string
+  product_id: string
+  batch_number: string
+  expiry: string | null
+  mrp: number
+  rate: number
+  rate_a: number
+  rate_b: number
+  rate_c: number
+  cost: number
+  current_stock: number
+}
+
+export async function apiGetBatches(productId?: string): Promise<Batch[]> {
+  const params = productId ? { product_id: productId } : {}
+  const response = await apiClient.get<Batch[]>('/api/batches/', { params })
+  return response.data
+}
+
+// ── SALES MODULE API ────────────────────────────────────────────────────────
+export async function apiCreateSalesInvoice(payload: any): Promise<any> {
+  const response = await apiClient.post<any>('/api/sales/invoices', payload)
+  return response.data
 }
 
 export interface ClientRegistrationRequest {

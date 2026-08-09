@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from database import get_db
 import models, schemas
 from auth.router import get_current_user
@@ -11,7 +11,11 @@ def get_products(db: Session = Depends(get_db), current_user: models.User = Depe
     """
     Fetch all products for the current user's organization.
     """
-    products = db.query(models.Product).filter(models.Product.organization_id == current_user.organization_id).all()
+    products = db.query(models.Product).options(
+        joinedload(models.Product.company),
+        joinedload(models.Product.salt_relation),
+        joinedload(models.Product.hsn_relation)
+    ).filter(models.Product.organization_id == current_user.organization_id).all()
     return products
 
 @router.post("/", response_model=schemas.ProductResponse)
@@ -29,10 +33,10 @@ def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)
         unit=product.unit,
         colour_type=product.colour_type,
         item_type=product.item_type,
-        company_name=product.company_name,
-        salt=product.salt,
+        company_id=product.company_id,
+        salt_id=product.salt_id,
         hsn_applicable=product.hsn_applicable,
-        hsn_code=product.hsn_code,
+        hsn_id=product.hsn_id,
         local_tax=product.local_tax,
         central_tax=product.central_tax,
         sgst_percent=product.sgst_percent,

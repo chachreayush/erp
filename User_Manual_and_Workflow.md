@@ -132,3 +132,10 @@ To keep inventory and accounts correct, items move through the software in a spe
 ### Feature Updates (August 2026)
 - The F3 Batch Modal now hides zero-quantity batches by default. To view them, press the **ArrowUp** key when selecting the topmost batch.
 - Each transaction type (Sales Bill, Challan, Purchase, Brk/Exp, GST) now maintains an independent auto-incrementing Entry No series (e.g. S0001, CRN0001). The system automatically prevents you from creating duplicates.
+
+### August 2026 - Purchase Module & Batch System Integration
+- **Batch Master Architecture:** The database now explicitly tracks Batch entities linked to products. Every batch holds precise values for atch_number, expiry, mrp, ate, ate_a, ate_b, ate_c, cost, and current_stock.
+- **Purchase Module Inwarding:** Saving a Purchase Bill now automatically generates or updates master Batch records.
+- **Sales Module Alignment:** The Sales Grid (F3 Batch Modal) now directly queries the live Batch table and dynamically syncs MRP, Rate, and Expiry based on the selected batch, ensuring perfect parity between outward flows and real batch data.
+- **Current Stock:** The Current Stock calculation engine was rewritten to aggregate active Batch.current_stock records rather than relying on legacy invoice tallies, providing true real-time inventory precision.
+- **Strict DB Fetching:** Removed local storage caching from Products.tsx, enforcing the frontend to display exactly what exists in the PostgreSQL backend.

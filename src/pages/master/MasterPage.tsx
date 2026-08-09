@@ -20,7 +20,7 @@ import { validateGST, validatePhone, validateEmail, validatePincode } from '../.
 
 
 // Types for different master data items
-interface LedgerItem { id: string; name: string; group: string; mobile: string; state: string; balance: number; type: 'Dr' | 'Cr' }
+interface LedgerItem { id: string; name: string; group: string; mobile: string; state_id: string; state: string; balance: number; type: 'Dr' | 'Cr' }
 interface SaltItem { id: string; name: string; indications: string; dosage: string; sideEffects: string; precautions: string; labels: string }
 interface CompanyItem { id: string; name: string; code: string; discount: number; status: string; prohibited: boolean; room_no?: string; floor?: string; rack_no?: string; rack_row_no?: string; dump_days?: number; is_supplier: string; supplier_ledger_id?: string; email?: string; cc?: string; bcc?: string; website?: string; contact_number?: string; field_staff_name?: string; field_staff_contact?: string; address?: string; }
 interface HSNItem { id: string; code: string; description: string; igst: number; cgst: number; sgst: number }
@@ -74,7 +74,7 @@ export default function MasterPage() {
         apiGetStateCodes()
       ])
       
-      setLedgers(l.map(x => ({ ...x, id: x.id as string, mobile: x.mobile || '', state: x.state || '', group: x.group_name, balance: x.opening_balance, type: x.op_type as 'Dr'|'Cr' })))
+      setLedgers(l.map(x => ({ ...x, id: x.id as string, mobile: x.mobile || '', state_id: x.state_id || '', state: x.state_relation?.name || '', group: x.group_name, balance: x.opening_balance, type: x.op_type as 'Dr'|'Cr' })))
       setSalts(s.map(x => ({ id: x.id as string, name: x.formula, indications: x.indications || '', dosage: x.dosage || '', sideEffects: x.side_effects || '', precautions: x.precautions || '', labels: x.labels || '' })))
       setCompanies(m.map(x => ({ 
         id: x.id as string, 
@@ -152,14 +152,6 @@ export default function MasterPage() {
       setTimeout(() => document.getElementById('prompt-cancel-btn')?.focus(), 50)
     }
   }, [showUnsavedPrompt])
-
-  const handleCloseModal = () => {
-    setFormData({})
-    setFormErrors({})
-    setIsModalOpen(false)
-    setEditingId(null)
-    setModalMode('create')
-  }
 
   const handleOpenAddModal = () => {
     setEditingId(null)
@@ -285,7 +277,7 @@ export default function MasterPage() {
         if (isEdit) {
            const existing = ledgers.find(l => l.id === editingId)
            if (existing) {
-              const payload: any = { name: existing.name, group_name: existing.group, mobile: existing.mobile, state: existing.state, opening_balance: Number(formData.openingBalance)||0, op_type: formData.opType||'Dr', closing_balance: Number(formData.closingBalance)||0, cl_type: formData.clType||'Dr' }
+              const payload: any = { name: existing.name, group_name: existing.group, mobile: existing.mobile, state_id: existing.state_id, opening_balance: Number(formData.openingBalance)||0, op_type: formData.opType||'Dr', closing_balance: Number(formData.closingBalance)||0, cl_type: formData.clType||'Dr' }
               await apiUpdateLedger(editingId as string, payload)
            }
         }
@@ -382,7 +374,7 @@ export default function MasterPage() {
       if (activeTab === 'ledger') visibleItems = ledgers.filter(i => i.name.toLowerCase().includes(searchQuery.toLowerCase()) || i.group.toLowerCase().includes(searchQuery.toLowerCase()))
       else if (activeTab === 'salt') visibleItems = salts.filter(i => i.name.toLowerCase().includes(searchQuery.toLowerCase()))
       else if (activeTab === 'company') visibleItems = companies.filter(i => i.name.toLowerCase().includes(searchQuery.toLowerCase()))
-      else if (activeTab === 'hsn') visibleItems = hsns.filter(i => i.code.includes(searchQuery) || i.description.toLowerCase().includes(searchQuery.toLowerCase()))
+      else if (activeTab === 'hsn') visibleItems = hsns.filter(i => i.code.includes(searchQuery) || i.description.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 50)
       else if (activeTab === 'state') visibleItems = states.filter(i => i.name.toLowerCase().includes(searchQuery.toLowerCase()) || i.code.includes(searchQuery))
       else if (activeTab === 'balances') visibleItems = balances.filter(i => i.ledgerName.toLowerCase().includes(searchQuery.toLowerCase()))
 
@@ -695,6 +687,7 @@ export default function MasterPage() {
               {/* HSN TABLE */}
               {activeTab === 'hsn' && hsns
                 .filter(i => i.code.includes(searchQuery) || i.description.toLowerCase().includes(searchQuery.toLowerCase()))
+                .slice(0, 50)
                 .map((item, index) => {
                   const actualIndex = index + 1
                   const isSelected = focusedZone === 'list' && selectedItemIndex === actualIndex
@@ -801,15 +794,15 @@ export default function MasterPage() {
           )}
 
           {activeTab === 'salt' && (
-            <SaltForm formData={formData} setFormData={setFormData} errors={formErrors} modalMode={modalMode} firstInputRef={firstInputRef as any} />
+            <SaltForm formData={formData} setFormData={setFormData} modalMode={modalMode} firstInputRef={firstInputRef as any} />
           )}
 
           {activeTab === 'company' && (
-            <CompanyForm formData={formData} setFormData={setFormData} errors={formErrors} modalMode={modalMode} firstInputRef={firstInputRef as any} />
+            <CompanyForm formData={formData} setFormData={setFormData} modalMode={modalMode} firstInputRef={firstInputRef as any} />
           )}
 
           {activeTab === 'hsn' && (
-            <HSNForm formData={formData} setFormData={setFormData} errors={formErrors} modalMode={modalMode} firstInputRef={firstInputRef as any} />
+            <HSNForm formData={formData} setFormData={setFormData} modalMode={modalMode} firstInputRef={firstInputRef as any} />
           )}
 
           {activeTab === 'state' && <>

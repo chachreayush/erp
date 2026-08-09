@@ -116,9 +116,17 @@ app.include_router(organizations_router, prefix="/api")
 from api.bulletins import router as bulletins_router
 app.include_router(bulletins_router, prefix="/api")
 
-# Sales routes
 from api.sales import router as sales_router
 app.include_router(sales_router, prefix="/api")
+
+from api.purchases import router as purchases_router
+app.include_router(purchases_router, prefix="/api")
+
+from api.batches import router as batches_router
+app.include_router(batches_router, prefix="/api")
+
+from api.stock import router as stock_router
+app.include_router(stock_router, prefix="/api")
 
 # Future routers will be added here as modules are built:
 from api.master import router as master_router

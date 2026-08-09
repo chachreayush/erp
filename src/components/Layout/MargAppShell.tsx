@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { 
   HelpCircle, Monitor, 
-  Search, LayoutDashboard, Receipt, Package, ShoppingCart, Users, UserCheck, BarChart3, Settings
+  Search, LayoutDashboard, Receipt, Package, ShoppingCart, Users, UserCheck, BarChart3, Settings, Boxes
 } from 'lucide-react'
 import './MargAppShell.css'
 
@@ -30,6 +30,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Finance & Accounting', path: '/finance', icon: <Receipt size={14} />, module: 'finance' },
   { label: 'Inventory', path: '/inventory', icon: <Package size={14} />, module: 'inventory' },
   { label: 'Sales & Purchase', path: '/sales', icon: <ShoppingCart size={14} />, module: 'sales' },
+  { label: 'Current Stock', path: '/stock', icon: <Boxes size={14} />, module: 'inventory' },
   { label: 'CRM', path: '/crm', icon: <Users size={14} />, module: 'crm' },
   { label: 'HR Management', path: '/hr', icon: <UserCheck size={14} />, module: 'hr' },
   { label: 'Reports', path: '/reports', icon: <BarChart3 size={14} />, module: 'reports' },

@@ -280,12 +280,17 @@ class Product(Base):
     unit = Column(String(50), nullable=True)
     colour_type = Column(String(50), nullable=True, default="normal")
     item_type = Column(String(50), nullable=True, default="normal")
-    company_name = Column(String(255), nullable=True) # Manufacturer name
-    salt = Column(String(255), nullable=True)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("manufacturers.id"), nullable=True)
+    salt_id = Column(UUID(as_uuid=True), ForeignKey("salts.id"), nullable=True)
     
-    # ── Taxes & HSN ──
+    # Relationships for masters
+    company = relationship("Manufacturer", backref="products")
+    salt_relation = relationship("Salt", backref="products")
+    hsn_relation = relationship("HSNCode", backref="products")
+    
+    # 📝 Taxes & HSN 📝
     hsn_applicable = Column(String(50), nullable=True, default="no")
-    hsn_code = Column(String(100), nullable=True)
+    hsn_id = Column(UUID(as_uuid=True), ForeignKey("hsn_codes.id"), nullable=True)
     local_tax = Column(String(50), nullable=True, default="taxable")
     central_tax = Column(String(50), nullable=True, default="taxable")
     sgst_percent = Column(Numeric(5, 2), nullable=False, default=0)
@@ -308,6 +313,32 @@ class Product(Base):
     def __repr__(self):
         return f"<Product {self.code}: {self.name}>"
 
+# -- TABLE 5.5: Batch ----------------------------------------
+class Batch(Base):
+    __tablename__ = "batches"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_id = Column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    batch_number = Column(String(100), nullable=False, index=True)
+    expiry = Column(String(50), nullable=True)
+    mrp = Column(Numeric(12, 2), nullable=False, default=0)
+    rate = Column(Numeric(12, 2), nullable=False, default=0)
+    rate_a = Column(Numeric(12, 2), nullable=False, default=0)
+    rate_b = Column(Numeric(12, 2), nullable=False, default=0)
+    rate_c = Column(Numeric(12, 2), nullable=False, default=0)
+    cost = Column(Numeric(12, 2), nullable=False, default=0)
+    
+    current_stock = Column(Integer, nullable=False, default=0)
+
+    # Relationships
+    product = relationship("Product")
+    organization = relationship("Organization")
+
+    def __repr__(self):
+        return f"<Batch {self.batch_number} - {self.product_id}>"
 
 # -- TABLE 6: Invoice (Sales/Purchase) ------------------------
 class Invoice(Base):
@@ -319,13 +350,23 @@ class Invoice(Base):
 
     invoice_type = Column(String(50), nullable=False, default="bill")
     invoice_number = Column(String(100), nullable=False)
+    party_invoice_number = Column(String(100), nullable=True)
     date = Column(DateTime, default=datetime.utcnow, nullable=False)
     customer_name = Column(String(255), nullable=False)
     
     # Financials
     subtotal = Column(Numeric(12, 2), nullable=False, default=0)
+    bill_discount = Column(Numeric(12, 2), nullable=False, default=0)
     tax_total = Column(Numeric(12, 2), nullable=False, default=0)
     grand_total = Column(Numeric(12, 2), nullable=False, default=0)
+    
+    # Ledgers
+    ledger1_name = Column(String(255), nullable=True)
+    ledger1_amount = Column(Numeric(12, 2), nullable=False, default=0)
+    ledger2_name = Column(String(255), nullable=True)
+    ledger2_amount = Column(Numeric(12, 2), nullable=False, default=0)
+    ledger3_name = Column(String(255), nullable=True)
+    ledger3_amount = Column(Numeric(12, 2), nullable=False, default=0)
     
     # -- RELATIONSHIPS --------------------------------------------
     organization = relationship("Organization")
@@ -344,11 +385,26 @@ class InvoiceItem(Base):
     product_id = Column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="SET NULL"), nullable=True)
 
     product_name = Column(String(255), nullable=False) # Store name in case product is deleted
+    pack = Column(String(50), nullable=True)
+    batch = Column(String(100), nullable=True)
+    expiry = Column(String(50), nullable=True)
+    
     quantity = Column(Integer, nullable=False, default=1)
+    free_quantity = Column(Integer, nullable=False, default=0)
     rate = Column(Numeric(10, 2), nullable=False)
+    discount_percent = Column(Numeric(5, 2), nullable=False, default=0)
+    mrp = Column(Numeric(12, 2), nullable=False, default=0)
     
     # Taxes applied at time of sale
+    cgst_percent = Column(Numeric(5, 2), nullable=False, default=0)
+    sgst_percent = Column(Numeric(5, 2), nullable=False, default=0)
     igst_percent = Column(Numeric(5, 2), nullable=False, default=0)
+    
+    rate_a = Column(Numeric(12, 2), nullable=False, default=0)
+    rate_b = Column(Numeric(12, 2), nullable=False, default=0)
+    rate_c = Column(Numeric(12, 2), nullable=False, default=0)
+    cost = Column(Numeric(12, 2), nullable=False, default=0)
+    hsn = Column(String(50), nullable=True)
     
     line_total = Column(Numeric(12, 2), nullable=False)
 
@@ -383,7 +439,7 @@ class Ledger(Base):
     name = Column(String(255), nullable=False)
     group_name = Column(String(100), nullable=False) # e.g. 'Cash-in-Hand', 'Bank Accounts'
     mobile = Column(String(20), nullable=True)
-    state = Column(String(100), nullable=True)
+    state_id = Column(UUID(as_uuid=True), ForeignKey("state_codes.id"), nullable=True)
     opening_balance = Column(Numeric(15, 2), nullable=False, default=0)
     op_type = Column(String(2), nullable=False, default='Dr') # Dr or Cr
     closing_balance = Column(Numeric(15, 2), nullable=False, default=0)
@@ -414,6 +470,7 @@ class Ledger(Base):
 
     # -- RELATIONSHIPS --------------------------------------------
     organization = relationship("Organization")
+    state_relation = relationship("StateCode")
 
     def __repr__(self):
         return f"<Ledger {self.name}: {self.closing_balance}>"

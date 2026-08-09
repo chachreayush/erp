@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { apiGetProducts } from '../../lib/api'
+import { apiGetProducts, apiGetLedgers, apiCreateSalesInvoice, apiGetBatches } from '../../lib/api'
 import type { Product as _Product } from '../../lib/api'
 import SalesList from './SalesList'
 
@@ -385,6 +385,36 @@ export default function SalesBill() {
   const [showF3BatchModal, setShowF3BatchModal] = useState(false)
   const [f3SelectedIndex, setF3SelectedIndex] = useState(0)
   const [showZeroQtyBatches, setShowZeroQtyBatches] = useState(false)
+  const [activeProductBatches, setActiveProductBatches] = useState<any[]>([])
+  const [isBatchesLoading, setIsBatchesLoading] = useState(false)
+
+  const handleBatchF3 = async (rowId: number, productName: string) => {
+    setActiveRowId(rowId)
+    setF3SelectedIndex(0)
+    setShowZeroQtyBatches(false)
+    setShowF3BatchModal(true)
+    
+    if (!productName || !productName.trim()) {
+      setActiveProductBatches([])
+      return
+    }
+
+    const matchedProd = inventoryProducts.find(p => p.name.trim().toLowerCase() === productName.trim().toLowerCase())
+    if (matchedProd && matchedProd.id) {
+      setIsBatchesLoading(true)
+      try {
+        const batches = await apiGetBatches(matchedProd.id)
+        setActiveProductBatches(batches)
+      } catch (err) {
+        console.error("Failed to fetch batches:", err)
+        setActiveProductBatches([])
+      } finally {
+        setIsBatchesLoading(false)
+      }
+    } else {
+      setActiveProductBatches([])
+    }
+  }
 
   useEffect(() => {
     if (showF3BatchModal) {
@@ -392,21 +422,28 @@ export default function SalesBill() {
     }
   }, [showF3BatchModal])
 
-  // Parties / Sundry Creditors List (Merged with localStorage)
-  const defaultParties = [
-    'Sun Pharma Ltd.',
-    'Cipla Pharmaceuticals',
-    'Glenmark Pharma',
-    'Mankind Pharma',
-    'Abbott Healthcare',
-    'Lupin Ltd.',
-    'Dr. Reddys Laboratories',
-    'Torrent Pharmaceuticals',
-    'Alkem Laboratories',
-    'Zydus Healthcare'
-  ]
-  const savedParties = JSON.parse(localStorage.getItem('erp_parties') || '[]')
-  const partiesList = Array.from(new Set([...defaultParties, ...savedParties]))
+  // Parties / Sundry Creditors List (Merged with localStorage & API)
+  const [partiesList, setPartiesList] = useState<string[]>([])
+
+  useEffect(() => {
+    const loadParties = async () => {
+      try {
+        const ledgers = await apiGetLedgers()
+        const apiPartyNames = ledgers.map(l => l.name)
+        const defaultParties = [
+          'Sun Pharma Ltd.',
+          'Cipla Pharmaceuticals',
+          'Glenmark Pharma',
+          'Zydus Healthcare'
+        ]
+        const savedParties = JSON.parse(localStorage.getItem('erp_parties') || '[]')
+        setPartiesList(Array.from(new Set([...defaultParties, ...savedParties, ...apiPartyNames])))
+      } catch (err) {
+        console.error("Failed to fetch API ledgers:", err)
+      }
+    }
+    loadParties()
+  }, [])
   const filteredParties = partiesList.filter(p => p.toLowerCase().includes(partySearch.toLowerCase()))
 
   // Dynamic Inventory Products merged with Built-in Demo Products
@@ -774,63 +811,120 @@ export default function SalesBill() {
     }, 20)
   }
 
-  const confirmSaveBill = () => {
-    // Commit completed products and batches from this bill to SAVED_PAST_BILLS_REGISTRY so they officially become past bill details
-    gridRows.forEach(row => {
-      if (row.product?.trim() && row.batch?.trim() && (parseFloat(row.qty) > 0 || parseFloat(row.prate) > 0 || row.mrp)) {
-        const prodKey = row.product.trim().toLowerCase();
-        if (!SAVED_PAST_BILLS_REGISTRY[prodKey]) SAVED_PAST_BILLS_REGISTRY[prodKey] = [];
-        const newRecord: SalesHistoryRecord = {
-          party: partyName || 'Cash Sale',
-          billNo: billNo || 'P0001',
-          date: getTodayFormatted(),
-          qty: parseFloat(row.qty) || 0,
-          batch: row.batch.trim().toUpperCase(),
-          expiry: row.expiry || '12/28',
-          rate: parseFloat(row.prate) || 0,
-          srate: Number(((parseFloat(row.prate) || 0) * 1.3).toFixed(2)),
-          mrg: '25.00%',
-          mrp: parseFloat(row.mrp) || 0,
-          disc: parseFloat(row.dis) || 0,
-          deal: '0.00',
-          cost: parseFloat(row.prate) || 0,
-          godown: '1'
-        };
-        // Unshift newly saved bill record to the top of historical records
-        SAVED_PAST_BILLS_REGISTRY[prodKey].unshift(newRecord);
-      }
-    });
+  const confirmSaveBill = async () => {
+    try {
+      const validRows = gridRows.filter(r => r.product?.trim() && (parseFloat(r.qty) > 0 || parseFloat(r.prate) > 0))
+      
+      const payload = {
+        invoice_type: baseType,
+        invoice_number: billNo.trim(),
+        party_invoice_number: '',
+        date: new Date().toISOString(), // In a real app, parse invDateStr properly
+        customer_name: partyName || 'Cash Sale',
+        subtotal: totals.valueOfGoods,
+        bill_discount: parseFloat(billDiscount) || 0,
+        tax_total: totals.gstAmount,
+        grand_total: invoiceValue,
+        ledger1_name: ledger1Name,
+        ledger1_amount: parseFloat(ledger1Amt) || 0,
+        ledger2_name: ledger2Name,
+        ledger2_amount: parseFloat(ledger2Amt) || 0,
+        ledger3_name: ledger3Name,
+        ledger3_amount: parseFloat(ledger3Amt) || 0,
+        items: validRows.map(row => {
+          const qty = parseFloat(row.qty) || 0;
+          const free = parseFloat(row.free) || 0;
+          const prate = parseFloat(row.prate) || 0;
+          
+          // Match with inventory product to get product_id
+          const matchedProd = inventoryProducts.find(p => p.name.trim().toLowerCase() === row.product.trim().toLowerCase());
+          
+          return {
+            product_id: matchedProd?.id || null, // Will be null if it's a typed-in dummy product
+            product_name: row.product.trim(),
+            pack: row.pack,
+            batch: row.batch,
+            expiry: row.expiry,
+            quantity: qty,
+            free_quantity: free,
+            rate: prate,
+            discount_percent: parseFloat(row.dis) || 0,
+            mrp: parseFloat(row.mrp) || 0,
+            cgst_percent: parseFloat(row.cgst) || 0,
+            sgst_percent: parseFloat(row.sgst) || 0,
+            igst_percent: parseFloat(row.igst) || 0,
+            rate_a: parseFloat(row.rateA) || 0,
+            rate_b: parseFloat(row.rateB) || 0,
+            rate_c: parseFloat(row.rateC) || 0,
+            cost: parseFloat(row.cost) || 0,
+            hsn: row.hsn,
+            line_total: (qty * prate) - ((qty * prate) * (parseFloat(row.dis) || 0) / 100)
+          }
+        })
+      };
 
-    setShowSaveModal(false)
-    setSaveSuccessMessage(`Sales Bill [${billNo}] Saved Successfully! Total: ₹${invoiceValue.toFixed(2)}`)
-    
-    setTimeout(() => {
-      setSaveSuccessMessage('')
-      const savedBills = JSON.parse(localStorage.getItem('savedSalesBills') || '[]')
-      savedBills.push({ entryNo: billNo.trim(), partyName: partyName, recordType: baseType })
-      localStorage.setItem('savedSalesBills', JSON.stringify(savedBills))
+      await apiCreateSalesInvoice(payload);
 
-      const nextBillNo = incrementSeries(billNo)
-      setBillNo(nextBillNo)
-      localStorage.setItem(billNoKey, nextBillNo)
-      setPartyName('')
-      setBillDiscount('00.00')
-      setLedger1Name('')
-      setLedger1Amt('')
-      setLedger2Name('')
-      setLedger2Amt('')
-      setLedger3Name('')
-      setLedger3Amt('')
-      setGridRows([
-        { ...initialRow, id: 1 },
-        { ...initialRow, id: 2 },
-        { ...initialRow, id: 3 },
-        { ...initialRow, id: 4 },
-        { ...initialRow, id: 5 },
-      ])
-      setActiveRowId(1)
-      dateRef.current?.focus()
-    }, 2500)
+      // Local fallback for F3 history cache
+      gridRows.forEach(row => {
+        if (row.product?.trim() && row.batch?.trim() && (parseFloat(row.qty) > 0 || parseFloat(row.prate) > 0 || row.mrp)) {
+          const prodKey = row.product.trim().toLowerCase();
+          if (!SAVED_PAST_BILLS_REGISTRY[prodKey]) SAVED_PAST_BILLS_REGISTRY[prodKey] = [];
+          const newRecord: SalesHistoryRecord = {
+            party: partyName || 'Cash Sale',
+            billNo: billNo || 'P0001',
+            date: getTodayFormatted(),
+            qty: parseFloat(row.qty) || 0,
+            batch: row.batch.trim().toUpperCase(),
+            expiry: row.expiry || '12/28',
+            rate: parseFloat(row.prate) || 0,
+            srate: Number(((parseFloat(row.prate) || 0) * 1.3).toFixed(2)),
+            mrg: '25.00%',
+            mrp: parseFloat(row.mrp) || 0,
+            disc: parseFloat(row.dis) || 0,
+            deal: '0.00',
+            cost: parseFloat(row.prate) || 0,
+            godown: '1'
+          };
+          SAVED_PAST_BILLS_REGISTRY[prodKey].unshift(newRecord);
+        }
+      });
+
+      setShowSaveModal(false)
+      setSaveSuccessMessage(`Sales Bill [${billNo}] Saved Successfully! Total: ₹${invoiceValue.toFixed(2)}`)
+      
+      setTimeout(() => {
+        setSaveSuccessMessage('')
+        const savedBills = JSON.parse(localStorage.getItem('savedSalesBills') || '[]')
+        savedBills.push({ entryNo: billNo.trim(), partyName: partyName, recordType: baseType })
+        localStorage.setItem('savedSalesBills', JSON.stringify(savedBills))
+
+        const nextBillNo = incrementSeries(billNo)
+        setBillNo(nextBillNo)
+        localStorage.setItem(billNoKey, nextBillNo)
+        setPartyName('')
+        setBillDiscount('00.00')
+        setLedger1Name('')
+        setLedger1Amt('')
+        setLedger2Name('')
+        setLedger2Amt('')
+        setLedger3Name('')
+        setLedger3Amt('')
+        setGridRows([
+          { ...initialRow, id: 1 },
+          { ...initialRow, id: 2 },
+          { ...initialRow, id: 3 },
+          { ...initialRow, id: 4 },
+          { ...initialRow, id: 5 },
+        ])
+        setActiveRowId(1)
+        dateRef.current?.focus()
+      }, 2500)
+    } catch (err) {
+      console.error('Failed to save sales invoice', err);
+      alert('Error saving sales invoice');
+      setShowSaveModal(false);
+    }
   }
 
   useEffect(() => {
@@ -1034,15 +1128,13 @@ export default function SalesBill() {
                       onKeyDown={e => { 
                         if (e.key === 'F3' || e.key === 'f3') {
                           e.preventDefault();
-                          setF3SelectedIndex(0);
-                          setShowF3BatchModal(true);
+                          handleBatchF3(row.id, row.product);
                           return;
                         }
                         if (e.key === 'Enter') {
                           if (row.product && (!row.batch || !row.batch.trim())) {
                             e.preventDefault()
-                            setF3SelectedIndex(0);
-                            setShowF3BatchModal(true);
+                            handleBatchF3(row.id, row.product);
                             return
                           }
                           if (row.product && (!row.expiry || !row.expiry.trim() || !isValidExpiryFormat(row.expiry))) {
@@ -1837,7 +1929,25 @@ export default function SalesBill() {
       {/* ── F3 BATCH SELECTION MODAL ── */}
       {showF3BatchModal && (() => {
         const currentProd = gridRows.find(r => r.id === activeRowId)?.product || '';
-        const allHistoryList = getAvailableBatchesForProduct(currentProd, gridRows, activeRowId);
+        
+        // Map activeProductBatches to history list format for F3
+        const allHistoryList = activeProductBatches.map(b => ({
+          party: 'System',
+          billNo: '-',
+          date: '-',
+          qty: b.current_stock || 0,
+          batch: b.batch_number,
+          expiry: b.expiry || '-',
+          rate: b.rate || 0,
+          srate: b.rate_a || 0,
+          mrg: '0%',
+          mrp: b.mrp || 0,
+          disc: 0,
+          deal: '0',
+          cost: b.cost || 0,
+          godown: '1'
+        }));
+
         const historyList = showZeroQtyBatches ? allHistoryList : allHistoryList.filter(b => b.qty > 0);
         return (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}
@@ -1890,56 +2000,65 @@ export default function SalesBill() {
                       <th style={{ padding: '8px', textAlign: 'right' }}>M.R.P.</th>
                       <th style={{ padding: '8px', textAlign: 'right' }}>P.Rate</th>
                       <th style={{ padding: '8px', textAlign: 'right' }}>Available Qty</th>
-                      <th style={{ padding: '8px' }}>Party / Source</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {historyList.map((hist, idx) => (
-                      <tr key={idx}
-                          ref={idx === f3SelectedIndex ? (el => el?.scrollIntoView({ block: 'nearest' })) : null}
-                          onClick={() => {
-                            const b = hist;
-                            const rIdx = gridRows.findIndex(r => r.id === activeRowId);
-                            if (rIdx !== -1) {
-                              const newRows = [...gridRows];
-                              let row = { ...newRows[rIdx], batch: b.batch, expiry: b.expiry, prate: b.rate.toFixed(2), mrp: b.mrp.toFixed(2), dis: (b.disc || 0).toString() };
-                              const igstVal = parseFloat(row.igst) || 0;
-                              if (b.mrp > 0) row.rateA = ((b.mrp - (b.mrp * 0.20)) / (1 + (igstVal / 100))).toFixed(2);
-                              newRows[rIdx] = row;
-                              setGridRows(newRows);
-                            }
-                            setShowF3BatchModal(false);
-                            setTimeout(() => document.getElementById('bottom-expiry-input')?.focus(), 10);
-                          }}
-                          style={{
-                            cursor: 'pointer',
-                            backgroundColor: idx === f3SelectedIndex ? '#3b82f633' : 'transparent',
-                            borderLeft: idx === f3SelectedIndex ? '4px solid #3b82f6' : '4px solid transparent',
-                            borderBottom: '1px solid var(--color-border)',
-                            color: 'var(--color-text-primary)',
-                            fontWeight: idx === f3SelectedIndex ? 'bold' : 'normal',
-                          }}>
-                        <td style={{ padding: '10px 8px', color: '#fbbf24', fontWeight: 'bold', fontSize: '14px' }}>{hist.batch}</td>
-                        <td style={{ padding: '10px 8px', color: '#34d399', fontWeight: 'bold' }}>{hist.expiry}</td>
-                        <td style={{ padding: '10px 8px', textAlign: 'right' }}>₹{hist.mrp.toFixed(2)}</td>
-                        <td style={{ padding: '10px 8px', textAlign: 'right', color: '#60a5fa' }}>₹{hist.rate.toFixed(2)}</td>
-                        <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 'bold' }}>{hist.qty}</td>
-                        <td style={{ padding: '10px 8px', color: 'var(--color-text-muted)', fontSize: '12px' }}>{hist.party}</td>
-                      </tr>
-                    ))}
-                    {historyList.length === 0 && (
-                      <tr><td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-muted)' }}>No previous batches recorded for this product yet. Enter batch manually!</td></tr>
+                    {isBatchesLoading ? (
+                      <tr><td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading batches...</td></tr>
+                    ) : (
+                      <>
+                        {historyList.map((hist, idx) => (
+                          <tr key={idx}
+                              ref={idx === f3SelectedIndex ? (el => el?.scrollIntoView({ block: 'nearest' })) : null}
+                              onClick={() => {
+                                const b = hist;
+                                const rIdx = gridRows.findIndex(r => r.id === activeRowId);
+                                if (rIdx !== -1) {
+                                  const newRows = [...gridRows];
+                                  let row = { ...newRows[rIdx], batch: b.batch, expiry: b.expiry, prate: b.rate.toFixed(2), mrp: b.mrp.toFixed(2), dis: (b.disc || 0).toString() };
+                                  const igstVal = parseFloat(row.igst) || 0;
+                                  if (b.mrp > 0) {
+                                    row.rateA = ((b.mrp - (b.mrp * 0.20)) / (1 + (igstVal / 100))).toFixed(2);
+                                  }
+                                  newRows[rIdx] = row;
+                                  setGridRows(newRows);
+                                }
+                                setShowF3BatchModal(false);
+                                setTimeout(() => document.getElementById('bottom-expiry-input')?.focus(), 10);
+                              }}
+                              style={{
+                                cursor: 'pointer',
+                                backgroundColor: idx === f3SelectedIndex ? '#3b82f633' : 'transparent',
+                                borderLeft: idx === f3SelectedIndex ? '4px solid #3b82f6' : '4px solid transparent',
+                                borderBottom: '1px solid var(--color-border)',
+                                color: 'var(--color-text-primary)',
+                                fontWeight: idx === f3SelectedIndex ? 'bold' : 'normal',
+                              }}>
+                            <td style={{ padding: '10px 8px', color: '#fbbf24', fontWeight: 'bold', fontSize: '14px' }}>{hist.batch}</td>
+                            <td style={{ padding: '10px 8px', color: '#34d399', fontWeight: 'bold' }}>{hist.expiry}</td>
+                            <td style={{ padding: '10px 8px', textAlign: 'right' }}>₹{hist.mrp.toFixed(2)}</td>
+                            <td style={{ padding: '10px 8px', textAlign: 'right', color: '#60a5fa' }}>₹{hist.rate.toFixed(2)}</td>
+                            <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 'bold' }}>{hist.qty}</td>
+                          </tr>
+                        ))}
+                        {historyList.length === 0 && (
+                          <tr><td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-muted)' }}>No stock batches available for this product. Enter batch manually or check current stock.</td></tr>
+                        )}
+                      </>
                     )}
                   </tbody>
                 </table>
               </div>
               
-              <div style={{ padding: '12px', backgroundColor: 'var(--color-bg-elevated)', borderTop: '1px solid var(--color-border)', textAlign: 'center', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                Use <b>↑ ↓</b> arrows to navigate • Press <b>Enter</b> to populate selected batch • Press <b>Esc</b> to cancel
+              <div style={{ padding: '8px 12px', backgroundColor: 'var(--color-bg-elevated)', borderTop: '1px solid #3b82f6', fontSize: '11px', color: 'var(--color-text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+                <span>Use <kbd style={{ padding: '2px 6px', background: '#334155', borderRadius: '4px', color: '#fff' }}>↑</kbd> <kbd style={{ padding: '2px 6px', background: '#334155', borderRadius: '4px', color: '#fff' }}>↓</kbd> to navigate and <kbd style={{ padding: '2px 6px', background: '#3b82f6', borderRadius: '4px', color: '#fff' }}>Enter</kbd> to select.</span>
+                {!showZeroQtyBatches && allHistoryList.length > historyList.length && (
+                  <span style={{ color: '#fbbf24' }}>Press ↑ at top to show zero qty batches.</span>
+                )}
               </div>
             </div>
           </div>
-        );
+        )
       })()}
 
     </div>

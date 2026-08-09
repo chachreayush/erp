@@ -35,6 +35,7 @@ import {
   Wifi,            // LAN connection indicator
   Globe,           // Remote connection indicator
   Megaphone,       // Bulletin Board
+  Boxes,           // Stock indicator
 } from 'lucide-react'
 
 // ── NAV ITEM DEFINITION ───────────────────────────────────────
@@ -63,6 +64,12 @@ const NAV_ITEMS: NavItem[] = [
     label:  'Inventory',
     path:   '/inventory',
     icon:   <Package size={18} />,
+    module: 'inventory'
+  },
+  {
+    label:  'Current Stock',
+    path:   '/stock',
+    icon:   <Boxes size={18} />,
     module: 'inventory'
   },
   {

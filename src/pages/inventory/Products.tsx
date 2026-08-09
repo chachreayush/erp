@@ -11,8 +11,15 @@ import { HSNMasterModal } from '../../components/ui/HSNMasterModal'
 import { SaltMasterModal } from '../../components/ui/SaltMasterModal'
 import { 
   apiGetProducts, apiCreateProduct, ProductCreatePayload, Product,
-  apiGetManufacturers, apiGetSalts, apiGetHSNCodes
+  apiGetManufacturers, apiGetSalts, apiGetHSNCodes,
+  apiCreateManufacturer, apiCreateSalt, apiCreateHSNCode
 } from '../../lib/api'
+
+type LocalProductPayload = ProductCreatePayload & {
+  company_name?: string
+  salt?: string
+  hsn_code?: string
+}
 
 // Simple helper to format currency
 const formatCurrency = (val: number) => `₹${val.toFixed(2)}`
@@ -43,7 +50,7 @@ export default function ProductsPage() {
   const [salts, setSalts] = useState<{id: string, label: string, data?: any}[]>([])
 
   // Marg ERP form state
-  const [newProduct, setNewProduct] = useState<ProductCreatePayload>({
+  const [newProduct, setNewProduct] = useState<LocalProductPayload>({
     status: 'continue',
     hide: 'no',
     code: '1',
@@ -154,20 +161,10 @@ export default function ProductsPage() {
     setIsLoading(true)
     try {
       const apiData = await apiGetProducts()
-      const localData = JSON.parse(localStorage.getItem('erp_inventory_items') || '[]')
-      const mergedMap = new Map()
-      ;[...localData, ...apiData].forEach(p => {
-        if (p && p.name) {
-          mergedMap.set(p.name.trim().toLowerCase(), p)
-        }
-      })
-      const finalProducts = Array.from(mergedMap.values())
-      setProducts(finalProducts)
-      localStorage.setItem('erp_inventory_items', JSON.stringify(finalProducts))
-    } catch (error) {
-      console.error("Failed to fetch products from API, loading from localStorage:", error)
-      const localData = JSON.parse(localStorage.getItem('erp_inventory_items') || '[]')
-      setProducts(localData)
+      setProducts(apiData)
+      localStorage.setItem('erp_inventory_items', JSON.stringify(apiData))
+    } catch (err) {
+      console.error("Failed to load products", err)
     } finally {
       setIsLoading(false)
     }
@@ -193,10 +190,13 @@ export default function ProductsPage() {
       unit: product.unit || '',
       colour_type: (product.colour_type as any) || 'normal',
       item_type: (product.item_type as any) || 'normal',
-      company_name: product.company_name || '',
-      salt: product.salt || '',
+      company_id: product.company?.id || '',
+      company_name: product.company?.name || '',
+      salt_id: product.salt_relation?.id || '',
+      salt: product.salt_relation?.formula || '',
       hsn_applicable: (product.hsn_applicable as any) || 'no',
-      hsn_code: product.hsn_code || '',
+      hsn_id: product.hsn_relation?.id || '',
+      hsn_code: product.hsn_relation?.code || '',
       local_tax: (product.local_tax as any) || 'taxable',
       central_tax: (product.central_tax as any) || 'taxable',
       sgst_percent: product.sgst_percent || 0,
@@ -216,6 +216,7 @@ export default function ProductsPage() {
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
+
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -234,9 +235,51 @@ export default function ProductsPage() {
     }
     setFormErrors({})
 
+    let finalProduct = { ...newProduct }
+
+    try {
+      // Auto-create Manufacturer if typed manually
+      if (finalProduct.company_name && !finalProduct.company_id) {
+        const existing = companies.find(c => c.label.toLowerCase() === finalProduct.company_name?.toLowerCase())
+        if (existing) {
+          finalProduct.company_id = existing.id
+        } else {
+          const newMfg = await apiCreateManufacturer({ name: finalProduct.company_name, status: "continue", prohibited: false, default_discount: 0 } as any)
+          finalProduct.company_id = newMfg.id
+          setCompanies(prev => [...prev, { id: newMfg.id, label: newMfg.name, data: newMfg }])
+        }
+      }
+
+      // Auto-create Salt if typed manually
+      if (finalProduct.salt && !finalProduct.salt_id) {
+        const existing = salts.find(s => s.label.toLowerCase() === finalProduct.salt?.toLowerCase())
+        if (existing) {
+          finalProduct.salt_id = existing.id
+        } else {
+          const newSalt = await apiCreateSalt({ formula: finalProduct.salt } as any)
+          finalProduct.salt_id = newSalt.id
+          setSalts(prev => [...prev, { id: newSalt.id || '', label: newSalt.formula, data: newSalt }])
+        }
+      }
+
+      // Auto-create HSN if typed manually
+      if (finalProduct.hsn_code && !finalProduct.hsn_id) {
+        const existing = hsns.find(h => h.label.toLowerCase() === finalProduct.hsn_code?.toLowerCase())
+        if (existing) {
+          finalProduct.hsn_id = existing.id
+        } else {
+          const newHsn = await apiCreateHSNCode({ code: finalProduct.hsn_code, igst: finalProduct.igst_percent, cgst: finalProduct.cgst_percent, sgst: finalProduct.sgst_percent } as any)
+          finalProduct.hsn_id = newHsn.id
+          setHsns(prev => [...prev, { id: newHsn.id || '', label: newHsn.code, data: newHsn }])
+        }
+      }
+    } catch (err) {
+      console.error("Error auto-creating master data", err)
+    }
+
     if (modifyingProductId) {
       const updatedProducts = products.map(p => 
-        p.id === modifyingProductId ? { ...p, ...newProduct } : p
+        p.id === modifyingProductId ? { ...p, ...finalProduct } : p
       )
       setProducts(updatedProducts)
       localStorage.setItem('erp_inventory_items', JSON.stringify(updatedProducts))
@@ -247,13 +290,12 @@ export default function ProductsPage() {
 
     let created: Product
     try {
-      created = await apiCreateProduct(newProduct)
+      created = await apiCreateProduct(finalProduct)
     } catch (error) {
       console.error("Failed to create product via API, saving to localStorage:", error)
       created = {
-        ...newProduct,
+        ...finalProduct,
         id: 'local_' + Date.now(),
-        company_id: '1',
         created_at: new Date().toISOString()
       } as Product
     }
@@ -265,7 +307,8 @@ export default function ProductsPage() {
     setNewProduct({
       ...newProduct,
       code: (parseInt(newProduct.code) || updatedProducts.length + 1).toString(), // Auto-increment code
-      name: '', packing: '', unit: '', salt: '',
+      name: '', packing: '', unit: '', salt: '', salt_id: '',
+      company_name: '', company_id: '', hsn_code: '', hsn_id: '',
       mrp: 0, p_rate: 0, pts_rate: 0, rate_a: 0, ptr_rate: 0
     })
   }
@@ -470,7 +513,7 @@ export default function ProductsPage() {
         title="Select Company"
         items={companies}
         onSelect={(item) => {
-          setNewProduct({ ...newProduct, company_name: item.label })
+          setNewProduct({ ...newProduct, company_name: item.label, company_id: item.id })
           setIsCompanyLookupOpen(false)
         }}
         onCreateNew={() => {
@@ -493,7 +536,7 @@ export default function ProductsPage() {
         title="Select Salt Formula"
         items={salts}
         onSelect={(item) => {
-          setNewProduct({ ...newProduct, salt: item.label })
+          setNewProduct({ ...newProduct, salt: item.label, salt_id: item.id })
           setIsSaltLookupOpen(false)
         }}
         onCreateNew={() => {
@@ -525,7 +568,7 @@ export default function ProductsPage() {
               sgst_percent: item.data.igst / 2
             })
           } else {
-            setNewProduct({ ...newProduct, hsn_code: item.label })
+            setNewProduct({ ...newProduct, hsn_code: item.label, hsn_id: item.id })
           }
           setIsHsnLookupOpen(false)
         }}
@@ -661,7 +704,7 @@ export default function ProductsPage() {
                       </div>
                       <div>
                         <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{product.name}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Code: {product.code} | {product.company_name}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>Code: {product.code} | {product.company?.name}</div>
                       </div>
                     </div>
                   </td>

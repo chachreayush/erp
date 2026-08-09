@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from typing import List, Optional
+from typing import List
 from uuid import UUID
 
 from database import get_db
@@ -9,52 +9,53 @@ import models
 import schemas
 from auth.router import get_current_user
 
-# ── ROUTER SETUP ───────────────────────────────────────────────
 router = APIRouter(
-    prefix="/sales",
-    tags=["Sales"],
+    prefix="/purchases",
+    tags=["Purchases"],
     dependencies=[Depends(get_current_user)]
 )
 
-# ── GET INVOICES ───────────────────────────────────────────────
 @router.get("/invoices", response_model=List[schemas.InvoiceResponse])
-def get_invoices(
-    invoice_type: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
+def get_purchase_invoices(
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(get_db), 
     current_user: models.User = Depends(get_current_user)
 ):
     """
-    Fetch all invoices for the current user's organization, optionally filtered by type.
-    """
-    query = db.query(models.Invoice).filter(models.Invoice.organization_id == current_user.organization_id)
-    
-    if invoice_type:
-        query = query.filter(models.Invoice.invoice_type == invoice_type)
-        
-    invoices = query.order_by(desc(models.Invoice.created_at)).all()
-    return invoices
-
-
-# ── CREATE INVOICE ─────────────────────────────────────────────
-@router.post("/invoices", response_model=schemas.InvoiceResponse, status_code=status.HTTP_201_CREATED)
-def create_invoice(
-    invoice_data: schemas.InvoiceCreate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
-):
-    """
-    Create a new invoice, save its line items, and deduct stock.
+    Retrieve all purchase invoices for the current user's organization.
     """
     org_id = current_user.organization_id
+    if not org_id:
+        raise HTTPException(status_code=403, detail="User does not belong to an organization")
+        
+    invoices = db.query(models.Invoice).filter(
+        models.Invoice.organization_id == org_id,
+        models.Invoice.invoice_type == "purchase"
+    ).order_by(desc(models.Invoice.created_at)).offset(skip).limit(limit).all()
+    
+    return invoices
 
-    # 1. Create the parent Invoice record
+@router.post("/invoices", response_model=schemas.InvoiceResponse, status_code=status.HTTP_201_CREATED)
+def create_purchase_invoice(
+    invoice_data: schemas.InvoiceCreate, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Create a new purchase invoice (bill) and its line items.
+    """
+    org_id = current_user.organization_id
+    if not org_id:
+        raise HTTPException(status_code=403, detail="User does not belong to an organization")
+    
+    # 1. Create the parent Invoice
     new_invoice = models.Invoice(
         organization_id=org_id,
-        invoice_type=invoice_data.invoice_type,
+        invoice_type="purchase", # Force purchase type
         invoice_number=invoice_data.invoice_number,
         party_invoice_number=invoice_data.party_invoice_number,
-        date=invoice_data.date,
-        customer_name=invoice_data.customer_name,
+        customer_name=invoice_data.customer_name, # In purchase context, this is the supplier/party
         subtotal=invoice_data.subtotal,
         bill_discount=invoice_data.bill_discount,
         tax_total=invoice_data.tax_total,
@@ -68,9 +69,9 @@ def create_invoice(
     )
     
     db.add(new_invoice)
-    db.flush() # Get the new_invoice.id before committing
-
-    # 2. Add Invoice Items
+    db.flush() # flush to get the UUID generated for new_invoice
+    
+    # 2. Create the child InvoiceItems
     for item_data in invoice_data.items:
         new_item = models.InvoiceItem(
             invoice_id=new_invoice.id,
@@ -95,21 +96,28 @@ def create_invoice(
             line_total=item_data.line_total
         )
         db.add(new_item)
-
-        # 3. Deduct stock from specific batch
+        
+        # 3. Sync with Batch Master
         if item_data.product_id and item_data.batch:
             batch_record = db.query(models.Batch).filter(
                 models.Batch.product_id == item_data.product_id,
                 models.Batch.batch_number == item_data.batch,
                 models.Batch.organization_id == org_id
             ).first()
-
+            
             if batch_record:
-                # Deduct stock (both sold quantity and free quantity)
-                batch_record.current_stock -= (item_data.quantity + item_data.free_quantity)
+                # Update existing batch stock
+                batch_record.current_stock += item_data.quantity + item_data.free_quantity
+                # Optionally update rates if they changed, but usually batch details are static or updated manually
+                batch_record.rate = item_data.rate
+                batch_record.mrp = item_data.mrp
+                batch_record.expiry = item_data.expiry
+                batch_record.cost = item_data.cost
+                batch_record.rate_a = item_data.rate_a
+                batch_record.rate_b = item_data.rate_b
+                batch_record.rate_c = item_data.rate_c
             else:
-                # If batch doesn't exist for some reason, we could create a negative stock one,
-                # but usually sales shouldn't happen without stock. Let's just create a negative one for record.
+                # Create a new batch
                 new_batch = models.Batch(
                     organization_id=org_id,
                     product_id=item_data.product_id,
@@ -121,11 +129,10 @@ def create_invoice(
                     rate_b=item_data.rate_b,
                     rate_c=item_data.rate_c,
                     cost=item_data.cost,
-                    current_stock=-(item_data.quantity + item_data.free_quantity)
+                    current_stock=item_data.quantity + item_data.free_quantity
                 )
                 db.add(new_batch)
-
-    # Commit all changes to the database
+        
     db.commit()
     db.refresh(new_invoice)
     

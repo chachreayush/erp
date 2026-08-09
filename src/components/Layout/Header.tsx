@@ -104,13 +104,17 @@ const subItemsMap: Record<string, { label: string; path: string }[]> = {
 }
 
 const inventoryMenuItems: MenuItem[] = [
-  { label: 'Product', type: 'product' }
+  { label: 'Product', type: 'product' },
+  { label: 'Current Stock', type: 'current-stock' }
 ]
 
 const inventorySubItemsMap: Record<string, { label: string; path: string }[]> = {
   'product': [
     { label: 'Create', path: '/inventory?action=create' },
     { label: 'Modify', path: '/inventory?action=modify' }
+  ],
+  'current-stock': [
+    { label: 'View Stock', path: '/stock' }
   ]
 }
 

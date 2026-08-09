@@ -33,6 +33,7 @@ import LoginPage from './pages/Login'
 import DashboardPage from './pages/Dashboard'
 import SettingsPage from './pages/Settings'
 import ProductsPage from './pages/inventory/Products'
+import CurrentStockPage from './pages/stock/CurrentStock'
 import FinancePage from './pages/finance/Finance'
 import ClientManagementPage from './pages/admin/ClientManagement'
 import BulletinBoard from './pages/bulletin/BulletinBoard'
@@ -99,6 +100,7 @@ function App() {
         <Route path="master"           element={<MasterPage />} />
         <Route path="finance"          element={<FinancePage />} />
         <Route path="inventory"        element={<ProductsPage />} />
+        <Route path="stock"            element={<CurrentStockPage />} />
         <Route path="bulletin"         element={<BulletinBoard />} />
         <Route path="sales"            element={<SalesBill />} />
         <Route path="purchase"         element={<PurchaseBill />} />
