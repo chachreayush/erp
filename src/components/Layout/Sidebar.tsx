@@ -35,7 +35,7 @@ import {
   Wifi,            // LAN connection indicator
   Globe,           // Remote connection indicator
   Megaphone,       // Bulletin Board
-  Boxes,           // Stock indicator
+  Boxes,
 } from 'lucide-react'
 
 // ── NAV ITEM DEFINITION ───────────────────────────────────────

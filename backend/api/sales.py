@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import List, Optional
 from uuid import UUID
+from datetime import datetime
 
 from database import get_db
 import models
@@ -20,20 +21,63 @@ router = APIRouter(
 @router.get("/invoices", response_model=List[schemas.InvoiceResponse])
 def get_invoices(
     invoice_type: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
     """
     Fetch all invoices for the current user's organization, optionally filtered by type.
+    Supports pagination.
     """
-    query = db.query(models.Invoice).filter(models.Invoice.organization_id == current_user.organization_id)
+    query = db.query(models.Invoice).filter(
+        models.Invoice.organization_id == current_user.organization_id,
+        models.Invoice.is_active == True
+    )
     
     if invoice_type:
         query = query.filter(models.Invoice.invoice_type == invoice_type)
         
-    invoices = query.order_by(desc(models.Invoice.created_at)).all()
+    invoices = query.order_by(desc(models.Invoice.created_at)).offset(skip).limit(limit).all()
     return invoices
 
+
+def _deduct_stock_for_invoice(db: Session, org_id: UUID, items: list[schemas.InvoiceItemCreate]):
+    """Deduct stock from batches for invoice items."""
+    for item in items:
+        if not item.product_id or not item.batch:
+            continue  # Skip if no product or batch specified
+        
+        batch = db.query(models.Batch).filter(
+            models.Batch.organization_id == org_id,
+            models.Batch.product_id == item.product_id,
+            models.Batch.batch_number == item.batch
+        ).first()
+        
+        if batch:
+            if batch.current_stock < item.quantity:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Insufficient stock for batch {item.batch} of product {item.product_name}. Available: {batch.current_stock}, Required: {item.quantity}"
+                )
+            batch.current_stock -= item.quantity
+        else:
+            # Batch not found - create with negative stock (backorder) or raise error
+            # For now, we'll create a batch record with negative stock to track backorders
+            new_batch = models.Batch(
+                organization_id=org_id,
+                product_id=item.product_id,
+                batch_number=item.batch,
+                expiry=item.expiry,
+                mrp=item.mrp or 0,
+                rate=item.rate,
+                rate_a=item.rate,
+                rate_b=0,
+                rate_c=0,
+                cost=0,
+                current_stock=-item.quantity  # Negative indicates backorder
+            )
+            db.add(new_batch)
 
 # ── CREATE INVOICE ─────────────────────────────────────────────
 @router.post("/invoices", response_model=schemas.InvoiceResponse, status_code=status.HTTP_201_CREATED)
@@ -46,87 +90,175 @@ def create_invoice(
     Create a new invoice, save its line items, and deduct stock.
     """
     org_id = current_user.organization_id
-
-    # 1. Create the parent Invoice record
+    
+    # 1. Create the parent Invoice record with ALL fields
     new_invoice = models.Invoice(
         organization_id=org_id,
         invoice_type=invoice_data.invoice_type,
         invoice_number=invoice_data.invoice_number,
-        party_invoice_number=invoice_data.party_invoice_number,
-        date=invoice_data.date,
+        date=datetime.utcnow(),  # Set current timestamp
         customer_name=invoice_data.customer_name,
-        subtotal=invoice_data.subtotal,
+        
+        # Advanced ERP fields
+        party_inv_no=invoice_data.party_inv_no,
+        party_inv_date=invoice_data.party_inv_date,
+        due_date=invoice_data.due_date,
+        remarks=invoice_data.remarks,
+        dispatch_through=invoice_data.dispatch_through,
+        destination=invoice_data.destination,
         bill_discount=invoice_data.bill_discount,
-        tax_total=invoice_data.tax_total,
-        grand_total=invoice_data.grand_total,
+        
         ledger1_name=invoice_data.ledger1_name,
-        ledger1_amount=invoice_data.ledger1_amount,
+        ledger1_amt=invoice_data.ledger1_amt,
         ledger2_name=invoice_data.ledger2_name,
-        ledger2_amount=invoice_data.ledger2_amount,
+        ledger2_amt=invoice_data.ledger2_amt,
         ledger3_name=invoice_data.ledger3_name,
-        ledger3_amount=invoice_data.ledger3_amount
+        ledger3_amt=invoice_data.ledger3_amt,
+        
+        # Financials
+        subtotal=invoice_data.subtotal,
+        tax_total=invoice_data.tax_total,
+        grand_total=invoice_data.grand_total
     )
     
     db.add(new_invoice)
-    db.flush() # Get the new_invoice.id before committing
+    db.flush()  # Get the new_invoice.id before committing
 
-    # 2. Add Invoice Items
-    for item_data in invoice_data.items:
+    # 2. Add Invoice Items with ALL fields
+    for item in invoice_data.items:
         new_item = models.InvoiceItem(
             invoice_id=new_invoice.id,
-            product_id=item_data.product_id,
-            product_name=item_data.product_name,
-            pack=item_data.pack,
-            batch=item_data.batch,
-            expiry=item_data.expiry,
-            quantity=item_data.quantity,
-            free_quantity=item_data.free_quantity,
-            rate=item_data.rate,
-            discount_percent=item_data.discount_percent,
-            mrp=item_data.mrp,
-            cgst_percent=item_data.cgst_percent,
-            sgst_percent=item_data.sgst_percent,
-            igst_percent=item_data.igst_percent,
-            rate_a=item_data.rate_a,
-            rate_b=item_data.rate_b,
-            rate_c=item_data.rate_c,
-            cost=item_data.cost,
-            hsn=item_data.hsn,
-            line_total=item_data.line_total
+            product_id=item.product_id,
+            product_name=item.product_name,
+            quantity=item.quantity,
+            rate=item.rate,
+            igst_percent=item.igst_percent,
+            line_total=item.line_total,
+            
+            # Advanced ERP fields
+            batch=item.batch,
+            expiry=item.expiry,
+            mrp=item.mrp,
+            discount_percent=item.discount_percent,
+            margin_percent=item.margin_percent
         )
         db.add(new_item)
 
-        # 3. Deduct stock from specific batch
-        if item_data.product_id and item_data.batch:
-            batch_record = db.query(models.Batch).filter(
-                models.Batch.product_id == item_data.product_id,
-                models.Batch.batch_number == item_data.batch,
-                models.Batch.organization_id == org_id
-            ).first()
-
-            if batch_record:
-                # Deduct stock (both sold quantity and free quantity)
-                batch_record.current_stock -= (item_data.quantity + item_data.free_quantity)
-            else:
-                # If batch doesn't exist for some reason, we could create a negative stock one,
-                # but usually sales shouldn't happen without stock. Let's just create a negative one for record.
-                new_batch = models.Batch(
-                    organization_id=org_id,
-                    product_id=item_data.product_id,
-                    batch_number=item_data.batch,
-                    expiry=item_data.expiry,
-                    mrp=item_data.mrp,
-                    rate=item_data.rate,
-                    rate_a=item_data.rate_a,
-                    rate_b=item_data.rate_b,
-                    rate_c=item_data.rate_c,
-                    cost=item_data.cost,
-                    current_stock=-(item_data.quantity + item_data.free_quantity)
-                )
-                db.add(new_batch)
+    # 3. Deduct stock from batches
+    _deduct_stock_for_invoice(db, org_id, invoice_data.items)
 
     # Commit all changes to the database
     db.commit()
     db.refresh(new_invoice)
     
     return new_invoice
+
+@router.put("/invoices/{invoice_id}", response_model=schemas.InvoiceResponse)
+def update_invoice(
+    invoice_id: UUID,
+    invoice_data: schemas.InvoiceCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Update an existing invoice (recalculates stock changes).
+    """
+    org_id = current_user.organization_id
+    
+    db_invoice = db.query(models.Invoice).filter(
+        models.Invoice.id == invoice_id,
+        models.Invoice.organization_id == org_id
+    ).first()
+    
+    if not db_invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    # Restore stock from old items before updating
+    old_items = db.query(models.InvoiceItem).filter(
+        models.InvoiceItem.invoice_id == invoice_id
+    ).all()
+    
+    for old_item in old_items:
+        if old_item.product_id and old_item.batch:
+            batch = db.query(models.Batch).filter(
+                models.Batch.organization_id == org_id,
+                models.Batch.product_id == old_item.product_id,
+                models.Batch.batch_number == old_item.batch
+            ).first()
+            if batch:
+                batch.current_stock += old_item.quantity
+    
+    # Delete old items
+    for old_item in old_items:
+        db.delete(old_item)
+    
+    # Update invoice fields
+    update_data = invoice_data.model_dump(exclude={"items"})
+    for key, value in update_data.items():
+        setattr(db_invoice, key, value)
+    
+    db.flush()
+    
+    # Add new items
+    for item in invoice_data.items:
+        new_item = models.InvoiceItem(
+            invoice_id=db_invoice.id,
+            product_id=item.product_id,
+            product_name=item.product_name,
+            quantity=item.quantity,
+            rate=item.rate,
+            igst_percent=item.igst_percent,
+            line_total=item.line_total,
+            batch=item.batch,
+            expiry=item.expiry,
+            mrp=item.mrp,
+            discount_percent=item.discount_percent,
+            margin_percent=item.margin_percent
+        )
+        db.add(new_item)
+    
+    # Deduct stock for new items
+    _deduct_stock_for_invoice(db, org_id, invoice_data.items)
+    
+    db.commit()
+    db.refresh(db_invoice)
+    return db_invoice
+
+@router.delete("/invoices/{invoice_id}")
+def delete_invoice(
+    invoice_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Soft delete an invoice and restore stock.
+    """
+    org_id = current_user.organization_id
+    
+    db_invoice = db.query(models.Invoice).filter(
+        models.Invoice.id == invoice_id,
+        models.Invoice.organization_id == org_id
+    ).first()
+    
+    if not db_invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    # Restore stock from items
+    items = db.query(models.InvoiceItem).filter(
+        models.InvoiceItem.invoice_id == invoice_id
+    ).all()
+    
+    for item in items:
+        if item.product_id and item.batch:
+            batch = db.query(models.Batch).filter(
+                models.Batch.organization_id == org_id,
+                models.Batch.product_id == item.product_id,
+                models.Batch.batch_number == item.batch
+            ).first()
+            if batch:
+                batch.current_stock += item.quantity
+    
+    # Soft delete
+    db_invoice.is_active = False
+    db.commit()
+    return {"message": "Invoice deleted successfully, stock restored"}

@@ -2,6 +2,7 @@ import React from 'react'
 import { Input, MODAL_FIELD, MODAL_LABEL, MODAL_GAP } from '../ui/Input'
 
 interface HSNFormProps {
+  errors?: Record<string, string>;
   formData: any
   setFormData: (data: any) => void
   modalMode: 'create' | 'edit' | 'view'

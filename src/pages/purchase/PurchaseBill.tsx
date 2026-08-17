@@ -1,6 +1,7 @@
+import { apiCreateInvoice, InvoiceCreatePayload } from '../../lib/api';
 import React, { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { apiGetProducts, apiGetLedgers, apiCreatePurchaseInvoice } from '../../lib/api'
+import { apiGetProducts } from '../../lib/api'
 import type { Product as _Product } from '../../lib/api'
 import PurchaseList from './PurchaseList'
 
@@ -388,29 +389,21 @@ export default function PurchaseBill() {
   const [showF3BatchModal, setShowF3BatchModal] = useState(false)
   const [f3SelectedIndex, setF3SelectedIndex] = useState(0)
 
-  // Parties / Sundry Creditors List (Merged with localStorage & API)
-  const [partiesList, setPartiesList] = useState<string[]>([])
-
-  useEffect(() => {
-    const loadParties = async () => {
-      try {
-        const ledgers = await apiGetLedgers()
-        const apiPartyNames = ledgers.map(l => l.name)
-        const defaultParties = [
-          'Sun Pharma Ltd.',
-          'Cipla Pharmaceuticals',
-          'Glenmark Pharma',
-          'Zydus Healthcare'
-        ]
-        const savedParties = JSON.parse(localStorage.getItem('erp_parties') || '[]')
-        setPartiesList(Array.from(new Set([...defaultParties, ...savedParties, ...apiPartyNames])))
-      } catch (err) {
-        console.error("Failed to fetch API ledgers:", err)
-      }
-    }
-    loadParties()
-  }, [])
-
+  // Parties / Sundry Creditors List (Merged with localStorage)
+  const defaultParties = [
+    'Sun Pharma Ltd.',
+    'Cipla Pharmaceuticals',
+    'Glenmark Pharma',
+    'Mankind Pharma',
+    'Abbott Healthcare',
+    'Lupin Ltd.',
+    'Dr. Reddys Laboratories',
+    'Torrent Pharmaceuticals',
+    'Alkem Laboratories',
+    'Zydus Healthcare'
+  ]
+  const savedParties = JSON.parse(localStorage.getItem('erp_parties') || '[]')
+  const partiesList = Array.from(new Set([...defaultParties, ...savedParties]))
   const filteredParties = partiesList.filter(p => p.toLowerCase().includes(partySearch.toLowerCase()))
 
   // Dynamic Inventory Products merged with Built-in Demo Products
@@ -569,7 +562,13 @@ export default function PurchaseBill() {
       }, 20)
       return false
     }
-    // Removed Party Invoice Number mandatory check
+    if (!partyInvNo.trim()) {
+      alert("Party Invoice Number is mandatory! Please enter the supplier's Invoice Number before moving forward.")
+      setTimeout(() => {
+        partyInvRef.current?.focus()
+      }, 20)
+      return false
+    }
     return true
   }
 
@@ -656,6 +655,14 @@ export default function PurchaseBill() {
 
   const handlePartyInvKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === 'Tab') {
+      if (!partyInvNo || !partyInvNo.trim()) {
+        e.preventDefault()
+        alert("Party Invoice Number is mandatory! Please enter the supplier's Invoice Number before moving forward.")
+        setTimeout(() => {
+          partyInvRef.current?.focus()
+        }, 20)
+        return
+      }
 
       const savedBills = JSON.parse(localStorage.getItem('savedPurchaseBills') || '[]')
       if (savedBills.some((b: any) => b.partyName === partyName && b.partyInvNo.toLowerCase() === partyInvNo.trim().toLowerCase())) {
@@ -798,95 +805,88 @@ export default function PurchaseBill() {
   }
 
   const confirmSaveBill = async () => {
-    try {
-      // 1. Build payload for backend
-      const items = gridRows
-        .filter(row => row.product?.trim() && (parseFloat(row.qty) > 0 || parseFloat(row.prate) > 0 || parseFloat(row.mrp) > 0))
-        .map(row => {
-           const matchedProd = inventoryProducts.find(p => p.name.trim().toLowerCase() === row.product.trim().toLowerCase())
-           return {
-             product_id: matchedProd?.id || null,
-             product_name: row.product,
-             pack: row.pack,
-             batch: row.batch,
-             expiry: row.expiry,
-             quantity: parseFloat(row.qty) || 0,
-             free_quantity: parseFloat(row.free) || 0,
-             rate: parseFloat(row.prate) || 0,
-             discount_percent: parseFloat(row.dis) || 0,
-             mrp: parseFloat(row.mrp) || 0,
-             cgst_percent: parseFloat(row.cgst) || 0,
-             sgst_percent: parseFloat(row.sgst) || 0,
-             igst_percent: parseFloat(row.igst) || 0,
-             rate_a: parseFloat(row.rateA) || 0,
-             rate_b: parseFloat(row.rateB) || 0,
-             rate_c: parseFloat(row.rateC) || 0,
-             cost: parseFloat(row.cost) || 0,
-             hsn: row.hsn,
-             line_total: parseFloat(row.amount) || 0
-           }
-        })
-      
-      const payload = {
-         customer_name: partyName || 'Cash Purchase',
-         invoice_number: billNo || 'P0001',
-         party_invoice_number: partyInvNo,
-         subtotal: totals.valueOfGoods,
-         bill_discount: parseFloat(billDiscount) || 0,
-         tax_total: backgroundGstAmount,
-         grand_total: invoiceValue,
-         ledger1_name: ledger1Name,
-         ledger1_amount: parseFloat(ledger1Amt) || 0,
-         ledger2_name: ledger2Name,
-         ledger2_amount: parseFloat(ledger2Amt) || 0,
-         ledger3_name: ledger3Name,
-         ledger3_amount: parseFloat(ledger3Amt) || 0,
-         items: items
+    // Commit completed products and batches from this bill to SAVED_PAST_BILLS_REGISTRY so they officially become past bill details
+    gridRows.forEach(row => {
+      if (row.product?.trim() && row.batch?.trim() && (parseFloat(row.qty) > 0 || parseFloat(row.prate) > 0 || parseFloat(row.mrp) > 0)) {
+        const prodKey = row.product.trim().toLowerCase();
+        if (!SAVED_PAST_BILLS_REGISTRY[prodKey]) SAVED_PAST_BILLS_REGISTRY[prodKey] = [];
+        const newRecord: PurchaseHistoryRecord = {
+          party: partyName || 'Cash Purchase',
+          billNo: billNo || 'P0001',
+          date: getTodayFormatted(),
+          qty: parseFloat(row.qty) || 0,
+          batch: row.batch.trim().toUpperCase(),
+          expiry: row.expiry || '12/28',
+          rate: parseFloat(row.prate) || 0,
+          srate: Number(((parseFloat(row.prate) || 0) * 1.3).toFixed(2)),
+          mrg: '25.00%',
+          mrp: parseFloat(row.mrp) || 0,
+          disc: parseFloat(row.dis) || 0,
+          deal: '0.00',
+          cost: parseFloat(row.prate) || 0,
+          godown: '1'
+        };
+        // Unshift newly saved bill record to the top of historical records
+        SAVED_PAST_BILLS_REGISTRY[prodKey].unshift(newRecord);
       }
+    });
 
-      await apiCreatePurchaseInvoice(payload)
+    const validRows = gridRows.filter(r => r.product?.trim() && (parseFloat(r.qty) > 0 || parseFloat(r.prate) > 0));
+    
+    const payload: InvoiceCreatePayload = {
+      invoice_type: `purchase-${baseType}`,
+      customer_name: partyName || 'Cash Purchase',
+      invoice_number: billNo.trim(),
+      party_inv_no: partyInvNo.trim(),
+      party_inv_date: invDateStr,
+      due_date: dateStr,
+      remarks: '',
+      dispatch_through: '',
+      destination: '',
+      bill_discount: parseFloat(billDiscount) || 0,
+      ledger1_name: ledger1Name,
+      ledger1_amt: parseFloat(ledger1Amt) || 0,
+      ledger2_name: ledger2Name,
+      ledger2_amt: parseFloat(ledger2Amt) || 0,
+      ledger3_name: ledger3Name,
+      ledger3_amt: parseFloat(ledger3Amt) || 0,
+      subtotal: totals.valueOfGoods,
+      tax_total: totals.gstAmount,
+      grand_total: invoiceValue,
+      items: validRows.map(row => ({
+         product_name: row.product,
+         quantity: parseInt(row.qty) || 0,
+         rate: parseFloat(row.prate) || 0,
+         igst_percent: parseFloat(row.igst) || 0,
+         line_total: parseFloat(row.amount) || 0,
+         batch: row.batch.trim(),
+         expiry: row.expiry,
+         mrp: parseFloat(row.mrp) || 0,
+         discount_percent: parseFloat(row.dis) || 0,
+         margin_percent: '0'
+      }))
+    };
 
-      // 2. Commit completed products and batches from this bill to SAVED_PAST_BILLS_REGISTRY so they officially become past bill details
-      gridRows.forEach(row => {
-        if (row.product?.trim() && row.batch?.trim() && (parseFloat(row.qty) > 0 || parseFloat(row.prate) > 0 || row.mrp)) {
-          const prodKey = row.product.trim().toLowerCase();
-          if (!SAVED_PAST_BILLS_REGISTRY[prodKey]) SAVED_PAST_BILLS_REGISTRY[prodKey] = [];
-          const newRecord: PurchaseHistoryRecord = {
-            party: partyName || 'Cash Purchase',
-            billNo: billNo || 'P0001',
-            date: getTodayFormatted(),
-            qty: parseFloat(row.qty) || 0,
-            batch: row.batch.trim().toUpperCase(),
-            expiry: row.expiry || '12/28',
-            rate: parseFloat(row.prate) || 0,
-            srate: Number(((parseFloat(row.prate) || 0) * 1.3).toFixed(2)),
-            mrg: '25.00%',
-            mrp: parseFloat(row.mrp) || 0,
-            disc: parseFloat(row.dis) || 0,
-            deal: '0.00',
-            cost: parseFloat(row.prate) || 0,
-            godown: '1'
-          };
-          // Unshift newly saved bill record to the top of historical records
-          SAVED_PAST_BILLS_REGISTRY[prodKey].unshift(newRecord);
-        }
-      });
+    try {
+      await apiCreateInvoice(payload);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save to backend database. Check console.');
+      return;
+    }
 
-      setShowSaveModal(false)
-      setSaveSuccessMessage(`Purchase Bill [${billNo}] Saved Successfully! Total: ₹${invoiceValue.toFixed(2)}`)
-      
-      setTimeout(() => {
-        setSaveSuccessMessage('')
-        // Optionally keep localStorage push if needed for legacy offline reasons, but backend is source of truth now
-        const savedBills = JSON.parse(localStorage.getItem('savedPurchaseBills') || '[]')
-        savedBills.push({ entryNo: billNo.trim(), partyName: partyName, partyInvNo: partyInvNo.trim(), recordType: baseType })
-        localStorage.setItem('savedPurchaseBills', JSON.stringify(savedBills))
+    setShowSaveModal(false)
+    setSaveSuccessMessage(`Purchase Bill [${billNo}] Saved Successfully! Total: ₹${invoiceValue.toFixed(2)}`)
+    
+    setTimeout(() => {
+      setSaveSuccessMessage('')
+      // Local storage removed
 
-        const nextBillNo = incrementSeries(billNo)
-        setBillNo(nextBillNo)
-        localStorage.setItem(billNoKey, nextBillNo)
-        setPartyName('')
-        setPartyInvNo('')
+      const nextBillNo = incrementSeries(billNo)
+      setBillNo(nextBillNo)
+      localStorage.setItem(billNoKey, nextBillNo)
+      setPartyName('')
+      setPartyInvNo('')
       setBillDiscount('00.00')
       setLedger1Name('')
       setLedger1Amt('')
@@ -904,10 +904,6 @@ export default function PurchaseBill() {
       setActiveRowId(1)
       dateRef.current?.focus()
     }, 2500)
-    } catch (error) {
-      console.error("Failed to save purchase bill:", error)
-      alert("Failed to save purchase bill to the database. Check console for details.")
-    }
   }
 
   useEffect(() => {

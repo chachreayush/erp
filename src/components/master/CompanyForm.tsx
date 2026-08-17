@@ -3,6 +3,7 @@ import { Input, MODAL_FIELD, MODAL_LABEL, MODAL_GAP } from '../ui/Input'
 import { apiGetLedgers } from '../../lib/api'
 
 interface CompanyFormProps {
+  errors?: Record<string, string>;
   formData: any
   setFormData: (data: any) => void
   modalMode: 'create' | 'edit' | 'view'

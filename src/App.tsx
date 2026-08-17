@@ -33,14 +33,18 @@ import LoginPage from './pages/Login'
 import DashboardPage from './pages/Dashboard'
 import SettingsPage from './pages/Settings'
 import ProductsPage from './pages/inventory/Products'
-import CurrentStockPage from './pages/stock/CurrentStock'
 import FinancePage from './pages/finance/Finance'
 import ClientManagementPage from './pages/admin/ClientManagement'
 import BulletinBoard from './pages/bulletin/BulletinBoard'
 import BillingPage from './pages/sales/Billing'
 import SalesBill from './pages/sales/SalesBill'
 import PurchaseBill from './pages/purchase/PurchaseBill'
+import SalesReturnBill from './pages/returns/SalesReturnBill'
+import PurchaseReturnBill from './pages/returns/PurchaseReturnBill'
+import BrkReceiveBill from './pages/brk/BrkReceiveBill'
+import BrkIssueBill from './pages/brk/BrkIssueBill'
 import MasterPage from './pages/master/MasterPage'
+import CurrentStockPage from './pages/stock/CurrentStock'
 
 // ── PROTECTED ROUTE WRAPPER ───────────────────────────────────
 // This component wraps any page that requires authentication.
@@ -104,10 +108,10 @@ function App() {
         <Route path="bulletin"         element={<BulletinBoard />} />
         <Route path="sales"            element={<SalesBill />} />
         <Route path="purchase"         element={<PurchaseBill />} />
-        <Route path="sales-return"     element={<BillingPage />} />
-        <Route path="purchase-return"  element={<BillingPage />} />
-        <Route path="brk-receive"      element={<BillingPage />} />
-        <Route path="brk-issue"        element={<BillingPage />} />
+        <Route path="sales-return"     element={<SalesReturnBill />} />
+        <Route path="purchase-return"  element={<PurchaseReturnBill />} />
+        <Route path="brk-receive"      element={<BrkReceiveBill />} />
+        <Route path="brk-issue"        element={<BrkIssueBill />} />
         <Route path="gst-inward"       element={<BillingPage />} />
         <Route path="gst-outward"      element={<BillingPage />} />
         <Route path="stock-issue"      element={<BillingPage />} />

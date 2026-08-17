@@ -2,6 +2,7 @@ import React from 'react'
 import { Input, MODAL_GAP } from '../ui/Input'
 
 interface SaltFormProps {
+  errors?: Record<string, string>;
   formData: any
   setFormData: (data: any) => void
   modalMode: 'create' | 'edit' | 'view'

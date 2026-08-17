@@ -39,11 +39,7 @@ def register_client(request: ClientRegistrationRequest, current_user = Depends(g
     if existing_organization:
         raise HTTPException(status_code=400, detail="Organization code already in use")
         
-    # Check if admin username already exists globally (for simplicity, though it only needs to be unique per organization)
-    existing_user = db.query(User).filter(User.username == request.admin_username).first()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Admin username already in use")
-        
+
     # 1. Create the new Organization
     new_organization = Organization(
         name=request.org_name,

@@ -137,7 +137,6 @@ export default function BillingPage() {
     }
   }, [type, path])
 
-
   const fetchProducts = async () => {
     try {
       const l = await apiGetLedgers()

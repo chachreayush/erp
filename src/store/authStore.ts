@@ -26,6 +26,12 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware' // Saves state to appropriate storage
 
+// Helper to detect mobile on client side only
+const isMobileClient = () => {
+  if (typeof navigator === 'undefined') return false;
+  return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
 // ── TYPE DEFINITIONS ──────────────────────────────────────────
 
 // The connection mode the app detected on startup:
@@ -242,8 +248,9 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(() => {
         // Mobile users: localStorage (persistent until logout/app deletion)
         // Desktop users (Tauri/Browser): sessionStorage (cleared on system restart/software close)
-        const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-        return isMobile ? localStorage : sessionStorage;
+        // This runs client-side only, avoiding SSR hydration mismatch
+        if (typeof window === 'undefined') return sessionStorage;
+        return isMobileClient() ? localStorage : sessionStorage;
       }),
       partialize: (state) => ({
         user:      state.user,

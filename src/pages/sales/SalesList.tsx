@@ -3,6 +3,7 @@ import { Search, Calendar, Filter, FileText } from 'lucide-react'
 
 // Assuming Ag-Grid is available in the project
 import { AgGridReact } from 'ag-grid-react'
+import { apiGetInvoices } from '../../lib/api'
 import { ColDef } from 'ag-grid-community'
 
 interface PurchaseListProps {
@@ -37,10 +38,24 @@ export default function SalesList({ onSelectBill, type }: PurchaseListProps) {
   }, [])
 
   useEffect(() => {
-    // Read from local storage since backend isn't ready
-    const savedBills = JSON.parse(localStorage.getItem('savedSalesBills') || '[]')
-    setBills(savedBills)
-  }, [])
+    const fetchBills = async () => {
+      try {
+        const data = await apiGetInvoices(`sales-${baseType}`);
+        const mapped = data.map(inv => ({
+          entryNo: inv.invoice_number,
+          partyName: inv.customer_name,
+          partyInvNo: inv.party_inv_no || '',
+          recordType: baseType,
+          grandTotal: inv.grand_total,
+          date: inv.date ? new Date(inv.date).toLocaleDateString() : ''
+        }));
+        setBills(mapped);
+      } catch (err) {
+        console.error("Failed to fetch invoices", err);
+      }
+    };
+    fetchBills();
+  }, [baseType])
 
   const filteredBills = useMemo(() => {
     return bills.filter(bill => {

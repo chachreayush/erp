@@ -283,12 +283,7 @@ class Product(Base):
     company_id = Column(UUID(as_uuid=True), ForeignKey("manufacturers.id"), nullable=True)
     salt_id = Column(UUID(as_uuid=True), ForeignKey("salts.id"), nullable=True)
     
-    # Relationships for masters
-    company = relationship("Manufacturer", backref="products")
-    salt_relation = relationship("Salt", backref="products")
-    hsn_relation = relationship("HSNCode", backref="products")
-    
-    # 📝 Taxes & HSN 📝
+    # ── Taxes & HSN ──
     hsn_applicable = Column(String(50), nullable=True, default="no")
     hsn_id = Column(UUID(as_uuid=True), ForeignKey("hsn_codes.id"), nullable=True)
     local_tax = Column(String(50), nullable=True, default="taxable")
@@ -307,13 +302,20 @@ class Product(Base):
     discount_type = Column(String(50), nullable=True, default="applicable")
     category = Column(String(100), nullable=True, default="na")
 
+    # is_active: Soft delete flag
+    is_active = Column(Boolean, default=True, nullable=False)
+
     # ── RELATIONSHIPS ────────────────────────────────────────────
     organization = relationship("Organization", back_populates="products")
+    company = relationship("Manufacturer", foreign_keys=[company_id])
+    salt_relation = relationship("Salt", foreign_keys=[salt_id])
+    hsn = relationship("HSNCode", foreign_keys=[hsn_id])
 
     def __repr__(self):
         return f"<Product {self.code}: {self.name}>"
 
-# -- TABLE 5.5: Batch ----------------------------------------
+
+# -- TABLE 5.1: Batch (Inventory) ------------------------------
 class Batch(Base):
     __tablename__ = "batches"
 
@@ -350,23 +352,29 @@ class Invoice(Base):
 
     invoice_type = Column(String(50), nullable=False, default="bill")
     invoice_number = Column(String(100), nullable=False)
-    party_invoice_number = Column(String(100), nullable=True)
     date = Column(DateTime, default=datetime.utcnow, nullable=False)
     customer_name = Column(String(255), nullable=False)
     
+    # Advanced ERP Fields
+    party_inv_no = Column(String(100), nullable=True)
+    party_inv_date = Column(String(50), nullable=True)
+    due_date = Column(String(50), nullable=True)
+    remarks = Column(String(500), nullable=True)
+    dispatch_through = Column(String(100), nullable=True)
+    destination = Column(String(100), nullable=True)
+    bill_discount = Column(Numeric(12, 2), nullable=True, default=0)
+    
+    ledger1_name = Column(String(100), nullable=True)
+    ledger1_amt = Column(Numeric(12, 2), nullable=True)
+    ledger2_name = Column(String(100), nullable=True)
+    ledger2_amt = Column(Numeric(12, 2), nullable=True)
+    ledger3_name = Column(String(100), nullable=True)
+    ledger3_amt = Column(Numeric(12, 2), nullable=True)
+    
     # Financials
     subtotal = Column(Numeric(12, 2), nullable=False, default=0)
-    bill_discount = Column(Numeric(12, 2), nullable=False, default=0)
     tax_total = Column(Numeric(12, 2), nullable=False, default=0)
     grand_total = Column(Numeric(12, 2), nullable=False, default=0)
-    
-    # Ledgers
-    ledger1_name = Column(String(255), nullable=True)
-    ledger1_amount = Column(Numeric(12, 2), nullable=False, default=0)
-    ledger2_name = Column(String(255), nullable=True)
-    ledger2_amount = Column(Numeric(12, 2), nullable=False, default=0)
-    ledger3_name = Column(String(255), nullable=True)
-    ledger3_amount = Column(Numeric(12, 2), nullable=False, default=0)
     
     # -- RELATIONSHIPS --------------------------------------------
     organization = relationship("Organization")
@@ -385,26 +393,18 @@ class InvoiceItem(Base):
     product_id = Column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="SET NULL"), nullable=True)
 
     product_name = Column(String(255), nullable=False) # Store name in case product is deleted
-    pack = Column(String(50), nullable=True)
+    quantity = Column(Integer, nullable=False, default=1)
+    rate = Column(Numeric(10, 2), nullable=False)
+    
+    # Advanced ERP Item Fields
     batch = Column(String(100), nullable=True)
     expiry = Column(String(50), nullable=True)
-    
-    quantity = Column(Integer, nullable=False, default=1)
-    free_quantity = Column(Integer, nullable=False, default=0)
-    rate = Column(Numeric(10, 2), nullable=False)
-    discount_percent = Column(Numeric(5, 2), nullable=False, default=0)
-    mrp = Column(Numeric(12, 2), nullable=False, default=0)
+    mrp = Column(Numeric(10, 2), nullable=True, default=0)
+    discount_percent = Column(Numeric(5, 2), nullable=True, default=0)
+    margin_percent = Column(String(50), nullable=True)
     
     # Taxes applied at time of sale
-    cgst_percent = Column(Numeric(5, 2), nullable=False, default=0)
-    sgst_percent = Column(Numeric(5, 2), nullable=False, default=0)
     igst_percent = Column(Numeric(5, 2), nullable=False, default=0)
-    
-    rate_a = Column(Numeric(12, 2), nullable=False, default=0)
-    rate_b = Column(Numeric(12, 2), nullable=False, default=0)
-    rate_c = Column(Numeric(12, 2), nullable=False, default=0)
-    cost = Column(Numeric(12, 2), nullable=False, default=0)
-    hsn = Column(String(50), nullable=True)
     
     line_total = Column(Numeric(12, 2), nullable=False)
 
@@ -425,6 +425,8 @@ class Station(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     name = Column(String(255), nullable=False)
     
+    is_active = Column(Boolean, default=True, nullable=False)
+    
     def __repr__(self):
         return f"<Station {self.name}>"
 
@@ -439,7 +441,7 @@ class Ledger(Base):
     name = Column(String(255), nullable=False)
     group_name = Column(String(100), nullable=False) # e.g. 'Cash-in-Hand', 'Bank Accounts'
     mobile = Column(String(20), nullable=True)
-    state_id = Column(UUID(as_uuid=True), ForeignKey("state_codes.id"), nullable=True)
+    state = Column(String(100), nullable=True)
     opening_balance = Column(Numeric(15, 2), nullable=False, default=0)
     op_type = Column(String(2), nullable=False, default='Dr') # Dr or Cr
     closing_balance = Column(Numeric(15, 2), nullable=False, default=0)
@@ -467,10 +469,10 @@ class Ledger(Base):
     ledger_date = Column(DateTime, default=datetime.utcnow, nullable=True)
     colour = Column(String(50), nullable=True)
 
+    is_active = Column(Boolean, default=True, nullable=False)
 
     # -- RELATIONSHIPS --------------------------------------------
     organization = relationship("Organization")
-    state_relation = relationship("StateCode")
 
     def __repr__(self):
         return f"<Ledger {self.name}: {self.closing_balance}>"
@@ -490,6 +492,8 @@ class Salt(Base):
     side_effects = Column(Text, nullable=True)
     precautions = Column(Text, nullable=True)
     labels = Column(String(100), nullable=True) # e.g. Sch H
+
+    is_active = Column(Boolean, default=True, nullable=False)
 
     organization = relationship("Organization")
 
@@ -525,6 +529,8 @@ class Manufacturer(Base):
     field_staff_contact = Column(String(50), nullable=True)
     address = Column(Text, nullable=True)
 
+    is_active = Column(Boolean, default=True, nullable=False)
+
     organization = relationship("Organization")
     supplier_ledger = relationship("Ledger")
 
@@ -543,6 +549,8 @@ class HSNCode(Base):
     sgst = Column(Numeric(5, 2), nullable=False, default=0)
     type = Column(String(50), nullable=False, default="Goods")
 
+    is_active = Column(Boolean, default=True, nullable=False)
+
     organization = relationship("Organization")
 
 # -- TABLE 12: StateCode (Master Data) ---------------------------------
@@ -556,6 +564,8 @@ class StateCode(Base):
     name = Column(String(255), nullable=False)
     gst_code = Column(String(10), nullable=True)
     capital = Column(String(255), nullable=True)
+
+    is_active = Column(Boolean, default=True, nullable=False)
 
     organization = relationship("Organization")
 

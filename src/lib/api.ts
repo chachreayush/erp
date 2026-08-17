@@ -23,6 +23,13 @@
 import axios from 'axios'
 import { useAuthStore } from '../store/authStore'
 
+// Navigation function - will be initialized by a React component
+let navigateFn: ((path: string) => void) | null = null;
+
+export const setNavigateFn = (fn: (path: string) => void) => {
+  navigateFn = fn;
+};
+
 // ── GET THE SERVER URL ─────────────────────────────────────────
 // The server URL depends on the connection mode (LAN vs Remote):
 // - LAN Mode:    http://<server-lan-ip>:8000
@@ -103,12 +110,14 @@ apiClient.interceptors.response.use(
 
       // Clear the saved auth state from localStorage
       localStorage.removeItem('erp-auth')
+      sessionStorage.removeItem('erp-auth')
 
-      // Redirect to login page.
-      // We use window.location instead of React Router here because
-      // this interceptor runs outside the React component tree.
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login'
+      // Redirect to login page using React Router if available,
+      // otherwise fall back to window.location
+      if (navigateFn) {
+        navigateFn('/login');
+      } else if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.href = '/login';
       }
     }
 
@@ -218,9 +227,7 @@ export const api = {
 
 export interface Product {
   id: string
-  company_id?: string
-  salt_id?: string
-  hsn_id?: string
+  company_id: string
   created_at: string
   
   // ── Marg Profile Fields ──
@@ -232,13 +239,10 @@ export interface Product {
   unit: string
   colour_type: 'normal' | 'red' | 'blue' | 'green'
   item_type: 'normal' | 'cold storage' | 'costly'
-  
-  // Master Database Relations
-  company?: Manufacturer
-  salt_relation?: Salt
-  hsn_relation?: HSNCode
-
+  company_name: string
+  salt: string
   hsn_applicable: 'yes' | 'no'
+  hsn_code?: string
   local_tax: 'taxable' | 'tax paid' | 'exempted'
   central_tax: 'taxable' | 'tax paid' | 'exempted'
   sgst_percent: number
@@ -252,17 +256,48 @@ export interface Product {
   item_discount_percent: number
   discount_type: 'applicable' | 'no discount' | 'no sch discount' | 'no schem'
   category: 'na' | 'schedule h' | 'schedule h1' | 'narcotics'
+  is_active: boolean
 }
 
-export type ProductCreatePayload = Omit<Product, 'id' | 'created_at'>
+export type ProductCreatePayload = Omit<Product, 'id' | 'company_id' | 'created_at'>
 
 export async function apiGetProducts(): Promise<Product[]> {
-  const response = await apiClient.get<Product[]>('/products/')
+  const response = await apiClient.get<Product[]>('/api/products/')
   return response.data
 }
 
 export async function apiCreateProduct(payload: ProductCreatePayload): Promise<Product> {
-  const response = await apiClient.post<Product>('/products/', payload)
+  const response = await apiClient.post<Product>('/api/products/', payload)
+  return response.data
+}
+
+export async function apiUpdateProduct(id: string, payload: ProductCreatePayload): Promise<Product> {
+  const response = await apiClient.put<Product>(`/api/products/${id}`, payload)
+  return response.data
+}
+
+export async function apiDeleteProduct(id: string): Promise<void> {
+  await apiClient.delete(`/api/products/${id}`)
+}
+
+export interface Batch {
+  id: string
+  product_id: string
+  batch_number: string
+  expiry: string | null
+  mrp: number
+  rate: number
+  rate_a: number
+  rate_b: number
+  rate_c: number
+  cost: number
+  current_stock: number
+  is_active: boolean
+}
+
+export async function apiGetBatches(productId?: string): Promise<Batch[]> {
+  const params = productId ? { product_id: productId } : {}
+  const response = await apiClient.get<Batch[]>('/api/batches/', { params })
   return response.data
 }
 
@@ -277,6 +312,13 @@ export interface InvoiceItem {
   rate: number
   igst_percent: number
   line_total: number
+  
+  // Advanced ERP Fields
+  batch?: string
+  expiry?: string
+  mrp?: number
+  discount_percent?: number
+  margin_percent?: string
 }
 
 export interface Invoice {
@@ -288,6 +330,22 @@ export interface Invoice {
   invoice_type?: string
   customer_name: string
   invoice_number: string
+  
+  // Advanced ERP Fields
+  party_inv_no?: string
+  party_inv_date?: string
+  due_date?: string
+  remarks?: string
+  dispatch_through?: string
+  destination?: string
+  bill_discount?: number
+  
+  ledger1_name?: string
+  ledger1_amt?: number
+  ledger2_name?: string
+  ledger2_amt?: number
+  ledger3_name?: string
+  ledger3_amt?: number
   
   subtotal: number
   tax_total: number
@@ -314,6 +372,7 @@ export async function apiCreateInvoice(payload: InvoiceCreatePayload): Promise<I
 export interface Station {
   id?: string
   name: string
+  is_active: boolean
 }
 
 export interface Ledger {
@@ -321,8 +380,7 @@ export interface Ledger {
   name: string
   group_name: string
   mobile?: string
-  state_id?: string
-  state_relation?: StateCode
+  state?: string
   opening_balance: number
   op_type: string
   closing_balance: number
@@ -348,6 +406,7 @@ export interface Ledger {
   pan_no?: string
   ledger_date?: string
   colour?: string
+  is_active: boolean
 }
 
 // ── STATIONS ──────────────────────────────────────────────────
@@ -392,6 +451,7 @@ export interface Salt {
   side_effects?: string
   precautions?: string
   labels?: string
+  is_active: boolean
 }
 
 export async function apiGetSalts(): Promise<Salt[]> {
@@ -432,6 +492,7 @@ export interface Manufacturer {
   field_staff_name?: string;
   field_staff_contact?: string;
   address?: string;
+  is_active: boolean;
 }
 
 export interface ManufacturerCreate {
@@ -481,6 +542,7 @@ export interface HSNCode {
   cgst: number
   sgst: number
   type: string
+  is_active: boolean
 }
 
 export async function apiGetHSNCodes(): Promise<HSNCode[]> {
@@ -504,6 +566,7 @@ export interface StateCode {
   name: string
   gst_code?: string
   capital?: string
+  is_active: boolean
 }
 
 export async function apiGetStateCodes(): Promise<StateCode[]> {
@@ -529,39 +592,7 @@ export interface Organization {
   name: string
   org_code: string
   is_am: boolean
-}
-
-// ── PURCHASES MODULE API ──────────────────────────────────────────────────────────
-export async function apiCreatePurchaseInvoice(payload: any): Promise<any> {
-  const response = await apiClient.post<any>('/api/purchases/invoices', payload)
-  return response.data
-}
-
-// ── BATCHES API ──────────────────────────────────────────────────────────
-export interface Batch {
-  id: string
-  product_id: string
-  batch_number: string
-  expiry: string | null
-  mrp: number
-  rate: number
-  rate_a: number
-  rate_b: number
-  rate_c: number
-  cost: number
-  current_stock: number
-}
-
-export async function apiGetBatches(productId?: string): Promise<Batch[]> {
-  const params = productId ? { product_id: productId } : {}
-  const response = await apiClient.get<Batch[]>('/api/batches/', { params })
-  return response.data
-}
-
-// ── SALES MODULE API ────────────────────────────────────────────────────────
-export async function apiCreateSalesInvoice(payload: any): Promise<any> {
-  const response = await apiClient.post<any>('/api/sales/invoices', payload)
-  return response.data
+  is_active: boolean
 }
 
 export interface ClientRegistrationRequest {

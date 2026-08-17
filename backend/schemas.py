@@ -34,7 +34,7 @@ class ClientRegistrationRequest(BaseModel):
     org_code: str = Field(..., min_length=2, max_length=20)
     admin_name: str = Field(..., min_length=2, max_length=255)
     admin_username: str = Field(..., min_length=2, max_length=100)
-    admin_password: str = Field(..., min_length=4)
+    admin_password: str = Field(..., min_length=8)
 
 
 class ImpersonateRequest(BaseModel):
@@ -198,23 +198,17 @@ class BulletinResponse(BulletinBase):
 class InvoiceItemBase(BaseModel):
     product_id: Optional[UUID4] = None
     product_name: str
-    pack: Optional[str] = None
+    quantity: int
+    rate: float
+    igst_percent: float = 0.0
+    line_total: float
+    
+    # Advanced ERP fields
     batch: Optional[str] = None
     expiry: Optional[str] = None
-    quantity: int
-    free_quantity: int = 0
-    rate: float
-    discount_percent: float = 0.0
-    mrp: float = 0.0
-    cgst_percent: float = 0.0
-    sgst_percent: float = 0.0
-    igst_percent: float = 0.0
-    rate_a: float = 0.0
-    rate_b: float = 0.0
-    rate_c: float = 0.0
-    cost: float = 0.0
-    hsn: Optional[str] = None
-    line_total: float
+    mrp: Optional[float] = 0.0
+    discount_percent: Optional[float] = 0.0
+    margin_percent: Optional[str] = None
 
 class InvoiceItemCreate(InvoiceItemBase):
     pass
@@ -229,17 +223,25 @@ class InvoiceBase(BaseModel):
     customer_name: str
     invoice_type: str = "bill"
     invoice_number: str
-    party_invoice_number: Optional[str] = None
     subtotal: float
-    bill_discount: float = 0.0
     tax_total: float
     grand_total: float
+    
+    # Advanced ERP fields
+    party_inv_no: Optional[str] = None
+    party_inv_date: Optional[str] = None
+    due_date: Optional[str] = None
+    remarks: Optional[str] = None
+    dispatch_through: Optional[str] = None
+    destination: Optional[str] = None
+    bill_discount: Optional[float] = 0.0
+    
     ledger1_name: Optional[str] = None
-    ledger1_amount: float = 0.0
+    ledger1_amt: Optional[float] = None
     ledger2_name: Optional[str] = None
-    ledger2_amount: float = 0.0
+    ledger2_amt: Optional[float] = None
     ledger3_name: Optional[str] = None
-    ledger3_amount: float = 0.0
+    ledger3_amt: Optional[float] = None
 
 class InvoiceCreate(InvoiceBase):
     items: list[InvoiceItemCreate]
@@ -266,6 +268,37 @@ class HealthResponse(BaseModel):
 
 # ── PRODUCT (INVENTORY) SCHEMAS ───────────────────────────────
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class ProductBase(BaseModel):
     # Base
     status: str = "continue"
@@ -276,12 +309,12 @@ class ProductBase(BaseModel):
     unit: Optional[str] = None
     colour_type: str = "normal"
     item_type: str = "normal"
-    company_id: Optional[UUID4] = None
-    salt_id: Optional[UUID4] = None
+    company_name: Optional[str] = None
+    salt: Optional[str] = None
     
     # Taxes & HSN
     hsn_applicable: str = "no"
-    hsn_id: Optional[UUID4] = None
+    hsn_code: Optional[str] = None
     local_tax: str = "taxable"
     central_tax: str = "taxable"
     sgst_percent: float = 0.0
@@ -297,6 +330,7 @@ class ProductBase(BaseModel):
     item_discount_percent: float = 0.0
     discount_type: str = "applicable"
     category: str = "na"
+    is_active: bool = True
 
 class ProductCreate(ProductBase):
     pass
@@ -305,11 +339,6 @@ class ProductResponse(ProductBase):
     id: UUID4
     organization_id: UUID4
     created_at: datetime
-    
-    # Nested master records
-    company: Optional["ManufacturerResponse"] = None
-    salt_relation: Optional["SaltResponse"] = None
-    hsn_relation: Optional["HSNCodeResponse"] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -317,6 +346,7 @@ class ProductResponse(ProductBase):
 
 class StationBase(BaseModel):
     name: str
+    is_active: bool = True
 
 class StationCreate(StationBase):
     pass
@@ -331,7 +361,7 @@ class LedgerBase(BaseModel):
     name: str
     group_name: str
     mobile: Optional[str] = None
-    state_id: Optional[UUID4] = None
+    state: Optional[str] = None
     opening_balance: float = 0
     op_type: str = 'Dr'
     closing_balance: float = 0
@@ -357,6 +387,7 @@ class LedgerBase(BaseModel):
     pan_no: Optional[str] = None
     ledger_date: Optional[datetime] = None
     colour: Optional[str] = None
+    is_active: bool = True
 
 class LedgerCreate(LedgerBase):
     pass
@@ -365,9 +396,6 @@ class LedgerResponse(LedgerBase):
     id: UUID4
     organization_id: UUID4
     created_at: datetime
-    
-    state_relation: Optional["StateCodeResponse"] = None
-    
     model_config = ConfigDict(from_attributes=True)
 
 class SaltBase(BaseModel):
@@ -377,6 +405,7 @@ class SaltBase(BaseModel):
     side_effects: Optional[str] = None
     precautions: Optional[str] = None
     labels: Optional[str] = None
+    is_active: bool = True
 
 class SaltCreate(SaltBase):
     pass
@@ -411,6 +440,7 @@ class ManufacturerBase(BaseModel):
     field_staff_name: Optional[str] = None
     field_staff_contact: Optional[str] = None
     address: Optional[str] = None
+    is_active: bool = True
 
 class ManufacturerCreate(ManufacturerBase):
     pass
@@ -428,6 +458,7 @@ class HSNCodeBase(BaseModel):
     cgst: float = 0
     sgst: float = 0
     type: str = "Goods"
+    is_active: bool = True
 
 class HSNCodeCreate(HSNCodeBase):
     pass
@@ -442,6 +473,7 @@ class StateCodeBase(BaseModel):
     name: str
     gst_code: Optional[str] = None
     capital: Optional[str] = None
+    is_active: bool = True
 
 class StateCodeCreate(StateCodeBase):
     pass
@@ -450,4 +482,20 @@ class StateCodeResponse(StateCodeBase):
     id: UUID4
     organization_id: UUID4
     created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+class BatchResponse(BaseModel):
+    id: UUID4
+    product_id: UUID4
+    batch_number: str
+    expiry: Optional[str] = None
+    mrp: float
+    rate: float
+    rate_a: float = 0
+    rate_b: float = 0
+    rate_c: float = 0
+    cost: float
+    current_stock: int
+    created_at: datetime
+    updated_at: datetime
+    
     model_config = ConfigDict(from_attributes=True)

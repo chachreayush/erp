@@ -1840,10 +1840,3 @@ export default function BulletinModal({ isOpen, onClose, onSuccess, editingBulle
 - **Sales Module:** Migrated to robust grid-based \SalesBill.tsx\. Party Inv No logic stripped for Sales entries.
 - **Smart Batch Filtering:** In F3 Batch Modals, 0-quantity batches are hidden by default. Pressing \ArrowUp\ reveals them.
 - **Series Isolation & Auto-Increment:** Implemented distinct Entry No series separated by prefix (e.g. S0001, SC0001, P0001, CRN0001) across all billing modules (\SalesBill\, \PurchaseBill\, \Billing.tsx\). Added strict validation against duplicates.
-
-### August 2026 - Purchase Module & Batch System Integration
-- **Batch Master Architecture:** The database now explicitly tracks Batch entities linked to products. Every batch holds precise values for atch_number, expiry, mrp, ate, ate_a, ate_b, ate_c, cost, and current_stock.
-- **Purchase Module Inwarding:** Saving a Purchase Bill now automatically generates or updates master Batch records.
-- **Sales Module Alignment:** The Sales Grid (F3 Batch Modal) now directly queries the live Batch table and dynamically syncs MRP, Rate, and Expiry based on the selected batch, ensuring perfect parity between outward flows and real batch data.
-- **Current Stock:** The Current Stock calculation engine was rewritten to aggregate active Batch.current_stock records rather than relying on legacy invoice tallies, providing true real-time inventory precision.
-- **Strict DB Fetching:** Removed local storage caching from Products.tsx, enforcing the frontend to display exactly what exists in the PostgreSQL backend.

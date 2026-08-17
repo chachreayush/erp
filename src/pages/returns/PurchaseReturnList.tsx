@@ -6,7 +6,7 @@ import { AgGridReact } from 'ag-grid-react'
 import { apiGetInvoices } from '../../lib/api'
 import { ColDef } from 'ag-grid-community'
 
-interface PurchaseListProps {
+interface PurchaseReturnListProps {
   onSelectBill: (entryNo: string) => void;
   type: string; // 'modify-bill' | 'modify-challan'
 }
@@ -16,7 +16,7 @@ const getTodayDateString = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-export default function PurchaseList({ onSelectBill, type }: PurchaseListProps) {
+export default function PurchaseReturnList({ onSelectBill, type }: PurchaseReturnListProps) {
   const [bills, setBills] = useState<any[]>([])
   
   // Refs for keyboard navigation
@@ -40,7 +40,7 @@ export default function PurchaseList({ onSelectBill, type }: PurchaseListProps) 
   useEffect(() => {
     const fetchBills = async () => {
       try {
-        const data = await apiGetInvoices(`purchase-${baseType}`);
+        const data = await apiGetInvoices(`purchase-return-${baseType}`);
         const mapped = data.map(inv => ({
           entryNo: inv.invoice_number,
           partyName: inv.customer_name,

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
@@ -18,9 +18,17 @@ def get_org_id(current_user: models.User) -> UUID:
 
 # ── LEDGERS ───────────────────────────────────────────────
 @router.get("/ledgers", response_model=List[schemas.LedgerResponse])
-def get_ledgers(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def get_ledgers(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
     org_id = get_org_id(current_user)
-    return db.query(models.Ledger).filter(models.Ledger.organization_id == org_id).all()
+    return db.query(models.Ledger).filter(
+        models.Ledger.organization_id == org_id,
+        models.Ledger.is_active == True
+    ).offset(skip).limit(limit).all()
 
 @router.post("/ledgers", response_model=schemas.LedgerResponse)
 def create_ledger(ledger: schemas.LedgerCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -58,9 +66,17 @@ def delete_ledger(ledger_id: UUID, db: Session = Depends(get_db), current_user: 
 
 # ── SALTS ────────────────────────────────────────────────
 @router.get("/salts", response_model=List[schemas.SaltResponse])
-def get_salts(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def get_salts(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
     org_id = get_org_id(current_user)
-    return db.query(models.Salt).filter(models.Salt.organization_id == org_id).all()
+    return db.query(models.Salt).filter(
+        models.Salt.organization_id == org_id,
+        models.Salt.is_active == True
+    ).offset(skip).limit(limit).all()
 
 @router.post("/salts", response_model=schemas.SaltResponse)
 def create_salt(salt: schemas.SaltCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -98,9 +114,17 @@ def delete_salt(salt_id: UUID, db: Session = Depends(get_db), current_user: mode
 
 # ── MANUFACTURERS ───────────────────────────────────────
 @router.get("/manufacturers", response_model=List[schemas.ManufacturerResponse])
-def get_manufacturers(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def get_manufacturers(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
     org_id = get_org_id(current_user)
-    return db.query(models.Manufacturer).filter(models.Manufacturer.organization_id == org_id).all()
+    return db.query(models.Manufacturer).filter(
+        models.Manufacturer.organization_id == org_id,
+        models.Manufacturer.is_active == True
+    ).offset(skip).limit(limit).all()
 
 @router.post("/manufacturers", response_model=schemas.ManufacturerResponse)
 def create_manufacturer(manufacturer: schemas.ManufacturerCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -138,9 +162,16 @@ def delete_manufacturer(manufacturer_id: UUID, db: Session = Depends(get_db), cu
 
 # ── HSN CODES ───────────────────────────────────────────
 @router.get("/hsn", response_model=List[schemas.HSNCodeResponse])
-def get_hsn_codes(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def get_hsn_codes(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
     org_id = get_org_id(current_user)
-    return db.query(models.HSNCode).filter(models.HSNCode.organization_id == org_id).all()
+    return db.query(models.HSNCode).filter(
+        models.HSNCode.organization_id == org_id
+    ).offset(skip).limit(limit).all()
 
 @router.post("/hsn", response_model=schemas.HSNCodeResponse)
 def create_hsn_code(hsn: schemas.HSNCodeCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -178,9 +209,16 @@ def delete_hsn_code(hsn_id: UUID, db: Session = Depends(get_db), current_user: m
 
 # ── STATE CODES ─────────────────────────────────────────
 @router.get("/states", response_model=List[schemas.StateCodeResponse])
-def get_state_codes(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def get_state_codes(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
     org_id = get_org_id(current_user)
-    return db.query(models.StateCode).filter(models.StateCode.organization_id == org_id).all()
+    return db.query(models.StateCode).filter(
+        models.StateCode.organization_id == org_id
+    ).offset(skip).limit(limit).all()
 
 @router.post("/states", response_model=schemas.StateCodeResponse)
 def create_state_code(state: schemas.StateCodeCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -218,9 +256,16 @@ def delete_state_code(state_id: UUID, db: Session = Depends(get_db), current_use
 
 # "?"? STATIONS "?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?"?
 @router.get("/stations", response_model=List[schemas.StationResponse])
-def get_stations(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def get_stations(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
     org_id = get_org_id(current_user)
-    return db.query(models.Station).filter(models.Station.organization_id == org_id).all()
+    return db.query(models.Station).filter(
+        models.Station.organization_id == org_id
+    ).offset(skip).limit(limit).all()
 
 @router.post("/stations", response_model=schemas.StationResponse)
 def create_station(station: schemas.StationCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):

@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { apiGetProducts } from '../../lib/api'
 import type { Product as _Product } from '../../lib/api'
-import SalesList from './SalesList'
+import PurchaseReturnList from './PurchaseReturnList'
 
 // Increment alphanumeric series: p0053 -> p0054, x9999 -> x10000, abc -> abd, zzz -> zaaa
 const incrementSeries = (str: string): string => {
@@ -125,7 +125,7 @@ const formatDiscountInput = (valStr: string): string => {
 
 const getGcd = (a: number, b: number): number => b === 0 ? a : getGcd(b, a % b);
 
-interface SalesHistoryRecord {
+interface PurchaseHistoryRecord {
   party: string;
   billNo: string;
   date: string;
@@ -143,9 +143,9 @@ interface SalesHistoryRecord {
 }
 
 // Only stores permanently saved bills from prior completed invoices (never ongoing current bill drafts)
-const SAVED_PAST_BILLS_REGISTRY: Record<string, SalesHistoryRecord[]> = {};
+const SAVED_PAST_BILLS_REGISTRY: Record<string, PurchaseHistoryRecord[]> = {};
 
-const getProductHistory = (productName?: string): SalesHistoryRecord[] => {
+const getProductHistory = (productName?: string): PurchaseHistoryRecord[] => {
   if (!productName || !productName.trim()) return [];
   const name = productName.trim();
   const isPara = name.toLowerCase().includes('paracetamol') || name.toLowerCase().includes('crocin');
@@ -154,7 +154,7 @@ const getProductHistory = (productName?: string): SalesHistoryRecord[] => {
   const mrp = Number((baseRate * 1.45).toFixed(2));
   const mrg = '29.41%';
   
-  const builtIn: SalesHistoryRecord[] = [
+  const builtIn: PurchaseHistoryRecord[] = [
     { party: 'RANBAXY INDIA LTD', billNo: 'P000009', date: '12-06-26', qty: 100, batch: isPara ? '123456' : '58963', expiry: '11/27', rate: baseRate, srate, mrg, mrp, disc: 0.0, deal: '10.00', cost: baseRate, godown: '1' },
     { party: 'APEX PHARMA PVT', billNo: 'P000008', date: '28-05-26', qty: 200, batch: isPara ? '123457' : '44120', expiry: '08/28', rate: baseRate, srate, mrg, mrp, disc: 0.0, deal: '20.00', cost: baseRate, godown: '1' },
     { party: 'SHREE MED DIST.', billNo: 'P000007', date: '15-05-26', qty: 50, batch: isPara ? '112233' : '44121', expiry: '04/29', rate: baseRate + 2.0, srate, mrg, mrp, disc: 4.5, deal: '5.00', cost: Number(((baseRate + 2.0) * 0.955).toFixed(2)), godown: '1' },
@@ -177,10 +177,10 @@ const getProductHistory = (productName?: string): SalesHistoryRecord[] => {
 };
 
 // Helper for F3 Modal & Item-to-Item auto-fill: inspects past saved history + completed rows in active bill without touching bottom table!
-const getAvailableBatchesForProduct = (productName: string, currentGridRows: any[] = [], activeRowId: number = -1): SalesHistoryRecord[] => {
+const getAvailableBatchesForProduct = (productName: string, currentGridRows: any[] = [], activeRowId: number = -1): PurchaseHistoryRecord[] => {
   if (!productName || !productName.trim()) return [];
   const name = productName.trim().toLowerCase();
-  const results: SalesHistoryRecord[] = [];
+  const results: PurchaseHistoryRecord[] = [];
   const seen = new Set<string>();
 
   // 1. Check if another row in current grid has an entered batch (e.g. Row 1 when user is on Row 2)
@@ -223,7 +223,7 @@ const getAvailableBatchesForProduct = (productName: string, currentGridRows: any
   return results;
 };
 
-const lookupRegisteredBatch = (product: string, batchNumber: string, currentGridRows?: any[], activeRowId: number = -1): SalesHistoryRecord | null => {
+const lookupRegisteredBatch = (product: string, batchNumber: string, currentGridRows?: any[], activeRowId: number = -1): PurchaseHistoryRecord | null => {
   if (!batchNumber || !batchNumber.trim()) return null;
   const b = batchNumber.trim().toLowerCase();
   
@@ -254,7 +254,7 @@ const lookupRegisteredBatch = (product: string, batchNumber: string, currentGrid
 };
 
 
-export default function SalesBill() {
+export default function PurchaseReturnBill() {
   const [searchParams] = useSearchParams()
   const type = searchParams.get('type') || 'bill' // bill, challan, modify-bill, modify-challan
   const baseType = type.includes('challan') ? 'challan' : 'bill';
@@ -263,10 +263,11 @@ export default function SalesBill() {
   useEffect(() => {
     if (selectedModifyBill) {
       setBillNo(selectedModifyBill)
-      const savedBills = JSON.parse(localStorage.getItem('savedSalesBills') || '[]')
+      const savedBills = JSON.parse(localStorage.getItem('savedPurchaseReturnBills') || '[]')
       const billInfo = savedBills.find((b: any) => b.entryNo === selectedModifyBill)
       if (billInfo) {
         setPartyName(billInfo.partyName)
+        setPartyInvNo(billInfo.partyInvNo)
       }
       
       // Focus first option (Date) after switching views
@@ -281,11 +282,13 @@ export default function SalesBill() {
   
   // Header State
   const [dateStr, setDateStr] = useState(getTodayFormatted())
-  const defaultBillNo = baseType === 'challan' ? 'SC0001' : 'S0001';
-  const billNoKey = baseType === 'challan' ? 'lastSalesChallanNo' : 'lastSalesBillNo';
+  const defaultBillNo = baseType === 'challan' ? 'DBNC0001' : 'DBN0001';
+  const billNoKey = baseType === 'challan' ? 'lastPurchaseReturnChallanNo' : 'lastPurchaseReturnBillNo';
   const [billNo, setBillNo] = useState(() => localStorage.getItem(billNoKey) || defaultBillNo);
   const [partyName, setPartyName] = useState('')
+  const [partyInvNo, setPartyInvNo] = useState('')
   const [billNoError, setBillNoError] = useState('')
+  const [partyInvNoError, setPartyInvNoError] = useState('')
   const [invDateStr, setInvDateStr] = useState(getTodayFormatted())
   const [taxType, setTaxType] = useState('Tax')
   // Post-tax adjustments (TDS, Cash in Hand, Freight, etc.) & Bill Discount
@@ -385,13 +388,6 @@ export default function SalesBill() {
   const [showBatchModal, setShowBatchModal] = useState(false)
   const [showF3BatchModal, setShowF3BatchModal] = useState(false)
   const [f3SelectedIndex, setF3SelectedIndex] = useState(0)
-  const [showZeroQtyBatches, setShowZeroQtyBatches] = useState(false)
-
-  useEffect(() => {
-    if (showF3BatchModal) {
-      setShowZeroQtyBatches(false)
-    }
-  }, [showF3BatchModal])
 
   // Parties / Sundry Creditors List (Merged with localStorage)
   const defaultParties = [
@@ -419,7 +415,7 @@ export default function SalesBill() {
       try {
         apiProds = await apiGetProducts()
       } catch (err) {
-        console.error("Failed to fetch API products in SalesBill:", err)
+        console.error("Failed to fetch API products in PurchaseBill:", err)
       }
       const localProds = JSON.parse(localStorage.getItem('erp_inventory_items') || '[]')
       const combined = [...localProds, ...apiProds]
@@ -518,6 +514,7 @@ export default function SalesBill() {
   const dateRef = useRef<HTMLInputElement>(null)
   const billNoRef = useRef<HTMLInputElement>(null)
   const partyRef = useRef<HTMLInputElement>(null)
+  const partyInvRef = useRef<HTMLInputElement>(null)
   const invDateRef = useRef<HTMLInputElement>(null)
   const taxTypeRef = useRef<HTMLSelectElement>(null)
   
@@ -565,12 +562,19 @@ export default function SalesBill() {
       }, 20)
       return false
     }
+    if (!partyInvNo.trim()) {
+      alert("Party Invoice Number is mandatory! Please enter the supplier's Invoice Number before moving forward.")
+      setTimeout(() => {
+        partyInvRef.current?.focus()
+      }, 20)
+      return false
+    }
     return true
   }
 
   const handleBillNoKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === 'Tab') {
-      const savedBills = JSON.parse(localStorage.getItem('savedSalesBills') || '[]')
+      const savedBills = JSON.parse(localStorage.getItem('savedPurchaseReturnBills') || '[]')
       if (savedBills.some((b: any) => (b.recordType || 'bill') === baseType && b.entryNo.toLowerCase() === billNo.trim().toLowerCase())) {
         e.preventDefault()
         setBillNoError('Already exists')
@@ -598,7 +602,7 @@ export default function SalesBill() {
         return
       }
       if (e.key === 'Enter') {
-        setTimeout(() => taxTypeRef.current?.focus(), 20)
+        setTimeout(() => partyInvRef.current?.focus(), 20)
       }
     } else if (e.key === 'F7' || e.key === ' ' || e.key === 'ArrowDown' || (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey)) {
       e.preventDefault()
@@ -622,7 +626,7 @@ export default function SalesBill() {
         setPartyName(filteredParties[partySelectedIndex])
         setShowPartyModal(false)
         setTimeout(() => {
-          taxTypeRef.current?.focus()
+          partyInvRef.current?.focus()
         }, 20)
       }
     }
@@ -645,6 +649,31 @@ export default function SalesBill() {
       const selectedProd = filteredProducts[productSelectedIndex]
       if (selectedProd) {
         selectAndImportProduct(selectedProd)
+      }
+    }
+  }
+
+  const handlePartyInvKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      if (!partyInvNo || !partyInvNo.trim()) {
+        e.preventDefault()
+        alert("Party Invoice Number is mandatory! Please enter the supplier's Invoice Number before moving forward.")
+        setTimeout(() => {
+          partyInvRef.current?.focus()
+        }, 20)
+        return
+      }
+
+      const savedBills = JSON.parse(localStorage.getItem('savedPurchaseReturnBills') || '[]')
+      if (savedBills.some((b: any) => b.partyName === partyName && b.partyInvNo.toLowerCase() === partyInvNo.trim().toLowerCase())) {
+        e.preventDefault()
+        setPartyInvNoError('Already exists')
+        return
+      }
+      setPartyInvNoError('')
+
+      if (e.key === 'Enter') {
+        invDateRef.current?.focus()
       }
     }
   }
@@ -751,8 +780,8 @@ export default function SalesBill() {
   const invoiceValue = Math.round(backgroundNetAmount + adj1 + adj2 + adj3)
 
   const handleSaveTrigger = () => {
-    if (billNoError) {
-      alert('Please fix errors before saving.')
+    if (billNoError || partyInvNoError) {
+      alert('Please fix the duplicate entry errors before saving!')
       return
     }
     if (!validateMandatoryHeader()) return
@@ -778,12 +807,12 @@ export default function SalesBill() {
   const confirmSaveBill = async () => {
     // Commit completed products and batches from this bill to SAVED_PAST_BILLS_REGISTRY so they officially become past bill details
     gridRows.forEach(row => {
-      if (row.product?.trim() && row.batch?.trim() && (parseFloat(row.qty) > 0 || parseFloat(row.prate) > 0 || row.mrp)) {
+      if (row.product?.trim() && row.batch?.trim() && (parseFloat(row.qty) > 0 || parseFloat(row.prate) > 0 || parseFloat(row.mrp) > 0)) {
         const prodKey = row.product.trim().toLowerCase();
         if (!SAVED_PAST_BILLS_REGISTRY[prodKey]) SAVED_PAST_BILLS_REGISTRY[prodKey] = [];
-        const newRecord: SalesHistoryRecord = {
-          party: partyName || 'Cash Sale',
-          billNo: billNo || 'P0001',
+        const newRecord: PurchaseHistoryRecord = {
+          party: partyName || 'Cash Purchase',
+          billNo: billNo || 'DBN0001',
           date: getTodayFormatted(),
           qty: parseFloat(row.qty) || 0,
           batch: row.batch.trim().toUpperCase(),
@@ -802,37 +831,36 @@ export default function SalesBill() {
       }
     });
 
-    
-    const validRows = gridRows.filter(r => r.product?.trim() && (parseFloat(r.qty) > 0 || parseFloat(r.prate) > 0 || parseFloat(r.prate) > 0));
+    const validRows = gridRows.filter(r => r.product?.trim() && (parseFloat(r.qty) > 0 || parseFloat(r.prate) > 0));
     
     const payload: InvoiceCreatePayload = {
-      invoice_type: `sales-${baseType}`,
-      customer_name: partyName || 'Cash',
+      invoice_type: `purchase-return-${baseType}`,
+      customer_name: partyName || 'Cash Purchase',
       invoice_number: billNo.trim(),
-      party_inv_no: '',
-      party_inv_date: (typeof invDateStr !== 'undefined' ? invDateStr : ''),
-      due_date: (typeof dateStr !== 'undefined' ? dateStr : ''),
+      party_inv_no: partyInvNo.trim(),
+      party_inv_date: invDateStr,
+      due_date: dateStr,
       remarks: '',
       dispatch_through: '',
       destination: '',
-      bill_discount: (typeof billDiscount !== 'undefined' ? parseFloat(billDiscount) : 0) || 0,
-      ledger1_name: (typeof ledger1Name !== 'undefined' ? ledger1Name : ''),
-      ledger1_amt: (typeof ledger1Amt !== 'undefined' ? parseFloat(ledger1Amt) : 0) || 0,
-      ledger2_name: (typeof ledger2Name !== 'undefined' ? ledger2Name : ''),
-      ledger2_amt: (typeof ledger2Amt !== 'undefined' ? parseFloat(ledger2Amt) : 0) || 0,
-      ledger3_name: (typeof ledger3Name !== 'undefined' ? ledger3Name : ''),
-      ledger3_amt: (typeof ledger3Amt !== 'undefined' ? parseFloat(ledger3Amt) : 0) || 0,
+      bill_discount: parseFloat(billDiscount) || 0,
+      ledger1_name: ledger1Name,
+      ledger1_amt: parseFloat(ledger1Amt) || 0,
+      ledger2_name: ledger2Name,
+      ledger2_amt: parseFloat(ledger2Amt) || 0,
+      ledger3_name: ledger3Name,
+      ledger3_amt: parseFloat(ledger3Amt) || 0,
       subtotal: totals.valueOfGoods,
       tax_total: totals.gstAmount,
       grand_total: invoiceValue,
       items: validRows.map(row => ({
          product_name: row.product,
          quantity: parseInt(row.qty) || 0,
-         rate: parseFloat(row.prate) || parseFloat(row.prate) || 0,
+         rate: parseFloat(row.prate) || 0,
          igst_percent: parseFloat(row.igst) || 0,
          line_total: parseFloat(row.amount) || 0,
-         batch: row.batch?.trim() || '',
-         expiry: row.expiry || '',
+         batch: row.batch.trim(),
+         expiry: row.expiry,
          mrp: parseFloat(row.mrp) || 0,
          discount_percent: parseFloat(row.dis) || 0,
          margin_percent: '0'
@@ -848,7 +876,7 @@ export default function SalesBill() {
     }
 
     setShowSaveModal(false)
-    setSaveSuccessMessage(`Sales Bill [${billNo}] Saved Successfully! Total: ₹${invoiceValue.toFixed(2)}`)
+    setSaveSuccessMessage(`Purchase Return Bill [${billNo}] Saved Successfully! Total: ₹${invoiceValue.toFixed(2)}`)
     
     setTimeout(() => {
       setSaveSuccessMessage('')
@@ -858,6 +886,7 @@ export default function SalesBill() {
       setBillNo(nextBillNo)
       localStorage.setItem(billNoKey, nextBillNo)
       setPartyName('')
+      setPartyInvNo('')
       setBillDiscount('00.00')
       setLedger1Name('')
       setLedger1Amt('')
@@ -893,7 +922,7 @@ export default function SalesBill() {
 
   // If we are in modify mode and haven't selected a bill yet, show the list view
   if (type.startsWith('modify') && !selectedModifyBill) {
-    return <SalesList onSelectBill={setSelectedModifyBill} type={type} />
+    return <PurchaseReturnList onSelectBill={setSelectedModifyBill} type={type} />
   }
 
   return (
@@ -905,7 +934,7 @@ export default function SalesBill() {
         {/* Title & Type */}
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingRight: '10px', borderRight: '1px solid var(--color-border)', flexShrink: 0 }}>
           <h1 style={{ fontSize: '15px', fontWeight: 'bold', margin: 0, color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>
-            {type === 'challan' ? 'Sales Challan' : 'Sales Bill'}
+            {type === 'challan' ? 'Purchase Challan' : 'Purchase Bill'}
           </h1>
           <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', marginTop: '1px' }}>Voucher Entry</span>
         </div>
@@ -921,7 +950,7 @@ export default function SalesBill() {
             style={{ width: '100%', backgroundColor: 'var(--color-bg)', border: `1px solid ${billNoError ? 'red' : 'var(--color-border-strong)'}`, borderRadius: '4px', padding: '3px 6px', fontSize: '12px', color: 'var(--color-primary)', fontWeight: 'bold', outline: 'none' }}
             onFocus={e => { e.target.style.borderColor = billNoError ? 'red' : 'var(--color-primary)'; e.target.select(); }}
             onBlur={e => {
-              const savedBills = JSON.parse(localStorage.getItem('savedSalesBills') || '[]')
+              const savedBills = JSON.parse(localStorage.getItem('savedPurchaseReturnBills') || '[]')
               if (savedBills.some((b: any) => (b.recordType || 'bill') === baseType && b.entryNo.toLowerCase() === e.target.value.trim().toLowerCase())) {
                 setBillNoError('Already exists')
                 e.target.style.borderColor = 'red'
@@ -951,6 +980,29 @@ export default function SalesBill() {
             />
             <span onClick={() => setShowPartyModal(true)} style={{ position: 'absolute', right: '6px', top: '5px', fontSize: '12px', color: 'var(--color-text-muted)', cursor: 'pointer' }} title="Click to select Ledger (F7)">🔍</span>
           </div>
+        </div>
+
+        {/* Party Inv No */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '105px', flexShrink: 0 }}>
+          <label style={{ fontSize: '10px', fontWeight: '600', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+            Party Inv No
+            {partyInvNoError && <span style={{ color: 'red', marginLeft: '4px', fontSize: '9px', textTransform: 'none' }}>({partyInvNoError})</span>}
+          </label>
+          <input 
+            ref={partyInvRef} type="text" value={partyInvNo} onChange={e => { setPartyInvNo(e.target.value); setPartyInvNoError(''); }} onKeyDown={handlePartyInvKeyDown} placeholder="INV-102"
+            style={{ width: '100%', backgroundColor: 'var(--color-bg)', border: `1px solid ${partyInvNoError ? 'red' : 'var(--color-border-strong)'}`, borderRadius: '4px', padding: '3px 6px', fontSize: '12px', color: 'var(--color-text-primary)', outline: 'none' }}
+            onFocus={e => { e.target.style.borderColor = partyInvNoError ? 'red' : 'var(--color-primary)'; e.target.select(); }}
+            onBlur={e => {
+              const savedBills = JSON.parse(localStorage.getItem('savedPurchaseReturnBills') || '[]')
+              if (savedBills.some((b: any) => b.partyName === partyName && b.partyInvNo.toLowerCase() === e.target.value.trim().toLowerCase())) {
+                setPartyInvNoError('Already exists')
+                e.target.style.borderColor = 'red'
+              } else {
+                setPartyInvNoError('')
+                e.target.style.borderColor = 'var(--color-border-strong)'
+              }
+            }}
+          />
         </div>
 
         {/* Inv Date */}
@@ -1034,7 +1086,7 @@ export default function SalesBill() {
                       value={row.product} onChange={e => handleRowChange(idx, 'product', e.target.value)}
                       onFocus={() => {
                         setActiveRowId(row.id);
-                        if (!partyName.trim()) {
+                        if (!partyName.trim() || !partyInvNo.trim()) {
                           validateMandatoryHeader();
                         }
                       }}
@@ -1485,7 +1537,7 @@ export default function SalesBill() {
             </table>
             ) : (
               <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0f172a', color: '#64748b', fontStyle: 'italic', fontSize: '12px' }}>
-                ℹ️ Select a product from Product List above to view its Last 6 Saved Sales Bills.
+                ℹ️ Select a product from Product List above to view its Last 6 Saved Purchase Bills.
               </div>
             )}
           </div>
@@ -1539,7 +1591,7 @@ export default function SalesBill() {
                   onClick={() => {
                     setPartyName(party)
                     setShowPartyModal(false)
-                    setTimeout(() => taxTypeRef.current?.focus(), 20)
+                    setTimeout(() => partyInvRef.current?.focus(), 20)
                   }}
                 >
                   {party}
@@ -1823,10 +1875,10 @@ export default function SalesBill() {
                }
              }}>
           <div style={{ backgroundColor: 'var(--color-bg-surface)', border: '2px solid var(--color-primary)', borderRadius: '12px', width: '420px', padding: '24px', boxShadow: 'var(--shadow-lg)', textAlign: 'center' }}>
-            <h2 style={{ color: 'var(--color-primary)', fontSize: '20px', margin: '0 0 16px 0' }}>Save Sales Bill?</h2>
+            <h2 style={{ color: 'var(--color-primary)', fontSize: '20px', margin: '0 0 16px 0' }}>Save Purchase Bill?</h2>
             <div style={{ backgroundColor: 'var(--color-bg)', padding: '12px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Invoice No:</span> <strong style={{ color: 'var(--color-primary)' }}>{billNo}</strong></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Party:</span> <strong>{partyName || 'Cash Sale'}</strong></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Party:</span> <strong>{partyName || 'Cash Purchase'}</strong></div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Value of Goods:</span> <span>₹{totals.valueOfGoods.toFixed(2)}</span></div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Total GST Amount:</span> <span>₹{backgroundGstAmount.toFixed(2)}</span></div>
               <div style={{ borderTop: '1px dashed var(--color-border)', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 'bold' }}>
@@ -1881,23 +1933,13 @@ export default function SalesBill() {
       {/* ── F3 BATCH SELECTION MODAL ── */}
       {showF3BatchModal && (() => {
         const currentProd = gridRows.find(r => r.id === activeRowId)?.product || '';
-        const allHistoryList = getAvailableBatchesForProduct(currentProd, gridRows, activeRowId);
-        const historyList = showZeroQtyBatches ? allHistoryList : allHistoryList.filter(b => b.qty > 0);
+        const historyList = getAvailableBatchesForProduct(currentProd, gridRows, activeRowId);
         return (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}
                onKeyDown={e => {
                  if (e.key === 'Escape') setShowF3BatchModal(false);
                  if (e.key === 'ArrowDown') setF3SelectedIndex(prev => Math.min(prev + 1, historyList.length - 1));
-                 if (e.key === 'ArrowUp') {
-                   if (f3SelectedIndex === 0 && !showZeroQtyBatches && allHistoryList.length > historyList.length) {
-                     setShowZeroQtyBatches(true);
-                     const firstVisible = historyList[0];
-                     const newIdx = allHistoryList.findIndex(b => b === firstVisible);
-                     setF3SelectedIndex(Math.max(newIdx - 1, 0));
-                   } else {
-                     setF3SelectedIndex(prev => Math.max(prev - 1, 0));
-                   }
-                 }
+                 if (e.key === 'ArrowUp') setF3SelectedIndex(prev => Math.max(prev - 1, 0));
                  if (e.key === 'Enter' && historyList[f3SelectedIndex]) {
                    const b = historyList[f3SelectedIndex];
                    const idx = gridRows.findIndex(r => r.id === activeRowId);

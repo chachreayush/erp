@@ -44,7 +44,12 @@ load_dotenv()
 
 # The secret key used to sign and verify JWT tokens.
 # Must be a long random string (min 32 characters).
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "fallback_dev_key_change_in_production")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    raise ValueError(
+        "JWT_SECRET_KEY must be set in environment variables. "
+        "Create a .env file with JWT_SECRET_KEY=your-secret-key"
+    )
 
 # The algorithm used for signing. HS256 is the standard symmetric algorithm.
 # "HS" = HMAC Signature, "256" = SHA-256 hash function.
