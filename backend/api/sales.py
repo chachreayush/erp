@@ -68,8 +68,8 @@ def get_invoice_by_number(
     return invoice
 
 
-def _deduct_stock_for_invoice(db: Session, org_id: UUID, items: list[schemas.InvoiceItemCreate]):
-    """Deduct stock from batches for invoice items."""
+def _update_stock_for_invoice(db: Session, org_id: UUID, items: list[schemas.InvoiceItemCreate], is_purchase: bool = False):
+    """Update stock from batches for invoice items (add for purchase, deduct for sales)."""
     for item in items:
         if not item.product_id or not item.batch:
             continue  # Skip if no product or batch specified
@@ -81,15 +81,17 @@ def _deduct_stock_for_invoice(db: Session, org_id: UUID, items: list[schemas.Inv
         ).first()
         
         if batch:
-            if batch.current_stock < item.quantity:
+            if not is_purchase and batch.current_stock < item.quantity:
                 raise HTTPException(
                     status_code=400,
                     detail=f"Insufficient stock for batch {item.batch} of product {item.product_name}. Available: {batch.current_stock}, Required: {item.quantity}"
                 )
-            batch.current_stock -= item.quantity
+            if is_purchase:
+                batch.current_stock += item.quantity
+            else:
+                batch.current_stock -= item.quantity
         else:
-            # Batch not found - create with negative stock (backorder) or raise error
-            # For now, we'll create a batch record with negative stock to track backorders
+            # Batch not found - create with negative stock (backorder) or positive if purchase
             new_batch = models.Batch(
                 organization_id=org_id,
                 product_id=item.product_id,
@@ -101,7 +103,7 @@ def _deduct_stock_for_invoice(db: Session, org_id: UUID, items: list[schemas.Inv
                 rate_b=0,
                 rate_c=0,
                 cost=0,
-                current_stock=-item.quantity  # Negative indicates backorder
+                current_stock=item.quantity if is_purchase else -item.quantity
             )
             db.add(new_batch)
 
@@ -170,8 +172,9 @@ def create_invoice(
         )
         db.add(new_item)
 
-    # 3. Deduct stock from batches
-    _deduct_stock_for_invoice(db, org_id, invoice_data.items)
+    # 3. Update stock from batches
+    is_purchase = invoice_data.invoice_type.startswith("purchase")
+    _update_stock_for_invoice(db, org_id, invoice_data.items, is_purchase=is_purchase)
 
     # Commit all changes to the database
     db.commit()
@@ -243,8 +246,9 @@ def update_invoice(
         )
         db.add(new_item)
     
-    # Deduct stock for new items
-    _deduct_stock_for_invoice(db, org_id, invoice_data.items)
+    # Update stock for new items
+    is_purchase = invoice_data.invoice_type.startswith("purchase")
+    _update_stock_for_invoice(db, org_id, invoice_data.items, is_purchase=is_purchase)
     
     db.commit()
     db.refresh(db_invoice)
