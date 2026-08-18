@@ -41,6 +41,12 @@ if not DATABASE_URL:
         "Please ensure backend/.env exists and contains DATABASE_URL."
     )
 
+# Convert connection string for psycopg3 compatibility if needed
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
+
 # ── CREATE THE ENGINE ─────────────────────────────────────────
 # The engine is SQLAlchemy's core — it manages the actual
 # database connections under the hood using a connection pool.
