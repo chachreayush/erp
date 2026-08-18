@@ -256,7 +256,7 @@ export interface Product {
   item_discount_percent: number
   discount_type: 'applicable' | 'no discount' | 'no sch discount' | 'no schem'
   category: 'na' | 'schedule h' | 'schedule h1' | 'narcotics'
-  is_active: boolean
+  is_active?: boolean
 }
 
 export type ProductCreatePayload = Omit<Product, 'id' | 'company_id' | 'created_at'>
@@ -292,7 +292,7 @@ export interface Batch {
   rate_c: number
   cost: number
   current_stock: number
-  is_active: boolean
+  is_active?: boolean
 }
 
 export async function apiGetBatches(productId?: string): Promise<Batch[]> {
@@ -372,7 +372,7 @@ export async function apiCreateInvoice(payload: InvoiceCreatePayload): Promise<I
 export interface Station {
   id?: string
   name: string
-  is_active: boolean
+  is_active?: boolean
 }
 
 export interface Ledger {
@@ -406,7 +406,7 @@ export interface Ledger {
   pan_no?: string
   ledger_date?: string
   colour?: string
-  is_active: boolean
+  is_active?: boolean
 }
 
 // ── STATIONS ──────────────────────────────────────────────────
@@ -451,7 +451,7 @@ export interface Salt {
   side_effects?: string
   precautions?: string
   labels?: string
-  is_active: boolean
+  is_active?: boolean
 }
 
 export async function apiGetSalts(): Promise<Salt[]> {
@@ -492,7 +492,7 @@ export interface Manufacturer {
   field_staff_name?: string;
   field_staff_contact?: string;
   address?: string;
-  is_active: boolean;
+  is_active?: boolean;
 }
 
 export interface ManufacturerCreate {
@@ -542,7 +542,7 @@ export interface HSNCode {
   cgst: number
   sgst: number
   type: string
-  is_active: boolean
+  is_active?: boolean
 }
 
 export async function apiGetHSNCodes(): Promise<HSNCode[]> {
@@ -566,7 +566,7 @@ export interface StateCode {
   name: string
   gst_code?: string
   capital?: string
-  is_active: boolean
+  is_active?: boolean
 }
 
 export async function apiGetStateCodes(): Promise<StateCode[]> {
@@ -592,7 +592,7 @@ export interface Organization {
   name: string
   org_code: string
   is_am: boolean
-  is_active: boolean
+  is_active?: boolean
 }
 
 export interface ClientRegistrationRequest {
