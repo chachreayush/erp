@@ -214,3 +214,6 @@ JWT_SECRET_KEY=fallback_dev_key_change_in_production
 - **Multi-Tenant Deployment**: Deployed on Render (Backend) and Vercel (Frontend) utilizing Neon PostgreSQL.
 - **Invoice Modifiers Migration**: All modify bill lists (Sales, Purchase, Sales Return, Purchase Return, Brk Issue, Brk Receive) migrated from LocalStorage to the live Database API via piGetInvoices.
 - **Stock Calculation Fix**: Corrected the _update_stock_for_invoice logic to deduct stock for Sales and **add** stock for Purchases, ensuring zero-stock items can still be purchased without generating 400 errors.
+- **Code Audit & Performance Upgrades**: Added database indexes to invoice_number, customer_name, and party_inv_no for instantaneous search. Resolved SQLAlchemy N+1 query inefficiencies using joinedload for invoice items.
+- **Server-Side Search Filtering**: Refactored PurchaseList and SalesList frontend components to debounce UI filters and send party_search, ill_no_search, rom_date, and 	o_date directly to the piGetInvoices backend endpoint for high-performance server-side filtering.
+- **Security Posture (Rate Limiting)**: Installed and integrated slowapi into the FastAPI backend, restricting POST /auth/login to 5 requests per minute to thwart brute-force authentication attacks.

@@ -38,34 +38,34 @@ export default function PurchaseList({ onSelectBill, type }: PurchaseListProps) 
   }, [])
 
   useEffect(() => {
-    const fetchBills = async () => {
-      try {
-        const data = await apiGetInvoices(`purchase-${baseType}`);
-        const mapped = data.map(inv => ({
-          entryNo: inv.invoice_number,
-          partyName: inv.customer_name,
-          partyInvNo: inv.party_inv_no || '',
-          recordType: baseType,
-          grandTotal: inv.grand_total,
-          date: inv.date ? new Date(inv.date).toLocaleDateString() : ''
-        }));
-        setBills(mapped);
-      } catch (err) {
-        console.error("Failed to fetch invoices", err);
-      }
-    };
-    fetchBills();
-  }, [baseType])
+    const handler = setTimeout(() => {
+      const fetchBills = async () => {
+        try {
+          const data = await apiGetInvoices(`purchase-${baseType}`, {
+            partySearch,
+            billNoSearch,
+            fromDate,
+            toDate
+          });
+          const mapped = data.map(inv => ({
+            entryNo: inv.invoice_number,
+            partyName: inv.customer_name,
+            partyInvNo: inv.party_inv_no || '',
+            recordType: baseType,
+            grandTotal: inv.grand_total,
+            date: inv.date ? new Date(inv.date).toLocaleDateString() : ''
+          }));
+          setBills(mapped);
+        } catch (err) {
+          console.error("Failed to fetch invoices", err);
+        }
+      };
+      fetchBills();
+    }, 300); // 300ms debounce
+    return () => clearTimeout(handler);
+  }, [baseType, partySearch, billNoSearch, fromDate, toDate])
 
-  const filteredBills = useMemo(() => {
-    return bills.filter(bill => {
-      if ((bill.recordType || 'bill') !== baseType) return false;
-      if (partySearch && !bill.partyName?.toLowerCase().includes(partySearch.toLowerCase())) return false;
-      if (billNoSearch && !bill.entryNo?.toLowerCase().includes(billNoSearch.toLowerCase())) return false;
-      // Note: Date filtering can be implemented here if the bill objects stored dates
-      return true;
-    })
-  }, [bills, partySearch, billNoSearch, fromDate, toDate])
+  const filteredBills = bills; // No longer filtered on client side
 
   const colDefs: ColDef[] = [
     { field: 'date', headerName: 'Date', width: 120, filter: true },

@@ -1,4 +1,4 @@
-# User Workflow Manual
+﻿# User Workflow Manual
 
 Welcome to the ERP system! This guide explains how to navigate the core workflows of the software.
 
@@ -6,6 +6,7 @@ Welcome to the ERP system! This guide explains how to navigate the core workflow
 - **Super Admin (Account Master)**: If you are the system owner, you can log in directly and manage multiple client organizations.
 - **Client Registration**: The Account Master registers new organizations (clients). Upon registration, a unique **Organization Code** (e.g., `MUM-6135`) is generated along with an Admin username and password.
 - **Client Login**: Client Admins must enter their `Organization Code`, `Username`, and `Password` to access their isolated workspace. 
+  - **Security Feature**: The login system is protected by rate limiting. Entering incorrect passwords rapidly will temporarily block access to protect your data. 
 
 ## 2. Master Data Management
 Before you can record transactions, you should populate your master data.
@@ -46,3 +47,8 @@ All invoice modification views (Sales, Purchases, Returns, Breakage) are fully i
 2. You will see a live grid of your previously saved invoices.
 3. If the grid is empty, it means you haven't created any invoices of that type in the system yet.
 4. Click on any invoice to load it for modification.
+
+
+## 7. High-Speed Invoice Searching
+When viewing your Modify Sales or Purchase lists, you can utilize the Search bars (Party Name, Bill Number) or Date ranges. 
+- **Real-Time Database Filtering**: Your searches are processed instantly on the secure cloud server, enabling you to effortlessly sift through millions of historical records without slowing down your computer.

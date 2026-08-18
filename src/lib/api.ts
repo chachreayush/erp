@@ -356,10 +356,24 @@ export interface Invoice {
 
 export type InvoiceCreatePayload = Omit<Invoice, 'id' | 'company_id' | 'created_at' | 'date'>
 
-export async function apiGetInvoices(invoiceType?: string): Promise<Invoice[]> {
-  const url = invoiceType ? `/api/sales/invoices?invoice_type=${encodeURIComponent(invoiceType)}` : '/api/sales/invoices'
-  const response = await apiClient.get<Invoice[]>(url)
-  return response.data
+export interface InvoiceFilters {
+  partySearch?: string;
+  billNoSearch?: string;
+  fromDate?: string;
+  toDate?: string;
+}
+
+export async function apiGetInvoices(invoiceType?: string, filters?: InvoiceFilters): Promise<Invoice[]> {
+  const params = new URLSearchParams();
+  if (invoiceType) params.append('invoice_type', invoiceType);
+  if (filters?.partySearch) params.append('party_search', filters.partySearch);
+  if (filters?.billNoSearch) params.append('bill_no_search', filters.billNoSearch);
+  if (filters?.fromDate) params.append('from_date', filters.fromDate);
+  if (filters?.toDate) params.append('to_date', filters.toDate);
+  
+  const url = `/api/sales/invoices?${params.toString()}`;
+  const response = await apiClient.get<Invoice[]>(url);
+  return response.data;
 }
 
 export async function apiGetInvoice(invoiceNumber: string, invoiceType?: string): Promise<Invoice> {

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
 from typing import List, Optional
 from uuid import UUID
@@ -21,6 +21,10 @@ router = APIRouter(
 @router.get("/invoices", response_model=List[schemas.InvoiceResponse])
 def get_invoices(
     invoice_type: Optional[str] = Query(None),
+    party_search: Optional[str] = Query(None),
+    bill_no_search: Optional[str] = Query(None),
+    from_date: Optional[str] = Query(None),
+    to_date: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db),
@@ -30,13 +34,37 @@ def get_invoices(
     Fetch all invoices for the current user's organization, optionally filtered by type.
     Supports pagination.
     """
-    query = db.query(models.Invoice).filter(
+    query = db.query(models.Invoice).options(
+        joinedload(models.Invoice.items)
+    ).filter(
         models.Invoice.organization_id == current_user.organization_id,
         models.Invoice.is_active == True
     )
     
     if invoice_type:
         query = query.filter(models.Invoice.invoice_type == invoice_type)
+        
+    if party_search:
+        query = query.filter(models.Invoice.customer_name.ilike(f"%{party_search}%"))
+        
+    if bill_no_search:
+        query = query.filter(models.Invoice.invoice_number.ilike(f"%{bill_no_search}%"))
+        
+    if from_date:
+        try:
+            fd = datetime.strptime(from_date, "%Y-%m-%d")
+            query = query.filter(models.Invoice.date >= fd)
+        except ValueError:
+            pass
+            
+    if to_date:
+        try:
+            td = datetime.strptime(to_date, "%Y-%m-%d")
+            # Set to end of day to include all invoices on the to_date
+            td = td.replace(hour=23, minute=59, second=59)
+            query = query.filter(models.Invoice.date <= td)
+        except ValueError:
+            pass
         
     invoices = query.order_by(desc(models.Invoice.created_at)).offset(skip).limit(limit).all()
     return invoices

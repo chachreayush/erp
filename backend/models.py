@@ -352,12 +352,12 @@ class Invoice(Base):
     is_active = Column(Boolean, default=True, nullable=False)
 
     invoice_type = Column(String(50), nullable=False, default="bill")
-    invoice_number = Column(String(100), nullable=False)
+    invoice_number = Column(String(100), nullable=False, index=True)
     date = Column(DateTime, default=datetime.utcnow, nullable=False)
-    customer_name = Column(String(255), nullable=False)
+    customer_name = Column(String(255), nullable=False, index=True)
     
     # Advanced ERP Fields
-    party_inv_no = Column(String(100), nullable=True)
+    party_inv_no = Column(String(100), nullable=True, index=True)
     party_inv_date = Column(String(50), nullable=True)
     due_date = Column(String(50), nullable=True)
     remarks = Column(String(500), nullable=True)
