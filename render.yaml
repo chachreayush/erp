@@ -1,6 +1,7 @@
 services:
   - type: web
     name: erp-backend
+    plan: free
     env: python
     rootDir: backend
     buildCommand: "pip install -r requirements.txt"
