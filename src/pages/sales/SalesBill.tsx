@@ -282,7 +282,7 @@ export default function SalesBill() {
                 batch: item.batch || '',
                 qty: item.quantity.toString(),
                 free: '',
-                rate: item.rate.toString(),
+                prate: item.rate.toString(),
                 dis: item.discount_percent?.toString() || '',
                 amount: item.line_total.toString(),
                 expiry: item.expiry || '',
