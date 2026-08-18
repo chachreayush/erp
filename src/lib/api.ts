@@ -362,6 +362,14 @@ export async function apiGetInvoices(invoiceType?: string): Promise<Invoice[]> {
   return response.data
 }
 
+export async function apiGetInvoice(invoiceNumber: string, invoiceType?: string): Promise<Invoice> {
+  const url = invoiceType 
+    ? `/api/sales/invoices/${encodeURIComponent(invoiceNumber)}?invoice_type=${encodeURIComponent(invoiceType)}` 
+    : `/api/sales/invoices/${encodeURIComponent(invoiceNumber)}`
+  const response = await apiClient.get<Invoice>(url)
+  return response.data
+}
+
 export async function apiCreateInvoice(payload: InvoiceCreatePayload): Promise<Invoice> {
   const response = await apiClient.post<Invoice>('/api/sales/invoices', payload)
   return response.data

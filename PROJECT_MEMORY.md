@@ -205,3 +205,7 @@ JWT_SECRET_KEY=fallback_dev_key_change_in_production
 - [x] Implemented 'Smart Batch Filtering' in Sales/Purchase (hiding 0 qty batches, revealed via ArrowUp).
 - [x] Implemented isolated default auto-increment series (e.g. S0001, SC0001, P0001) based on prefix across ALL billing modules.
 - [x] Implemented strict local duplicate validation for Entry Numbers across all forms.
+
+### Database Migration to Neon Postgres (Vercel + Render)
+- [x] Migrated all offline `localStorage` billing form modules (Sales, Purchase, Returns, Brk/Exp) to fetch and store live data from PostgreSQL via FastAPI (Render) + Neon backend.
+- [x] Verified full stack deployment synchronization with Vercel and Render.

@@ -60,3 +60,9 @@ To deploy the frontend to Vercel:
 1. Connect the GitHub repository.
 2. Select **Vite** as the Framework Preset.
 3. Ensure the `vercel.json` file is present in the root to handle React Router single-page application rewrites.
+
+## Live Database & Deployment
+- **Frontend**: Deployed and automatically synced via Vercel.
+- **Backend API**: Deployed and automatically synced via Render.
+- **Database**: Hosted securely on Neon (PostgreSQL).
+All billing and modification modules (Sales, Purchase, Returns, Breakage/Expiry) now strictly interact with the live FastAPI endpoints instead of offline browser storage, ensuring multi-tenant data synchronization across all devices and clouds.

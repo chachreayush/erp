@@ -1,4 +1,4 @@
-import { apiCreateInvoice, InvoiceCreatePayload } from '../../lib/api';
+import { apiCreateInvoice, apiGetInvoice, InvoiceCreatePayload } from '../../lib/api';
 import React, { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { apiGetProducts } from '../../lib/api'
@@ -263,12 +263,44 @@ export default function BrkReceiveBill() {
   useEffect(() => {
     if (selectedModifyBill) {
       setBillNo(selectedModifyBill)
-      const savedBills = JSON.parse(localStorage.getItem('savedBrkReceiveBills') || '[]')
-      const billInfo = savedBills.find((b: any) => b.entryNo === selectedModifyBill)
-      if (billInfo) {
-        setPartyName(billInfo.partyName)
-        setPartyInvNo(billInfo.partyInvNo)
+      
+      const fetchBill = async () => {
+        try {
+          const billInfo = await apiGetInvoice(selectedModifyBill)
+          if (billInfo) {
+            setPartyName(billInfo.customer_name)
+            setPartyInvNo(billInfo.party_inv_no || '')
+            if (billInfo.date) {
+              const d = new Date(billInfo.date)
+              setDateStr(`${d.getDate().toString().padStart(2, '0')}-${(d.getMonth()+1).toString().padStart(2, '0')}-${d.getFullYear().toString().slice(2)}`)
+              setInvDateStr(`${d.getDate().toString().padStart(2, '0')}-${(d.getMonth()+1).toString().padStart(2, '0')}-${d.getFullYear().toString().slice(2)}`)
+            }
+            if (billInfo.items && billInfo.items.length > 0) {
+              const mappedRows = billInfo.items.map((item: any, i: number) => ({
+                id: i + 1,
+                product: item.product_name,
+                pack: '',
+                batch: item.batch || '',
+                qty: item.quantity.toString(),
+                free: '',
+                prate: item.rate.toString(),
+                dis: item.discount_percent?.toString() || '',
+                amount: item.line_total.toString(),
+                expiry: item.expiry || '',
+                mrp: item.mrp?.toString() || '',
+                purDealQty: '', purDealFree: '', schDeal: '', dealPercent: '',
+                igst: item.igst_percent?.toString() || '',
+                cgst: '', sgst: '', rateA: '', rateB: '', rateC: '', cost: '', hsn: '',
+                schSalesQty: '', schSalesFree: ''
+              }))
+              setGridRows(mappedRows)
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load bill", err)
+        }
       }
+      fetchBill()
       
       // Focus first option (Date) after switching views
       setTimeout(() => {

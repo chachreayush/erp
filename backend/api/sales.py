@@ -42,6 +42,32 @@ def get_invoices(
     return invoices
 
 
+@router.get("/invoices/{invoice_number}", response_model=schemas.InvoiceResponse)
+def get_invoice_by_number(
+    invoice_number: str,
+    invoice_type: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Fetch a single invoice by its entry number, including its line items.
+    """
+    query = db.query(models.Invoice).filter(
+        models.Invoice.organization_id == current_user.organization_id,
+        models.Invoice.invoice_number == invoice_number,
+        models.Invoice.is_active == True
+    )
+    
+    if invoice_type:
+        query = query.filter(models.Invoice.invoice_type == invoice_type)
+        
+    invoice = query.first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+        
+    return invoice
+
+
 def _deduct_stock_for_invoice(db: Session, org_id: UUID, items: list[schemas.InvoiceItemCreate]):
     """Deduct stock from batches for invoice items."""
     for item in items:

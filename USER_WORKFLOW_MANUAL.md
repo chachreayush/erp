@@ -36,3 +36,6 @@ To see what you have on hand:
 2. The grid displays real-time stock levels for all your products.
 3. The system calculates stock dynamically by summing all your active batches.
 4. **Zero-Stock Products**: Products that have completely run out of stock (or haven't had a purchase yet) will still appear in this list with a quantity of `0`, allowing you to quickly identify what needs to be reordered.
+
+## Live Synchronization (Vercel & Render)
+Because the ERP is now successfully connected to a live cloud database (Neon), all invoice registrations and modifications made locally will instantly reflect on the Vercel hosted site, and vice versa. There is no longer any temporary offline storage for billing.

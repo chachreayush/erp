@@ -158,6 +158,9 @@ def login(
         )
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+
         # Any other unexpected error = HTTP 500 Internal Server Error
         # Don't expose internal error details to the client in production
         raise HTTPException(
