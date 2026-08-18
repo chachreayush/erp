@@ -1,5 +1,5 @@
 # ERP Project — Master Memory File
-> Last Updated: 2026-07-31 | Auto-loaded at the start of every session.
+> Last Updated: 2026-08-19 | Auto-loaded at the start of every session.
 
 ---
 
@@ -209,3 +209,8 @@ JWT_SECRET_KEY=fallback_dev_key_change_in_production
 ### Database Migration to Neon Postgres (Vercel + Render)
 - [x] Migrated all offline `localStorage` billing form modules (Sales, Purchase, Returns, Brk/Exp) to fetch and store live data from PostgreSQL via FastAPI (Render) + Neon backend.
 - [x] Verified full stack deployment synchronization with Vercel and Render.
+
+## Latest Updates (August 2026)
+- **Multi-Tenant Deployment**: Deployed on Render (Backend) and Vercel (Frontend) utilizing Neon PostgreSQL.
+- **Invoice Modifiers Migration**: All modify bill lists (Sales, Purchase, Sales Return, Purchase Return, Brk Issue, Brk Receive) migrated from LocalStorage to the live Database API via piGetInvoices.
+- **Stock Calculation Fix**: Corrected the _update_stock_for_invoice logic to deduct stock for Sales and **add** stock for Purchases, ensuring zero-stock items can still be purchased without generating 400 errors.

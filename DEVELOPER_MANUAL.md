@@ -66,3 +66,4 @@ To deploy the frontend to Vercel:
 - **Backend API**: Deployed and automatically synced via Render.
 - **Database**: Hosted securely on Neon (PostgreSQL).
 All billing and modification modules (Sales, Purchase, Returns, Breakage/Expiry) now strictly interact with the live FastAPI endpoints instead of offline browser storage, ensuring multi-tenant data synchronization across all devices and clouds.
+

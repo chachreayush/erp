@@ -39,3 +39,10 @@ To see what you have on hand:
 
 ## Live Synchronization (Vercel & Render)
 Because the ERP is now successfully connected to a live cloud database (Neon), all invoice registrations and modifications made locally will instantly reflect on the Vercel hosted site, and vice versa. There is no longer any temporary offline storage for billing.
+
+## 6. Modifying Invoices
+All invoice modification views (Sales, Purchases, Returns, Breakage) are fully integrated with the live database.
+1. Navigate to **Modify Bills** under any section (e.g., Sales -> Modify).
+2. You will see a live grid of your previously saved invoices.
+3. If the grid is empty, it means you haven't created any invoices of that type in the system yet.
+4. Click on any invoice to load it for modification.
