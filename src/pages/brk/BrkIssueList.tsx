@@ -68,6 +68,7 @@ export default function BrkIssueList({ onSelectBill, type }: BrkIssueListProps) 
   }, [bills, partySearch, billNoSearch, fromDate, toDate])
 
   const colDefs: ColDef[] = [
+    { field: 'date', headerName: 'Date', width: 120, filter: true },
     { field: 'entryNo', headerName: 'Entry No', width: 120, filter: true },
     { field: 'partyName', headerName: 'Party Name', flex: 1, filter: true },
     { field: 'partyInvNo', headerName: 'Party Inv No', width: 150, filter: true },

@@ -349,6 +349,7 @@ class Invoice(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
 
     invoice_type = Column(String(50), nullable=False, default="bill")
     invoice_number = Column(String(100), nullable=False)

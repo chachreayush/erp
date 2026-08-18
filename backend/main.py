@@ -86,7 +86,8 @@ app.add_middleware(
     # In production: ["http://your-erp-server-ip:1420"]
     allow_origins=["*"] if APP_ENV == "development" else [
         "http://localhost:1420",
-        "tauri://localhost"  # Tauri desktop app origin
+        "tauri://localhost", # Tauri desktop app origin
+        "https://erp-rho-three.vercel.app" # Vercel hosted frontend
     ],
 
     # allow_credentials: Allow cookies and authorization headers to be sent.

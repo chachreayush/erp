@@ -68,6 +68,7 @@ export default function SalesList({ onSelectBill, type }: PurchaseListProps) {
   }, [bills, partySearch, billNoSearch, fromDate, toDate])
 
   const colDefs: ColDef[] = [
+    { field: 'date', headerName: 'Date', width: 120, filter: true },
     { field: 'entryNo', headerName: 'Entry No', width: 120, filter: true },
     { field: 'partyName', headerName: 'Party Name', flex: 1, filter: true },
     {

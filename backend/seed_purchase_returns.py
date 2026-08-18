@@ -16,8 +16,9 @@ def run():
             print("No organizations found.")
             return
 
-        print(f"Seeding purchases for organization: {org.name}")
+        print(f"Seeding purchase returns for organization: {org.name}")
         
+        # Sundry Creditors (Suppliers)
         suppliers = db.query(models.Ledger).filter(
             models.Ledger.organization_id == org.id,
             models.Ledger.group_name == "Sundry Creditors"
@@ -27,51 +28,44 @@ def run():
             print("No Sundry Creditors found. Create them first.")
             return
             
-        products = db.query(models.Product).filter_by(organization_id=org.id).all()
-        if not products:
-            print("No products found.")
+        # Get all batches with stock > 0
+        available_batches = db.query(models.Batch).filter(
+            models.Batch.organization_id == org.id,
+            models.Batch.current_stock > 0
+        ).all()
+        
+        if not available_batches:
+            print("No batches with stock available.")
             return
 
         new_invoices = []
         new_items = []
-        new_batches = []
         
-        for i in range(1, 51):
+        for i in range(1, 6):
             supplier = random.choice(suppliers)
             invoice_id = uuid.uuid4()
             
-            # Select 2 to 6 random products
-            num_items = random.randint(2, 6)
-            selected_products = random.sample(products, num_items)
+            # Select 1 to 2 random batches
+            num_items = random.randint(1, min(2, len(available_batches)))
+            selected_batches = random.sample(available_batches, num_items)
             
             subtotal = 0.0
             tax_total = 0.0
             
-            for p in selected_products:
-                qty = random.randint(10, 500)
-                batch_number = f"B{random.randint(1000, 9999)}"
-                expiry_date = (datetime.utcnow() + timedelta(days=random.randint(180, 1000))).strftime("%m/%y")
+            for b in selected_batches:
+                # get product for this batch
+                p = db.query(models.Product).filter(models.Product.id == b.product_id).first()
+                if not p:
+                    continue
                 
-                # Create a batch
-                batch = models.Batch(
-                    id=uuid.uuid4(),
-                    organization_id=org.id,
-                    product_id=p.id,
-                    batch_number=batch_number,
-                    expiry=expiry_date,
-                    mrp=p.mrp,
-                    rate=p.p_rate,
-                    rate_a=p.rate_a,
-                    rate_b=p.rate_a,
-                    rate_c=p.rate_a,
-                    cost=p.p_rate,
-                    current_stock=qty,
-                    created_at=datetime.utcnow()
-                )
-                new_batches.append(batch)
+                # Return between 1 and 2 items, not exceeding current stock
+                qty = random.randint(1, min(2, b.current_stock))
+                if qty <= 0:
+                    continue
                 
-                # Calculate item taxes
-                item_total = float(p.p_rate) * qty
+                # Calculate item taxes based on purchase rate
+                return_rate = float(b.rate) if b.rate else float(p.p_rate) if p.p_rate else float(p.mrp)
+                item_total = return_rate * qty
                 item_tax = item_total * (float(p.igst_percent) / 100.0)
                 
                 subtotal += item_total
@@ -85,42 +79,46 @@ def run():
                     product_id=p.id,
                     product_name=p.name,
                     quantity=qty,
-                    rate=p.p_rate,
-                    batch=batch_number,
-                    expiry=expiry_date,
-                    mrp=p.mrp,
+                    rate=return_rate,
+                    batch=b.batch_number,
+                    expiry=b.expiry,
+                    mrp=b.mrp,
                     discount_percent=0.0,
                     margin_percent="0",
                     igst_percent=p.igst_percent,
                     line_total=item_total
                 )
                 new_items.append(inv_item)
+                
+                # Deduct stock (Purchase return decreases stock)
+                b.current_stock -= qty
             
             # Create Invoice
             inv = models.Invoice(
                 id=invoice_id,
                 organization_id=org.id,
-                invoice_type="purchase-bill",
-                invoice_number=f"PUR-{(datetime.utcnow().year)}-{i:04d}",
-                date=datetime.utcnow() - timedelta(days=random.randint(0, 30)),
+                invoice_type="purchase-return-bill",
+                invoice_number=f"PR-{(datetime.utcnow().year)}-{i:04d}",
+                date=datetime.utcnow() - timedelta(days=random.randint(0, 5)),
                 customer_name=supplier.name,
-                party_inv_no=f"SUP-{random.randint(10000, 99999)}",
-                party_inv_date=(datetime.utcnow() - timedelta(days=random.randint(1, 35))).strftime("%Y-%m-%d"),
+                party_inv_no="",
+                party_inv_date=None,
                 due_date=(datetime.utcnow() + timedelta(days=random.randint(0, 30))).strftime("%Y-%m-%d"),
                 subtotal=subtotal,
                 tax_total=tax_total,
                 grand_total=subtotal + tax_total,
-                created_at=datetime.utcnow()
+                created_at=datetime.utcnow(),
+                is_active=True
             )
             new_invoices.append(inv)
 
         db.bulk_save_objects(new_invoices)
         db.bulk_save_objects(new_items)
-        db.bulk_save_objects(new_batches)
+        # Batches are already in session, so just commit
         
         db.commit()
         
-        print(f"Successfully seeded 50 purchase invoices, {len(new_items)} items, and {len(new_batches)} batches.")
+        print(f"Successfully seeded 5 purchase return invoices and {len(new_items)} items.")
         
     except Exception as e:
         db.rollback()
