@@ -217,3 +217,10 @@ JWT_SECRET_KEY=fallback_dev_key_change_in_production
 - **Code Audit & Performance Upgrades**: Added database indexes to invoice_number, customer_name, and party_inv_no for instantaneous search. Resolved SQLAlchemy N+1 query inefficiencies using joinedload for invoice items.
 - **Server-Side Search Filtering**: Refactored PurchaseList and SalesList frontend components to debounce UI filters and send party_search, ill_no_search, rom_date, and 	o_date directly to the piGetInvoices backend endpoint for high-performance server-side filtering.
 - **Security Posture (Rate Limiting)**: Installed and integrated slowapi into the FastAPI backend, restricting POST /auth/login to 5 requests per minute to thwart brute-force authentication attacks.
+
+- **August 20, 2026**: Designed and implemented an isolated Breakage & Expiry inventory tracking system. 
+  - Created rk_exp_stock tracker on the Batch model.
+  - Built intelligent routing in pi/sales.py for rk-receive and rk-issue types.
+  - Implemented /api/stock/brk-exp dashboard endpoint.
+  - Updated frontend routes and CurrentStock.tsx to handle the new dashboard.
+  - Seeded 20 receive and 20 issue entries for demo purposes.

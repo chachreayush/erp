@@ -96,8 +96,16 @@ def get_invoice_by_number(
     return invoice
 
 
-def _update_stock_for_invoice(db: Session, org_id: UUID, items: list[schemas.InvoiceItemCreate], is_purchase: bool = False):
+def _update_stock_for_invoice(db: Session, org_id: UUID, items: list[schemas.InvoiceItemCreate], invoice_type: str):
     """Update stock from batches for invoice items (add for purchase, deduct for sales)."""
+    is_purchase = invoice_type.startswith("purchase")
+    is_brk_receive = invoice_type.startswith("brk-receive")
+    is_brk_issue = invoice_type.startswith("brk-issue")
+    is_brk = is_brk_receive or is_brk_issue
+    is_addition = is_purchase or is_brk_receive
+    
+    stock_attr = "brk_exp_stock" if is_brk else "current_stock"
+
     for item in items:
         if not item.product_id or not item.batch:
             continue  # Skip if no product or batch specified
@@ -109,15 +117,16 @@ def _update_stock_for_invoice(db: Session, org_id: UUID, items: list[schemas.Inv
         ).first()
         
         if batch:
-            if not is_purchase and batch.current_stock < item.quantity:
+            batch_stock = getattr(batch, stock_attr)
+            if not is_addition and batch_stock < item.quantity:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Insufficient stock for batch {item.batch} of product {item.product_name}. Available: {batch.current_stock}, Required: {item.quantity}"
+                    detail=f"Insufficient stock for batch {item.batch} of product {item.product_name}. Available: {batch_stock}, Required: {item.quantity}"
                 )
-            if is_purchase:
-                batch.current_stock += item.quantity
+            if is_addition:
+                setattr(batch, stock_attr, batch_stock + item.quantity)
             else:
-                batch.current_stock -= item.quantity
+                setattr(batch, stock_attr, batch_stock - item.quantity)
         else:
             # Batch not found - create with negative stock (backorder) or positive if purchase
             new_batch = models.Batch(
@@ -131,7 +140,8 @@ def _update_stock_for_invoice(db: Session, org_id: UUID, items: list[schemas.Inv
                 rate_b=0,
                 rate_c=0,
                 cost=0,
-                current_stock=item.quantity if is_purchase else -item.quantity
+                current_stock=0 if is_brk else (item.quantity if is_addition else -item.quantity),
+                brk_exp_stock=(item.quantity if is_addition else -item.quantity) if is_brk else 0
             )
             db.add(new_batch)
 
@@ -201,8 +211,7 @@ def create_invoice(
         db.add(new_item)
 
     # 3. Update stock from batches
-    is_purchase = invoice_data.invoice_type.startswith("purchase")
-    _update_stock_for_invoice(db, org_id, invoice_data.items, is_purchase=is_purchase)
+    _update_stock_for_invoice(db, org_id, invoice_data.items, invoice_type=invoice_data.invoice_type)
 
     # Commit all changes to the database
     db.commit()
@@ -275,8 +284,7 @@ def update_invoice(
         db.add(new_item)
     
     # Update stock for new items
-    is_purchase = invoice_data.invoice_type.startswith("purchase")
-    _update_stock_for_invoice(db, org_id, invoice_data.items, is_purchase=is_purchase)
+    _update_stock_for_invoice(db, org_id, invoice_data.items, invoice_type=invoice_data.invoice_type)
     
     db.commit()
     db.refresh(db_invoice)

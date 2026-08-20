@@ -11,7 +11,7 @@ interface StockItem {
   current_stock: number
 }
 
-const CurrentStock = () => {
+const CurrentStock = ({ type = 'current' }: { type?: 'current' | 'brk-exp' }) => {
   const [stockData, setStockData] = useState<StockItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -37,16 +37,17 @@ const CurrentStock = () => {
   useEffect(() => {
     const fetchStock = async () => {
       try {
-        const response = await apiClient.get<StockItem[]>('/api/stock/')
-        setStockData(response.data || [])
-      } catch (error) {
-        console.error("Failed to fetch stock:", error)
+        const endpoint = type === 'brk-exp' ? '/api/stock/brk-exp' : '/api/stock'
+        const res = await apiClient.get<StockItem[]>(endpoint)
+        setStockData(res.data)
+      } catch (err) {
+        console.error("Failed to fetch stock", err)
       } finally {
         setIsLoading(false)
       }
     }
     fetchStock()
-  }, [])
+  }, [type])
 
   const filteredStock = stockData.filter(item => 
     item.product_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -59,10 +60,10 @@ const CurrentStock = () => {
     <div style={{ maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.3s ease-in-out' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, color: 'var(--color-text)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Package size={24} color="var(--color-primary)" />
-            Current Stock
-          </h1>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+            <Package className="mr-2 text-indigo-600" />
+            {type === 'brk-exp' ? 'Breakage/Expiry Stock' : 'Current Stock'}
+          </h2>
           <p style={{ color: 'var(--color-text-muted)', fontSize: '14px' }}>
             Real-time overview of your inventory stock levels based on purchases and sales.
           </p>
@@ -111,7 +112,9 @@ const CurrentStock = () => {
                   <th style={{ padding: '12px 16px', fontWeight: 600 }}>Product Name</th>
                   <th style={{ padding: '12px 16px', fontWeight: 600 }}>Company</th>
                   <th style={{ padding: '12px 16px', fontWeight: 600 }}>Salt / Molecule</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'right' }}>Current Stock</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'right' }}>
+                    {type === 'brk-exp' ? 'Brk/Exp Stock' : 'Current Stock'}
+                  </th>
                 </tr>
               </thead>
               <tbody>

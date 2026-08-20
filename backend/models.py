@@ -334,6 +334,7 @@ class Batch(Base):
     cost = Column(Numeric(12, 2), nullable=False, default=0)
     
     current_stock = Column(Integer, nullable=False, default=0)
+    brk_exp_stock = Column(Integer, nullable=False, default=0)
 
     # Relationships
     product = relationship("Product")

@@ -114,7 +114,8 @@ const inventorySubItemsMap: Record<string, { label: string; path: string }[]> = 
     { label: 'Modify', path: '/inventory?action=modify' }
   ],
   'current-stock': [
-    { label: 'View Stock', path: '/stock' }
+    { label: 'View Stock', path: '/stock' },
+    { label: 'Brk/Exp Stock', path: '/brk-exp-stock' }
   ]
 }
 

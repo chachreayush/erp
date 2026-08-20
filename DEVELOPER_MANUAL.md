@@ -74,3 +74,9 @@ All billing and modification modules (Sales, Purchase, Returns, Breakage/Expiry)
 - **Server-Side Filtering**: List endpoints (e.g., /api/sales/invoices) process debounced query parameters (rom_date, party_search) directly via SQLAlchemy to minimize API payload sizes and memory consumption.
 - **Lazy Loading Prevention**: Endpoints querying collections containing nested relationships (like Invoices with InvoiceItems) must utilize SQLAlchemy's joinedload() to sidestep N+1 query inefficiencies.
 - **Indexing**: High-traffic search columns (such as invoice_number, customer_name) are strictly indexed in PostgreSQL for instantaneous B-Tree traversal.
+
+
+### Breakage & Expiry System
+- Breakage and Expiry inventory is isolated directly at the Batch model level via the rk_exp_stock column.
+- The pi/sales.py engine intelligently intercepts rk-receive and rk-issue invoice types, routing stock additions and deductions specifically to rk_exp_stock rather than the main current_stock.
+- The /api/stock/brk-exp endpoint provides a grouped sum of this isolated stock to the frontend.

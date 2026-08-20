@@ -19,9 +19,9 @@ def seed_hsn():
 
         print(f"Found Organization: {org.name} ({org.id})")
 
-        # Clear existing HSN codes to prevent duplicates
-        deleted = session.query(HSNCode).filter(HSNCode.organization_id == org.id).delete()
-        print(f"Cleared {deleted} existing HSN codes for this organization.")
+        # Fetch existing HSN codes to prevent duplicates without deleting referenced ones
+        existing_codes = {hsn.code for hsn in session.query(HSNCode.code).filter(HSNCode.organization_id == org.id).all()}
+        print(f"Found {len(existing_codes)} existing HSN codes for this organization.")
 
         combined_records = []
 
@@ -31,15 +31,18 @@ def seed_hsn():
                 hsn_data = json.load(f)
                 print(f"Loaded {len(hsn_data)} Goods (HSN) codes from JSON.")
                 for item in hsn_data:
-                    combined_records.append({
-                        "organization_id": org.id,
-                        "code": item.get("code", ""),
-                        "description": item.get("description", ""),
-                        "igst": item.get("igstRate", 0),
-                        "cgst": item.get("cgstRate", 0),
-                        "sgst": item.get("sgstRate", 0),
-                        "type": "Goods"
-                    })
+                    code = item.get("code", "")
+                    if code not in existing_codes:
+                        combined_records.append({
+                            "organization_id": org.id,
+                            "code": code,
+                            "description": item.get("description", ""),
+                            "igst": item.get("igstRate", 0),
+                            "cgst": item.get("cgstRate", 0),
+                            "sgst": item.get("sgstRate", 0),
+                            "type": "Goods"
+                        })
+                        existing_codes.add(code)
         else:
             print("hsn_dump.json not found!")
 
@@ -49,15 +52,18 @@ def seed_hsn():
                 sac_data = json.load(f)
                 print(f"Loaded {len(sac_data)} Services (SAC) codes from JSON.")
                 for item in sac_data:
-                    combined_records.append({
-                        "organization_id": org.id,
-                        "code": item.get("code", ""),
-                        "description": item.get("description", ""),
-                        "igst": item.get("igstRate", 0),
-                        "cgst": item.get("cgstRate", 0),
-                        "sgst": item.get("sgstRate", 0),
-                        "type": "Service"
-                    })
+                    code = item.get("code", "")
+                    if code not in existing_codes:
+                        combined_records.append({
+                            "organization_id": org.id,
+                            "code": code,
+                            "description": item.get("description", ""),
+                            "igst": item.get("igstRate", 0),
+                            "cgst": item.get("cgstRate", 0),
+                            "sgst": item.get("sgstRate", 0),
+                            "type": "Service"
+                        })
+                        existing_codes.add(code)
         else:
             print("sac_dump.json not found!")
 

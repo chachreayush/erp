@@ -102,9 +102,13 @@ function App() {
 
         {/* ERP Module routes */}
         <Route path="master"           element={<MasterPage />} />
-        <Route path="finance"          element={<FinancePage />} />
-        <Route path="inventory"        element={<ProductsPage />} />
+        
+        {/* Inventory */}
         <Route path="stock"            element={<CurrentStockPage />} />
+        <Route path="brk-exp-stock"    element={<CurrentStockPage type="brk-exp" />} />
+        <Route path="inventory"        element={<ProductsPage />} />
+        
+        <Route path="finance"          element={<FinancePage />} />
         <Route path="bulletin"         element={<BulletinBoard />} />
         <Route path="sales"            element={<SalesBill />} />
         <Route path="purchase"         element={<PurchaseBill />} />
