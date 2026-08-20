@@ -636,3 +636,27 @@ export async function apiRegisterOrganization(payload: ClientRegistrationRequest
 }
 
 export default apiClient
+
+export interface RegisterEntry {
+  date: string
+  invoice_number: string
+  party_name: string
+  invoice_type: string
+  inward: number
+  outward: number
+  running_balance: number
+}
+
+export interface RegisterResponse {
+  product_name: string
+  total_inward: number
+  total_outward: number
+  total_value: number
+  entries: RegisterEntry[]
+}
+
+export const apiGetProductRegister = async (productId: string, stockType: "main" | "brk-exp" = "main"): Promise<RegisterResponse> => {
+  const res = await apiClient.get<RegisterResponse>(`/api/stock/${productId}/register?stock_type=${stockType}`)
+  return res.data
+}
+
