@@ -244,7 +244,7 @@ const CurrentStock = ({ type = 'current' }: { type?: 'current' | 'brk-exp' }) =>
       {showRegister && selectedProduct && (
         <ProductRegister
           productId={selectedProduct.product_id}
-          stockType={type}
+          stockType={type === 'current' ? 'main' : 'brk-exp'}
           onClose={() => setShowRegister(false)}
         />
       )}
