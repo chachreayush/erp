@@ -200,13 +200,14 @@ def get_product_register(
         models.Invoice.created_at.asc()
     ).all()
 
+
     entries = []
     running_balance = 0
     total_inward = 0
     total_outward = 0
 
-    main_inward_types = ["purchase-bill", "purchase-challan", "sales-return-credit", "sales-return-challan", "stock-receive-entry"]
-    main_outward_types = ["sales-bill", "sales-challan", "purchase-return-debit", "purchase-return-challan", "stock-issue-entry"]
+    main_inward_types = ["purchase-bill", "purchase-challan", "sales-return-credit", "sales-return-challan", "sales-return-bill", "stock-receive-entry"]
+    main_outward_types = ["sales-bill", "sales-challan", "purchase-return-debit", "purchase-return-challan", "purchase-return-bill", "stock-issue-entry"]
 
     brk_inward_types = ["brk-receive-bill", "brk-receive-challan"]
     brk_outward_types = ["brk-issue-bill", "brk-issue-challan"]
