@@ -97,12 +97,11 @@ def get_invoice_by_number(
 
 
 def _update_stock_for_invoice(db: Session, org_id: UUID, items: list[schemas.InvoiceItemCreate], invoice_type: str):
-    """Update stock from batches for invoice items (add for purchase, deduct for sales)."""
-    is_purchase = invoice_type.startswith("purchase")
-    is_brk_receive = invoice_type.startswith("brk-receive")
-    is_brk_issue = invoice_type.startswith("brk-issue")
-    is_brk = is_brk_receive or is_brk_issue
-    is_addition = is_purchase or is_brk_receive
+    """Update stock from batches for invoice items."""
+    is_brk = invoice_type.startswith("brk-")
+    is_addition = True
+    if invoice_type.startswith("sales-bill") or invoice_type.startswith("sales-challan") or invoice_type.startswith("purchase-return") or invoice_type.startswith("stock-issue") or invoice_type.startswith("brk-issue"):
+        is_addition = False
     
     stock_attr = "brk_exp_stock" if is_brk else "current_stock"
 
@@ -244,6 +243,15 @@ def update_invoice(
         models.InvoiceItem.invoice_id == invoice_id
     ).all()
     
+    is_brk_old = db_invoice.invoice_type.startswith("brk-")
+    is_addition_old = True
+    if db_invoice.invoice_type.startswith("sales-bill") or db_invoice.invoice_type.startswith("sales-challan") or db_invoice.invoice_type.startswith("purchase-return") or db_invoice.invoice_type.startswith("stock-issue") or db_invoice.invoice_type.startswith("brk-issue"):
+        is_addition_old = False
+    
+    # Revert means flip the sign
+    is_addition_old = not is_addition_old
+    stock_attr_old = "brk_exp_stock" if is_brk_old else "current_stock"
+    
     for old_item in old_items:
         if old_item.product_id and old_item.batch:
             batch = db.query(models.Batch).filter(
@@ -252,7 +260,11 @@ def update_invoice(
                 models.Batch.batch_number == old_item.batch
             ).first()
             if batch:
-                batch.current_stock += old_item.quantity
+                batch_stock = getattr(batch, stock_attr_old)
+                if is_addition_old:
+                    setattr(batch, stock_attr_old, batch_stock + old_item.quantity)
+                else:
+                    setattr(batch, stock_attr_old, batch_stock - old_item.quantity)
     
     # Delete old items
     for old_item in old_items:
@@ -314,6 +326,14 @@ def delete_invoice(
         models.InvoiceItem.invoice_id == invoice_id
     ).all()
     
+    is_brk_old = db_invoice.invoice_type.startswith("brk-")
+    is_addition_old = True
+    if db_invoice.invoice_type.startswith("sales-bill") or db_invoice.invoice_type.startswith("sales-challan") or db_invoice.invoice_type.startswith("purchase-return") or db_invoice.invoice_type.startswith("stock-issue") or db_invoice.invoice_type.startswith("brk-issue"):
+        is_addition_old = False
+        
+    is_addition_old = not is_addition_old
+    stock_attr_old = "brk_exp_stock" if is_brk_old else "current_stock"
+    
     for item in items:
         if item.product_id and item.batch:
             batch = db.query(models.Batch).filter(
@@ -322,7 +342,11 @@ def delete_invoice(
                 models.Batch.batch_number == item.batch
             ).first()
             if batch:
-                batch.current_stock += item.quantity
+                batch_stock = getattr(batch, stock_attr_old)
+                if is_addition_old:
+                    setattr(batch, stock_attr_old, batch_stock + item.quantity)
+                else:
+                    setattr(batch, stock_attr_old, batch_stock - item.quantity)
     
     # Soft delete
     db_invoice.is_active = False
