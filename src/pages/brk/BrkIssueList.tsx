@@ -102,7 +102,7 @@ export default function BrkIssueList({ onSelectBill, type }: BrkIssueListProps) 
     }
   }, [onSelectBill])
 
-  const title = type === 'modify-challan' ? 'Modify Purchase Challans' : 'Modify Purchase Bills'
+  const title = type === 'modify-challan' ? 'Modify Breakage Issue Challans' : 'Modify Breakage Issue Entries'
 
   return (
     <div style={{ padding: '20px', height: '100%', display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: 'var(--color-bg-subtle)' }}>
