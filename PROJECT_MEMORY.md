@@ -224,3 +224,7 @@ JWT_SECRET_KEY=fallback_dev_key_change_in_production
   - Implemented /api/stock/brk-exp dashboard endpoint.
   - Updated frontend routes and CurrentStock.tsx to handle the new dashboard.
   - Seeded 20 receive and 20 issue entries for demo purposes.
+
+### Checkpoint 25 & 26 (August 2026)
+- **Breakage/Expiry Module Complete**: Implemented isolated stock routing (rk_exp_stock) for rk-receive and rk-issue endpoints. Fixed Modify headings dynamically across all modules.
+- **Product Register Workflow**: Developed a complete ledger module /api/stock/{product_id}/register capable of computing context-aware running balances (main vs rk-exp flow). Built the ProductRegister.tsx modal with keyboard accessibility.

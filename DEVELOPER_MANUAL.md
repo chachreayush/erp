@@ -80,3 +80,8 @@ All billing and modification modules (Sales, Purchase, Returns, Breakage/Expiry)
 - Breakage and Expiry inventory is isolated directly at the Batch model level via the rk_exp_stock column.
 - The pi/sales.py engine intelligently intercepts rk-receive and rk-issue invoice types, routing stock additions and deductions specifically to rk_exp_stock rather than the main current_stock.
 - The /api/stock/brk-exp endpoint provides a grouped sum of this isolated stock to the frontend.
+
+### Product Register (Stock Ledger)
+- The /api/stock/{product_id}/register endpoint generates a chronological, row-by-row ledger for a specific product.
+- Supports context isolation via the stock_type query parameter: main calculates flow excluding breakage, while rk-exp calculates flow showing exclusively breakage transactions.
+- Frontend logic uses useMemo for client-side search filtering and g-grid for rendering.
