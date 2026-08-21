@@ -1,13 +1,13 @@
-# ============================================================
-# auth/router.py — Authentication API Endpoints
+﻿# ============================================================
+# auth/router.py â€” Authentication API Endpoints
 # ============================================================
 # This file defines all the HTTP endpoints (URLs) for the
 # authentication system. It uses FastAPI's APIRouter.
 #
 # ENDPOINTS DEFINED HERE:
-# POST /auth/login   → Authenticate and receive a JWT token
-# POST /auth/logout  → Invalidate the current session
-# GET  /auth/me      → Get the current user's profile
+# POST /auth/login   â†’ Authenticate and receive a JWT token
+# POST /auth/logout  â†’ Invalidate the current session
+# GET  /auth/me      â†’ Get the current user's profile
 #
 # HOW FASTAPI ROUTING WORKS:
 # Each function below is decorated with @router.post or @router.get.
@@ -18,18 +18,19 @@
 # 4. Serializes the return value to JSON and sends the HTTP response
 # ============================================================
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session as DBSession
 
 # Our modules
 from database import get_db
+from limiter import limiter
 from schemas import LoginRequest, LoginResponse, UserProfileSchema, ErrorResponse
 from auth.service import authenticate_user, build_permissions_for_role
 from auth.utils import verify_access_token, hash_token_for_storage, ACCESS_TOKEN_EXPIRE_MINUTES
 from models import Session as SessionModel, User, Organization, UserRole
 
-# Create a router — a mini-FastAPI app that handles a group of related endpoints.
+# Create a router â€” a mini-FastAPI app that handles a group of related endpoints.
 # This router is registered in main.py with the prefix "/auth",
 # so all routes here become /auth/login, /auth/logout, etc.
 router = APIRouter(
@@ -43,7 +44,7 @@ router = APIRouter(
 security = HTTPBearer()
 
 
-# ── DEPENDENCY: Get Current User ──────────────────────────────
+# â”€â”€ DEPENDENCY: Get Current User â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # This is a reusable dependency function that extracts and validates
 # the JWT token from the request and returns the logged-in user.
 #
@@ -74,7 +75,7 @@ def get_current_user(
     Returns:
         The authenticated User database object
     """
-    # Standard 401 Unauthorized error — reused in multiple places
+    # Standard 401 Unauthorized error â€” reused in multiple places
     credentials_error = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid or expired session. Please log in again.",
@@ -82,7 +83,7 @@ def get_current_user(
     )
 
     # Step 1: Get the raw token string from the Authorization header
-    token = credentials.credentials  # "Bearer <token>" → just "<token>"
+    token = credentials.credentials  # "Bearer <token>" â†’ just "<token>"
 
     # Step 2: Verify JWT signature, expiry, and structure
     payload = verify_access_token(token)
@@ -117,7 +118,7 @@ def get_current_user(
     return user  # Return the User object to the endpoint
 
 
-# ── ENDPOINT: POST /auth/login ────────────────────────────────
+# â”€â”€ ENDPOINT: POST /auth/login â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @router.post(
     "/login",
     response_model=LoginResponse,         # Tells FastAPI what shape to return
@@ -125,11 +126,12 @@ def get_current_user(
     summary="Login with username and password",
     responses={
         401: {"model": ErrorResponse, "description": "Invalid credentials"},
-        422: {"description": "Validation error — missing required fields"}
+        422: {"description": "Validation error â€” missing required fields"}
     }
 )
+@limiter.limit('5/minute')
 def login(
-    request: LoginRequest,      # FastAPI auto-reads and validates the JSON body
+    request: Request, login_req: LoginRequest,      # FastAPI auto-reads and validates the JSON body
     db: DBSession = Depends(get_db)  # FastAPI auto-provides the database session
 ):
     """
@@ -144,8 +146,8 @@ def login(
     """
     try:
         # Delegate all the actual login logic to the service function
-        # The router only handles HTTP — the service handles business logic
-        response = authenticate_user(request, db)
+        # The router only handles HTTP â€” the service handles business logic
+        response = authenticate_user(login_req, db)
         return response
 
     except ValueError as e:
@@ -169,7 +171,7 @@ def login(
         )
 
 
-# ── ENDPOINT: POST /auth/logout ───────────────────────────────
+# â”€â”€ ENDPOINT: POST /auth/logout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @router.post(
     "/logout",
     status_code=status.HTTP_200_OK,
@@ -183,14 +185,14 @@ def logout(
     Logs out the current user by deactivating their session in the database.
 
     After calling this endpoint, the user's JWT token is immediately
-    invalidated — even if it hasn't expired yet. The frontend should
+    invalidated â€” even if it hasn't expired yet. The frontend should
     also clear the stored token from localStorage/memory.
     """
     token = credentials.credentials
     token_hash = hash_token_for_storage(token)
 
     # Find and deactivate the session
-    # Using update() is faster than fetch → modify → commit
+    # Using update() is faster than fetch â†’ modify â†’ commit
     rows_updated = db.query(SessionModel).filter(
         SessionModel.token_hash == token_hash,
         SessionModel.is_active == True
@@ -199,11 +201,11 @@ def logout(
     db.commit()
 
     # Return success regardless of whether a session was found.
-    # (Idempotent logout — logging out twice is not an error)
+    # (Idempotent logout â€” logging out twice is not an error)
     return {"message": "Successfully logged out.", "sessions_closed": rows_updated}
 
 
-# ── ENDPOINT: GET /auth/me ────────────────────────────────────
+# â”€â”€ ENDPOINT: GET /auth/me â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @router.get(
     "/me",
     response_model=UserProfileSchema,
@@ -296,3 +298,5 @@ def impersonate(request: schemas.ImpersonateRequest, current_user: User = Depend
             expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             user=profile
         )
+
+

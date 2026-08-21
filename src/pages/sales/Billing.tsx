@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Modal } from '../../components/ui/Modal'
 import { apiGetProducts, Product, apiCreateInvoice, InvoiceCreatePayload, InvoiceItem, apiGetInvoices, Invoice, apiGetLedgers, Ledger } from '../../lib/api'
+import { useReturnNavigation } from '../../hooks/useReturnNavigation'
 
 export default function BillingPage() {
   const [searchParams] = useSearchParams()
@@ -28,6 +29,11 @@ export default function BillingPage() {
   // Product Search Modal
   const [isProductModalOpen, setIsProductModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  
+  // Escape to return hook
+  
+  useReturnNavigation(isProductModalOpen)
+
   
   // Success state
   const [showSuccess, setShowSuccess] = useState(false)

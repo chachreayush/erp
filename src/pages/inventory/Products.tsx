@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react' 
+import { useReturnNavigation } from '../../hooks/useReturnNavigation'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, Download, Package } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
@@ -18,6 +19,7 @@ import {
 const formatCurrency = (val: number) => `₹${val.toFixed(2)}`
 
 export default function ProductsPage() {
+
   const [searchParams] = useSearchParams()
   const actionParam = searchParams.get('action')
   const [modifyingProductId, setModifyingProductId] = useState<string | null>(null)
@@ -37,6 +39,7 @@ export default function ProductsPage() {
 
   const [isSaltMasterOpen, setIsSaltMasterOpen] = useState(false)
   const [modifySaltData, setModifySaltData] = useState<any>(null)
+  useReturnNavigation(isAdding || isCompanyLookupOpen || isHsnLookupOpen || isSaltLookupOpen || isCompanyMasterOpen || isHsnMasterOpen || isSaltMasterOpen);
   
   const [companies, setCompanies] = useState<{id: string, label: string, data?: any}[]>([])
   const [hsns, setHsns] = useState<{id: string, label: string, description?: string, data?: any}[]>([])

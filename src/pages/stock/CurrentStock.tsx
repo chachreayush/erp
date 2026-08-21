@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Package, Search, Download, X } from 'lucide-react'
 import { apiClient, apiGetBatches, Batch } from '../../lib/api'
+import ProductRegister from './ProductRegister'
+import { useLocation } from 'react-router-dom'
 
 interface StockItem {
   product_id: string
@@ -11,7 +13,9 @@ interface StockItem {
   current_stock: number
 }
 
-const CurrentStock = () => {
+const CurrentStock = ({ type = 'current' }: { type?: 'current' | 'brk-exp' }) => {
+  const location = useLocation()
+  
   const [stockData, setStockData] = useState<StockItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -20,9 +24,20 @@ const CurrentStock = () => {
   const [selectedProduct, setSelectedProduct] = useState<StockItem | null>(null)
   const [productBatches, setProductBatches] = useState<Batch[]>([])
   const [isBatchesLoading, setIsBatchesLoading] = useState(false)
+  const [showBatchDetails, setShowBatchDetails] = useState(false)
 
-  const handleRowClick = async (item: StockItem) => {
+  const [showActionPopup, setShowActionPopup] = useState(false)
+  const [actionSelectionIndex, setActionSelectionIndex] = useState(0) // 0 = Register, 1 = Batch Details
+  const [showRegister, setShowRegister] = useState(false)
+
+  const handleRowClick = (item: StockItem) => {
     setSelectedProduct(item)
+    setShowActionPopup(true)
+    setActionSelectionIndex(0)
+  }
+
+  const openBatchDetails = async (item: StockItem) => {
+    setShowBatchDetails(true)
     setIsBatchesLoading(true)
     try {
       const batches = await apiGetBatches(item.product_id)
@@ -35,18 +50,53 @@ const CurrentStock = () => {
   }
 
   useEffect(() => {
+    if (location.state?.showRegister && location.state?.productItem) {
+      setSelectedProduct(location.state.productItem)
+      setShowRegister(true)
+      // clear state so it doesn't reopen if they refresh
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state])
+
+  useEffect(() => {
+    if (!showActionPopup) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowUp') {
+        setActionSelectionIndex(prev => Math.max(0, prev - 1))
+      } else if (e.key === 'ArrowDown') {
+        setActionSelectionIndex(prev => Math.min(1, prev + 1))
+      } else if (e.key === 'Enter') {
+        if (actionSelectionIndex === 0) {
+          setShowActionPopup(false)
+          setShowRegister(true)
+        } else {
+          setShowActionPopup(false)
+          openBatchDetails(selectedProduct!)
+        }
+      } else if (e.key === 'Escape') {
+        setShowActionPopup(false)
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showActionPopup, actionSelectionIndex, selectedProduct])
+
+  useEffect(() => {
     const fetchStock = async () => {
       try {
-        const response = await apiClient.get<StockItem[]>('/api/stock/')
-        setStockData(response.data || [])
-      } catch (error) {
-        console.error("Failed to fetch stock:", error)
+        const endpoint = type === 'brk-exp' ? '/api/stock/brk-exp' : '/api/stock'
+        const res = await apiClient.get<StockItem[]>(endpoint)
+        setStockData(res.data)
+      } catch (err) {
+        console.error("Failed to fetch stock", err)
       } finally {
         setIsLoading(false)
       }
     }
     fetchStock()
-  }, [])
+  }, [type])
 
   const filteredStock = stockData.filter(item => 
     item.product_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -59,10 +109,10 @@ const CurrentStock = () => {
     <div style={{ maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.3s ease-in-out' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, color: 'var(--color-text)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Package size={24} color="var(--color-primary)" />
-            Current Stock
-          </h1>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+            <Package className="mr-2 text-indigo-600" />
+            {type === 'brk-exp' ? 'Breakage/Expiry Stock' : 'Current Stock'}
+          </h2>
           <p style={{ color: 'var(--color-text-muted)', fontSize: '14px' }}>
             Real-time overview of your inventory stock levels based on purchases and sales.
           </p>
@@ -111,7 +161,9 @@ const CurrentStock = () => {
                   <th style={{ padding: '12px 16px', fontWeight: 600 }}>Product Name</th>
                   <th style={{ padding: '12px 16px', fontWeight: 600 }}>Company</th>
                   <th style={{ padding: '12px 16px', fontWeight: 600 }}>Salt / Molecule</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'right' }}>Current Stock</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'right' }}>
+                    {type === 'brk-exp' ? 'Brk/Exp Stock' : 'Current Stock'}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -160,8 +212,57 @@ const CurrentStock = () => {
         )}
       </div>
 
+      {/* Action Popup */}
+      {showActionPopup && selectedProduct && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--color-bg)', padding: '24px', borderRadius: '8px',
+            width: '300px', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', textAlign: 'center'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '20px', color: 'var(--color-text)' }}>Select Action</h3>
+            <div
+              style={{
+                padding: '12px', marginBottom: '10px', borderRadius: '4px', cursor: 'pointer',
+                backgroundColor: actionSelectionIndex === 0 ? 'var(--color-primary)' : 'var(--color-bg-subtle)',
+                color: actionSelectionIndex === 0 ? '#fff' : 'var(--color-text)',
+                fontWeight: actionSelectionIndex === 0 ? 'bold' : 'normal',
+                transition: 'all 0.1s'
+              }}
+              onClick={() => { setShowActionPopup(false); setShowRegister(true); }}
+            >
+              Register
+            </div>
+            <div
+              style={{
+                padding: '12px', borderRadius: '4px', cursor: 'pointer',
+                backgroundColor: actionSelectionIndex === 1 ? 'var(--color-primary)' : 'var(--color-bg-subtle)',
+                color: actionSelectionIndex === 1 ? '#fff' : 'var(--color-text)',
+                fontWeight: actionSelectionIndex === 1 ? 'bold' : 'normal',
+                transition: 'all 0.1s'
+              }}
+              onClick={() => { setShowActionPopup(false); openBatchDetails(selectedProduct); }}
+            >
+              Batch Details
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Register View */}
+      {showRegister && selectedProduct && (
+        <ProductRegister
+          productId={selectedProduct.product_id}
+          stockType={type === 'current' ? 'main' : 'brk-exp'}
+          onClose={() => setShowRegister(false)} productItem={selectedProduct}
+        />
+      )}
+
       {/* Batch Details Popup */}
-      {selectedProduct && (
+      {showBatchDetails && selectedProduct && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
           backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, 
@@ -182,7 +283,7 @@ const CurrentStock = () => {
                   Code: {selectedProduct.product_code} | Total Stock: {selectedProduct.current_stock}
                 </p>
               </div>
-              <button onClick={() => setSelectedProduct(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}>
+              <button onClick={() => setShowBatchDetails(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}>
                 <X size={24} />
               </button>
             </div>

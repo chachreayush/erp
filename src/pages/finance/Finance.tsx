@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React, { useState } from 'react' 
+import { useReturnNavigation } from '../../hooks/useReturnNavigation'
 import { Plus, Download, Receipt } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
@@ -6,7 +7,9 @@ import { Input } from '../../components/ui/Input'
 import { Modal } from '../../components/ui/Modal'
 
 export default function FinancePage() {
+
   const [isAdding, setIsAdding] = useState(false)
+  useReturnNavigation(isAdding)
   const [ledgers, setLedgers] = useState<{name: string, group: string, balance: number}[]>([
     { name: 'Cash Account', group: 'Cash-in-Hand', balance: 15000 },
     { name: 'HDFC Bank', group: 'Bank Accounts', balance: 250000 },

@@ -1,6 +1,7 @@
 import { apiCreateInvoice, apiGetInvoice, InvoiceCreatePayload } from '../../lib/api';
 import React, { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useReturnNavigation } from '../../hooks/useReturnNavigation'
 import { apiGetProducts } from '../../lib/api'
 import type { Product as _Product } from '../../lib/api'
 import BrkReceiveList from './BrkReceiveList'
@@ -255,10 +256,10 @@ const lookupRegisteredBatch = (product: string, batchNumber: string, currentGrid
 
 
 export default function BrkReceiveBill() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const type = searchParams.get('type') || 'bill' // bill, challan, modify-bill, modify-challan
   const baseType = type.includes('challan') ? 'challan' : 'bill';
-  const [selectedModifyBill, setSelectedModifyBill] = useState<string | null>(null)
+  const [selectedModifyBill, setSelectedModifyBill] = useState<string | null>(searchParams.get('invoice'))
 
   useEffect(() => {
     if (selectedModifyBill) {
@@ -420,6 +421,26 @@ export default function BrkReceiveBill() {
   const [showBatchModal, setShowBatchModal] = useState(false)
   const [showF3BatchModal, setShowF3BatchModal] = useState(false)
   const [f3SelectedIndex, setF3SelectedIndex] = useState(0)
+
+  // Escape to return hook
+  const isDirty = React.useMemo(() => {
+    return gridRows.some(r => r.product && parseFloat(r.qty) > 0) || partyName !== '';
+  }, [gridRows, partyName]);
+
+  useReturnNavigation(
+    showPartyModal || showProductModal || showSaveModal || showBatchModal || showF3BatchModal,
+    {
+      isDirty: !selectedModifyBill && isDirty,
+      fallbackAction: () => {
+        if (selectedModifyBill) {
+          setSelectedModifyBill(null);
+          searchParams.delete('invoice');
+          setSearchParams(searchParams);
+        }
+      }
+    }
+  );
+
 
   // Parties / Sundry Creditors List (Merged with localStorage)
   const defaultParties = [
@@ -1518,7 +1539,7 @@ export default function BrkReceiveBill() {
         </div>
 
         {/* ── LAST 6 BILLED PURCHASES HISTORY PANEL (MARG ERP 9+ REFERENCE STYLE - FIXED HEIGHT, NO EXPANDING) ── */}
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid var(--color-border-strong)', borderRadius: '0 0 8px 8px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '145px', minHeight: '145px', maxHeight: '145px' }}>
+        <div style={{ backgroundColor: '#0f172a', border: '1px solid var(--color-border-strong)', borderRadius: '0 0 8px 8px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'auto', maxHeight: '135px' }}>
           <div style={{ backgroundColor: '#1e293b', padding: '2px 10px', fontSize: '11px', fontWeight: 'bold', color: '#60a5fa', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border-strong)', flexShrink: 0 }}>
             <span>🕒 LAST 6 SAVED BILL DETAILS — [ {gridRows.find(r => r.id === activeRowId)?.product || 'Select Product'} ]</span>
             <span style={{ color: '#94a3b8', fontSize: '10px', fontWeight: 'normal' }}>

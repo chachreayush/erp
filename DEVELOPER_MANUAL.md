@@ -1,4 +1,4 @@
-# Developer Manual - Multi-Tenant ERP Software
+﻿# Developer Manual - Multi-Tenant ERP Software
 
 ## Architecture Overview
 This project is a modern, high-performance ERP system designed with a three-tier architecture:
@@ -13,7 +13,8 @@ The database strictly enforces isolation between different client organizations.
 
 ## Core Modules
 
-### Authentication & Authorization (`backend/auth/router.py`)
+### Authentication & Authorization (ackend/auth/router.py)
+- **Security & Rate Limiting**: The POST /login endpoint is protected by slowapi to restrict attempts (e.g. 5 requests per minute) and block brute-force attacks.
 - Standard JWT-based authentication.
 - **AM Admin** (Account Master) can register new clients and impersonate CM Admins.
 - **CM Admin** (Client Master) has full control over their organization's ERP data.
@@ -67,3 +68,23 @@ To deploy the frontend to Vercel:
 - **Database**: Hosted securely on Neon (PostgreSQL).
 All billing and modification modules (Sales, Purchase, Returns, Breakage/Expiry) now strictly interact with the live FastAPI endpoints instead of offline browser storage, ensuring multi-tenant data synchronization across all devices and clouds.
 
+
+
+### Database & Query Optimizations
+- **Server-Side Filtering**: List endpoints (e.g., /api/sales/invoices) process debounced query parameters (rom_date, party_search) directly via SQLAlchemy to minimize API payload sizes and memory consumption.
+- **Lazy Loading Prevention**: Endpoints querying collections containing nested relationships (like Invoices with InvoiceItems) must utilize SQLAlchemy's joinedload() to sidestep N+1 query inefficiencies.
+- **Indexing**: High-traffic search columns (such as invoice_number, customer_name) are strictly indexed in PostgreSQL for instantaneous B-Tree traversal.
+
+
+### Breakage & Expiry System
+- Breakage and Expiry inventory is isolated directly at the Batch model level via the rk_exp_stock column.
+- The pi/sales.py engine intelligently intercepts rk-receive and rk-issue invoice types, routing stock additions and deductions specifically to rk_exp_stock rather than the main current_stock.
+- The /api/stock/brk-exp endpoint provides a grouped sum of this isolated stock to the frontend.
+
+### Product Register (Stock Ledger)
+- The /api/stock/{product_id}/register endpoint generates a chronological, row-by-row ledger for a specific product.
+- Supports context isolation via the stock_type query parameter: main calculates flow excluding breakage, while rk-exp calculates flow showing exclusively breakage transactions.
+- Frontend logic uses useMemo for client-side search filtering and g-grid for rendering.
+
+### Navigation & State Hooks
+- **\useReturnNavigation\ Hook**: Manages global \Escape\ key interception across billing modules. Deep link states (e.g. \eturnTo\) are passed securely into the React Router \location.state\ rather than polluting the browser's Search Params.

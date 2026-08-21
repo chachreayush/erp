@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react' 
+import { useReturnNavigation } from '../../hooks/useReturnNavigation'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Plus, Edit, Trash2, Search, Building2, Tag, MapPin, DollarSign, Layers, CheckCircle } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
@@ -28,6 +29,7 @@ interface StateItem { id: string; name: string; code: string; capital: string }
 interface BalanceItem { id: string; ledgerName: string; openingBalance: number; opType: 'Dr' | 'Cr'; closingBalance: number; clType: 'Dr' | 'Cr' }
 
 export default function MasterPage() {
+
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   
@@ -38,6 +40,7 @@ export default function MasterPage() {
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
+  useReturnNavigation(isModalOpen)
   const [editingId, setEditingId] = useState<string | null>(null)
 
   // Initial Data State

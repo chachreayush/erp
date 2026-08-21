@@ -28,6 +28,7 @@ class BatchResponse(BaseModel):
     rate_c: float
     cost: float
     current_stock: int
+    brk_exp_stock: int
 
     class Config:
         from_attributes = True

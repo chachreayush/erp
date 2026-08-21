@@ -214,3 +214,20 @@ JWT_SECRET_KEY=fallback_dev_key_change_in_production
 - **Multi-Tenant Deployment**: Deployed on Render (Backend) and Vercel (Frontend) utilizing Neon PostgreSQL.
 - **Invoice Modifiers Migration**: All modify bill lists (Sales, Purchase, Sales Return, Purchase Return, Brk Issue, Brk Receive) migrated from LocalStorage to the live Database API via piGetInvoices.
 - **Stock Calculation Fix**: Corrected the _update_stock_for_invoice logic to deduct stock for Sales and **add** stock for Purchases, ensuring zero-stock items can still be purchased without generating 400 errors.
+- **Code Audit & Performance Upgrades**: Added database indexes to invoice_number, customer_name, and party_inv_no for instantaneous search. Resolved SQLAlchemy N+1 query inefficiencies using joinedload for invoice items.
+- **Server-Side Search Filtering**: Refactored PurchaseList and SalesList frontend components to debounce UI filters and send party_search, ill_no_search, rom_date, and 	o_date directly to the piGetInvoices backend endpoint for high-performance server-side filtering.
+- **Security Posture (Rate Limiting)**: Installed and integrated slowapi into the FastAPI backend, restricting POST /auth/login to 5 requests per minute to thwart brute-force authentication attacks.
+
+- **August 20, 2026**: Designed and implemented an isolated Breakage & Expiry inventory tracking system. 
+  - Created rk_exp_stock tracker on the Batch model.
+  - Built intelligent routing in pi/sales.py for rk-receive and rk-issue types.
+  - Implemented /api/stock/brk-exp dashboard endpoint.
+  - Updated frontend routes and CurrentStock.tsx to handle the new dashboard.
+  - Seeded 20 receive and 20 issue entries for demo purposes.
+
+### Checkpoint 25 & 26 (August 2026)
+- **Breakage/Expiry Module Complete**: Implemented isolated stock routing (rk_exp_stock) for rk-receive and rk-issue endpoints. Fixed Modify headings dynamically across all modules.
+- **Product Register Workflow**: Developed a complete ledger module /api/stock/{product_id}/register capable of computing context-aware running balances (main vs rk-exp flow). Built the ProductRegister.tsx modal with keyboard accessibility.
+
+- **Escape Key Navigation**: Restored comprehensive \Escape\ key capabilities across all Billing/Modification modules and Stock lists, effectively replacing missing deep link variables and preventing UI state locks.
+- **N+1 and Cloud Query Optimization**: Resolved critical Neon Serverless Postgres latency issues. Reduced stock dashboard API queries from scanning the entire organization's batch table to targeted pagination scans, and swapped inefficient outer joins to optimized \IN\ query patterns (selectinload), decreasing response times by orders of magnitude.

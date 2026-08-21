@@ -102,7 +102,7 @@ export default function PurchaseReturnList({ onSelectBill, type }: PurchaseRetur
     }
   }, [onSelectBill])
 
-  const title = type === 'modify-challan' ? 'Modify Purchase Challans' : 'Modify Purchase Bills'
+  const title = type === 'modify-challan' ? 'Modify Purchase Return Challans' : 'Modify Debit Notes'
 
   return (
     <div style={{ padding: '20px', height: '100%', display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: 'var(--color-bg-subtle)' }}>

@@ -356,10 +356,24 @@ export interface Invoice {
 
 export type InvoiceCreatePayload = Omit<Invoice, 'id' | 'company_id' | 'created_at' | 'date'>
 
-export async function apiGetInvoices(invoiceType?: string): Promise<Invoice[]> {
-  const url = invoiceType ? `/api/sales/invoices?invoice_type=${encodeURIComponent(invoiceType)}` : '/api/sales/invoices'
-  const response = await apiClient.get<Invoice[]>(url)
-  return response.data
+export interface InvoiceFilters {
+  partySearch?: string;
+  billNoSearch?: string;
+  fromDate?: string;
+  toDate?: string;
+}
+
+export async function apiGetInvoices(invoiceType?: string, filters?: InvoiceFilters): Promise<Invoice[]> {
+  const params = new URLSearchParams();
+  if (invoiceType) params.append('invoice_type', invoiceType);
+  if (filters?.partySearch) params.append('party_search', filters.partySearch);
+  if (filters?.billNoSearch) params.append('bill_no_search', filters.billNoSearch);
+  if (filters?.fromDate) params.append('from_date', filters.fromDate);
+  if (filters?.toDate) params.append('to_date', filters.toDate);
+  
+  const url = `/api/sales/invoices?${params.toString()}`;
+  const response = await apiClient.get<Invoice[]>(url);
+  return response.data;
 }
 
 export async function apiGetInvoice(invoiceNumber: string, invoiceType?: string): Promise<Invoice> {
@@ -622,3 +636,27 @@ export async function apiRegisterOrganization(payload: ClientRegistrationRequest
 }
 
 export default apiClient
+
+export interface RegisterEntry {
+  date: string
+  invoice_number: string
+  party_name: string
+  invoice_type: string
+  inward: number
+  outward: number
+  running_balance: number
+}
+
+export interface RegisterResponse {
+  product_name: string
+  total_inward: number
+  total_outward: number
+  total_value: number
+  entries: RegisterEntry[]
+}
+
+export const apiGetProductRegister = async (productId: string, stockType: "main" | "brk-exp" = "main"): Promise<RegisterResponse> => {
+  const res = await apiClient.get<RegisterResponse>(`/api/stock/${productId}/register?stock_type=${stockType}`)
+  return res.data
+}
+

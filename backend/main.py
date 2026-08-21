@@ -69,6 +69,15 @@ app = FastAPI(
     redoc_url="/redoc" if APP_ENV == "development" else None,
 )
 
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from limiter import limiter
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
 
 # ── CONFIGURE CORS ───────────────────────────────────────────
 # CORS = Cross-Origin Resource Sharing.
