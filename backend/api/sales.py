@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy import desc
 from typing import List, Optional
 from uuid import UUID
@@ -35,7 +35,7 @@ def get_invoices(
     Supports pagination.
     """
     query = db.query(models.Invoice).options(
-        joinedload(models.Invoice.items)
+        selectinload(models.Invoice.items)
     ).filter(
         models.Invoice.organization_id == current_user.organization_id,
         models.Invoice.is_active == True
