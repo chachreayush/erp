@@ -3,21 +3,17 @@ import { X, Search } from 'lucide-react'
 import { AgGridReact } from 'ag-grid-react'
 import { ColDef } from 'ag-grid-community'
 import { apiGetProductRegister, RegisterResponse } from '../../lib/api'
-import { useNavigate, useLocation } from 'react-router-dom'
 
 interface ProductRegisterProps {
   productId: string
   onClose: () => void
   stockType?: 'main' | 'brk-exp'
-  productItem?: any // to preserve state when returning
 }
 
-export default function ProductRegister({ productId, onClose, stockType = 'main', productItem }: ProductRegisterProps) {
+export default function ProductRegister({ productId, onClose, stockType = 'main' }: ProductRegisterProps) {
   const [data, setData] = useState<RegisterResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const navigate = useNavigate()
-  const location = useLocation()
 
   useEffect(() => {
     const fetchRegister = async () => {
@@ -52,41 +48,6 @@ export default function ProductRegister({ productId, onClose, stockType = 'main'
     { field: 'outward', headerName: 'Outward', width: 120, cellStyle: { textAlign: 'right', color: 'var(--color-danger)' } },
     { field: 'running_balance', headerName: 'Balance', width: 120, cellStyle: { textAlign: 'right', fontWeight: 'bold' } }
   ]
-
-  const handleRowAction = (entry: any) => {
-    if (!entry || !entry.invoice_type) return;
-    
-    let route = '';
-    const type = entry.invoice_type;
-    
-    if (type.startsWith('purchase-bill')) route = '/purchase?type=modify-bill';
-    else if (type.startsWith('purchase-challan')) route = '/purchase?type=modify-challan';
-    else if (type.startsWith('sales-bill')) route = '/sales?type=modify-bill';
-    else if (type.startsWith('sales-challan')) route = '/sales?type=modify-challan';
-    else if (type.startsWith('sales-return-credit') || type.startsWith('sales-return-bill')) route = '/sales-return?type=modify-bill';
-    else if (type.startsWith('sales-return-challan')) route = '/sales-return?type=modify-challan';
-    else if (type.startsWith('purchase-return-debit') || type.startsWith('purchase-return-bill')) route = '/purchase-return?type=modify-bill';
-    else if (type.startsWith('purchase-return-challan')) route = '/purchase-return?type=modify-challan';
-    else if (type.startsWith('brk-receive-bill')) route = '/brk-receive?type=modify-bill';
-    else if (type.startsWith('brk-receive-challan')) route = '/brk-receive?type=modify-challan';
-    else if (type.startsWith('brk-issue-bill')) route = '/brk-issue?type=modify-bill';
-    else if (type.startsWith('brk-issue-challan')) route = '/brk-issue?type=modify-challan';
-    else if (type.startsWith('stock-receive')) route = '/stock-receive?type=modify-bill';
-    else if (type.startsWith('stock-issue')) route = '/stock-issue?type=modify-bill';
-    
-    if (route) {
-      route += `&invoice=${entry.invoice_number}`;
-      // Pass state to preserve this modal when coming back
-      navigate(route, { 
-        state: { 
-          returnTo: location.pathname + location.search, 
-          productItem: productItem,
-          showRegister: true,
-          stockType
-        } 
-      });
-    }
-  }
 
   return (
     <div style={{
@@ -160,12 +121,6 @@ export default function ProductRegister({ productId, onClose, stockType = 'main'
               defaultColDef={{ resizable: true, sortable: true, filter: true }}
               headerHeight={40}
               rowHeight={40}
-              onRowClicked={(e) => handleRowAction(e.data)}
-              onCellKeyDown={(e) => {
-                if (e.event && (e.event as KeyboardEvent).key === 'Enter') {
-                  handleRowAction(e.data)
-                }
-              }}
             />
           )}
         </div>

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Package, Search, Download, X } from 'lucide-react'
 import { apiClient, apiGetBatches, Batch } from '../../lib/api'
 import ProductRegister from './ProductRegister'
-import { useLocation } from 'react-router-dom'
 
 interface StockItem {
   product_id: string
@@ -14,8 +13,6 @@ interface StockItem {
 }
 
 const CurrentStock = ({ type = 'current' }: { type?: 'current' | 'brk-exp' }) => {
-  const location = useLocation()
-  
   const [stockData, setStockData] = useState<StockItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -48,15 +45,6 @@ const CurrentStock = ({ type = 'current' }: { type?: 'current' | 'brk-exp' }) =>
       setIsBatchesLoading(false)
     }
   }
-
-  useEffect(() => {
-    if (location.state?.showRegister && location.state?.productItem) {
-      setSelectedProduct(location.state.productItem)
-      setShowRegister(true)
-      // clear state so it doesn't reopen if they refresh
-      window.history.replaceState({}, document.title)
-    }
-  }, [location.state])
 
   useEffect(() => {
     if (!showActionPopup) return
@@ -257,7 +245,7 @@ const CurrentStock = ({ type = 'current' }: { type?: 'current' | 'brk-exp' }) =>
         <ProductRegister
           productId={selectedProduct.product_id}
           stockType={type === 'current' ? 'main' : 'brk-exp'}
-          onClose={() => setShowRegister(false)} productItem={selectedProduct}
+          onClose={() => setShowRegister(false)}
         />
       )}
 

@@ -228,6 +228,3 @@ JWT_SECRET_KEY=fallback_dev_key_change_in_production
 ### Checkpoint 25 & 26 (August 2026)
 - **Breakage/Expiry Module Complete**: Implemented isolated stock routing (rk_exp_stock) for rk-receive and rk-issue endpoints. Fixed Modify headings dynamically across all modules.
 - **Product Register Workflow**: Developed a complete ledger module /api/stock/{product_id}/register capable of computing context-aware running balances (main vs rk-exp flow). Built the ProductRegister.tsx modal with keyboard accessibility.
-
-- **Escape Key Navigation**: Restored comprehensive \Escape\ key capabilities across all Billing/Modification modules and Stock lists, effectively replacing missing deep link variables and preventing UI state locks.
-- **N+1 and Cloud Query Optimization**: Resolved critical Neon Serverless Postgres latency issues. Reduced stock dashboard API queries from scanning the entire organization's batch table to targeted pagination scans, and swapped inefficient outer joins to optimized \IN\ query patterns (selectinload), decreasing response times by orders of magnitude.

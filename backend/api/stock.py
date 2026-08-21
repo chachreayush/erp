@@ -133,19 +133,14 @@ def get_brk_exp_stock(
         models.Product.is_active == True
     ).offset(skip).limit(limit).all()
 
-    product_ids = [p.id for p in products]
-    if not product_ids:
-        stock_data = []
-    else:
-        stock_data = db.query(
-            models.Batch.product_id,
-            func.sum(models.Batch.brk_exp_stock).label("total_qty")
-        ).filter(
-            models.Batch.organization_id == org_id,
-            models.Batch.product_id.in_(product_ids)
-        ).group_by(
-            models.Batch.product_id
-        ).all()
+    stock_data = db.query(
+        models.Batch.product_id,
+        func.sum(models.Batch.brk_exp_stock).label("total_qty")
+    ).filter(
+        models.Batch.organization_id == org_id
+    ).group_by(
+        models.Batch.product_id
+    ).all()
 
     stock_map = {product_id: int(total_qty or 0) for product_id, total_qty in stock_data}
 

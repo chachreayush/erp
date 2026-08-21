@@ -70,6 +70,7 @@ All billing and modification modules (Sales, Purchase, Returns, Breakage/Expiry)
 
 
 
+
 ### Database & Query Optimizations
 - **Server-Side Filtering**: List endpoints (e.g., /api/sales/invoices) process debounced query parameters (rom_date, party_search) directly via SQLAlchemy to minimize API payload sizes and memory consumption.
 - **Lazy Loading Prevention**: Endpoints querying collections containing nested relationships (like Invoices with InvoiceItems) must utilize SQLAlchemy's joinedload() to sidestep N+1 query inefficiencies.
@@ -85,6 +86,3 @@ All billing and modification modules (Sales, Purchase, Returns, Breakage/Expiry)
 - The /api/stock/{product_id}/register endpoint generates a chronological, row-by-row ledger for a specific product.
 - Supports context isolation via the stock_type query parameter: main calculates flow excluding breakage, while rk-exp calculates flow showing exclusively breakage transactions.
 - Frontend logic uses useMemo for client-side search filtering and g-grid for rendering.
-
-### Navigation & State Hooks
-- **\useReturnNavigation\ Hook**: Manages global \Escape\ key interception across billing modules. Deep link states (e.g. \eturnTo\) are passed securely into the React Router \location.state\ rather than polluting the browser's Search Params.
