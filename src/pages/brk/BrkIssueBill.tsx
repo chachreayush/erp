@@ -1115,18 +1115,18 @@ export default function BrkIssueBill() {
       <div style={{ backgroundColor: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', padding: '4px 6px', boxShadow: 'var(--shadow-md)', flex: 1, display: 'flex', flexDirection: 'column', gap: '0px', overflow: 'hidden' }}>
         
         <div style={{ border: '1px solid var(--color-border-strong)', borderRadius: '8px 8px 0 0', overflowY: 'auto', flex: 1 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left", tableLayout: "fixed" }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
               <tr style={{ backgroundColor: 'var(--color-bg-elevated)', color: 'var(--color-text-secondary)', borderBottom: '1px solid var(--color-border-strong)', fontSize: '12px' }}>
-                <th style={{ padding: '4px 8px', fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '40px', textAlign: 'center' }}>#</th>
-                <th style={{ padding: '4px 8px', fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '25%' }}>PRODUCT</th>
-                <th style={{ padding: '4px 8px', fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '80px' }}>PACK</th>
-                <th style={{ padding: '4px 8px', fontWeight: '600', borderRight: '1px solid var(--color-border)' }}>BATCH</th>
-                <th style={{ padding: '4px 8px', fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '80px' }}>QTY</th>
-                <th style={{ padding: '4px 8px', fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '80px' }}>FREE</th>
-                <th style={{ padding: '4px 8px', fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '100px' }}>P.RATE/S</th>
-                <th style={{ padding: '4px 8px', fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '80px' }}>DIS1%</th>
-                <th style={{ padding: '4px 8px', fontWeight: '600', width: '120px' }}>AMOUNT</th>
+                <th style={{ padding: "2px 4px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '40px', textAlign: 'center' }}>#</th>
+                <th style={{ padding: "2px 4px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '25%' }}>PRODUCT</th>
+                <th style={{ padding: "2px 4px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '80px' }}>PACK</th>
+                <th style={{ padding: "2px 4px", fontWeight: '600', borderRight: '1px solid var(--color-border)' }}>BATCH</th>
+                <th style={{ padding: "2px 4px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '80px' }}>QTY</th>
+                <th style={{ padding: "2px 4px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '80px' }}>FREE</th>
+                <th style={{ padding: "2px 4px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '100px' }}>P.RATE/S</th>
+                <th style={{ padding: "2px 4px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '80px' }}>DIS1%</th>
+                <th style={{ padding: "2px 4px", fontWeight: '600', width: '120px' }}>AMOUNT</th>
               </tr>
             </thead>
             <tbody>
@@ -1134,8 +1134,8 @@ export default function BrkIssueBill() {
                 <tr key={row.id} 
                     style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: activeRowId === row.id ? 'var(--color-bg-hover)' : 'transparent' }}
                     onClick={() => setActiveRowId(row.id)}>
-                  <td style={{ padding: '4px', borderRight: '1px solid var(--color-border)', color: 'var(--color-text-muted)', textAlign: 'center' }}>{idx + 1}</td>
-                  <td style={{ padding: '4px', borderRight: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: "0px 2px", borderRight: '1px solid var(--color-border)', color: 'var(--color-text-muted)', textAlign: 'center' }}>{idx + 1}</td>
+                  <td style={{ padding: "0px 2px", borderRight: '1px solid var(--color-border)' }}>
                     <input 
                       id={`product-input-${row.id}`}
                       value={row.product} onChange={e => handleRowChange(idx, 'product', e.target.value)}
@@ -1164,20 +1164,20 @@ export default function BrkIssueBill() {
                         handleGridKeyDown(e, row.id, 'product')
                       }}
                       placeholder={idx === 0 ? "Search..." : ""} 
-                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: '1px solid transparent', borderRadius: '4px', padding: '6px 8px', outline: 'none' }} 
+                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: '1px solid transparent', borderRadius: '4px', padding: "0px 4px", outline: 'none' }} 
                       onFocusCapture={e => e.target.style.borderColor = 'var(--color-primary)'} onBlur={e => e.target.style.borderColor = 'transparent'} 
                     />
                   </td>
-                  <td style={{ padding: '4px', borderRight: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: "0px 2px", borderRight: '1px solid var(--color-border)' }}>
                     <input 
                       id={`pack-input-${row.id}`}
                       readOnly
                       value={row.pack}
                       onFocus={() => setActiveRowId(row.id)}
-                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-secondary)', border: '1px solid transparent', borderRadius: '4px', padding: '6px 8px', outline: 'none' }} 
+                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-secondary)', border: '1px solid transparent', borderRadius: '4px', padding: "0px 4px", outline: 'none' }} 
                     />
                   </td>
-                  <td style={{ padding: '4px', borderRight: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: "0px 2px", borderRight: '1px solid var(--color-border)' }}>
                     <input 
                       id={`batch-input-${row.id}`}
                       value={row.batch} onChange={e => handleRowChange(idx, 'batch', e.target.value)}
@@ -1205,11 +1205,11 @@ export default function BrkIssueBill() {
                         }
                         handleGridKeyDown(e, row.id, 'batch')
                       }}
-                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: '1px solid transparent', borderRadius: '4px', padding: '6px 8px', outline: 'none' }} 
+                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: '1px solid transparent', borderRadius: '4px', padding: "0px 4px", outline: 'none' }} 
                       onFocusCapture={e => e.target.style.borderColor = 'var(--color-primary)'} onBlur={e => e.target.style.borderColor = 'transparent'} 
                     />
                   </td>
-                  <td style={{ padding: '4px', borderRight: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: "0px 2px", borderRight: '1px solid var(--color-border)' }}>
                     <input 
                       id={`qty-input-${row.id}`}
                       value={row.qty} onChange={e => handleRowChange(idx, 'qty', e.target.value)}
@@ -1231,11 +1231,11 @@ export default function BrkIssueBill() {
                         if (e.key === 'Enter') document.getElementById(`free-input-${row.id}`)?.focus() 
                         handleGridKeyDown(e, row.id, 'qty')
                       }}
-                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: '1px solid transparent', borderRadius: '4px', padding: '6px 8px', outline: 'none', textAlign: 'right' }} 
+                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: '1px solid transparent', borderRadius: '4px', padding: "0px 4px", outline: 'none', textAlign: 'right' }} 
                       onFocusCapture={e => e.target.style.borderColor = 'var(--color-primary)'} onBlur={e => e.target.style.borderColor = 'transparent'} 
                     />
                   </td>
-                  <td style={{ padding: '4px', borderRight: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: "0px 2px", borderRight: '1px solid var(--color-border)' }}>
                     <input 
                       id={`free-input-${row.id}`}
                       value={row.free} onChange={e => handleRowChange(idx, 'free', e.target.value)}
@@ -1244,11 +1244,11 @@ export default function BrkIssueBill() {
                         if (e.key === 'Enter') document.getElementById(`prate-input-${row.id}`)?.focus() 
                         handleGridKeyDown(e, row.id, 'free')
                       }}
-                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: '1px solid transparent', borderRadius: '4px', padding: '6px 8px', outline: 'none', textAlign: 'right' }} 
+                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: '1px solid transparent', borderRadius: '4px', padding: "0px 4px", outline: 'none', textAlign: 'right' }} 
                       onFocusCapture={e => e.target.style.borderColor = 'var(--color-primary)'} onBlur={e => e.target.style.borderColor = 'transparent'} 
                     />
                   </td>
-                  <td style={{ padding: '4px', borderRight: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: "0px 2px", borderRight: '1px solid var(--color-border)' }}>
                     <input 
                       id={`prate-input-${row.id}`}
                       value={row.prate} onChange={e => handleRowChange(idx, 'prate', e.target.value)}
@@ -1257,11 +1257,11 @@ export default function BrkIssueBill() {
                         if (e.key === 'Enter') document.getElementById(`dis-input-${row.id}`)?.focus() 
                         handleGridKeyDown(e, row.id, 'prate')
                       }}
-                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: '1px solid transparent', borderRadius: '4px', padding: '6px 8px', outline: 'none', textAlign: 'right' }} 
+                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: '1px solid transparent', borderRadius: '4px', padding: "0px 4px", outline: 'none', textAlign: 'right' }} 
                       onFocusCapture={e => e.target.style.borderColor = 'var(--color-primary)'} onBlur={e => e.target.style.borderColor = 'transparent'} 
                     />
                   </td>
-                  <td style={{ padding: '4px', borderRight: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: "0px 2px", borderRight: '1px solid var(--color-border)' }}>
                     <input 
                       id={`dis-input-${row.id}`}
                       value={row.dis} onChange={e => handleRowChange(idx, 'dis', e.target.value)}
@@ -1299,17 +1299,17 @@ export default function BrkIssueBill() {
                           setTimeout(() => document.getElementById('modal-purdeal-qty-input')?.focus(), 50)
                         } 
                       }}
-                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: '1px solid transparent', borderRadius: '4px', padding: '6px 8px', outline: 'none', textAlign: 'right' }} 
+                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: '1px solid transparent', borderRadius: '4px', padding: "0px 4px", outline: 'none', textAlign: 'right' }} 
                       onFocusCapture={e => { e.target.style.borderColor = 'var(--color-primary)'; e.target.select() }} onBlur={e => e.target.style.borderColor = 'transparent'} 
                     />
                   </td>
-                  <td style={{ padding: '4px' }}>
+                  <td style={{ padding: "0px 2px" }}>
                     <input 
                       id={`amount-input-${row.id}`}
                       readOnly
                       value={((parseFloat(row.qty) || 0) * (parseFloat(row.prate) || 0)).toFixed(2)}
                       onFocus={() => setActiveRowId(row.id)}
-                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-secondary)', border: '1px solid transparent', borderRadius: '4px', padding: '6px 8px', outline: 'none', textAlign: 'right', fontWeight: 'bold' }} 
+                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-secondary)', border: '1px solid transparent', borderRadius: '4px', padding: "0px 4px", outline: 'none', textAlign: 'right', fontWeight: 'bold' }} 
                     />
                   </td>
                 </tr>
