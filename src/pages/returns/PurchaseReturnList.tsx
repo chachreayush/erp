@@ -5,6 +5,7 @@ import { Search, Calendar, Filter, FileText } from 'lucide-react'
 import { AgGridReact } from 'ag-grid-react'
 import { apiGetInvoices } from '../../lib/api'
 import { ColDef } from 'ag-grid-community'
+import { useReturnNavigation } from '../../../hooks/useReturnNavigation'
 
 interface PurchaseReturnListProps {
   onSelectBill: (entryNo: string) => void;
@@ -17,6 +18,7 @@ const getTodayDateString = () => {
 }
 
 export default function PurchaseReturnList({ onSelectBill, type }: PurchaseReturnListProps) {
+  useReturnNavigation(false);
   const [bills, setBills] = useState<any[]>([])
   
   // Refs for keyboard navigation

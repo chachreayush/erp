@@ -55,30 +55,36 @@ const MargAppShell = () => {
     return user?.permissions ? (user.permissions as any)[item.module]?.view : true
   })
 
+  const isHomeScreen = location.pathname === '/'
+
   return (
     <div className="marg-shell">
       
-      {/* ── 1. TITLE BAR ────────────────────────────────────────────── */}
-      <div className="marg-title-bar">
-        <div className="marg-title-left">
-          <div className="marg-title-brand">MARG ERP 9+ (Theme)</div>
-          <span className="marg-title-info">|Gold|Ver-26-08-2025|Lic-TRIAL|ANDURO-ANDUROX 2025-2026|USER-{user?.username?.toUpperCase() || 'ADMIN'}</span>
-        </div>
-      </div>
-
-      {/* ── 2. MENU BAR (Replaced with actual modules) ──────────────── */}
-      <div className="marg-menu-bar">
-        {allowedNavItems.map(item => (
-          <div 
-            key={item.path} 
-            className="marg-menu-item"
-            style={{ cursor: 'pointer', backgroundColor: location.pathname === item.path ? '#dbeafe' : 'transparent', outline: location.pathname === item.path ? '1px solid #60a5fa' : 'none' }}
-            onClick={() => navigate(item.path)}
-          >
-            {item.label}
+      {/* 1. TITLE BAR — Only show on Home Screen */}
+      {isHomeScreen && (
+        <div className="marg-title-bar">
+          <div className="marg-title-left">
+            <div className="marg-title-brand">MARG ERP 9+ (Theme)</div>
+            <span className="marg-title-info">|Gold|Ver-26-08-2025|Lic-TRIAL|ANDURO-ANDUROX 2025-2026|USER-{user?.username?.toUpperCase() || 'ADMIN'}</span>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
+
+      {/* 2. MENU BAR (Replaced with actual modules) */}
+      {isHomeScreen && (
+        <div className="marg-menu-bar">
+          {allowedNavItems.map(item => (
+            <div 
+              key={item.path} 
+              className="marg-menu-item"
+              style={{ cursor: 'pointer', backgroundColor: location.pathname === item.path ? '#dbeafe' : 'transparent', outline: location.pathname === item.path ? '1px solid #60a5fa' : 'none' }}
+              onClick={() => navigate(item.path)}
+            >
+              {item.label}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── 3. MAIN CONTENT AREA (Flex Row) ─────────────────────────── */}
       <div className="marg-main-area">

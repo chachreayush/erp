@@ -35,6 +35,7 @@ import SettingsPage from './pages/Settings'
 import ProductsPage from './pages/inventory/Products'
 import FinancePage from './pages/finance/Finance'
 import ClientManagementPage from './pages/admin/ClientManagement'
+import HomeScreen from './pages/HomeScreen'
 import BulletinBoard from './pages/bulletin/BulletinBoard'
 import BillingPage from './pages/sales/Billing'
 import SalesBill from './pages/sales/SalesBill'
@@ -97,7 +98,7 @@ function App() {
         }
       >
         {/* index: The default page when navigating to "/" — the main dashboard */}
-        <Route index element={<BulletinBoard />} />
+        <Route index element={<HomeScreen />} />
         <Route path="dashboard" element={<DashboardPage />} />
 
         {/* ERP Module routes */}

@@ -1,4 +1,4 @@
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import Header from './Header'
 
 const styles = {
@@ -26,13 +26,10 @@ const styles = {
 }
 
 function AppShell() {
-  const location = useLocation()
-  const isHomeScreen = location.pathname === '/'
-
   return (
     <div style={styles.shell}>
-      {/* TOP HEADER BAR — Only show on Home Screen */}
-      {isHomeScreen && <Header />}
+      {/* TOP HEADER BAR — Now contains all navigation options */}
+      <Header />
 
       {/* BODY AREA — Full width content */}
       <div style={styles.body}>

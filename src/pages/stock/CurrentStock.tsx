@@ -3,6 +3,7 @@ import { Package, Search, Download, X } from 'lucide-react'
 import { apiClient, apiGetBatches, Batch } from '../../lib/api'
 import ProductRegister from './ProductRegister'
 import { useLocation } from 'react-router-dom'
+import { useReturnNavigation } from '../../../hooks/useReturnNavigation'
 
 interface StockItem {
   product_id: string
