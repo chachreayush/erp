@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 
 interface ReturnNavigationOptions {
   isDirty?: boolean;
-  fallbackAction?: () => void;
+  fallbackAction?: () => boolean | void;
 }
 
 export function useReturnNavigation(
@@ -24,7 +24,10 @@ export function useReturnNavigation(
         if (location.state?.returnTo) {
           navigate(location.state.returnTo, { state: location.state })
         } else if (options?.fallbackAction) {
-          options.fallbackAction()
+          const handled = options.fallbackAction()
+          if (handled !== true) {
+            navigate('/')
+          }
         } else {
           // Ultimate fallback: go to Dashboard
           navigate('/')

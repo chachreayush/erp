@@ -432,12 +432,14 @@ export default function BrkReceiveBill() {
     {
       isDirty: !selectedModifyBill && isDirty,
       fallbackAction: () => {
-        if (selectedModifyBill) {
-          setSelectedModifyBill(null);
-          searchParams.delete('invoice');
-          setSearchParams(searchParams);
+          if (selectedModifyBill) {
+            setSelectedModifyBill(null);
+            searchParams.delete('invoice');
+            setSearchParams(searchParams);
+            return true;
+          }
+          return false;
         }
-      }
     }
   );
 
