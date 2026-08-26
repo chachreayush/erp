@@ -5,7 +5,7 @@ import { Search, Calendar, Filter, FileText } from 'lucide-react'
 import { AgGridReact } from 'ag-grid-react'
 import { apiGetInvoices } from '../../lib/api'
 import { ColDef } from 'ag-grid-community'
-import { useReturnNavigation } from '../../../hooks/useReturnNavigation'
+import { useReturnNavigation } from '../../hooks/useReturnNavigation'
 
 interface BrkIssueListProps {
   onSelectBill: (entryNo: string) => void;

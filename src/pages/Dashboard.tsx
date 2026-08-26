@@ -1,7 +1,7 @@
 import { useAuthStore } from '../store/authStore'
 import AdminDashboard from './dashboards/AdminDashboard'
 import ClientDashboard from './dashboards/ClientDashboard'
-import { useReturnNavigation } from '../../hooks/useReturnNavigation'
+import { useReturnNavigation } from '../hooks/useReturnNavigation'
 
 export default function DashboardPage() {
   useReturnNavigation(false);

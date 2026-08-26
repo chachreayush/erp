@@ -6,7 +6,7 @@ import { useAuthStore } from '../../store/authStore'
 import { apiClient, apiGetOrganizations, Organization } from '../../lib/api'
 import { useNavigate } from 'react-router-dom'
 import { RegisterClientModal } from './RegisterClientModal'
-import { useReturnNavigation } from '../../../hooks/useReturnNavigation'
+import { useReturnNavigation } from '../../hooks/useReturnNavigation'
 
 export default function ClientManagementPage() {
   useReturnNavigation(false);

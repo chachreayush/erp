@@ -1,6 +1,6 @@
 import { useThemeStore, ThemeOption } from '../store/themeStore'
 import { Palette, CheckCircle2 } from 'lucide-react'
-import { useReturnNavigation } from '../../hooks/useReturnNavigation'
+import { useReturnNavigation } from '../hooks/useReturnNavigation'
 
 // Array of available themes for the UI picker
 const THEME_OPTIONS: { id: ThemeOption; name: string; description: string; colors: string[] }[] = [
