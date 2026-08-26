@@ -72,7 +72,7 @@ export default function HomeScreen() {
           >
             <div style={{ 
               width: '56px', height: '56px', borderRadius: '12px', 
-              backgroundColor: \\15\, color: mod.color,
+              backgroundColor: `${mod.color}15`, color: mod.color,
               display: 'flex', alignItems: 'center', justifyContent: 'center'
             }}>
               {mod.icon}
