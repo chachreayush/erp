@@ -40,7 +40,7 @@ function SettingsPage() {
   const { activeTheme, setTheme } = useThemeStore()
 
   return (
-    <div style={{ maxWidth: '800px' }}>
+    <div style={{ height: "100%", overflowY: "auto", maxWidth: '800px' }}>
       <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, marginBottom: '24px' }}>
         Settings
       </h1>

@@ -50,7 +50,7 @@ export default function ClientDashboard() {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   return (
-    <div style={{ maxWidth: '1200px', animation: 'fadeIn 0.3s ease-in-out' }}>
+    <div style={{ height: "100%", overflowY: "auto", maxWidth: '1200px', animation: 'fadeIn 0.3s ease-in-out' }}>
       
       {/* ── PAGE HEADER ─────────────────────────────────────── */}
       <div style={{ 

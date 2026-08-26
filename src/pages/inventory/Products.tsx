@@ -301,7 +301,7 @@ export default function ProductsPage() {
   }
 
   return (
-    <div style={{ maxWidth: '1200px', animation: 'fadeIn 0.3s ease-in-out' }}>
+    <div style={{ height: "100%", overflowY: "auto", maxWidth: '1200px', animation: 'fadeIn 0.3s ease-in-out' }}>
       
       {/* ── HEADER & ACTIONS ────────────────────────────────── */}
       <div style={{ 

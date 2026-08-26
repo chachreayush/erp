@@ -451,7 +451,7 @@ export default function MasterPage() {
   }, [activeTab, isModalOpen, ledgers, salts, companies, hsns, states, balances, searchQuery, selectedItemIndex, focusedZone, focusedTabIndex, navigate, tabs])
 
   return (
-    <div style={{ maxWidth: '1300px', margin: '0 auto', padding: '8px 0', animation: 'fadeIn 0.25s ease-in-out' }}>
+    <div style={{ height: "100%", overflowY: "auto", maxWidth: '1300px', margin: '0 auto', padding: '8px 0', animation: 'fadeIn 0.25s ease-in-out' }}>
       
       {/* ── TOP HEADER ──────────────────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>

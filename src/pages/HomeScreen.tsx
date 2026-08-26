@@ -26,7 +26,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px', animation: 'fadeIn 0.3s ease-in-out' }}>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px', animation: 'fadeIn 0.3s ease-in-out', height: '100%', overflowY: 'auto' }}>
       
       <div style={{ marginBottom: '40px' }}>
         <h1 style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 800, color: 'var(--color-text)', marginBottom: '8px' }}>

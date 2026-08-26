@@ -19,7 +19,7 @@ const styles = {
     flex: 1,
     display: 'flex',
     flexDirection: 'column' as const,
-    overflow: 'auto',
+    overflow: 'hidden',
     padding: '4px 8px',
     backgroundColor: 'var(--color-bg)'
   }
