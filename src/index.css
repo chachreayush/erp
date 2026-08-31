@@ -236,71 +236,72 @@ body.theme-sunset header {
   --color-info:           #3b82f6; 
 }
 
-/* ── OPTION 2: NEUMORPHIC MINIMALIST (WHITE & GREEN) ─────────── */
+/* ── OPTION 2: NEUMORPHIC MINIMALIST (WHITE & FOREST GREEN) ──── */
 .theme-minimal {
-  --color-primary:        #059669; /* Emerald 600 */
-  --color-primary-hover:  #047857; /* Emerald 700 */
-  --color-primary-light:  #ecfdf5; /* Emerald 50 (Soft Mint) */
+  --color-primary:        #2d6a4f; /* Forest Green (from reference PDF) */
+  --color-primary-hover:  #1b4332; /* Deep Forest Green */
+  --color-primary-light:  #d8f3dc; /* Soft Sage Green */
 
-  --color-bg:             #f4fbf7; /* Ultra-clean soft mint-white canvas */
-  --color-bg-surface:     #ffffff; /* Pure white cards and panels */
+  --color-bg:             #eef2ef; /* Soft neutral canvas from PDF */
+  --color-bg-surface:     #ffffff; /* Pure white cards & panels */
   --color-surface:        #ffffff;
   --color-bg-elevated:    #ffffff; 
-  --color-bg-hover:       #ecfdf5; /* Mint hover highlight */
+  --color-bg-hover:       #e8f5e9; /* Soft green hover */
 
-  --color-border:         #e2e8f0; /* Crisp soft border */
-  --color-border-strong:  #10b981; /* Emerald green accent border */
+  --color-border:         #d8e2dc; /* Muted clean border */
+  --color-border-strong:  #2d6a4f; /* Forest green accent border */
 
-  --color-text:           #0f172a;
-  --color-text-primary:   #0f172a; /* Slate 900 */
-  --color-text-secondary: #065f46; /* Deep forest green secondary */
-  --color-text-muted:     #64748b; /* Slate 500 */
+  --color-text:           #1f2937;
+  --color-text-primary:   #111827; /* Near Black / Slate 900 */
+  --color-text-secondary: #2d6a4f; /* Forest Green secondary */
+  --color-text-muted:     #6b7280; /* Gray 500 */
 
-  --color-success:        #10b981; 
+  --color-success:        #2d6a4f; 
   --color-warning:        #d97706; 
   --color-danger:         #dc2626; 
-  --color-info:           #059669; 
+  --color-info:           #2d6a4f; 
 }
 
 body.theme-minimal {
-  background: #f4fbf7 !important;
-  color: #0f172a !important;
+  background: #eef2ef !important;
+  color: #111827 !important;
 }
 
 body.theme-minimal #root {
-  background: #f4fbf7 !important;
+  background: #eef2ef !important;
 }
 
-/* Header in Minimal White & Green Theme */
+/* Header in Minimal White & Green Theme (Forest Green as seen in PDF Screens) */
 body.theme-minimal header {
-  background: #ffffff !important;
-  border-bottom: 2px solid #10b981 !important;
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.08) !important;
+  background: #2d6a4f !important;
+  border-bottom: 2px solid #1b4332 !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
 }
 
-body.theme-minimal header nav button {
-  color: #334155 !important;
+body.theme-minimal header * {
+  color: #ffffff !important;
 }
 
 body.theme-minimal header nav button:hover {
-  background-color: #ecfdf5 !important;
-  color: #059669 !important;
+  background-color: rgba(255, 255, 255, 0.15) !important;
 }
 
-/* Home Screen Module Cards in Minimal Theme */
+/* Home Screen Module Cards in Minimal Theme (Matching PDF Screen 3) */
 .theme-minimal div[style*="backgroundColor: 'var(--color-surface)'"],
 .theme-minimal div[style*="background-color: var(--color-surface)"],
 .theme-minimal div[style*="backgroundColor: var(--color-surface)"] {
   background: #ffffff !important;
-  border: 1px solid #d1fae5 !important;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03), 0 2px 6px rgba(16, 185, 129, 0.05) !important;
+  border: 1px solid #d8e2dc !important;
+  border-radius: 10px !important;
+  box-shadow: 0 2px 8px rgba(45, 106, 79, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+  transition: all 0.2s ease !important;
 }
 
 .theme-minimal div[style*="backgroundColor: 'var(--color-surface)'"]:hover,
 .theme-minimal div[style*="background-color: var(--color-surface)"]:hover,
 .theme-minimal div[style*="backgroundColor: var(--color-surface)"]:hover {
-  border-color: #10b981 !important;
-  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.15) !important;
+  border-color: #2d6a4f !important;
+  box-shadow: 0 6px 18px rgba(45, 106, 79, 0.12) !important;
 }
 
 /* Card components & Bulletin Board in Minimal Theme */
@@ -308,38 +309,41 @@ body.theme-minimal header nav button:hover {
 .theme-minimal div[style*="backgroundColor: 'var(--color-bg-surface)'"],
 .theme-minimal div[style*="background-color: var(--color-bg-surface)"] {
   background: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(16, 185, 129, 0.06) !important;
+  border: 1px solid #d8e2dc !important;
+  border-radius: 10px !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04) !important;
 }
 
-/* Billing Screen in Minimal White & Green */
+/* Billing Screen in Minimal White & Forest Green */
 .theme-minimal div[style*="backgroundColor: '#0b1120'"],
 .theme-minimal div[style*="background-color: rgb(11, 17, 32)"],
 .theme-minimal div[style*="background-color: #0b1120"] {
-  background: #f0fdf4 !important;
-  color: #0f172a !important;
+  background: #eef2ef !important;
+  color: #111827 !important;
 }
 
 .theme-minimal div[style*="linear-gradient(180deg, #1e293b 0%, #0f172a 100%)"],
 .theme-minimal div[style*="linear-gradient(180deg, rgb(30, 41, 59) 0%, rgb(15, 23, 42) 100%)"] {
   background: #ffffff !important;
-  border: 1.5px solid #10b981 !important;
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.12) !important;
+  border: 1.5px solid #2d6a4f !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 12px rgba(45, 106, 79, 0.08) !important;
 }
 
 .theme-minimal div[style*="linear-gradient(180deg, #1e293b 0%, #0f172a 100%)"] h1 {
-  color: #065f46 !important;
+  color: #1b4332 !important;
 }
 
 .theme-minimal div[style*="linear-gradient(180deg, #1e293b 0%, #0f172a 100%)"] label {
-  color: #047857 !important;
+  color: #2d6a4f !important;
 }
 
 .theme-minimal div[style*="backgroundColor: '#0f172a'"],
 .theme-minimal div[style*="background-color: rgb(15, 23, 42)"] {
   background: #ffffff !important;
-  border: 1px solid #d1fae5 !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+  border: 1px solid #d8e2dc !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04) !important;
 }
 
 /* Table in Minimal Theme */
@@ -348,7 +352,7 @@ body.theme-minimal header nav button:hover {
 }
 
 .theme-minimal table thead tr {
-  background: linear-gradient(90deg, #065f46 0%, #047857 50%, #059669 100%) !important;
+  background: linear-gradient(90deg, #1b4332 0%, #2d6a4f 50%, #40916c 100%) !important;
 }
 
 .theme-minimal table thead th {
@@ -359,29 +363,23 @@ body.theme-minimal header nav button:hover {
 
 .theme-minimal table tbody tr {
   background-color: #ffffff !important;
-  border-bottom: 1px solid #e2e8f0 !important;
+  border-bottom: 1px solid #e5e7eb !important;
 }
 
 .theme-minimal table tbody tr:nth-child(even) {
-  background-color: #f9fdfa !important;
+  background-color: #f8faf9 !important;
 }
 
 .theme-minimal table tbody tr td {
-  border-color: #e2e8f0 !important;
-  color: #0f172a !important;
+  border-color: #e5e7eb !important;
+  color: #111827 !important;
 }
 
 .theme-minimal table tbody tr td input {
   background-color: transparent !important;
   border: 1px solid transparent !important;
-  color: #0f172a !important;
+  color: #111827 !important;
   box-shadow: none !important;
-}
-
-.theme-minimal table tbody tr td input:focus {
-  border-color: #10b981 !important;
-  background-color: #ecfdf5 !important;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25) !important;
 }
 
 /* Inputs in Minimal Theme */
@@ -389,54 +387,56 @@ body.theme-minimal header nav button:hover {
 .theme-minimal select {
   background-color: #ffffff !important;
   border: 1.5px solid #cbd5e1 !important;
-  color: #0f172a !important;
+  color: #111827 !important;
 }
 
 .theme-minimal input:not(table tbody input):focus,
 .theme-minimal select:focus {
-  border-color: #10b981 !important;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+  border-color: #2d6a4f !important;
+  box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.2) !important;
 }
 
 .theme-minimal table tbody input {
   border: 1px solid transparent !important;
   background-color: transparent !important;
-  color: #0f172a !important;
+  color: #111827 !important;
   border-radius: 3px !important;
 }
 
 .theme-minimal table tbody input:focus {
-  border: 1px solid #10b981 !important;
-  background-color: #ecfdf5 !important;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2) !important;
+  border: 1px solid #2d6a4f !important;
+  background-color: #e8f5e9 !important;
+  box-shadow: 0 0 0 2px rgba(45, 106, 79, 0.2) !important;
 }
 
 /* Bottom Console in Minimal Theme */
 .theme-minimal div[style*="display: flex; gap: 12px; height: 175px"],
 .theme-minimal div[style*="display: flex; gap: 10px; height: 175px"] {
   background: #ffffff !important;
-  border: 1px solid #d1fae5 !important;
-  color: #0f172a !important;
+  border: 1px solid #d8e2dc !important;
+  border-radius: 8px !important;
+  color: #111827 !important;
 }
 
 .theme-minimal div[style*="display: flex; gap: 12px; height: 175px"] span,
 .theme-minimal div[style*="display: flex; gap: 12px; height: 175px"] div,
 .theme-minimal div[style*="display: flex; gap: 10px; height: 175px"] span,
 .theme-minimal div[style*="display: flex; gap: 10px; height: 175px"] div {
-  color: #0f172a !important;
+  color: #111827 !important;
 }
 
 .theme-minimal span[style*="color: #94a3b8"],
 .theme-minimal span[style*="color: rgb(148, 163, 184)"] {
-  color: #475569 !important;
+  color: #4b5563 !important;
 }
 
 /* Hero Total Invoice Value Card in Minimal Theme */
 .theme-minimal div[style*="linear-gradient(135deg, rgba(59, 130, 246, 0.15)"],
 .theme-minimal .minimal-hero-card {
-  background: linear-gradient(135deg, #065f46 0%, #059669 60%, #10b981 100%) !important;
-  border: 2px solid #059669 !important;
-  box-shadow: 0 6px 24px rgba(5, 150, 105, 0.35) !important;
+  background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 60%, #40916c 100%) !important;
+  border: 2px solid #2d6a4f !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 20px rgba(45, 106, 79, 0.3) !important;
   color: #ffffff !important;
 }
 
@@ -447,14 +447,14 @@ body.theme-minimal header nav button:hover {
 
 .theme-minimal div[style*="background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%)"] button,
 .theme-minimal button[style*="background: linear-gradient(135deg, #3b82f6"] {
-  background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4) !important;
+  background: linear-gradient(135deg, #2d6a4f 0%, #40916c 100%) !important;
+  box-shadow: 0 3px 12px rgba(45, 106, 79, 0.35) !important;
   color: #ffffff !important;
 }
 
 .theme-minimal div[style*="background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%)"] {
   background: #ffffff !important;
-  border-top: 1px solid #d1fae5 !important;
+  border-top: 1px solid #d8e2dc !important;
   box-shadow: 0 -2px 10px rgba(0,0,0,0.03) !important;
 }
 

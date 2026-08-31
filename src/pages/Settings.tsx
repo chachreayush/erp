@@ -24,9 +24,9 @@ const THEME_OPTIONS: { id: ThemeOption; name: string; description: string; color
   },
   {
     id: 'minimal',
-    name: 'Neumorphic Minimalist (White & Green)',
-    description: 'Clean white surfaces with vibrant emerald green accents.',
-    colors: ['#ffffff', '#ecfdf5', '#10b981'] // Surface White, Mint BG, Emerald Green
+    name: 'Neumorphic Minimalist (White & Forest Green)',
+    description: 'Clean white surfaces with authentic forest & sage green styling.',
+    colors: ['#ffffff', '#eef2ef', '#2d6a4f'] // Pure White, Soft Neutral Canvas, Forest Green
   },
   {
     id: 'enterprise',
