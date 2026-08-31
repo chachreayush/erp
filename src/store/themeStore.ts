@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-export type ThemeOption = 'default' | 'glass' | 'minimal' | 'enterprise' | 'marg'
+export type ThemeOption = 'default' | 'sunset' | 'glass' | 'minimal' | 'enterprise' | 'marg'
 
 interface ThemeState {
   activeTheme: ThemeOption
@@ -11,7 +11,7 @@ interface ThemeState {
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set) => ({
-      activeTheme: 'default',
+      activeTheme: 'sunset',
       setTheme: (theme) => set({ activeTheme: theme }),
     }),
     {

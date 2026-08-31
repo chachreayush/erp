@@ -50,6 +50,166 @@
   --color-warning:        #f59e0b; /* Amber — pending, caution */
   --color-danger:         #ef4444; /* Red — error, blocked, delete */
   --color-info:           #3b82f6; /* Blue — information, sync */
+
+  /* Aliases for compatibility */
+  --color-surface:        #18181b;
+  --color-text:           #fafafa;
+}
+
+/* ── OPTION 0: SUNSET NEON (CRIMSON & AMBER GRADIENT + ELECTRIC BLUE) ──── */
+.theme-sunset {
+  --color-primary:        #2563eb; /* Electric Cobalt Blue */
+  --color-primary-hover:  #1d4ed8; 
+  --color-primary-light:  rgba(37, 99, 235, 0.25); 
+
+  --color-bg:             transparent; /* Transparent so the vibrant sunset gradient shows through */
+  --color-bg-surface:     rgba(136, 19, 55, 0.55); /* Translucent Sunset Crimson */
+  --color-surface:        rgba(136, 19, 55, 0.55);
+  --color-bg-elevated:    rgba(159, 18, 57, 0.75); 
+  --color-bg-hover:       rgba(37, 99, 235, 0.25); 
+
+  --color-border:         #3b82f6; /* Electric Cobalt Blue */
+  --color-border-strong:  #2563eb; /* Vivid Blue */
+
+  --color-text:           #ffffff;
+  --color-text-primary:   #ffffff; 
+  --color-text-secondary: #fef08a; /* Bright Warm Sunset Yellow */
+  --color-text-muted:     #fed7aa; /* Warm Amber */
+
+  --color-success:        #22c55e; 
+  --color-warning:        #fbbf24; /* Amber */
+  --color-danger:         #f43f5e; /* Crimson */
+  --color-info:           #38bdf8; /* Cyan */
+}
+
+body.theme-sunset,
+.theme-sunset {
+  background: linear-gradient(180deg, #881337 0%, #9f1239 18%, #be123c 38%, #b91c1c 55%, #c2410c 72%, #d97706 88%, #eab308 100%) !important;
+  background-attachment: fixed !important;
+  color: #ffffff !important;
+}
+
+body.theme-sunset #root {
+  background: transparent !important;
+}
+
+/* Header in Sunset Theme */
+body.theme-sunset header {
+  background: linear-gradient(90deg, #70102b 0%, #9f1239 35%, #be123c 65%, #c2410c 100%) !important;
+  border-bottom: 3px solid #2563eb !important;
+  box-shadow: 0 4px 24px rgba(37, 99, 235, 0.45) !important;
+}
+
+/* Home Screen Module Cards in Sunset Theme */
+.theme-sunset div[style*="backgroundColor: 'var(--color-surface)'"],
+.theme-sunset div[style*="background-color: var(--color-surface)"],
+.theme-sunset div[style*="backgroundColor: var(--color-surface)"] {
+  background: linear-gradient(135deg, rgba(136, 19, 55, 0.75) 0%, rgba(194, 65, 12, 0.65) 100%) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 2px solid #3b82f6 !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25), 0 0 12px rgba(59, 130, 246, 0.35) !important;
+}
+
+/* Card components & Bulletin Board in Sunset Theme */
+.theme-sunset .surface-card,
+.theme-sunset div[style*="backgroundColor: 'var(--color-bg-surface)'"],
+.theme-sunset div[style*="background-color: var(--color-bg-surface)"] {
+  background: linear-gradient(180deg, rgba(136, 19, 55, 0.65) 0%, rgba(185, 28, 28, 0.55) 50%, rgba(194, 65, 12, 0.55) 100%) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 2px solid #3b82f6 !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 16px rgba(59, 130, 246, 0.4) !important;
+}
+
+/* Billing Screen Container & Ribbons in Sunset Theme */
+.theme-sunset div[style*="backgroundColor: '#0b1120'"],
+.theme-sunset div[style*="background-color: rgb(11, 17, 32)"],
+.theme-sunset div[style*="background-color: #0b1120"] {
+  background: transparent !important;
+}
+
+.theme-sunset div[style*="linear-gradient(180deg, #1e293b 0%, #0f172a 100%)"],
+.theme-sunset div[style*="linear-gradient(180deg, rgb(30, 41, 59) 0%, rgb(15, 23, 42) 100%)"] {
+  background: linear-gradient(135deg, #70102b 0%, #9f1239 30%, #be123c 65%, #c2410c 100%) !important;
+  border: 2px solid #2563eb !important;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45) !important;
+}
+
+/* Table Header & Rows in Sunset Theme */
+.theme-sunset div[style*="backgroundColor: '#0f172a'"],
+.theme-sunset div[style*="background-color: rgb(15, 23, 42)"] {
+  background: rgba(30, 4, 12, 0.65) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 2px solid #2563eb !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), 0 0 16px rgba(37, 99, 235, 0.4) !important;
+}
+
+.theme-sunset table {
+  background: transparent !important;
+}
+
+.theme-sunset table thead tr {
+  background: linear-gradient(90deg, #70102b 0%, #9f1239 50%, #b91c1c 100%) !important;
+}
+
+.theme-sunset table thead th {
+  border-color: rgba(37, 99, 235, 0.4) !important;
+  color: #fef08a !important;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+
+.theme-sunset table tbody tr {
+  background-color: rgba(60, 8, 24, 0.4) !important;
+  border-color: rgba(37, 99, 235, 0.2) !important;
+}
+
+.theme-sunset table tbody tr:nth-child(even) {
+  background-color: rgba(80, 10, 32, 0.4) !important;
+}
+
+.theme-sunset table tbody tr td {
+  border-color: rgba(37, 99, 235, 0.2) !important;
+  color: #ffffff !important;
+}
+
+.theme-sunset table tbody tr td input {
+  background-color: transparent !important;
+  border: 1px solid transparent !important;
+  color: #ffffff !important;
+}
+
+.theme-sunset table tbody tr td input:focus {
+  border-color: #3b82f6 !important;
+  background-color: rgba(37, 99, 235, 0.25) !important;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.6) !important;
+}
+
+/* Inputs in Sunset Header & Bottom Console */
+.theme-sunset .header-input,
+.theme-sunset .bottom-console-input,
+.theme-sunset div[style*="display: flex"] > input:not([type="button"]):not([type="submit"]) {
+  background-color: rgba(35, 5, 15, 0.8) !important;
+  border: 1.5px solid #3b82f6 !important;
+  color: #ffffff !important;
+}
+
+.theme-sunset input:focus,
+.theme-sunset select:focus {
+  border-color: #60a5fa !important;
+  box-shadow: 0 0 12px rgba(96, 165, 250, 0.7) !important;
+}
+
+/* Hero Total Invoice Value Card in Sunset Theme */
+.theme-sunset .sunset-card,
+.theme-sunset div[style*="linear-gradient(135deg, rgba(59, 130, 246, 0.15)"] {
+  background: linear-gradient(180deg, #881337 0%, #9f1239 25%, #be123c 45%, #c2410c 70%, #d97706 90%, #eab308 100%) !important;
+  border: 3px solid #2563eb !important;
+  box-shadow: 0 0 24px rgba(37, 99, 235, 0.6), inset 0 0 14px rgba(255, 255, 255, 0.25) !important;
+}
+
+.theme-sunset div[style*="linear-gradient(135deg, rgba(59, 130, 246, 0.15)"] span,
+.theme-sunset div[style*="linear-gradient(135deg, rgba(59, 130, 246, 0.15)"] div {
+  color: #ffffff !important;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8) !important;
 }
 
 /* ── OPTION 1: GLASSMORPHISM & GRADIENTS ─────────────── */

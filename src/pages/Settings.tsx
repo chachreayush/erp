@@ -5,6 +5,12 @@ import { useReturnNavigation } from '../hooks/useReturnNavigation'
 // Array of available themes for the UI picker
 const THEME_OPTIONS: { id: ThemeOption; name: string; description: string; colors: string[] }[] = [
   {
+    id: 'sunset',
+    name: 'Sunset Neon (Crimson & Amber)',
+    description: 'Rich sunset gradient with glowing cobalt blue accents.',
+    colors: ['#18050e', '#881337', '#3b82f6'] // BG, Gradient/Accent, Electric Blue
+  },
+  {
     id: 'default',
     name: 'ERP Default (Dark)',
     description: 'The standard dark enterprise theme.',
