@@ -15,6 +15,7 @@ interface StockItem {
 }
 
 const CurrentStock = ({ type = 'current' }: { type?: 'current' | 'brk-exp' }) => {
+  useReturnNavigation()
   const location = useLocation()
   
   const [stockData, setStockData] = useState<StockItem[]>([])

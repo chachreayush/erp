@@ -21,6 +21,7 @@
     "clsx": "^2.1.1",
     "hsn-code-package": "^3.0.0",
     "lucide-react": "^1.25.0",
+    "puppeteer": "^25.9.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.18.1",

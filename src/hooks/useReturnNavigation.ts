@@ -7,7 +7,7 @@ interface ReturnNavigationOptions {
 }
 
 export function useReturnNavigation(
-  isAnyModalOpen: boolean,
+  isAnyModalOpen: boolean = false,
   options?: ReturnNavigationOptions
 ) {
   const location = useLocation()

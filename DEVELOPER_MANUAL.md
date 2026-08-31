@@ -1,88 +1,96 @@
-﻿# Developer Manual - Multi-Tenant ERP Software
+# Developer Manual — Multi-Tenant Modern ERP Software
 
-## Architecture Overview
-This project is a modern, high-performance ERP system designed with a three-tier architecture:
-1. **Frontend**: React, Vite, TypeScript, and Zustand (for state management).
-2. **Desktop Client**: Tauri (Rust-based wrapper for delivering the Vite app as a lightweight, native Windows/macOS app).
-3. **Backend**: FastAPI (Python), SQLAlchemy (ORM), PostgreSQL.
+## 1. Architecture Overview
+This enterprise-grade ERP system is built on a modern, high-performance three-tier architecture:
+1. **Frontend**: React 19, TypeScript, Vite, and Zustand (global authentication and UI state management).
+2. **Desktop Client**: Tauri v2 (Rust-based container for distributing the Vite web app as a native, ultra-lightweight Windows/macOS desktop application).
+3. **Backend API**: Python 3.11+, FastAPI, SQLAlchemy (ORM), Alembic/PostgreSQL.
+4. **Cloud Database**: PostgreSQL hosted on Neon with multi-tenant isolation.
+5. **Deployment & CI/CD**:
+   - **Frontend (Web)**: Auto-deployed on **Vercel** with client-side SPA routing via `vercel.json`.
+   - **Backend API**: Auto-deployed on **Render** with CORS configuration and Uvicorn.
 
-## Database & Multi-Tenancy
-The database strictly enforces isolation between different client organizations.
-- Every table containing client data (e.g., `products`, `invoices`, `batches`) includes an `organization_id` foreign key.
-- The `get_current_user` FastAPI dependency extracts the JWT token, determines the user's `organization_id`, and ensures all endpoints filter queries appropriately (e.g., `db.query(Product).filter(Product.organization_id == current_user.organization_id)`).
+---
 
-## Core Modules
+## 2. Multi-Tenancy & Data Isolation Model
+The database enforces strict tenant boundaries at the query and model level:
+- **Account Master (AM)**: Role `am_admin`. Top-level administrator managing client organizations (`organizations` table) with cross-tenant impersonation capabilities (`POST /auth/impersonate`).
+- **Client Master (CM)**: Role `cm_admin` / `cm_user`. Tenant-isolated admin/staff users bound to a single `organization_id`.
+- **Query Isolation**: Every business entity (`products`, `invoices`, `batches`, `ledgers`, `bulletins`, etc.) carries an `organization_id` foreign key. Endpoints extract `organization_id` from validated JWT bearer tokens via `get_current_user`.
 
-### Authentication & Authorization (ackend/auth/router.py)
-- **Security & Rate Limiting**: The POST /login endpoint is protected by slowapi to restrict attempts (e.g. 5 requests per minute) and block brute-force attacks.
-- Standard JWT-based authentication.
-- **AM Admin** (Account Master) can register new clients and impersonate CM Admins.
-- **CM Admin** (Client Master) has full control over their organization's ERP data.
-- **Role-Based Access Control (RBAC)**: Handled dynamically via `authStore.ts` on the frontend and `UserRole` enums on the backend.
+---
 
-### Inventory & Master Data (`backend/inventory/router.py`, `backend/api/master.py`)
-- Products are linked to `Manufacturer`, `Salt`, and `HSNCode`.
-- When a product is created, string names for companies and salts are automatically resolved to UUIDs via the `_resolve_fks` function. If the entity doesn't exist, it is created automatically.
+## 3. UI/UX & Layout Architecture
 
-### Sales & Purchases (`backend/api/sales.py`)
-- Centralized transaction engine for creating invoices.
-- Supports generic `invoice_type`s (e.g., 'purchase', 'sales').
-- Automatically calculates and deducts/adds stock quantities in the `Batch` table via `_deduct_stock_for_invoice`.
+### Full-Screen Dynamic Layout Engine (`AppShell.tsx` & `MargAppShell.tsx`)
+- **Navigational Hubs**: On the root path (`/`), the global header navigation and sidebars are visible.
+- **Module Immersion**: On deep module routes (e.g. `/sales`, `/purchase`, `/inventory`, `/finance`, `/settings`), the global header bar is automatically hidden to provide a focused, full-screen environment.
+- **Return Navigation (`useReturnNavigation`)**: Users seamlessly exit any full-screen module and return to the dashboard by pressing `Escape` or clicking back actions.
 
-### Stock Engine (`backend/api/stock.py`)
-- Instead of keeping a static integer on the `Product` model, stock is calculated dynamically based on active `Batches`.
-- The `/api/stock/` endpoint performs a `GROUP BY product_id` sum on the `batches` table to return real-time, accurate current stock, ensuring no data desynchronization.
+### Modern Enterprise Billing Design System (`SalesBill.tsx`, `PurchaseBill.tsx`, etc.)
+- **Header Ribbon**: Dark slate surface (`#0f172a` to `#1e293b`), accented entry number (`#38bdf8`), large high-contrast inputs with search (`F7`) and date triggers.
+- **Precision Data Grid**:
+  - Locked column proportions with flexible `PRODUCT` name width.
+  - Dedicated columns: `#`, `PRODUCT`, `PACK`, `BATCH` (100px constrained), `QTY`, `FREE`, `EXTRA SCHEM` (100px), `P.RATE/S`, `DIS1%`, `AMOUNT`.
+  - Balanced 10-row default grid filling standard 1080p desktop viewports without vertical scrolling.
+  - Active row glow (`rgba(59, 130, 246, 0.12)`) and indicator border (`3px solid #3b82f6`).
+- **Bottom Summary Console**:
+  - Left: Active batch metadata inputs + status chips for Stock, SRate, HSN, Tax%.
+  - Middle: Real-time calculation breakdown (MRP Value, Taxable Amt, Post-Tax Adj, Total Qty, Balance).
+  - Right: Value of Goods, GST Amount, Gold Discount field (`#fbbf24`), and 3 selectable post-tax ledger adjustment dropdowns.
+  - Far Right Hero Card: Total Invoice Value badge (`₹ 0.00`) with vibrant cyan text.
+- **Last 6 Saved Bills Console**: Shows chronological previous sales/purchase bills strictly for the active product line.
+- **Action Toolbar**: Floating bottom bar with keyboard shortcut pills (`[F1] Help`, `[F2] Sale`, `[F4] Purc`, `[F5] SC`, `[F6] PC`) and primary `SAVE (End / Ctrl+S)` gradient button.
 
-## Getting Started (Local Development)
+### Landscape Dashboard Layout (`HomeScreen.tsx`)
+- Horizontal split: Left column features module navigation in compact horizontal cards (2-column grid), Right column embeds the real-time company Bulletin Board.
+- Zero-scroll guarantee on standard displays.
 
-### 1. Backend (FastAPI)
-```bash
+---
+
+## 4. Local Development Setup
+
+### Backend (FastAPI)
+```powershell
 cd backend
-python -m venv venv
-.\venv\Scripts\activate
+python -m venv .venv
+.\.venv\Scripts\activate
 pip install -r requirements.txt
 python -m uvicorn main:app --reload --port 8000
 ```
-*Note: Ensure PostgreSQL is running and your `.env` contains the correct database URI (`DATABASE_URL`) and `JWT_SECRET_KEY`.*
 
-### 2. Frontend (Vite Web App)
-```bash
+### Frontend (Vite)
+```powershell
 npm install
 npm run dev
+# Dev server runs at http://localhost:50005
 ```
 
-### 3. Desktop App (Tauri)
-```bash
+### Desktop App (Tauri)
+```powershell
 npm run tauri dev
 ```
 
-## Vercel Deployment
-To deploy the frontend to Vercel:
-1. Connect the GitHub repository.
-2. Select **Vite** as the Framework Preset.
-3. Ensure the `vercel.json` file is present in the root to handle React Router single-page application rewrites.
+### Production Build Verification
+```powershell
+npm run build
+# Runs `tsc && vite build` ensuring 100% type safety and bundle output in `dist/`
+```
 
-## Live Database & Deployment
-- **Frontend**: Deployed and automatically synced via Vercel.
-- **Backend API**: Deployed and automatically synced via Render.
-- **Database**: Hosted securely on Neon (PostgreSQL).
-All billing and modification modules (Sales, Purchase, Returns, Breakage/Expiry) now strictly interact with the live FastAPI endpoints instead of offline browser storage, ensuring multi-tenant data synchronization across all devices and clouds.
+---
 
-
-
-
-### Database & Query Optimizations
-- **Server-Side Filtering**: List endpoints (e.g., /api/sales/invoices) process debounced query parameters (rom_date, party_search) directly via SQLAlchemy to minimize API payload sizes and memory consumption.
-- **Lazy Loading Prevention**: Endpoints querying collections containing nested relationships (like Invoices with InvoiceItems) must utilize SQLAlchemy's joinedload() to sidestep N+1 query inefficiencies.
-- **Indexing**: High-traffic search columns (such as invoice_number, customer_name) are strictly indexed in PostgreSQL for instantaneous B-Tree traversal.
-
-
-### Breakage & Expiry System
-- Breakage and Expiry inventory is isolated directly at the Batch model level via the rk_exp_stock column.
-- The pi/sales.py engine intelligently intercepts rk-receive and rk-issue invoice types, routing stock additions and deductions specifically to rk_exp_stock rather than the main current_stock.
-- The /api/stock/brk-exp endpoint provides a grouped sum of this isolated stock to the frontend.
-
-### Product Register (Stock Ledger)
-- The /api/stock/{product_id}/register endpoint generates a chronological, row-by-row ledger for a specific product.
-- Supports context isolation via the stock_type query parameter: main calculates flow excluding breakage, while rk-exp calculates flow showing exclusively breakage transactions.
-- Frontend logic uses useMemo for client-side search filtering and g-grid for rendering.
+## 5. Vercel & Cloud Deployment
+- **Configuration (`vercel.json`)**:
+  ```json
+  {
+    "rewrites": [
+      {
+        "source": "/(.*)",
+        "destination": "/index.html"
+      }
+    ]
+  }
+  ```
+- **Environment Variables**:
+  - `VITE_API_URL`: Live Render backend URL (e.g. `https://erp-backend.onrender.com`)
+  - `VITE_PORT`: `50005` (Local development)

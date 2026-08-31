@@ -37,6 +37,7 @@ const THEME_OPTIONS: { id: ThemeOption; name: string; description: string; color
 ]
 
 function SettingsPage() {
+  useReturnNavigation()
   const { activeTheme, setTheme } = useThemeStore()
 
   return (

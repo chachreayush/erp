@@ -282,7 +282,7 @@ export default function SalesBill() {
                 pack: '',
                 batch: item.batch || '',
                 qty: item.quantity.toString(),
-                free: '',
+                free: '', extraSchem: '',
                 prate: item.rate.toString(),
                 dis: item.discount_percent?.toString() || '',
                 amount: item.line_total.toString(),
@@ -331,18 +331,23 @@ export default function SalesBill() {
   const [ledger3Amt, setLedger3Amt] = useState('')
   // Grid State
   const initialRow = { 
-    id: 0, product: '', pack: '', batch: '', qty: '', free: '', prate: '', dis: '', amount: '',
+    id: 0, product: '', pack: '', batch: '', qty: '', free: '', extraSchem: '', prate: '', dis: '', amount: '',
     expiry: '', mrp: '', purDealQty: '', purDealFree: '', schDeal: '', dealPercent: '',
     igst: '', cgst: '', sgst: '', rateA: '', rateB: '', rateC: '', cost: '', hsn: '',
     schSalesQty: '', schSalesFree: ''
   }
   const [gridRows, setGridRows] = useState([
-    { ...initialRow, id: 1 },
-    { ...initialRow, id: 2 },
-    { ...initialRow, id: 3 },
-    { ...initialRow, id: 4 },
-    { ...initialRow, id: 5 },
-  ])
+      { ...initialRow, id: 1 },
+      { ...initialRow, id: 2 },
+      { ...initialRow, id: 3 },
+      { ...initialRow, id: 4 },
+      { ...initialRow, id: 5 },
+      { ...initialRow, id: 6 },
+      { ...initialRow, id: 7 },
+      { ...initialRow, id: 8 },
+      { ...initialRow, id: 9 },
+      { ...initialRow, id: 10 }
+    ])
   const [activeRowId, setActiveRowId] = useState<number>(1)
 
   const handleRowChange = (index: number, field: string, value: string) => {
@@ -809,7 +814,6 @@ export default function SalesBill() {
       alert('Please fix errors before saving.')
       return
     }
-    if (!validateMandatoryHeader()) return
     if (totals.valueOfGoods === 0) {
       alert('Please enter at least one product with Quantity and Rate before saving!')
       return
@@ -951,46 +955,82 @@ export default function SalesBill() {
   }
 
   return (
-    <div style={{ backgroundColor: 'var(--color-bg)', flex: 1, display: 'flex', flexDirection: 'column', gap: '3px', overflow: 'hidden', color: 'var(--color-text-primary)', padding: 0 }}>
+    <div style={{ backgroundColor: '#0b1120', flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', overflow: 'hidden', color: '#f8fafc', padding: '6px 10px', height: '100vh', boxSizing: 'border-box' }}>
       
-      {/* ── HEADER CARD (ULTRA COMPACT SINGLE-ROW RIBBON) ── */}
-      <div style={{ backgroundColor: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '5px 10px', boxShadow: 'var(--shadow-sm)', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'nowrap', overflowX: 'auto' }}>
+      {/* ── TOP HEADER BAR (MODERN ENTERPRISE RIBBON) ── */}
+      <div style={{ 
+        background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)', 
+        border: '1px solid #334155', 
+        borderRadius: '8px', 
+        padding: '8px 14px', 
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)', 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '12px', 
+        flexShrink: 0 
+      }}>
         
-        {/* Title & Type */}
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingRight: '10px', borderRight: '1px solid var(--color-border)', flexShrink: 0 }}>
-          <h1 style={{ fontSize: '15px', fontWeight: 'bold', margin: 0, color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>
-            {type === 'challan' ? 'Sales Challan' : 'Sales Bill'}
-          </h1>
-          <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', marginTop: '1px' }}>Voucher Entry</span>
+        {/* Title & Badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingRight: '12px', borderRight: '1px solid #334155', flexShrink: 0 }}>
+          <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '15px', color: '#fff', boxShadow: '0 2px 6px rgba(59, 130, 246, 0.4)' }}>
+            🧾
+          </div>
+          <div>
+            <h1 style={{ fontSize: '16px', fontWeight: '700', margin: 0, color: '#f8fafc', letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {type === 'challan' ? 'Sales Challan' : 'Sales Bill'}
+              <span style={{ fontSize: '10px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '2px 6px', borderRadius: '10px' }}>
+                Voucher Entry
+              </span>
+            </h1>
+          </div>
         </div>
 
         {/* Entry No */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '80px', flexShrink: 0 }}>
-          <label style={{ fontSize: '10px', fontWeight: '600', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '95px', flexShrink: 0 }}>
+          <label style={{ fontSize: '10px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Entry No.
-            {billNoError && <span style={{ color: 'red', marginLeft: '4px', fontSize: '9px', textTransform: 'none' }}>({billNoError})</span>}
+            {billNoError && <span style={{ color: '#ef4444', marginLeft: '4px', textTransform: 'none' }}>({billNoError})</span>}
           </label>
           <input 
-            ref={billNoRef} type="text" value={billNo} onChange={e => { setBillNo(e.target.value); setBillNoError(''); }} onKeyDown={handleBillNoKeyDown}
-            style={{ width: '100%', backgroundColor: 'var(--color-bg)', border: `1px solid ${billNoError ? 'red' : 'var(--color-border-strong)'}`, borderRadius: '4px', padding: '3px 6px', fontSize: '12px', color: 'var(--color-primary)', fontWeight: 'bold', outline: 'none' }}
-            onFocus={e => { e.target.style.borderColor = billNoError ? 'red' : 'var(--color-primary)'; e.target.select(); }}
+            ref={billNoRef} 
+            type="text" 
+            value={billNo} 
+            onChange={e => { setBillNo(e.target.value); setBillNoError(''); }} 
+            onKeyDown={handleBillNoKeyDown}
+            style={{ 
+              width: '100%', 
+              backgroundColor: '#0f172a', 
+              border: `1px solid ${billNoError ? '#ef4444' : '#334155'}`, 
+              borderRadius: '6px', 
+              padding: '6px 10px', 
+              fontSize: '13px', 
+              height: '34px', 
+              color: '#38bdf8', 
+              fontWeight: '700', 
+              outline: 'none',
+              transition: 'border-color 0.2s',
+              boxSizing: 'border-box'
+            }}
+            onFocus={e => { e.target.style.borderColor = billNoError ? '#ef4444' : '#3b82f6'; e.target.select(); }}
             onBlur={e => {
               const savedBills = JSON.parse(localStorage.getItem('savedSalesBills') || '[]')
               if (savedBills.some((b: any) => (b.recordType || 'bill') === baseType && b.entryNo.toLowerCase() === e.target.value.trim().toLowerCase())) {
-                setBillNoError('Already exists')
-                e.target.style.borderColor = 'red'
+                setBillNoError('Exists')
+                e.target.style.borderColor = '#ef4444'
               } else {
                 setBillNoError('')
-                e.target.style.borderColor = 'var(--color-border-strong)'
+                e.target.style.borderColor = '#334155'
               }
             }}
           />
         </div>
 
-        {/* Party Name (F7) - Takes largest flex space */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: '1 1 auto', minWidth: '180px' }}>
-          <label style={{ fontSize: '10px', fontWeight: '600', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Party Name (F7)</label>
-          <div style={{ position: 'relative' }}>
+        {/* Party Name (F7) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: '1 1 auto', minWidth: '220px' }}>
+          <label style={{ fontSize: '10px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Party Name (F7)
+          </label>
+          <div style={{ position: 'relative', width: '100%' }}>
             <input 
               ref={partyRef} 
               type="text" 
@@ -998,282 +1038,410 @@ export default function SalesBill() {
               readOnly 
               onClick={() => setShowPartyModal(true)}
               onKeyDown={handlePartyKeyDown} 
-              placeholder="Select Party from list..."
-              style={{ width: '100%', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border-strong)', borderRadius: '4px', padding: '3px 24px 3px 8px', fontSize: '12px', color: 'var(--color-text-primary)', outline: 'none', cursor: 'pointer' }}
-              onFocus={e => { e.target.style.borderColor = 'var(--color-primary)'; }}
-              onBlur={e => e.target.style.borderColor = 'var(--color-border-strong)'}
+              placeholder="Select Party from list (Press Enter / F7)..."
+              style={{ 
+                width: '100%', 
+                backgroundColor: '#0f172a', 
+                border: '1px solid #334155', 
+                borderRadius: '6px', 
+                padding: '6px 32px 6px 12px', 
+                fontSize: '13px', 
+                height: '34px', 
+                color: '#f8fafc', 
+                outline: 'none', 
+                cursor: 'pointer',
+                transition: 'border-color 0.2s',
+                boxSizing: 'border-box'
+              }}
+              onFocus={e => { e.target.style.borderColor = '#3b82f6'; }}
+              onBlur={e => e.target.style.borderColor = '#334155'}
             />
-            <span onClick={() => setShowPartyModal(true)} style={{ position: 'absolute', right: '6px', top: '5px', fontSize: '12px', color: 'var(--color-text-muted)', cursor: 'pointer' }} title="Click to select Ledger (F7)">🔍</span>
+            <span 
+              onClick={() => setShowPartyModal(true)} 
+              style={{ position: 'absolute', right: '10px', top: '8px', fontSize: '13px', color: '#60a5fa', cursor: 'pointer' }} 
+              title="Click to select Ledger (F7)"
+            >
+              🔍
+            </span>
           </div>
         </div>
 
         {/* Inv Date */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '105px', flexShrink: 0 }}>
-          <label style={{ fontSize: '10px', fontWeight: '600', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Inv Date</label>
-          <div style={{ position: 'relative' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '120px', flexShrink: 0 }}>
+          <label style={{ fontSize: '10px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Inv Date
+          </label>
+          <div style={{ position: 'relative', width: '100%' }}>
             <input 
-              ref={invDateRef} type="text" value={invDateStr} onChange={e => setInvDateStr(e.target.value)} onKeyDown={handleInvDateKeyDown}
-              style={{ width: '100%', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border-strong)', borderRadius: '4px', padding: '3px 22px 3px 6px', fontSize: '12px', color: 'var(--color-text-primary)', outline: 'none' }}
+              ref={invDateRef} 
+              type="text" 
+              value={invDateStr} 
+              onChange={e => setInvDateStr(e.target.value)} 
+              onKeyDown={handleInvDateKeyDown}
+              style={{ 
+                width: '100%', 
+                backgroundColor: '#0f172a', 
+                border: '1px solid #334155', 
+                borderRadius: '6px', 
+                padding: '6px 28px 6px 10px', 
+                fontSize: '13px', 
+                height: '34px', 
+                color: '#f8fafc', 
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                boxSizing: 'border-box'
+              }}
               onFocus={e => { 
-                if (!validateMandatoryHeader()) return;
-                e.target.style.borderColor = 'var(--color-primary)'; 
+                e.target.style.borderColor = '#3b82f6'; 
                 e.target.select(); 
               }}
-              onBlur={e => e.target.style.borderColor = 'var(--color-border-strong)'}
+              onBlur={e => e.target.style.borderColor = '#334155'}
             />
-            <span style={{ position: 'absolute', right: '5px', top: '5px', fontSize: '11px', color: 'var(--color-text-muted)' }}>📅</span>
+            <span style={{ position: 'absolute', right: '8px', top: '8px', fontSize: '12px', color: '#94a3b8' }}>📅</span>
           </div>
         </div>
 
-        {/* Tax Type - Squeezed narrow width as requested */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '108px', flexShrink: 0 }}>
-          <label style={{ fontSize: '10px', fontWeight: '600', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Tax Type</label>
+        {/* Tax Type */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '130px', flexShrink: 0 }}>
+          <label style={{ fontSize: '10px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Tax Type
+          </label>
           <select
-            ref={taxTypeRef} value={taxType} onChange={e => setTaxType(e.target.value)} onKeyDown={handleTaxTypeKeyDown}
-            style={{ width: '100%', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border-strong)', borderRadius: '4px', padding: '3px 4px', fontSize: '12px', color: 'var(--color-text-primary)', outline: 'none' }}
-            onFocus={e => {
-              if (!validateMandatoryHeader()) return;
-              e.target.style.borderColor = 'var(--color-primary)';
+            ref={taxTypeRef} 
+            value={taxType} 
+            onChange={e => setTaxType(e.target.value)} 
+            onKeyDown={handleTaxTypeKeyDown}
+            style={{ 
+              width: '100%', 
+              backgroundColor: '#0f172a', 
+              border: '1px solid #334155', 
+              borderRadius: '6px', 
+              padding: '6px 10px', 
+              fontSize: '13px', 
+              height: '34px', 
+              color: '#f8fafc', 
+              outline: 'none',
+              transition: 'border-color 0.2s',
+              boxSizing: 'border-box'
             }}
-            onBlur={e => e.target.style.borderColor = 'var(--color-border-strong)'}
+            onFocus={e => { e.target.style.borderColor = '#3b82f6'; }}
+            onBlur={e => e.target.style.borderColor = '#334155'}
           >
             <option value="Tax">GST-Inclusive</option>
             <option value="Non-Tax">GST-Excl</option>
           </select>
         </div>
 
-        {/* Entry Date on Far Right */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '105px', flexShrink: 0, paddingLeft: '8px', borderLeft: '1px solid var(--color-border)' }}>
-          <label style={{ fontSize: '10px', fontWeight: '600', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Entry Date</label>
-          <div style={{ position: 'relative' }}>
+        {/* Entry Date */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '120px', flexShrink: 0, paddingLeft: '8px', borderLeft: '1px solid #334155' }}>
+          <label style={{ fontSize: '10px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Entry Date
+          </label>
+          <div style={{ position: 'relative', width: '100%' }}>
             <input 
-              ref={dateRef} type="text" value={dateStr} onChange={e => setDateStr(e.target.value)} onKeyDown={handleDateKeyDown}
-              style={{ width: '100%', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border-strong)', borderRadius: '4px', padding: '3px 20px 3px 4px', fontSize: '12px', color: 'var(--color-text-primary)', outline: 'none', textAlign: 'center' }}
-              onFocus={e => { e.target.style.borderColor = 'var(--color-primary)'; e.target.select(); }}
-              onBlur={e => e.target.style.borderColor = 'var(--color-border-strong)'}
+              ref={dateRef} 
+              type="text" 
+              value={dateStr} 
+              onChange={e => setDateStr(e.target.value)} 
+              onKeyDown={handleDateKeyDown}
+              style={{ 
+                width: '100%', 
+                backgroundColor: '#0f172a', 
+                border: '1px solid #334155', 
+                borderRadius: '6px', 
+                padding: '6px 28px 6px 10px', 
+                fontSize: '13px', 
+                height: '34px', 
+                color: '#f8fafc', 
+                outline: 'none', 
+                textAlign: 'center',
+                transition: 'border-color 0.2s',
+                boxSizing: 'border-box'
+              }}
+              onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.select(); }}
+              onBlur={e => e.target.style.borderColor = '#334155'}
             />
-            <span style={{ position: 'absolute', right: '5px', top: '5px', fontSize: '11px', color: 'var(--color-text-muted)' }}>📅</span>
+            <span style={{ position: 'absolute', right: '8px', top: '8px', fontSize: '12px', color: '#94a3b8' }}>📅</span>
           </div>
         </div>
 
       </div>
 
-      {/* ── GRID CARD ── */}
-      <div style={{ backgroundColor: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', padding: '4px 6px', boxShadow: 'var(--shadow-md)', flex: 1, display: 'flex', flexDirection: 'column', gap: '0px', overflow: 'hidden' }}>
+      {/* ── GRID CARD (MODERN DATA TABLE) ── */}
+      <div style={{ 
+        backgroundColor: '#0f172a', 
+        border: '1px solid #334155', 
+        borderRadius: '8px', 
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)', 
+        flex: 1, 
+        display: 'flex', 
+        flexDirection: 'column', 
+        overflow: 'hidden' 
+      }}>
         
-        <div style={{ border: '1px solid var(--color-border-strong)', borderRadius: '8px 8px 0 0', overflowY: 'auto', flex: 1 }}>
+        <div style={{ overflowY: 'auto', flex: 1 }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left", tableLayout: "fixed" }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-              <tr style={{ backgroundColor: 'var(--color-bg-elevated)', color: 'var(--color-text-secondary)', borderBottom: '1px solid var(--color-border-strong)', fontSize: '12px' }}>
-                <th style={{ padding: "2px 4px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '40px', textAlign: 'center' }}>#</th>
-                <th style={{ padding: "2px 4px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '25%' }}>PRODUCT</th>
-                <th style={{ padding: "2px 4px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '80px' }}>PACK</th>
-                <th style={{ padding: "2px 4px", fontWeight: '600', borderRight: '1px solid var(--color-border)' }}>BATCH</th>
-                <th style={{ padding: "2px 4px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '80px' }}>QTY</th>
-                <th style={{ padding: "2px 4px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '80px' }}>FREE</th>
-                <th style={{ padding: "2px 4px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '100px' }}>P.RATE/S</th>
-                <th style={{ padding: "2px 4px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '80px' }}>DIS1%</th>
-                <th style={{ padding: "2px 4px", fontWeight: '600', width: '120px' }}>AMOUNT</th>
+              <tr style={{ backgroundColor: '#1e293b', color: '#94a3b8', borderBottom: '1px solid #334155', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <th style={{ padding: "8px 6px", borderRight: '1px solid #334155', width: '40px', textAlign: 'center' }}>#</th>
+                <th style={{ padding: "8px 10px", borderRight: '1px solid #334155' }}>PRODUCT</th>
+                <th style={{ padding: "8px 6px", borderRight: '1px solid #334155', width: '75px', textAlign: 'center' }}>PACK</th>
+                <th style={{ padding: "8px 8px", borderRight: '1px solid #334155', width: '100px', textAlign: 'center' }}>BATCH</th>
+                <th style={{ padding: "8px 8px", borderRight: '1px solid #334155', width: '80px', textAlign: 'right' }}>QTY</th>
+                <th style={{ padding: "8px 8px", borderRight: '1px solid #334155', width: '70px', textAlign: 'right' }}>FREE</th>
+                <th style={{ padding: "8px 8px", borderRight: '1px solid #334155', width: '100px', textAlign: 'right' }}>EXTRA SCHEM</th>
+                <th style={{ padding: "8px 8px", borderRight: '1px solid #334155', width: '100px', textAlign: 'right' }}>P.RATE/S</th>
+                <th style={{ padding: "8px 8px", borderRight: '1px solid #334155', width: '80px', textAlign: 'right' }}>DIS1%</th>
+                <th style={{ padding: "8px 10px", width: '120px', textAlign: 'right' }}>AMOUNT</th>
               </tr>
             </thead>
             <tbody>
-              {gridRows.map((row, idx) => (
-                <tr key={row.id} 
-                    style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: activeRowId === row.id ? 'var(--color-bg-hover)' : 'transparent' }}
-                    onClick={() => setActiveRowId(row.id)}>
-                  <td style={{ padding: "0px 2px", borderRight: '1px solid var(--color-border)', color: 'var(--color-text-muted)', textAlign: 'center' }}>{idx + 1}</td>
-                  <td style={{ padding: "0px 2px", borderRight: '1px solid var(--color-border)' }}>
-                    <input 
-                      id={`product-input-${row.id}`}
-                      value={row.product} onChange={e => handleRowChange(idx, 'product', e.target.value)}
-                      onFocus={() => {
-                        setActiveRowId(row.id);
-                        if (!partyName.trim()) {
-                          validateMandatoryHeader();
-                        }
-                      }}
-                      onKeyDown={e => {
-                        if (e.key === 'Tab' || e.key === 'End') {
-                          e.preventDefault()
-                          document.getElementById('bill-discount-input')?.focus()
-                          return
-                        }
-                        if (e.key === 'Enter' || e.key === 'F7' || e.key === ' ') {
-                           if (row.product === '' && e.key === 'Enter' && totals.valueOfGoods > 0 && idx > 0) {
-                             e.preventDefault()
-                             document.getElementById('bill-discount-input')?.focus()
-                             return
-                           }
-                           e.preventDefault()
-                           if (!validateMandatoryHeader()) return;
-                           setShowProductModal(true)
-                        }
-                        handleGridKeyDown(e, row.id, 'product')
-                      }}
-                      placeholder={idx === 0 ? "Search..." : ""} 
-                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: '1px solid transparent', borderRadius: '4px', padding: "0px 4px", outline: 'none' }} 
-                      onFocusCapture={e => e.target.style.borderColor = 'var(--color-primary)'} onBlur={e => e.target.style.borderColor = 'transparent'} 
-                    />
-                  </td>
-                  <td style={{ padding: "0px 2px", borderRight: '1px solid var(--color-border)' }}>
-                    <input 
-                      id={`pack-input-${row.id}`}
-                      readOnly
-                      value={row.pack}
-                      onFocus={() => setActiveRowId(row.id)}
-                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-secondary)', border: '1px solid transparent', borderRadius: '4px', padding: "0px 4px", outline: 'none' }} 
-                    />
-                  </td>
-                  <td style={{ padding: "0px 2px", borderRight: '1px solid var(--color-border)' }}>
-                    <input 
-                      id={`batch-input-${row.id}`}
-                      value={row.batch} onChange={e => handleRowChange(idx, 'batch', e.target.value)}
-                      onFocus={() => setActiveRowId(row.id)}
-                      onKeyDown={e => { 
-                        if (e.key === 'F3' || e.key === 'f3') {
-                          e.preventDefault();
-                          setF3SelectedIndex(0);
-                          setShowF3BatchModal(true);
-                          return;
-                        }
-                        if (e.key === 'Enter') {
-                          if (row.product && (!row.batch || !row.batch.trim())) {
+              {gridRows.map((row, idx) => {
+                const isActive = activeRowId === row.id;
+                return (
+                  <tr 
+                    key={row.id} 
+                    style={{ 
+                      borderBottom: '1px solid #1e293b', 
+                      backgroundColor: isActive ? 'rgba(59, 130, 246, 0.12)' : (idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)'),
+                      borderLeft: isActive ? '3px solid #3b82f6' : '3px solid transparent',
+                      transition: 'background-color 0.15s'
+                    }}
+                    onClick={() => setActiveRowId(row.id)}
+                  >
+                    <td style={{ padding: "3px 4px", borderRight: '1px solid #1e293b', color: '#64748b', textAlign: 'center', fontSize: '12px', fontWeight: '500' }}>{idx + 1}</td>
+                    
+                    {/* Product */}
+                    <td style={{ padding: "2px 4px", borderRight: '1px solid #1e293b' }}>
+                      <input 
+                        id={`product-input-${row.id}`}
+                        value={row.product} 
+                        onChange={e => handleRowChange(idx, 'product', e.target.value)}
+                        onFocus={() => setActiveRowId(row.id)}
+                        onKeyDown={e => {
+                          if (e.key === 'Tab' || e.key === 'End') {
                             e.preventDefault()
+                            document.getElementById('bill-discount-input')?.focus()
+                            return
+                          }
+                          if (e.key === 'Enter' || e.key === 'F7' || e.key === ' ') {
+                             if (row.product === '' && e.key === 'Enter' && totals.valueOfGoods > 0 && idx > 0) {
+                               e.preventDefault()
+                               document.getElementById('bill-discount-input')?.focus()
+                               return
+                             }
+                             e.preventDefault()
+                             setShowProductModal(true)
+                          }
+                          handleGridKeyDown(e, row.id, 'product')
+                        }}
+                        placeholder={idx === 0 ? "Search product (Enter / Space)..." : ""} 
+                        style={{ width: '100%', backgroundColor: 'transparent', color: '#f8fafc', border: '1px solid transparent', borderRadius: '4px', padding: "4px 8px", outline: 'none', fontSize: '13px', fontWeight: '500' }} 
+                        onFocusCapture={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.08)'; }} 
+                        onBlur={e => { e.target.style.borderColor = 'transparent'; e.target.style.backgroundColor = 'transparent'; }} 
+                      />
+                    </td>
+
+                    {/* Pack */}
+                    <td style={{ padding: "2px 4px", borderRight: '1px solid #1e293b' }}>
+                      <input 
+                        id={`pack-input-${row.id}`}
+                        readOnly
+                        value={row.pack}
+                        onFocus={() => setActiveRowId(row.id)}
+                        style={{ width: '100%', backgroundColor: 'transparent', color: '#94a3b8', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'center', fontSize: '12px' }} 
+                      />
+                    </td>
+
+                    {/* Batch */}
+                    <td style={{ padding: "2px 4px", borderRight: '1px solid #1e293b' }}>
+                      <input 
+                        id={`batch-input-${row.id}`}
+                        value={row.batch} 
+                        onChange={e => handleRowChange(idx, 'batch', e.target.value)}
+                        onFocus={() => setActiveRowId(row.id)}
+                        onKeyDown={e => { 
+                          if (e.key === 'F3' || e.key === 'f3') {
+                            e.preventDefault();
                             setF3SelectedIndex(0);
                             setShowF3BatchModal(true);
-                            return
+                            return;
                           }
-                          if (row.product && (!row.expiry || !row.expiry.trim() || !isValidExpiryFormat(row.expiry))) {
-                            e.preventDefault()
-                            document.getElementById('bottom-expiry-input')?.focus()
-                            return
-                          }
-                          document.getElementById(`qty-input-${row.id}`)?.focus() 
-                        }
-                        handleGridKeyDown(e, row.id, 'batch')
-                      }}
-                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: '1px solid transparent', borderRadius: '4px', padding: "0px 4px", outline: 'none' }} 
-                      onFocusCapture={e => e.target.style.borderColor = 'var(--color-primary)'} onBlur={e => e.target.style.borderColor = 'transparent'} 
-                    />
-                  </td>
-                  <td style={{ padding: "0px 2px", borderRight: '1px solid var(--color-border)' }}>
-                    <input 
-                      id={`qty-input-${row.id}`}
-                      value={row.qty} onChange={e => handleRowChange(idx, 'qty', e.target.value)}
-                      onFocus={() => {
-                        setActiveRowId(row.id)
-                        if (row.product && (!row.batch?.trim() || !row.expiry?.trim())) {
-                          setTimeout(() => {
-                            if (!row.batch?.trim()) {
-                              alert('Please enter Batch Number before moving to Quantity!')
-                              document.getElementById('bottom-batch-input')?.focus()
-                            } else {
-                              alert('Please enter Expiry Date before moving to Quantity!')
-                              document.getElementById('bottom-expiry-input')?.focus()
+                          if (e.key === 'Enter') {
+                            if (row.product && (!row.batch || !row.batch.trim())) {
+                              e.preventDefault()
+                              setF3SelectedIndex(0);
+                              setShowF3BatchModal(true);
+                              return
                             }
-                          }, 10)
-                        }
-                      }}
-                      onKeyDown={e => { 
-                        if (e.key === 'Enter') document.getElementById(`free-input-${row.id}`)?.focus() 
-                        handleGridKeyDown(e, row.id, 'qty')
-                      }}
-                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: '1px solid transparent', borderRadius: '4px', padding: "0px 4px", outline: 'none', textAlign: 'right' }} 
-                      onFocusCapture={e => e.target.style.borderColor = 'var(--color-primary)'} onBlur={e => e.target.style.borderColor = 'transparent'} 
-                    />
-                  </td>
-                  <td style={{ padding: "0px 2px", borderRight: '1px solid var(--color-border)' }}>
-                    <input 
-                      id={`free-input-${row.id}`}
-                      value={row.free} onChange={e => handleRowChange(idx, 'free', e.target.value)}
-                      onFocus={() => setActiveRowId(row.id)}
-                      onKeyDown={e => { 
-                        if (e.key === 'Enter') document.getElementById(`prate-input-${row.id}`)?.focus() 
-                        handleGridKeyDown(e, row.id, 'free')
-                      }}
-                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: '1px solid transparent', borderRadius: '4px', padding: "0px 4px", outline: 'none', textAlign: 'right' }} 
-                      onFocusCapture={e => e.target.style.borderColor = 'var(--color-primary)'} onBlur={e => e.target.style.borderColor = 'transparent'} 
-                    />
-                  </td>
-                  <td style={{ padding: "0px 2px", borderRight: '1px solid var(--color-border)' }}>
-                    <input 
-                      id={`prate-input-${row.id}`}
-                      value={row.prate} onChange={e => handleRowChange(idx, 'prate', e.target.value)}
-                      onFocus={() => setActiveRowId(row.id)}
-                      onKeyDown={e => { 
-                        if (e.key === 'Enter') document.getElementById(`dis-input-${row.id}`)?.focus() 
-                        handleGridKeyDown(e, row.id, 'prate')
-                      }}
-                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: '1px solid transparent', borderRadius: '4px', padding: "0px 4px", outline: 'none', textAlign: 'right' }} 
-                      onFocusCapture={e => e.target.style.borderColor = 'var(--color-primary)'} onBlur={e => e.target.style.borderColor = 'transparent'} 
-                    />
-                  </td>
-                  <td style={{ padding: "0px 2px", borderRight: '1px solid var(--color-border)' }}>
-                    <input 
-                      id={`dis-input-${row.id}`}
-                      value={row.dis} onChange={e => handleRowChange(idx, 'dis', e.target.value)}
-                      onFocus={() => setActiveRowId(row.id)}
-                      onKeyDown={e => { 
-                        handleGridKeyDown(e, row.id, 'dis')
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          
-                          // Pre-fill purDeal if empty
-                          const q = parseFloat(row.qty) || 0;
-                          const f = parseFloat(row.free) || 0;
-                          let finalPurQty = row.purDealQty || '';
-                          let finalPurFree = row.purDealFree || '';
+                            if (row.product && (!row.expiry || !row.expiry.trim() || !isValidExpiryFormat(row.expiry))) {
+                              e.preventDefault()
+                              document.getElementById('bottom-expiry-input')?.focus()
+                              return
+                            }
+                            document.getElementById(`qty-input-${row.id}`)?.focus() 
+                          }
+                          handleGridKeyDown(e, row.id, 'batch')
+                        }}
+                        style={{ width: '100%', backgroundColor: 'transparent', color: '#fbbf24', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'center', fontSize: '13px', fontWeight: '600' }} 
+                        onFocusCapture={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.08)'; }} 
+                        onBlur={e => { e.target.style.borderColor = 'transparent'; e.target.style.backgroundColor = 'transparent'; }} 
+                      />
+                    </td>
 
-                          if (q > 0 && !row.purDealQty) {
-                             const div = getGcd(q, f);
-                             if (div > 0) {
-                               finalPurQty = String(q / div);
-                               finalPurFree = String(f / div);
-                             }
+                    {/* Qty */}
+                    <td style={{ padding: "2px 4px", borderRight: '1px solid #1e293b' }}>
+                      <input 
+                        id={`qty-input-${row.id}`}
+                        value={row.qty} 
+                        onChange={e => handleRowChange(idx, 'qty', e.target.value)}
+                        onFocus={() => {
+                          setActiveRowId(row.id)
+                          if (row.product && (!row.batch?.trim() || !row.expiry?.trim())) {
+                            setTimeout(() => {
+                              if (!row.batch?.trim()) {
+                                alert('Please enter Batch Number before moving to Quantity!')
+                                document.getElementById('bottom-batch-input')?.focus()
+                              } else {
+                                alert('Please enter Expiry Date before moving to Quantity!')
+                                document.getElementById('bottom-expiry-input')?.focus()
+                              }
+                            }, 10)
                           }
-                          
-                          const newRows = [...gridRows]
-                          newRows[idx] = { 
-                            ...newRows[idx], 
-                            purDealQty: finalPurQty, 
-                            purDealFree: finalPurFree,
-                            schSalesQty: row.schSalesQty || finalPurQty,
-                            schSalesFree: row.schSalesFree || finalPurFree
-                          }
-                          setGridRows(newRows)
-                          
-                          setShowBatchModal(true)
-                          setTimeout(() => document.getElementById('modal-purdeal-qty-input')?.focus(), 50)
-                        } 
-                      }}
-                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: '1px solid transparent', borderRadius: '4px', padding: "0px 4px", outline: 'none', textAlign: 'right' }} 
-                      onFocusCapture={e => { e.target.style.borderColor = 'var(--color-primary)'; e.target.select() }} onBlur={e => e.target.style.borderColor = 'transparent'} 
-                    />
-                  </td>
-                  <td style={{ padding: "0px 2px" }}>
-                    <input 
-                      id={`amount-input-${row.id}`}
-                      readOnly
-                      value={((parseFloat(row.qty) || 0) * (parseFloat(row.prate) || 0)).toFixed(2)}
-                      onFocus={() => setActiveRowId(row.id)}
-                      style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-secondary)', border: '1px solid transparent', borderRadius: '4px', padding: "0px 4px", outline: 'none', textAlign: 'right', fontWeight: 'bold' }} 
-                    />
-                  </td>
-                </tr>
-              ))}
+                        }}
+                        onKeyDown={e => { 
+                          if (e.key === 'Enter') document.getElementById(`free-input-${row.id}`)?.focus() 
+                          handleGridKeyDown(e, row.id, 'qty')
+                        }}
+                        style={{ width: '100%', backgroundColor: 'transparent', color: '#f8fafc', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'right', fontSize: '13px', fontWeight: '600' }} 
+                        onFocusCapture={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.08)'; }} 
+                        onBlur={e => { e.target.style.borderColor = 'transparent'; e.target.style.backgroundColor = 'transparent'; }} 
+                      />
+                    </td>
+
+                    {/* Free */}
+                    <td style={{ padding: "2px 4px", borderRight: '1px solid #1e293b' }}>
+                      <input 
+                        id={`free-input-${row.id}`}
+                        value={row.free} 
+                        onChange={e => handleRowChange(idx, 'free', e.target.value)}
+                        onFocus={() => setActiveRowId(row.id)}
+                        onKeyDown={e => { 
+                          if (e.key === 'Enter') document.getElementById(`extraSchem-input-${row.id}`)?.focus() 
+                          handleGridKeyDown(e, row.id, 'free')
+                        }}
+                        style={{ width: '100%', backgroundColor: 'transparent', color: '#34d399', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'right', fontSize: '13px' }} 
+                        onFocusCapture={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.08)'; }} 
+                        onBlur={e => { e.target.style.borderColor = 'transparent'; e.target.style.backgroundColor = 'transparent'; }} 
+                      />
+                    </td>
+
+                    {/* Extra Schem */}
+                    <td style={{ padding: "2px 4px", borderRight: '1px solid #1e293b' }}>
+                      <input 
+                        id={`extraSchem-input-${row.id}`}
+                        value={row.extraSchem} 
+                        onChange={e => handleRowChange(idx, 'extraSchem', e.target.value)}
+                        onFocus={() => setActiveRowId(row.id)}
+                        onKeyDown={e => { 
+                          if (e.key === 'Enter') document.getElementById(`prate-input-${row.id}`)?.focus() 
+                          handleGridKeyDown(e, row.id, 'extraSchem')
+                        }}
+                        style={{ width: '100%', backgroundColor: 'transparent', color: '#34d399', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'right', fontSize: '13px' }} 
+                        onFocusCapture={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.08)'; }} 
+                        onBlur={e => { e.target.style.borderColor = 'transparent'; e.target.style.backgroundColor = 'transparent'; }} 
+                      />
+                    </td>
+
+                    {/* P.Rate/S */}
+                    <td style={{ padding: "2px 4px", borderRight: '1px solid #1e293b' }}>
+                      <input 
+                        id={`prate-input-${row.id}`}
+                        value={row.prate} 
+                        onChange={e => handleRowChange(idx, 'prate', e.target.value)}
+                        onFocus={() => setActiveRowId(row.id)}
+                        onKeyDown={e => { 
+                          if (e.key === 'Enter') document.getElementById(`dis-input-${row.id}`)?.focus() 
+                          handleGridKeyDown(e, row.id, 'prate')
+                        }}
+                        style={{ width: '100%', backgroundColor: 'transparent', color: '#f8fafc', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'right', fontSize: '13px', fontWeight: '600' }} 
+                        onFocusCapture={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.08)'; }} 
+                        onBlur={e => { e.target.style.borderColor = 'transparent'; e.target.style.backgroundColor = 'transparent'; }} 
+                      />
+                    </td>
+
+                    {/* Dis1% */}
+                    <td style={{ padding: "2px 4px", borderRight: '1px solid #1e293b' }}>
+                      <input 
+                        id={`dis-input-${row.id}`}
+                        value={row.dis} 
+                        onChange={e => handleRowChange(idx, 'dis', e.target.value)}
+                        onFocus={() => setActiveRowId(row.id)}
+                        onKeyDown={e => { 
+                          handleGridKeyDown(e, row.id, 'dis')
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            
+                            const q = parseFloat(row.qty) || 0;
+                            const f = parseFloat(row.free) || 0;
+                            let finalPurQty = row.purDealQty || '';
+                            let finalPurFree = row.purDealFree || '';
+
+                            if (q > 0 && !row.purDealQty) {
+                               const div = getGcd(q, f);
+                               if (div > 0) {
+                                 finalPurQty = String(q / div);
+                                 finalPurFree = String(f / div);
+                               }
+                            }
+                            
+                            const newRows = [...gridRows]
+                            newRows[idx] = { 
+                              ...newRows[idx], 
+                              purDealQty: finalPurQty, 
+                              purDealFree: finalPurFree,
+                              schSalesQty: row.schSalesQty || finalPurQty,
+                              schSalesFree: row.schSalesFree || finalPurFree
+                            }
+                            setGridRows(newRows)
+                            
+                            setShowBatchModal(true)
+                            setTimeout(() => document.getElementById('modal-purdeal-qty-input')?.focus(), 50)
+                          } 
+                        }}
+                        style={{ width: '100%', backgroundColor: 'transparent', color: '#f8fafc', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'right', fontSize: '13px' }} 
+                        onFocusCapture={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.08)'; e.target.select(); }} 
+                        onBlur={e => { e.target.style.borderColor = 'transparent'; e.target.style.backgroundColor = 'transparent'; }} 
+                      />
+                    </td>
+
+                    {/* Amount */}
+                    <td style={{ padding: "2px 6px" }}>
+                      <input 
+                        id={`amount-input-${row.id}`}
+                        readOnly
+                        value={((parseFloat(row.qty) || 0) * (parseFloat(row.prate) || 0)).toFixed(2)}
+                        onFocus={() => setActiveRowId(row.id)}
+                        style={{ width: '100%', backgroundColor: 'transparent', color: '#38bdf8', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'right', fontWeight: '700', fontSize: '13px' }} 
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
 
         {/* ── BOTTOM SUMMARY PANEL ── */}
-        <div style={{ backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border-strong)', borderTop: 'none', borderBottom: 'none', display: 'flex', fontSize: '12px' }}>
+        <div style={{ backgroundColor: '#0f172a', borderTop: '1px solid #334155', display: 'flex', fontSize: '12px', flexShrink: 0 }}>
           
-          <div style={{ flex: 1.6, padding: '6px 12px', borderRight: '1px solid var(--color-border)', display: 'flex', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
+          {/* Left Metadata & Status Badges */}
+          <div style={{ flex: 1.6, padding: '8px 12px', borderRight: '1px solid #334155', display: 'flex', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
             
-            {/* ── Left Input Column (Aligned with equal width labels and inputs) ── */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
+            {/* Input Column */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '48px', color: 'var(--color-primary)', fontWeight: '600' }}>Batch:</span>
+                <span style={{ width: '48px', color: '#60a5fa', fontWeight: '600' }}>Batch:</span>
                 <input 
                   id="bottom-batch-input"
                   value={gridRows.find(r => r.id === activeRowId)?.batch || ''}
@@ -1301,15 +1469,15 @@ export default function SalesBill() {
                       }
                     }
                   }}
-                  style={{ width: '85px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border-strong)', borderRadius: '4px', padding: '3px 6px', fontSize: '12px', color: 'var(--color-text-primary)', outline: 'none' }}
-                  onFocus={e => { e.target.style.borderColor = 'var(--color-primary)'; e.target.select() }}
-                  onBlur={e => e.target.style.borderColor = 'var(--color-border-strong)'}
+                  style={{ width: '90px', backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '4px', padding: '4px 8px', fontSize: '13px', color: '#fbbf24', fontWeight: 'bold', outline: 'none' }}
+                  onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.select() }}
+                  onBlur={e => e.target.style.borderColor = '#475569'}
                 />
-                <span onClick={() => { setF3SelectedIndex(0); setShowF3BatchModal(true); }} style={{ fontSize: '11px', backgroundColor: '#3b82f6', color: '#fff', padding: '2px 6px', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }} title="Press F3 or click to select existing batch">[F3]</span>
+                <span onClick={() => { setF3SelectedIndex(0); setShowF3BatchModal(true); }} style={{ fontSize: '11px', backgroundColor: '#3b82f6', color: '#fff', padding: '3px 6px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }} title="Press F3 or click to select existing batch">[F3]</span>
               </div>
               
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '48px', color: 'var(--color-primary)', fontWeight: '600' }}>Expiry:</span>
+                <span style={{ width: '48px', color: '#60a5fa', fontWeight: '600' }}>Expiry:</span>
                 <input 
                   id="bottom-expiry-input"
                   value={gridRows.find(r => r.id === activeRowId)?.expiry || ''}
@@ -1332,10 +1500,10 @@ export default function SalesBill() {
                       }
                     }
                   }}
-                  style={{ width: '85px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border-strong)', borderRadius: '4px', padding: '3px 6px', fontSize: '12px', color: '#34d399', fontWeight: 'bold', outline: 'none', textAlign: 'center' }}
-                  onFocus={e => { e.target.style.borderColor = 'var(--color-primary)'; e.target.select() }}
+                  style={{ width: '90px', backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '4px', padding: '4px 8px', fontSize: '13px', color: '#34d399', fontWeight: 'bold', outline: 'none', textAlign: 'center' }}
+                  onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.select() }}
                   onBlur={e => { 
-                    e.target.style.borderColor = 'var(--color-border-strong)'
+                    e.target.style.borderColor = '#475569'
                     const val = e.target.value
                     if (val && val.trim() !== '' && !isValidExpiryFormat(val)) {
                       alert('Expiry date will only be accepted in strict MM/YY format (Month 01-12 / 2-digit Year, e.g., 11/27, 08/28).')
@@ -1345,59 +1513,58 @@ export default function SalesBill() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '48px', color: 'var(--color-primary)', fontWeight: '600' }}>M.R.P.:</span>
+                <span style={{ width: '48px', color: '#60a5fa', fontWeight: '600' }}>M.R.P.:</span>
                 <input 
                   value={gridRows.find(r => r.id === activeRowId)?.mrp || ''}
                   onChange={e => {
                     const rowIndex = gridRows.findIndex(r => r.id === activeRowId)
                     if (rowIndex !== -1) handleRowChange(rowIndex, 'mrp', e.target.value)
                   }}
-                  style={{ width: '85px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border-strong)', borderRadius: '4px', padding: '3px 6px', fontSize: '12px', color: 'var(--color-text-primary)', outline: 'none', textAlign: 'right' }}
-                  onFocus={e => { e.target.style.borderColor = 'var(--color-primary)'; e.target.select() }}
-                  onBlur={e => e.target.style.borderColor = 'var(--color-border-strong)'}
+                  style={{ width: '90px', backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '4px', padding: '4px 8px', fontSize: '13px', color: '#f8fafc', outline: 'none', textAlign: 'right' }}
+                  onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.select() }}
+                  onBlur={e => e.target.style.borderColor = '#475569'}
                 />
               </div>
             </div>
 
-            {/* ── Right Information Column (Aligned vertically with HSN & Tax% directly below SRate) ── */}
+            {/* Quick Status Chips */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: '125px', justifyContent: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <span style={{ width: '46px', color: 'var(--color-primary)', fontWeight: '600' }}>Stock:</span> 
-                <span style={{ color: 'var(--color-text-primary)' }}>0</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '46px', color: '#94a3b8', fontWeight: '600' }}>Stock:</span> 
+                <span style={{ color: '#10b981', fontWeight: '700', background: 'rgba(16, 185, 129, 0.1)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>0</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <span style={{ width: '46px', color: 'var(--color-primary)', fontWeight: '600' }}>SRate:</span> 
-                <span style={{ color: 'var(--color-text-primary)' }}>{gridRows.find(r => r.id === activeRowId)?.rateA || '0.00'}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '46px', color: '#94a3b8', fontWeight: '600' }}>SRate:</span> 
+                <span style={{ color: '#38bdf8', fontWeight: '600' }}>{gridRows.find(r => r.id === activeRowId)?.rateA || '0.00'}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <span style={{ width: '46px', color: 'var(--color-primary)', fontWeight: '600' }}>HSN:</span> 
-                <span style={{ color: 'var(--color-text-primary)' }}>{gridRows.find(r => r.id === activeRowId)?.hsn || '---'}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '46px', color: '#94a3b8', fontWeight: '600' }}>HSN:</span> 
+                <span style={{ color: '#cbd5e1' }}>{gridRows.find(r => r.id === activeRowId)?.hsn || '---'}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <span style={{ width: '46px', color: 'var(--color-primary)', fontWeight: '600' }}>Tax%:</span> 
-                <span style={{ color: 'var(--color-text-primary)' }}>{gridRows.find(r => r.id === activeRowId)?.igst ? `${gridRows.find(r => r.id === activeRowId)?.igst}%` : '0%'}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <span style={{ width: '46px', color: 'var(--color-primary)', fontWeight: '600' }}>Chall.:</span> 
-                <span style={{ color: 'var(--color-text-primary)' }}></span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '46px', color: '#94a3b8', fontWeight: '600' }}>Tax%:</span> 
+                <span style={{ color: '#f59e0b', fontWeight: '600' }}>{gridRows.find(r => r.id === activeRowId)?.igst ? `${gridRows.find(r => r.id === activeRowId)?.igst}%` : '0%'}</span>
               </div>
             </div>
 
           </div>
 
-          <div style={{ flex: 1, padding: '6px 10px', borderRight: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '4px', justifyContent: 'center' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--color-text-secondary)', fontWeight: '600' }}>MRP Value :</span> <span>{totals.mrpValue.toFixed(2)}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--color-text-secondary)', fontWeight: '600' }}>Taxable Amt :</span> <span>{netTaxableBeforeGst.toFixed(2)}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--color-text-secondary)', fontWeight: '600' }}>Amount :</span> <span>{backgroundNetAmount.toFixed(2)}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--color-text-secondary)', fontWeight: '600' }}>Post-Tax Adj :</span> <span style={{ color: (adj1+adj2+adj3) !== 0 ? '#fbbf24' : 'inherit' }}>{(adj1+adj2+adj3).toFixed(2)}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--color-text-secondary)', fontWeight: '600' }}>Total Qty :</span> <span>{gridRows.reduce((s, r) => s + (parseFloat(r.qty)||0) + (parseFloat(r.free)||0), 0)}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}><span style={{ color: 'var(--color-text-primary)' }}>Balance :</span> <span style={{ color: 'var(--color-primary)' }}>{invoiceValue.toFixed(2)}</span></div>
+          {/* Middle Subtotals */}
+          <div style={{ flex: 1, padding: '8px 12px', borderRight: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '4px', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#94a3b8' }}>MRP Value :</span> <span style={{ fontWeight: '600' }}>{totals.mrpValue.toFixed(2)}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#94a3b8' }}>Taxable Amt :</span> <span style={{ fontWeight: '600' }}>{netTaxableBeforeGst.toFixed(2)}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#94a3b8' }}>Amount :</span> <span style={{ fontWeight: '600' }}>{backgroundNetAmount.toFixed(2)}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#94a3b8' }}>Post-Tax Adj :</span> <span style={{ color: (adj1+adj2+adj3) !== 0 ? '#fbbf24' : 'inherit', fontWeight: '600' }}>{(adj1+adj2+adj3).toFixed(2)}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#94a3b8' }}>Total Qty :</span> <span style={{ fontWeight: '700', color: '#f8fafc' }}>{gridRows.reduce((s, r) => s + (parseFloat(r.qty)||0) + (parseFloat(r.free)||0), 0)}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', borderTop: '1px dashed #334155', paddingTop: '3px', marginTop: '2px' }}><span style={{ color: '#f8fafc' }}>Balance :</span> <span style={{ color: '#38bdf8' }}>{invoiceValue.toFixed(2)}</span></div>
           </div>
 
-          <div style={{ flex: 1.2, padding: '6px 10px', borderRight: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '4px', justifyContent: 'center' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--color-primary)', fontWeight: '600' }}>VALUE OF GOODS :</span> <span>{totals.valueOfGoods.toFixed(2)}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'var(--color-primary)', fontWeight: '600' }}>GST AMT :</span> <span>{backgroundGstAmount.toFixed(2)}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '3px', borderBottom: '1px dashed var(--color-border-strong)' }}>
+          {/* Right GST & Adjustments */}
+          <div style={{ flex: 1.3, padding: '8px 12px', borderRight: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '4px', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#60a5fa', fontWeight: '600' }}>VALUE OF GOODS :</span> <span style={{ fontWeight: '700' }}>{totals.valueOfGoods.toFixed(2)}</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#60a5fa', fontWeight: '600' }}>GST AMT :</span> <span style={{ fontWeight: '700' }}>{backgroundGstAmount.toFixed(2)}</span></div>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '3px', borderBottom: '1px dashed #334155' }}>
               <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>DISCOUNT (±) :</span> 
               <input 
                 id="bill-discount-input"
@@ -1412,8 +1579,8 @@ export default function SalesBill() {
                     handleSaveTrigger();
                   }
                 }}
-                style={{ width: '75px', textAlign: 'right', backgroundColor: 'var(--color-bg)', border: '1px solid #fbbf24', borderRadius: '3px', padding: '2px 6px', fontSize: '12px', color: '#fbbf24', fontWeight: 'bold', outline: 'none' }}
-                onFocus={e => { e.target.style.borderColor = 'var(--color-primary)'; e.target.select(); }}
+                style={{ width: '80px', textAlign: 'right', backgroundColor: '#1e293b', border: '1px solid #fbbf24', borderRadius: '4px', padding: '3px 8px', fontSize: '12px', color: '#fbbf24', fontWeight: 'bold', outline: 'none' }}
+                onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.select(); }}
                 onBlur={e => {
                   e.target.style.borderColor = '#fbbf24';
                   setBillDiscount(formatDiscountInput(billDiscount));
@@ -1421,11 +1588,11 @@ export default function SalesBill() {
               />
             </div>
             
-            {/* ── 3 Selectable Post-Tax Ledger Adjustments (Doesn't affect inventory GST) ── */}
+            {/* 3 Selectable Post-Tax Ledger Adjustments */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
               <select 
                 value={ledger1Name} onChange={e => setLedger1Name(e.target.value)}
-                style={{ flex: 1, backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border-strong)', borderRadius: '3px', padding: '2px 4px', fontSize: '11px', color: 'var(--color-text-secondary)', outline: 'none' }}
+                style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '2px 6px', fontSize: '11px', color: '#cbd5e1', outline: 'none' }}
               >
                 <option value="">+ Select Adj. Ledger 1...</option>
                 <option value="TDS Deduction">TDS Deduction (-)</option>
@@ -1437,14 +1604,14 @@ export default function SalesBill() {
               </select>
               <input 
                 type="text" placeholder="± 0.00" value={ledger1Amt} onChange={e => setLedger1Amt(e.target.value)}
-                style={{ width: '70px', textAlign: 'right', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border-strong)', borderRadius: '3px', padding: '2px 6px', fontSize: '11px', color: 'var(--color-text-primary)', outline: 'none', fontWeight: 'bold' }}
+                style={{ width: '70px', textAlign: 'right', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '2px 6px', fontSize: '11px', color: '#f8fafc', outline: 'none', fontWeight: 'bold' }}
               />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
               <select 
                 value={ledger2Name} onChange={e => setLedger2Name(e.target.value)}
-                style={{ flex: 1, backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border-strong)', borderRadius: '3px', padding: '2px 4px', fontSize: '11px', color: 'var(--color-text-secondary)', outline: 'none' }}
+                style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '2px 6px', fontSize: '11px', color: '#cbd5e1', outline: 'none' }}
               >
                 <option value="">+ Select Adj. Ledger 2...</option>
                 <option value="TDS Deduction">TDS Deduction (-)</option>
@@ -1456,14 +1623,14 @@ export default function SalesBill() {
               </select>
               <input 
                 type="text" placeholder="± 0.00" value={ledger2Amt} onChange={e => setLedger2Amt(e.target.value)}
-                style={{ width: '70px', textAlign: 'right', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border-strong)', borderRadius: '3px', padding: '2px 6px', fontSize: '11px', color: 'var(--color-text-primary)', outline: 'none', fontWeight: 'bold' }}
+                style={{ width: '70px', textAlign: 'right', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '2px 6px', fontSize: '11px', color: '#f8fafc', outline: 'none', fontWeight: 'bold' }}
               />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
               <select 
                 value={ledger3Name} onChange={e => setLedger3Name(e.target.value)}
-                style={{ flex: 1, backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border-strong)', borderRadius: '3px', padding: '2px 4px', fontSize: '11px', color: 'var(--color-text-secondary)', outline: 'none' }}
+                style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '2px 6px', fontSize: '11px', color: '#cbd5e1', outline: 'none' }}
               >
                 <option value="">+ Select Adj. Ledger 3...</option>
                 <option value="TDS Deduction">TDS Deduction (-)</option>
@@ -1475,31 +1642,45 @@ export default function SalesBill() {
               </select>
               <input 
                 type="text" placeholder="± 0.00" value={ledger3Amt} onChange={e => setLedger3Amt(e.target.value)}
-                style={{ width: '70px', textAlign: 'right', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border-strong)', borderRadius: '3px', padding: '2px 6px', fontSize: '11px', color: 'var(--color-text-primary)', outline: 'none', fontWeight: 'bold' }}
+                style={{ width: '70px', textAlign: 'right', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '2px 6px', fontSize: '11px', color: '#f8fafc', outline: 'none', fontWeight: 'bold' }}
               />
             </div>
           </div>
 
-          <div style={{ width: '200px', backgroundColor: 'var(--color-bg-surface)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '8px 12px' }}>
-            <div style={{ fontSize: '15px', color: 'var(--color-text-secondary)' }}>Invoice Value</div>
-            <div style={{ fontSize: '26px', fontWeight: 'bold', color: 'var(--color-text-primary)', marginTop: '2px' }}>{invoiceValue.toFixed(2)}</div>
+          {/* Far Right: Total Invoice Value Hero Card */}
+          <div style={{ 
+            width: '210px', 
+            background: 'linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(30,58,138,0.3) 100%)', 
+            borderLeft: '1px solid #334155', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            padding: '12px' 
+          }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94a3b8' }}>
+              Total Invoice Value
+            </div>
+            <div style={{ fontSize: '28px', fontWeight: '800', color: '#38bdf8', marginTop: '2px', letterSpacing: '-0.02em', textShadow: '0 2px 10px rgba(56, 189, 248, 0.3)' }}>
+              ₹ {invoiceValue.toFixed(2)}
+            </div>
           </div>
 
         </div>
 
-        {/* ── LAST 6 BILLED PURCHASES HISTORY PANEL (MARG ERP 9+ REFERENCE STYLE - FIXED HEIGHT, NO EXPANDING) ── */}
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid var(--color-border-strong)', borderRadius: '0 0 8px 8px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'auto', maxHeight: '135px' }}>
-          <div style={{ backgroundColor: '#1e293b', padding: '2px 10px', fontSize: '11px', fontWeight: 'bold', color: '#60a5fa', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border-strong)', flexShrink: 0 }}>
+        {/* ── LAST 6 BILLED PURCHASES HISTORY PANEL ── */}
+        <div style={{ backgroundColor: '#090d16', borderTop: '1px solid #334155', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'auto', maxHeight: '120px', flexShrink: 0 }}>
+          <div style={{ backgroundColor: '#131c2e', padding: '3px 12px', fontSize: '11px', fontWeight: 'bold', color: '#38bdf8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', flexShrink: 0 }}>
             <span>🕒 LAST 6 SAVED BILL DETAILS — [ {gridRows.find(r => r.id === activeRowId)?.product || 'Select Product'} ]</span>
-            <span style={{ color: '#94a3b8', fontSize: '10px', fontWeight: 'normal' }}>
+            <span style={{ color: '#64748b', fontSize: '10px', fontWeight: 'normal' }}>
               {gridRows.find(r => r.id === activeRowId)?.product ? 'Shows strictly last 6 saved bills only' : 'Select product to compare past bills'}
             </span>
           </div>
           <div style={{ overflowY: 'hidden', flex: 1 }}>
             {gridRows.find(r => r.id === activeRowId)?.product ? (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: 'left', backgroundColor: '#0f172a', fontFamily: 'monospace', lineHeight: '1.2' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: 'left', fontFamily: 'monospace', lineHeight: '1.2' }}>
               <thead>
-                <tr style={{ backgroundColor: '#1e293b', color: '#94a3b8', borderBottom: '1px solid var(--color-border)', fontWeight: 'bold' }}>
+                <tr style={{ backgroundColor: '#0f172a', color: '#94a3b8', borderBottom: '1px solid #1e293b', fontWeight: 'bold' }}>
                   <th style={{ padding: '2px 6px', width: '22%' }}>Party Name</th>
                   <th style={{ padding: '2px 6px', width: '85px' }}>BILL NO.</th>
                   <th style={{ padding: '2px 6px', width: '75px' }}>DATE</th>
@@ -1538,7 +1719,7 @@ export default function SalesBill() {
               </tbody>
             </table>
             ) : (
-              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0f172a', color: '#64748b', fontStyle: 'italic', fontSize: '12px' }}>
+              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontStyle: 'italic', fontSize: '12px' }}>
                 ℹ️ Select a product from Product List above to view its Last 6 Saved Sales Bills.
               </div>
             )}
@@ -1546,16 +1727,50 @@ export default function SalesBill() {
         </div>
       </div>
       
-      {/* ── FOOTER ACTION BAR (ULTRA LOW PROFILE TO MAXIMIZE PRODUCT GRID HEIGHT) ── */}
-      <div style={{ display: 'flex', gap: '4px', padding: '2px 8px', backgroundColor: '#0f172a', borderRadius: '4px', color: '#fff', alignItems: 'center', fontSize: '11px', overflowX: 'auto', minHeight: '26px', borderTop: '1px solid var(--color-border)' }}>
-        <button style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '1px 6px', cursor: 'pointer', borderRadius: '2px', fontSize: '10px', fontWeight: '500', opacity: 0.85 }}>HELP</button>
-        <button style={{ background: '#1e293b', color: '#94a3b8', border: '1px solid #334155', padding: '1px 6px', cursor: 'pointer', borderRadius: '2px', fontSize: '10px' }}>SALE</button>
-        <button style={{ background: '#1e293b', color: '#94a3b8', border: '1px solid #334155', padding: '1px 6px', cursor: 'pointer', borderRadius: '2px', fontSize: '10px' }}>PURC</button>
-        <button style={{ background: '#1e293b', color: '#94a3b8', border: '1px solid #334155', padding: '1px 6px', cursor: 'pointer', borderRadius: '2px', fontSize: '10px' }}>SC</button>
-        <button style={{ background: '#1e293b', color: '#94a3b8', border: '1px solid #334155', padding: '1px 6px', cursor: 'pointer', borderRadius: '2px', fontSize: '10px' }}>PC</button>
-        <button onClick={handleSaveTrigger} style={{ background: '#7f1d1d', color: '#f8fafc', border: '1px solid #991b1b', padding: '2px 12px', cursor: 'pointer', borderRadius: '2px', marginLeft: 'auto', fontWeight: 'bold', fontSize: '11px', letterSpacing: '0.3px' }}>SAVE (End / Ctrl+S)</button>
+      {/* ── FOOTER ACTION BAR (MODERN FLOATING TOOLBAR) ── */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '8px', 
+        padding: '6px 12px', 
+        background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)', 
+        borderRadius: '8px', 
+        border: '1px solid #334155', 
+        color: '#fff', 
+        alignItems: 'center', 
+        fontSize: '11px', 
+        minHeight: '34px',
+        flexShrink: 0,
+        boxShadow: '0 4px 10px rgba(0, 0, 0, 0.2)'
+      }}>
+        <button style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '3px 10px', cursor: 'pointer', borderRadius: '4px', fontSize: '11px', fontWeight: '600' }}>[F1] Help</button>
+        <button style={{ background: '#0f172a', color: '#94a3b8', border: '1px solid #334155', padding: '3px 10px', cursor: 'pointer', borderRadius: '4px', fontSize: '11px', fontWeight: '500' }}>[F2] Sale</button>
+        <button style={{ background: '#0f172a', color: '#94a3b8', border: '1px solid #334155', padding: '3px 10px', cursor: 'pointer', borderRadius: '4px', fontSize: '11px', fontWeight: '500' }}>[F4] Purc</button>
+        <button style={{ background: '#0f172a', color: '#94a3b8', border: '1px solid #334155', padding: '3px 10px', cursor: 'pointer', borderRadius: '4px', fontSize: '11px', fontWeight: '500' }}>[F5] SC</button>
+        <button style={{ background: '#0f172a', color: '#94a3b8', border: '1px solid #334155', padding: '3px 10px', cursor: 'pointer', borderRadius: '4px', fontSize: '11px', fontWeight: '500' }}>[F6] PC</button>
+        
+        <button 
+          onClick={handleSaveTrigger} 
+          style={{ 
+            background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', 
+            color: '#fff', 
+            border: 'none', 
+            padding: '5px 18px', 
+            cursor: 'pointer', 
+            borderRadius: '6px', 
+            marginLeft: 'auto', 
+            fontWeight: '700', 
+            fontSize: '12px', 
+            letterSpacing: '0.03em',
+            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.4)',
+            transition: 'transform 0.1s, box-shadow 0.1s'
+          }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.5)'; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(37, 99, 235, 0.4)'; }}
+        >
+          SAVE (End / Ctrl+S)
+        </button>
       </div>
-      
+
       {/* ── F7 PARTY SELECTION MODAL ── */}
       {showPartyModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
