@@ -24,9 +24,9 @@ const THEME_OPTIONS: { id: ThemeOption; name: string; description: string; color
   },
   {
     id: 'minimal',
-    name: 'Neumorphic Minimalist',
-    description: 'High contrast light mode for data density.',
-    colors: ['#f8fafc', '#ffffff', '#2563eb']
+    name: 'Neumorphic Minimalist (White & Green)',
+    description: 'Clean white surfaces with vibrant emerald green accents.',
+    colors: ['#ffffff', '#ecfdf5', '#10b981'] // Surface White, Mint BG, Emerald Green
   },
   {
     id: 'enterprise',
