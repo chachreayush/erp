@@ -1167,18 +1167,20 @@ export default function SalesBill() {
 
       </div>
 
-      {/* ── GRID CARD (MODERN DATA TABLE) ── */}
-      <div style={{ 
-        backgroundColor: '#0f172a', 
-        border: '1px solid #334155', 
-        borderRadius: '8px', 
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)', 
-        flex: 1, 
-        display: 'flex', 
-        flexDirection: 'column', 
-        overflow: 'hidden' 
-      }}>
-        
+      {/* ── MAIN WORKSPACE SPLIT ── */}
+      <div style={{ display: 'flex', flex: 1, gap: '8px', overflow: 'hidden' }}>
+
+        {/* ── GRID CARD (MODERN DATA TABLE) ── */}
+        <div style={{ 
+          backgroundColor: '#0f172a', 
+          border: '1px solid #334155', 
+          borderRadius: '8px', 
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)', 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          overflow: 'hidden' 
+        }}>
         <div style={{ overflowY: 'auto', flex: 1 }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left", tableLayout: "fixed" }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
@@ -1785,8 +1787,6 @@ export default function SalesBill() {
 
         </div>
       </div>
-      
-    </div>
       
     {/* ── FOOTER ACTION BAR (MODERN FLOATING TOOLBAR) ── */}
     <div style={{ 
