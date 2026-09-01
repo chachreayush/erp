@@ -6,6 +6,7 @@ import {
   Search, LayoutDashboard, Receipt, Package, ShoppingCart, Users, UserCheck, BarChart3, Settings, Boxes
 } from 'lucide-react'
 import './MargAppShell.css'
+import GlobalSearch from '../GlobalSearch'
 
 // Custom hook for current time
 const useCurrentTime = () => {
@@ -83,6 +84,9 @@ const MargAppShell = () => {
               {item.label}
             </div>
           ))}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', paddingRight: '12px' }}>
+            <GlobalSearch />
+          </div>
         </div>
       )}
 

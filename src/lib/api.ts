@@ -256,6 +256,8 @@ export interface Product {
   item_discount_percent: number
   discount_type: 'applicable' | 'no discount' | 'no sch discount' | 'no schem'
   category: 'na' | 'schedule h' | 'schedule h1' | 'narcotics'
+  min_stock_level: number
+  reorder_quantity: number
   is_active?: boolean
 }
 
@@ -388,6 +390,12 @@ export async function apiCreateInvoice(payload: InvoiceCreatePayload): Promise<I
   const response = await apiClient.post<Invoice>('/api/sales/invoices', payload)
   return response.data
 }
+
+export async function apiCancelInvoice(invoiceId: string): Promise<{message: string, reversal_id: string, reversal_number: string}> {
+  const response = await apiClient.post(`/api/sales/invoices/${encodeURIComponent(invoiceId)}/cancel`)
+  return response.data
+}
+
 
 // ── MASTER DATA API ──────────────────────────────────────────
 
@@ -660,3 +668,44 @@ export const apiGetProductRegister = async (productId: string, stockType: "main"
   return res.data
 }
 
+
+
+
+export interface LowStockAlert {
+  product_id: string;
+  code: string;
+  name: string;
+  current_stock: number;
+  min_stock_level: number;
+  reorder_quantity: number;
+  suggested_order: number;
+}
+
+export async function apiGetLowStockAlerts(): Promise<{alerts: LowStockAlert[]}> {
+  const response = await apiClient.get<{alerts: LowStockAlert[]}>("/api/stock/alerts/low-stock")
+  return response.data
+}
+
+
+
+export interface MRPSuggestion {
+  product_id: string;
+  code: string;
+  name: string;
+  thirty_day_sales: number;
+  avg_daily_sales: number;
+  current_min_stock: number;
+  suggested_min_stock: number;
+  current_reorder_qty: number;
+  suggested_reorder_qty: number;
+}
+
+export async function apiGetMRPSuggestions(): Promise<{suggestions: MRPSuggestion[]}> {
+  const response = await apiClient.get<{suggestions: MRPSuggestion[]}>("/api/stock/mrp/suggestions")
+  return response.data
+}
+
+export async function apiApplyMRPSuggestions(productIds: string[]): Promise<{message: string}> {
+  const response = await apiClient.post<{message: string}>("/api/stock/mrp/apply", { product_ids: productIds })
+  return response.data
+}

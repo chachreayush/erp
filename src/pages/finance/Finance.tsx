@@ -30,7 +30,7 @@ export default function FinancePage() {
   }
 
   return (
-    <div style={{ height: "100%", overflowY: "auto", maxWidth: '1200px', animation: 'fadeIn 0.3s ease-in-out' }}>
+    <div style={{ margin: "0 auto", height: "100%", overflowY: "auto", maxWidth: '1200px', animation: 'fadeIn 0.3s ease-in-out', width: '100%' }}>
       
       {/* ── HEADER & ACTIONS ────────────────────────────────── */}
       <div style={{ 

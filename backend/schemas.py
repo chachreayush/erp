@@ -330,6 +330,8 @@ class ProductBase(BaseModel):
     item_discount_percent: float = 0.0
     discount_type: str = "applicable"
     category: str = "na"
+    min_stock_level: int = 0
+    reorder_quantity: int = 0
     is_active: bool = True
 
 class ProductCreate(ProductBase):

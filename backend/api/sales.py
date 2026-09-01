@@ -352,3 +352,110 @@ def delete_invoice(
     db_invoice.is_active = False
     db.commit()
     return {"message": "Invoice deleted successfully, stock restored"}
+
+
+
+@router.post("/invoices/{invoice_id}/cancel")
+def cancel_invoice(
+    invoice_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    SAP-Style Cancel (Reversal):
+    Instead of deleting, this creates a new REVERSAL document with negative values.
+    This restores stock exactly the opposite way it was deducted and creates a perfect audit trail.
+    """
+    org_id = current_user.organization_id
+    
+    original = db.query(models.Invoice).options(selectinload(models.Invoice.items)).filter(
+        models.Invoice.id == invoice_id,
+        models.Invoice.organization_id == org_id,
+        models.Invoice.is_active == True
+    ).first()
+    
+    if not original:
+        raise HTTPException(status_code=404, detail="Invoice not found or already deleted.")
+        
+    rev_number = f"REV-{original.invoice_number}"
+    existing_rev = db.query(models.Invoice).filter(
+        models.Invoice.organization_id == org_id,
+        models.Invoice.invoice_number == rev_number
+    ).first()
+    
+    if existing_rev:
+        raise HTTPException(status_code=400, detail="Invoice is already cancelled/reversed.")
+
+    # 1. Create the Reversal Invoice
+    reversal = models.Invoice(
+        organization_id=org_id,
+        invoice_type=original.invoice_type,
+        invoice_number=rev_number,
+        date=datetime.utcnow(),
+        customer_name=original.customer_name,
+        party_inv_no=original.party_inv_no,
+        party_inv_date=original.party_inv_date,
+        due_date=original.due_date,
+        remarks=f"REVERSAL of {original.invoice_number}",
+        dispatch_through=original.dispatch_through,
+        destination=original.destination,
+        bill_discount=-original.bill_discount if original.bill_discount else 0,
+        
+        ledger1_name=original.ledger1_name,
+        ledger1_amt=-original.ledger1_amt if original.ledger1_amt else 0,
+        ledger2_name=original.ledger2_name,
+        ledger2_amt=-original.ledger2_amt if original.ledger2_amt else 0,
+        ledger3_name=original.ledger3_name,
+        ledger3_amt=-original.ledger3_amt if original.ledger3_amt else 0,
+        
+        subtotal=-original.subtotal,
+        tax_total=-original.tax_total,
+        grand_total=-original.grand_total,
+        is_active=True
+    )
+    
+    db.add(reversal)
+    db.flush()
+    
+    stock_items_for_reversal = []
+    
+    for item in original.items:
+        rev_item = models.InvoiceItem(
+            invoice_id=reversal.id,
+            product_id=item.product_id,
+            product_name=item.product_name,
+            quantity=-item.quantity, 
+            rate=item.rate,
+            batch=item.batch,
+            expiry=item.expiry,
+            mrp=item.mrp,
+            discount_percent=item.discount_percent,
+            margin_percent=item.margin_percent,
+            igst_percent=item.igst_percent,
+            line_total=-item.line_total
+        )
+        db.add(rev_item)
+        
+        stock_items_for_reversal.append(schemas.InvoiceItemCreate(
+            product_id=item.product_id,
+            product_name=item.product_name,
+            quantity=-item.quantity, 
+            rate=item.rate,
+            batch=item.batch,
+            expiry=item.expiry,
+            mrp=item.mrp,
+            discount_percent=item.discount_percent,
+            margin_percent=item.margin_percent,
+            igst_percent=item.igst_percent,
+            line_total=-item.line_total
+        ))
+        
+    # 3. Update stock (Passing negative quantities effectively reverses the original stock action)
+    _update_stock_for_invoice(db, org_id, stock_items_for_reversal, reversal.invoice_type)
+    
+    # 4. Mark original as cancelled in remarks
+    original.remarks = f"CANCELLED. Reversed by {rev_number}"
+    
+    db.commit()
+    
+    print("Added successfully!")

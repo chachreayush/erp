@@ -276,13 +276,33 @@ body.theme-minimal header {
   background: #2d6a4f !important;
   border-bottom: 2px solid #1b4332 !important;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
-}
-
-body.theme-minimal header * {
   color: #ffffff !important;
 }
 
-body.theme-minimal header nav button:hover {
+/* Make ONLY the top level navigation buttons white */
+body.theme-minimal header > nav > div > button {
+  color: #ffffff !important;
+}
+
+/* Logo and Header info */
+body.theme-minimal header > div:first-child span {
+  color: #ffffff !important;
+}
+
+/* Right side profile / bell buttons */
+body.theme-minimal header > div:last-child > button,
+body.theme-minimal header > div:last-child > div > button,
+body.theme-minimal header > div:last-child span {
+  color: #ffffff !important;
+}
+
+/* Reset dropdown elements to dark text so they show up against white background */
+body.theme-minimal header div[style*="absolute"] *,
+body.theme-minimal header div[style*="absolute"] button {
+  color: var(--color-text-primary) !important;
+}
+
+body.theme-minimal header nav > div > button:hover {
   background-color: rgba(255, 255, 255, 0.15) !important;
 }
 

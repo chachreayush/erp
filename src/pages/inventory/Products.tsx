@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react' 
 import { useReturnNavigation } from '../../hooks/useReturnNavigation'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Download, Package } from 'lucide-react'
+import { Plus, Download, Package, TrendingUp } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
@@ -10,6 +10,7 @@ import { LookupModal } from '../../components/ui/LookupModal'
 import { CompanyMasterModal } from '../../components/ui/CompanyMasterModal'
 import { HSNMasterModal } from '../../components/ui/HSNMasterModal'
 import { SaltMasterModal } from '../../components/ui/SaltMasterModal'
+import { SmartMRPModal } from '../../components/ui/SmartMRPModal'
 import { 
   apiGetProducts, apiCreateProduct, ProductCreatePayload, Product,
   apiGetManufacturers, apiGetSalts, apiGetHSNCodes
@@ -38,6 +39,7 @@ export default function ProductsPage() {
   const [modifyHsnData, setModifyHsnData] = useState<any>(null)
 
   const [isSaltMasterOpen, setIsSaltMasterOpen] = useState(false)
+  const [isSmartMRPOpen, setIsSmartMRPOpen] = useState(false)
   const [modifySaltData, setModifySaltData] = useState<any>(null)
   useReturnNavigation(isAdding || isCompanyLookupOpen || isHsnLookupOpen || isSaltLookupOpen || isCompanyMasterOpen || isHsnMasterOpen || isSaltMasterOpen);
   
@@ -71,7 +73,9 @@ export default function ProductsPage() {
     ptr_rate: 0,
     item_discount_percent: 0,
     discount_type: 'applicable',
-    category: 'na'
+    category: 'na',
+    min_stock_level: 0,
+    reorder_quantity: 0
   })
 
   // ── Marg Real-time Pricing Logic ──
@@ -320,6 +324,9 @@ export default function ProductsPage() {
           <Button variant="secondary" leftIcon={<Download size={16} />}>
             Export
           </Button>
+          <Button variant="secondary" leftIcon={<TrendingUp size={16} />} onClick={() => setIsSmartMRPOpen(true)}>
+            Smart MRP
+          </Button>
           <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => { setModifyingProductId(null); setIsAdding(true); }}>
             Add Product
           </Button>
@@ -455,6 +462,12 @@ export default function ProductsPage() {
                   <option value="no sch discount">No Sch Discount</option>
                   <option value="no schem">No Schem</option>
                 </Input>
+              </div>
+              
+              <div style={{ marginTop: '8px', borderTop: '1px solid var(--color-border)', paddingTop: '12px' }}>
+                <h4 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '8px' }}>MRP & Reorder Planning</h4>
+                <Input variant="dense" label="Min Stock Level" type="number" min="0" value={newProduct.min_stock_level} onChange={e => setNewProduct({...newProduct, min_stock_level: parseInt(e.target.value) || 0})} />
+                <Input variant="dense" label="Reorder Qty" type="number" min="0" value={newProduct.reorder_quantity} onChange={e => setNewProduct({...newProduct, reorder_quantity: parseInt(e.target.value) || 0})} />
               </div>
             </div>
 
@@ -706,6 +719,15 @@ export default function ProductsPage() {
           </table>
         </div>
       </Card>
+
+      <SmartMRPModal 
+        isOpen={isSmartMRPOpen} 
+        onClose={() => setIsSmartMRPOpen(false)} 
+        onApplied={() => {
+          fetchProducts() // Refresh the table
+        }}
+      />
     </div>
   )
 }
+

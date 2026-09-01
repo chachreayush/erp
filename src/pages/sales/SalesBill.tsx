@@ -1184,7 +1184,7 @@ export default function SalesBill() {
             <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
               <tr style={{ backgroundColor: '#1e293b', color: '#94a3b8', borderBottom: '1px solid #334155', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 <th style={{ padding: "8px 6px", borderRight: '1px solid #334155', width: '40px', textAlign: 'center' }}>#</th>
-                <th style={{ padding: "8px 10px", borderRight: '1px solid #334155' }}>PRODUCT</th>
+                <th style={{ padding: "8px 10px", borderRight: '1px solid #334155', width: '26%' }}>PRODUCT</th>
                 <th style={{ padding: "8px 6px", borderRight: '1px solid #334155', width: '75px', textAlign: 'center' }}>PACK</th>
                 <th style={{ padding: "8px 8px", borderRight: '1px solid #334155', width: '100px', textAlign: 'center' }}>BATCH</th>
                 <th style={{ padding: "8px 8px", borderRight: '1px solid #334155', width: '80px', textAlign: 'right' }}>QTY</th>
@@ -1726,9 +1726,70 @@ export default function SalesBill() {
           </div>
         </div>
       </div>
-      
-      {/* ── FOOTER ACTION BAR (MODERN FLOATING TOOLBAR) ── */}
+
+      {/* ── RIGHT PANEL (INTELLIGENCE & MORE INFO) ── */}
       <div style={{ 
+        width: '280px', 
+        backgroundColor: '#0f172a', 
+        border: '1px solid #334155', 
+        borderRadius: '8px', 
+        display: 'flex', 
+        flexDirection: 'column',
+        flexShrink: 0,
+        overflow: 'hidden',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
+      }}>
+        <div style={{ backgroundColor: '#1e293b', color: '#38bdf8', fontSize: '11px', fontWeight: 'bold', padding: '6px 12px', borderBottom: '1px solid #334155', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          Live Intelligence
+        </div>
+        <div style={{ padding: '12px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          
+          {/* Party Details */}
+          <div>
+            <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Selected Party</div>
+            <div style={{ fontSize: '13px', color: '#f8fafc', fontWeight: '600' }}>{partyName || 'Cash Sale'}</div>
+            <div style={{ fontSize: '11px', color: '#34d399', marginTop: '2px' }}>Balance: ₹0.00</div>
+          </div>
+
+          <div style={{ borderTop: '1px dashed #334155' }}></div>
+
+          {/* Active Product Details */}
+          <div>
+            <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Active Product</div>
+            <div style={{ fontSize: '13px', color: '#f8fafc', fontWeight: '600' }}>{gridRows.find(r => r.id === activeRowId)?.product || 'None Selected'}</div>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '11px' }}>
+              <span style={{ color: '#94a3b8' }}>M.R.P:</span>
+              <span style={{ color: '#e2e8f0' }}>₹{gridRows.find(r => r.id === activeRowId)?.mrp || '0.00'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '11px' }}>
+              <span style={{ color: '#94a3b8' }}>Stock:</span>
+              <span style={{ color: '#34d399', fontWeight: 'bold' }}>{gridRows.find(r => r.id === activeRowId)?.product ? 'Available' : '-'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '11px' }}>
+              <span style={{ color: '#94a3b8' }}>Margin:</span>
+              <span style={{ color: '#38bdf8' }}>25%</span>
+            </div>
+          </div>
+          
+          <div style={{ borderTop: '1px dashed #334155' }}></div>
+          
+          {/* Quick Actions */}
+          <div>
+              <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Shortcuts</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                <button style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', fontSize: '10px', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}>F2 - Sale</button>
+                <button style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', fontSize: '10px', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}>F3 - Batch</button>
+              </div>
+          </div>
+
+        </div>
+      </div>
+      
+    </div>
+      
+    {/* ── FOOTER ACTION BAR (MODERN FLOATING TOOLBAR) ── */}
+    <div style={{ 
         display: 'flex', 
         gap: '8px', 
         padding: '6px 12px', 

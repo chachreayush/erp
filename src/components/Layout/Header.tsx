@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { Bell, LogOut, ChevronDown, ChevronRight } from 'lucide-react'
+import GlobalSearch from '../GlobalSearch'
 
 // ── NAV ITEMS DEFINITION ───────────────────────────────────────
 interface NavItem {
@@ -875,6 +876,8 @@ function Header() {
           )
         })}
       </nav>
+
+      <GlobalSearch />
 
       {/* ── RIGHT: NOTIFICATIONS + USER PROFILE ──────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '12px' }}>

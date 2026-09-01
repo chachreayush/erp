@@ -71,3 +71,16 @@ Entering the **Sales Bill** or **Purchase Bill** automatically hides the top nav
 ## 6. Live Cloud & Vercel Synchronization
 - Local offline data caches have been unified with live PostgreSQL cloud endpoints.
 - Any invoice, ledger, or product saved from the desktop Tauri app or local browser is instantaneously synchronized and viewable across Vercel cloud deployments.
+
+
+### [Update: 2026-09-01]
+#### New Workflows & Features
+1. **Smart MRP Configuration**
+   - **Access**: Navigate to Inventory > Products, click the Smart MRP button.
+   - **Workflow**: The system scans past sales and suggests new Minimum Stock and Reorder quantities.
+2. **Global Search**
+   - **Access**: Click the Search bar in the top navigation or press Ctrl + K.
+   - **Workflow**: Type any module name (e.g., Sale, Ledger) to instantly navigate to it.
+3. **Enhanced Sales Bill Workspace**
+   - The billing screen now utilizes the full monitor width.
+   - A **Live Intelligence Panel** on the right side provides instant details on the selected party balance and the currently highlighted product MRP, Stock, and Margins.

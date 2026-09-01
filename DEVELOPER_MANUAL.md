@@ -94,3 +94,10 @@ npm run build
 - **Environment Variables**:
   - `VITE_API_URL`: Live Render backend URL (e.g. `https://erp-backend.onrender.com`)
   - `VITE_PORT`: `50005` (Local development)
+
+
+### [Update: 2026-09-01]
+#### New Architecture Additions
+- **Auto-MRP Calculation API**: Located in backend/api/stock.py, calculates 30-day velocity for min stock, and avg_daily * 30 for reorder quantities.
+- **SAP-Style Document Reversal**: The cancellation endpoint copies the target invoice and reverses the quantity and line_total amounts to restore stock and maintain an immutable financial ledger.
+- **Responsive Edge-to-Edge Layout**: AppShell.tsx now has padding: 0px on its content wrapper to allow the SalesBill.tsx component to span fully across monitors. Nested components must define their own max-width and margin: 0 auto if they wish to remain centered.

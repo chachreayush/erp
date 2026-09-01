@@ -198,8 +198,9 @@ def health_check():
     # Test database connectivity by making a simple query
     try:
         from database import SessionLocal
+        from sqlalchemy import text
         db = SessionLocal()
-        db.execute("SELECT 1")  # Lightweight query just to test connection
+        db.execute(text("SELECT 1"))  # Lightweight query just to test connection
         db.close()
         db_status = "connected"
     except Exception:

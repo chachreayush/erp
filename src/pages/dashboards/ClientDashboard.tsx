@@ -8,6 +8,46 @@ import { api } from '../../lib/api'
 import { useEffect, useState } from 'react'
 import { AlertCircle, Megaphone } from 'lucide-react'
 
+
+import { apiGetLowStockAlerts, LowStockAlert } from "../../lib/api"
+
+// MRP: Low Stock Alert Widget
+function LowStockWidget() {
+  const [alerts, setAlerts] = useState<LowStockAlert[]>([])
+  
+  useEffect(() => {
+    apiGetLowStockAlerts().then(res => {
+      setAlerts(res.alerts || [])
+    }).catch(console.error)
+  }, [])
+  
+  if (alerts.length === 0) return null
+  
+  return (
+    <Card style={{ marginBottom: "28px", borderLeft: "4px solid #f59e0b" }}>
+      <CardHeader style={{ paddingBottom: "12px", display: "flex", flexDirection: "row", alignItems: "center", gap: "8px" }}>
+        <AlertTriangle size={18} color="#f59e0b" />
+        <CardTitle style={{ fontSize: "15px", color: "#b45309" }}>MRP Alerts: Low Stock ({alerts.length})</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "8px" }}>
+          {alerts.map(alert => (
+            <div key={alert.product_id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", backgroundColor: "#fffbeb", borderRadius: "6px", fontSize: "13px" }}>
+              <span style={{ fontWeight: 600 }}>{alert.name} ({alert.code})</span>
+              <div style={{ display: "flex", gap: "16px" }}>
+                <span>Stock: <span style={{ color: "#dc2626", fontWeight: 700 }}>{alert.current_stock}</span></span>
+                <span>Min: {alert.min_stock_level}</span>
+                <span style={{ color: "#d97706", fontWeight: 600 }}>Reorder Qty: {alert.suggested_order}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+
 // Lightweight Dashboard Widget for Bulletins
 function DashboardBulletinWidget() {
   const [bulletin, setBulletin] = useState<any>(null)
@@ -86,6 +126,7 @@ export default function ClientDashboard() {
         </div>
       </div>
 
+      <LowStockWidget />
       <DashboardBulletinWidget />
 
       {/* ── KPI STAT CARDS GRID ─────────────────────────────── */}

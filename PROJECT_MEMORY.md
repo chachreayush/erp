@@ -78,3 +78,11 @@ To copy updates from `erp2` to the original `erp` folder:
 ```powershell
 powershell -ExecutionPolicy Bypass -File C:\Users\DELL\OneDrive\Desktop\erp2\sync-to-original.ps1
 ```
+
+
+### [Update: 2026-09-01]
+- **Smart MRP Integration**: Added an AI-powered Smart MRP modal to calculate min_stock_level and reorder_quantity based on a 30-day sales velocity algorithm. Injected into the Products page and integrated with the Dashboard Low Stock Alerts.
+- **Global Search**: Implemented a Marg/Odoo-style Ctrl+K search bar in the header for quick navigation between modules and products.
+- **UI & Layout Fixes**: Fixed AppShell padding to allow edge-to-edge layouts. Centered the Finance & Accounting page layout. Restored dropdown text legibility in the Minimal White/Green theme.
+- **Sales Bill Remaster**: Restructured SalesBill.tsx to an edge-to-edge layout, compressed the Product column width, and added a Live Intelligence right-side panel containing Party Details, Active Product metrics, and Keyboard shortcuts.
+- **Document Cancellation**: Added POST /api/sales/invoices/{id}/cancel endpoint (SAP-style reversal) to create negative quantity records without deleting original audit trails.

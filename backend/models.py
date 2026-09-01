@@ -301,6 +301,10 @@ class Product(Base):
     item_discount_percent = Column(Numeric(5, 2), nullable=False, default=0)
     discount_type = Column(String(50), nullable=True, default="applicable")
     category = Column(String(100), nullable=True, default="na")
+    
+    # ── MRP / Inventory Planning ──
+    min_stock_level = Column(Integer, nullable=False, default=0)
+    reorder_quantity = Column(Integer, nullable=False, default=0)
 
     # is_active: Soft delete flag
     is_active = Column(Boolean, default=True, nullable=False)
