@@ -86,3 +86,4 @@ powershell -ExecutionPolicy Bypass -File C:\Users\DELL\OneDrive\Desktop\erp2\syn
 - **UI & Layout Fixes**: Fixed AppShell padding to allow edge-to-edge layouts. Centered the Finance & Accounting page layout. Restored dropdown text legibility in the Minimal White/Green theme.
 - **Sales Bill Remaster**: Restructured SalesBill.tsx to an edge-to-edge layout, compressed the Product column width, and added a Live Intelligence right-side panel containing Party Details, Active Product metrics, and Keyboard shortcuts.
 - **Document Cancellation**: Added POST /api/sales/invoices/{id}/cancel endpoint (SAP-style reversal) to create negative quantity records without deleting original audit trails.
+- **Sales Bill Hotfix**: Resolved React-Babel JSX nesting issue (Unterminated JSX contents) to stabilize the edge-to-edge layout.

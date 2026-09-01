@@ -8,10 +8,9 @@ def capture():
         context = browser.new_context(viewport={"width": 1280, "height": 800})
         page = context.new_page()
         
-        # Navigate
+        # Navigate to login
         page.goto("http://localhost:50005/")
         
-        # Try to login if the form is present
         try:
             if page.locator("input[name=\"username\"]").is_visible(timeout=3000):
                 page.fill("input[name=\"username\"]", "admin")
@@ -28,7 +27,7 @@ def capture():
         time.sleep(2)
         
         # Take full page screenshot
-        page.screenshot(path="C:/Users/DELL/.gemini/antigravity/brain/30c6bcb4-3d4d-4694-928d-f4b580461717/sales_panel_audit.png", full_page=False)
+        page.screenshot(path="C:/Users/DELL/.gemini/antigravity/brain/30c6bcb4-3d4d-4694-928d-f4b580461717/sales_panel_audit_fixed.png", full_page=False)
         print("Screenshot saved!")
         browser.close()
 

@@ -1788,6 +1788,8 @@ export default function SalesBill() {
         </div>
       </div>
       
+    </div>
+      
     {/* ── FOOTER ACTION BAR (MODERN FLOATING TOOLBAR) ── */}
     <div style={{ 
         display: 'flex', 
