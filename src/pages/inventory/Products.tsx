@@ -204,6 +204,8 @@ export default function ProductsPage() {
       salt: product.salt || '',
       hsn_applicable: (product.hsn_applicable as any) || 'no',
       hsn_code: product.hsn_code || '',
+      min_stock_level: product.min_stock_level || 0,
+      reorder_quantity: product.reorder_quantity || 0,
       local_tax: (product.local_tax as any) || 'taxable',
       central_tax: (product.central_tax as any) || 'taxable',
       sgst_percent: product.sgst_percent || 0,

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Modal } from './Modal'
 import { Button } from './Button'
 import { apiGetMRPSuggestions, apiApplyMRPSuggestions, MRPSuggestion } from '../../lib/api'
