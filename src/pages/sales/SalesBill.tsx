@@ -985,6 +985,39 @@ export default function SalesBill() {
           </div>
         </div>
 
+        {/* Entry Date */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '120px', flexShrink: 0, paddingRight: '8px', borderRight: '1px solid #334155' }}>
+          <label style={{ fontSize: '10px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Entry Date
+          </label>
+          <div style={{ position: 'relative', width: '100%' }}>
+            <input 
+              ref={dateRef} 
+              type="text" 
+              value={dateStr} 
+              onChange={e => setDateStr(e.target.value)} 
+              onKeyDown={handleDateKeyDown}
+              style={{ 
+                width: '100%', 
+                backgroundColor: '#0f172a', 
+                border: '1px solid #334155', 
+                borderRadius: '6px', 
+                padding: '6px 28px 6px 10px', 
+                fontSize: '13px', 
+                height: '34px', 
+                color: '#f8fafc', 
+                outline: 'none', 
+                textAlign: 'center',
+                transition: 'border-color 0.2s',
+                boxSizing: 'border-box'
+              }}
+              onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.select(); }}
+              onBlur={e => e.target.style.borderColor = '#334155'}
+            />
+            <span style={{ position: 'absolute', right: '8px', top: '8px', fontSize: '12px', color: '#94a3b8' }}>📅</span>
+          </div>
+        </div>
+
         {/* Entry No */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '95px', flexShrink: 0 }}>
           <label style={{ fontSize: '10px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -1132,38 +1165,6 @@ export default function SalesBill() {
           </select>
         </div>
 
-        {/* Entry Date */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '120px', flexShrink: 0, paddingLeft: '8px', borderLeft: '1px solid #334155' }}>
-          <label style={{ fontSize: '10px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Entry Date
-          </label>
-          <div style={{ position: 'relative', width: '100%' }}>
-            <input 
-              ref={dateRef} 
-              type="text" 
-              value={dateStr} 
-              onChange={e => setDateStr(e.target.value)} 
-              onKeyDown={handleDateKeyDown}
-              style={{ 
-                width: '100%', 
-                backgroundColor: '#0f172a', 
-                border: '1px solid #334155', 
-                borderRadius: '6px', 
-                padding: '6px 28px 6px 10px', 
-                fontSize: '13px', 
-                height: '34px', 
-                color: '#f8fafc', 
-                outline: 'none', 
-                textAlign: 'center',
-                transition: 'border-color 0.2s',
-                boxSizing: 'border-box'
-              }}
-              onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.select(); }}
-              onBlur={e => e.target.style.borderColor = '#334155'}
-            />
-            <span style={{ position: 'absolute', right: '8px', top: '8px', fontSize: '12px', color: '#94a3b8' }}>📅</span>
-          </div>
-        </div>
 
       </div>
 
