@@ -257,46 +257,46 @@ def impersonate(request: schemas.ImpersonateRequest, current_user: User = Depend
         raise HTTPException(status_code=404, detail="Client organization not found.")
     
     # Generate an impersonation JWT
-        from auth.utils import create_access_token
-        from datetime import timedelta
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token, token_expiry = create_access_token(
-            user_id=str(current_user.id),
-            organization_id=str(target_organization.id),
-            role=UserRole.CM_ADMIN.value,
-            expires_delta=access_token_expires
-        )
+    from auth.utils import create_access_token
+    from datetime import timedelta
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token, token_expiry = create_access_token(
+        user_id=str(current_user.id),
+        organization_id=str(target_organization.id),
+        role=UserRole.CM_ADMIN.value,
+        expires_delta=access_token_expires
+    )
     
-        # Register the session with impersonation flag
-        new_session = SessionModel(
-            user_id=current_user.id,
-            token_hash=hash_token_for_storage(access_token),
-            expires_at=token_expiry,
-            is_active=True
-        )
-        db.add(new_session)
-        db.commit()
+    # Register the session with impersonation flag
+    new_session = SessionModel(
+        user_id=current_user.id,
+        token_hash=hash_token_for_storage(access_token),
+        expires_at=token_expiry,
+        is_active=True
+    )
+    db.add(new_session)
+    db.commit()
     
-        # Return as if we logged in as a CM admin of that organization
-        profile = UserProfileSchema(
-            id=current_user.id,
-            name=current_user.name,
-            username=current_user.username,
-            email=current_user.email,
-            role=UserRole.CM_ADMIN.value,
-            organization_id=target_organization.id,
-            org_name=target_organization.name,
-            org_code=target_organization.org_code,
-            is_am_user=False,
-            permissions=build_permissions_for_role(UserRole.CM_ADMIN),
-            avatar_url=None
-        )
+    # Return as if we logged in as a CM admin of that organization
+    profile = UserProfileSchema(
+        id=current_user.id,
+        name=current_user.name,
+        username=current_user.username,
+        email=current_user.email,
+        role=UserRole.CM_ADMIN.value,
+        organization_id=target_organization.id,
+        org_name=target_organization.name,
+        org_code=target_organization.org_code,
+        is_am_user=False,
+        permissions=build_permissions_for_role(UserRole.CM_ADMIN),
+        avatar_url=None
+    )
     
-        return LoginResponse(
-            access_token=access_token,
-            token_type="bearer",
-            expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            user=profile
-        )
+    return LoginResponse(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        user=profile
+    )
 
 

@@ -276,9 +276,12 @@ export default function SalesBill() {
               setDateStr(`${d.getDate().toString().padStart(2, '0')}-${(d.getMonth()+1).toString().padStart(2, '0')}-${d.getFullYear().toString().slice(2)}`)
             }
             if (billInfo.items && billInfo.items.length > 0) {
-              const mappedRows = billInfo.items.map((item: any, i: number) => ({
+              const mappedRows = billInfo.items.map((item: any, i: number) => {
+                  const matchedProd = productsList.find(p => p.name === item.product_name);
+                  return {
                 id: i + 1,
-                product: item.product_name,
+                product_id: item.product_id || (matchedProd ? matchedProd.id : ''),
+                  product: item.product_name,
                 pack: '',
                 batch: item.batch || '',
                 qty: item.quantity.toString(),
@@ -331,7 +334,7 @@ export default function SalesBill() {
   const [ledger3Amt, setLedger3Amt] = useState('')
   // Grid State
   const initialRow = { 
-    id: 0, product: '', pack: '', batch: '', qty: '', free: '', extraSchem: '', prate: '', dis: '', amount: '',
+    id: 0, product_id: '', product: '', pack: '', batch: '', qty: '', free: '', extraSchem: '', prate: '', dis: '', amount: '',
     expiry: '', mrp: '', purDealQty: '', purDealFree: '', schDeal: '', dealPercent: '',
     igst: '', cgst: '', sgst: '', rateA: '', rateB: '', rateC: '', cost: '', hsn: '',
     schSalesQty: '', schSalesFree: ''
@@ -543,7 +546,8 @@ export default function SalesBill() {
       const newRows = [...gridRows]
       let row = { 
         ...newRows[rowIndex], 
-        product: selectedProd.name,
+        product_id: selectedProd.id,
+          product: selectedProd.name,
         pack: selectedProd.pack,
         hsn: selectedProd.hsn,
         igst: selectedProd.igst,
@@ -884,7 +888,8 @@ export default function SalesBill() {
       tax_total: totals.gstAmount,
       grand_total: invoiceValue,
       items: validRows.map(row => ({
-         product_name: row.product,
+         product_id: row.product_id,
+           product_name: row.product,
          quantity: parseInt(row.qty) || 0,
          rate: parseFloat(row.prate) || parseFloat(row.prate) || 0,
          igst_percent: parseFloat(row.igst) || 0,
