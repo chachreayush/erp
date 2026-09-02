@@ -280,7 +280,7 @@ export default function SalesBill() {
                   const matchedProd = productsList.find(p => p.name === item.product_name);
                   return {
                 id: i + 1,
-                product_id: item.product_id || (matchedProd ? matchedProd.id : ''),
+                product_id: item.product_id || (matchedProd ? (matchedProd as any).id : ''),
                   product: item.product_name,
                 pack: '',
                 batch: item.batch || '',
@@ -295,7 +295,7 @@ export default function SalesBill() {
                 igst: item.igst_percent?.toString() || '',
                 cgst: '', sgst: '', rateA: '', rateB: '', rateC: '', cost: '', hsn: '',
                 schSalesQty: '', schSalesFree: ''
-              }))
+              }})
               setGridRows(mappedRows)
             }
           }
@@ -516,6 +516,7 @@ export default function SalesBill() {
       rateAVal = Number(((mrpVal - (mrpVal * 0.20)) / (1 + (igstVal / 100))).toFixed(2))
     }
     return {
+      id: p.id,
       name: p.name || '',
       pack: p.packing || '10 UNIT',
       hsn: p.hsn_code || '3004',
