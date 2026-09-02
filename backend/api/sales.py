@@ -156,6 +156,17 @@ def create_invoice(
     """
     org_id = current_user.organization_id
     
+    # Check if invoice already exists to perform UPSERT (modify-bill logic)
+    existing_invoice = db.query(models.Invoice).filter(
+        models.Invoice.organization_id == org_id,
+        models.Invoice.invoice_type == invoice_data.invoice_type,
+        models.Invoice.invoice_number == invoice_data.invoice_number,
+        models.Invoice.is_active == True
+    ).first()
+    
+    if existing_invoice:
+        return update_invoice(existing_invoice.id, invoice_data, db, current_user)
+    
     # 1. Create the parent Invoice record with ALL fields
     new_invoice = models.Invoice(
         organization_id=org_id,
