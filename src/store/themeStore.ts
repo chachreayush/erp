@@ -11,7 +11,7 @@ interface ThemeState {
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set) => ({
-      activeTheme: 'sunset',
+      activeTheme: 'minimal',
       setTheme: (theme) => set({ activeTheme: theme }),
     }),
     {

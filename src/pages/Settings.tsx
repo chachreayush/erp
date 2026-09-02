@@ -5,6 +5,12 @@ import { useReturnNavigation } from '../hooks/useReturnNavigation'
 // Array of available themes for the UI picker
 const THEME_OPTIONS: { id: ThemeOption; name: string; description: string; colors: string[] }[] = [
   {
+    id: 'minimal',
+    name: 'Neumorphic Minimalist (White & Forest Green)',
+    description: 'Clean white surfaces with authentic forest & sage green styling.',
+    colors: ['#ffffff', '#eef2ef', '#2d6a4f'] // Pure White, Soft Neutral Canvas, Forest Green
+  },
+  {
     id: 'sunset',
     name: 'Sunset Neon (Crimson & Amber)',
     description: 'Rich sunset gradient with glowing cobalt blue accents.',
@@ -21,12 +27,6 @@ const THEME_OPTIONS: { id: ThemeOption; name: string; description: string; color
     name: 'Modern SaaS',
     description: 'Glassmorphism with vibrant gradients.',
     colors: ['#0f0e17', '#252431', '#8b5cf6']
-  },
-  {
-    id: 'minimal',
-    name: 'Neumorphic Minimalist (White & Forest Green)',
-    description: 'Clean white surfaces with authentic forest & sage green styling.',
-    colors: ['#ffffff', '#eef2ef', '#2d6a4f'] // Pure White, Soft Neutral Canvas, Forest Green
   },
   {
     id: 'enterprise',
