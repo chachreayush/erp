@@ -102,3 +102,11 @@ npm run build
 - **SAP-Style Document Reversal**: The cancellation endpoint copies the target invoice and reverses the quantity and line_total amounts to restore stock and maintain an immutable financial ledger.
 - **Responsive Edge-to-Edge Layout**: AppShell.tsx now has padding: 0px on its content wrapper to allow the SalesBill.tsx component to span fully across monitors. Nested components must define their own max-width and margin: 0 auto if they wish to remain centered.
 - **Sales Bill Layout Notes**: When modifying SalesBill.tsx, ensure the MAIN WORKSPACE SPLIT flex container is properly terminated before the FOOTER ACTION BAR to prevent React-Babel parsing errors.
+
+### [Update: 2026-09-03]
+#### Core Engine & Transaction Resilience
+- **Invoice Upsert Engine**: In `backend/api/sales.py`, `POST /api/sales/invoices` inspects whether an active invoice with the same `(organization_id, invoice_type, invoice_number)` already exists. If matched, it redirects seamlessly into `update_invoice`, cleanly rolling back old stock, clearing old items, saving new line items, and updating current stock.
+- **Bulletproof Product ID Resolution**: In `_update_stock_for_invoice`, `create_invoice`, and `update_invoice`, items that omit `product_id` have it auto-resolved from `models.Product` by `product_name`. This safeguards all current and future document forms (`SalesBill`, `PurchaseBill`, `SalesReturn`, `PurchaseReturn`, `Breakage`) from stock omission bugs.
+- **Flexible Negative Stock**: Removed hard 400 exceptions on negative batch balances in `_update_stock_for_invoice` to support real-world backorders and delayed purchase entries.
+- **Client Impersonation Protocol**: Fixed Python indentation in `backend/auth/router.py` (`impersonate` route) ensuring Account Master admins can smoothly jump into Client Master ERP sessions.
+- **Theme & Header Ergonomics**: `activeTheme` defaults to `'minimal'` in `src/store/themeStore.ts`. In `SalesBill.tsx`, `Entry Date` precedes `Entry No.` with linked keyboard focus flow.

@@ -1,5 +1,5 @@
 # ERP Project — Master Memory File
-> Last Updated: 2026-08-31 | Auto-loaded at the start of every session.
+> Last Updated: 2026-09-03 | Auto-loaded at the start of every session.
 
 ---
 
@@ -9,11 +9,12 @@
 |---|---|
 | **Project Name** | Enterprise Multi-Tenant ERP (Tauri + React 19 + FastAPI) |
 | **Dev Folder** | `C:\Users\DELL\OneDrive\Desktop\erp2` (working copy) |
-| **Original Folder** | `C:\Users\DELL\OneDrive\Desktop\erp` (Git repo, synced via `sync-to-original.ps1`) |
+| **Original Folder** | `C:\Users\DELL\OneDrive\Desktop\erp` (Git repo, synced via `sync-to-original.ps1` / Robocopy) |
 | **Git Repository** | `https://github.com/chachreayush/erp.git` (Branch: `main`) |
-| **Frontend URL** | `http://localhost:50005` (Vite dev server) / Vercel Production |
+| **Frontend URL** | `http://localhost:50005` (Vite dev server) / Vercel Production (`https://erp-nbbigyye0-erp-b646.vercel.app`) |
 | **Backend URL** | `http://localhost:8000` (FastAPI/Uvicorn) / Render Production |
 | **Tauri App** | `npm run tauri dev` — native Windows/Desktop ERP client |
+| **Standard Test Auth** | Company: `AM-0001` | Username: `admin` | Password: `Admin@123` |
 
 ---
 
@@ -76,9 +77,9 @@ npm run tauri dev
 
 To copy updates from `erp2` to the original `erp` folder:
 ```powershell
-powershell -ExecutionPolicy Bypass -File C:\Users\DELL\OneDrive\Desktop\erp2\sync-to-original.ps1
+robocopy C:\Users\DELL\OneDrive\Desktop\erp2\src C:\Users\DELL\OneDrive\Desktop\erp\src /MIR /XD node_modules
+robocopy C:\Users\DELL\OneDrive\Desktop\erp2\backend C:\Users\DELL\OneDrive\Desktop\erp\backend /MIR /XD __pycache__ .venv .pytest_cache
 ```
-
 
 ### [Update: 2026-09-01]
 - **Smart MRP Integration**: Added an AI-powered Smart MRP modal to calculate min_stock_level and reorder_quantity based on a 30-day sales velocity algorithm. Injected into the Products page and integrated with the Dashboard Low Stock Alerts.
@@ -87,3 +88,14 @@ powershell -ExecutionPolicy Bypass -File C:\Users\DELL\OneDrive\Desktop\erp2\syn
 - **Sales Bill Remaster**: Restructured SalesBill.tsx to an edge-to-edge layout, compressed the Product column width, and added a Live Intelligence right-side panel containing Party Details, Active Product metrics, and Keyboard shortcuts.
 - **Document Cancellation**: Added POST /api/sales/invoices/{id}/cancel endpoint (SAP-style reversal) to create negative quantity records without deleting original audit trails.
 - **Sales Bill Hotfix**: Resolved React-Babel JSX nesting issue (Unterminated JSX contents) to stabilize the edge-to-edge layout.
+
+### [Update: 2026-09-03]
+- **Default Theme Configuration**: Set Neumorphic Minimalist (`'minimal'`) as the default theme in `src/store/themeStore.ts` and prioritized it as the top option in `Settings.tsx`.
+- **Sales Bill UX Flow**: Reordered header fields so that `Entry Date` precedes `Entry No.` with seamless keyboard focus navigation (`handleDateKeyDown` focusing `billNoRef`).
+- **Client Impersonation 500 Fix**: Resolved Python indentation nesting bug in `backend/auth/router.py` (`POST /auth/impersonate`) that caused `ResponseValidationError` when AM admins switch into client ERPs.
+- **Invoice Upsert Engine**: Added automatic Upsert detection in `backend/api/sales.py` (`create_invoice`). Modifying an existing invoice and saving now smoothly invokes `update_invoice` (reverting old stock, updating items, deducting new stock) rather than creating duplicate invoices.
+- **Negative Stock & Backorder Tolerance**: Removed the rigid `400 Insufficient stock` blocker in `backend/api/sales.py`, allowing businesses to record sales before purchase entries without application crashes.
+- **Bulletproof Product ID Auto-Resolution**: Upgraded `backend/api/sales.py` (`create_invoice`, `update_invoice`, `_update_stock_for_invoice`) to auto-resolve `product_id` by `product_name` from the product catalog in real time. Guarantees that all transaction types (`sales-bill`, `purchase-bill`, `returns`, `breakage`) reliably deduct/add stock and link to the Product Register even if frontend forms omit `product_id`.
+- **Database Ledger Repair**: Re-linked 591 legacy invoice items in Neon PostgreSQL database to their respective product records. Verified that the Product Register (e.g. Crosin Forte: 1,770 Inward, 98 Outward, 1,672 Balance) precisely matches the Current Stock table.
+- **Enhanced Error Reporting**: Replaced generic `"Failed to save to backend database"` alert with human-readable error messages extracted directly from backend API responses.
+- **Build Verification**: `tsc --noEmit` and `npm run build` validated with zero errors. All changes committed to GitHub and synced to `erp`.
