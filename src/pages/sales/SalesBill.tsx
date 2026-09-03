@@ -905,11 +905,12 @@ export default function SalesBill() {
 
     try {
       await apiCreateInvoice(payload);
-    } catch (err) {
-      console.error(err);
-      alert('Failed to save to backend database. Check console.');
-      return;
-    }
+    } catch (err: any) {
+        console.error(err);
+        const errMsg = err.response?.data?.detail || err.message || 'Failed to save to backend database. Check console.';
+        alert(errMsg);
+        return;
+      }
 
     setShowSaveModal(false)
     setSaveSuccessMessage(`Sales Bill [${billNo}] Saved Successfully! Total: ₹${invoiceValue.toFixed(2)}`)

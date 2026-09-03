@@ -117,11 +117,7 @@ def _update_stock_for_invoice(db: Session, org_id: UUID, items: list[schemas.Inv
         
         if batch:
             batch_stock = getattr(batch, stock_attr)
-            if not is_addition and batch_stock < item.quantity:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Insufficient stock for batch {item.batch} of product {item.product_name}. Available: {batch_stock}, Required: {item.quantity}"
-                )
+            
             if is_addition:
                 setattr(batch, stock_attr, batch_stock + item.quantity)
             else:
