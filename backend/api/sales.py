@@ -106,6 +106,14 @@ def _update_stock_for_invoice(db: Session, org_id: UUID, items: list[schemas.Inv
     stock_attr = "brk_exp_stock" if is_brk else "current_stock"
 
     for item in items:
+        if not item.product_id and item.product_name:
+            prod = db.query(models.Product).filter(
+                models.Product.organization_id == org_id,
+                models.Product.name.ilike(item.product_name.strip())
+            ).first()
+            if prod:
+                item.product_id = prod.id
+
         if not item.product_id or not item.batch:
             continue  # Skip if no product or batch specified
         
@@ -198,6 +206,14 @@ def create_invoice(
 
     # 2. Add Invoice Items with ALL fields
     for item in invoice_data.items:
+        if not item.product_id and item.product_name:
+            prod = db.query(models.Product).filter(
+                models.Product.organization_id == org_id,
+                models.Product.name.ilike(item.product_name.strip())
+            ).first()
+            if prod:
+                item.product_id = prod.id
+
         new_item = models.InvoiceItem(
             invoice_id=new_invoice.id,
             product_id=item.product_id,
@@ -286,6 +302,14 @@ def update_invoice(
     
     # Add new items
     for item in invoice_data.items:
+        if not item.product_id and item.product_name:
+            prod = db.query(models.Product).filter(
+                models.Product.organization_id == org_id,
+                models.Product.name.ilike(item.product_name.strip())
+            ).first()
+            if prod:
+                item.product_id = prod.id
+
         new_item = models.InvoiceItem(
             invoice_id=db_invoice.id,
             product_id=item.product_id,
