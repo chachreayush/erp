@@ -252,12 +252,8 @@ def authenticate_user(
     # Hash the token before storing (security best practice)
     token_hash = hash_token_for_storage(token_str)
 
-    # Deactivate any previous sessions for this user
-    # (one active session per user at a time — can change this policy later)
-    db.query(SessionModel).filter(
-        SessionModel.user_id == user.id,
-        SessionModel.is_active == True
-    ).update({"is_active": False})
+    # Note: We now allow multiple active sessions per user 
+    # to support multi-device and multi-tab usage.
 
     # Create the new session record
     new_session = SessionModel(
