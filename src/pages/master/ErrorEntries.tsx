@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { apiGetDrafts, apiDeleteDraft, ErrorEntry } from '../../lib/api'
 import { useNavigate } from 'react-router-dom'
 import { useReturnNavigation } from '../../hooks/useReturnNavigation'

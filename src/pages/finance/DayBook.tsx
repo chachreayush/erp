@@ -9,12 +9,15 @@ interface VoucherEntry {
 }
 
 interface Voucher {
-  id: string;
-  voucher_no: string;
+  id?: string;
+  voucher_id?: string;
+  voucher_number?: string;
+  voucher_no?: string;
   voucher_type: string;
   date: string;
-  dr_entries: VoucherEntry[];
-  cr_entries: VoucherEntry[];
+  entries?: any[];
+  dr_entries?: VoucherEntry[];
+  cr_entries?: VoucherEntry[];
   total_amount: number;
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react' 
 import { useReturnNavigation } from '../../hooks/useReturnNavigation'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Plus, Edit, Trash2, Search, Building2, Tag, MapPin, DollarSign, Layers, CheckCircle, RotateCcw } from 'lucide-react'
+import { Plus, Edit, Trash2, Search, Building2, Tag, MapPin, DollarSign, Layers, CheckCircle } from 'lucide-react'
 
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
