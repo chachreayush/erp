@@ -145,6 +145,14 @@ app.include_router(inventory_router, prefix="/api")
 from api.master import router as master_router
 app.include_router(master_router, prefix="/api/master", tags=["Master Data"])
 
+# Finance routes (V2 — Complete Rebuild: Vouchers, FY, Reports)
+from api.finance_v2 import router as finance_router
+app.include_router(finance_router, prefix="/api/finance", tags=["Finance"])
+
+# System routes (Crash Recovery & Drafts)
+from api.system import router as system_router
+app.include_router(system_router, prefix="/api/system", tags=["System"])
+
 # Future routers will be added here as modules are built:
 # app.include_router(hr_router)
 # app.include_router(reports_router)
@@ -164,6 +172,7 @@ def startup_event():
     """
     Runs on server startup.
     Creates database tables if they don't exist (dev auto-migration).
+    Increments SystemState counter and performs cleanup of ErrorEntries.
     """
     print("ERP Backend starting up...")
     print(f"   Environment: {APP_ENV}")
@@ -172,8 +181,41 @@ def startup_event():
     # This is equivalent to running CREATE TABLE IF NOT EXISTS for each model
     Base.metadata.create_all(bind=engine)
     print("Database tables verified/created successfully.")
+    
+    # 10-RESTART CRASH RECOVERY CLEANUP
+    try:
+        from database import SessionLocal
+        import models
+        db = SessionLocal()
+        
+        # Get or create system state
+        state = db.query(models.SystemState).first()
+        if not state:
+            state = models.SystemState(restart_count=1)
+            db.add(state)
+        else:
+            state.restart_count += 1
+            
+        current_count = state.restart_count
+        db.commit()
+        
+        # Cleanup old Error Entries (Drafts)
+        # Delete if (created_at_restart_count + 10 < current_count)
+        deleted = db.query(models.ErrorEntry).filter(
+            models.ErrorEntry.restart_count_at_creation + 10 < current_count
+        ).delete()
+        db.commit()
+        print(f"System State: Restart Count = {current_count}")
+        if deleted > 0:
+            print(f"Cleaned up {deleted} old ErrorEntry drafts.")
+            
+        db.close()
+    except Exception as e:
+        print(f"Error in startup state management: {e}")
+
     print(f"API documentation available at: http://localhost:{os.getenv('BACKEND_PORT', 8000)}/docs")
     print("Server is ready to accept connections.")
+
 
 
 # ── HEALTH CHECK ENDPOINT ─────────────────────────────────────

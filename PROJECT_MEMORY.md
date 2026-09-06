@@ -99,3 +99,10 @@ robocopy C:\Users\DELL\OneDrive\Desktop\erp2\backend C:\Users\DELL\OneDrive\Desk
 - **Database Ledger Repair**: Re-linked 591 legacy invoice items in Neon PostgreSQL database to their respective product records. Verified that the Product Register (e.g. Crosin Forte: 1,770 Inward, 98 Outward, 1,672 Balance) precisely matches the Current Stock table.
 - **Enhanced Error Reporting**: Replaced generic `"Failed to save to backend database"` alert with human-readable error messages extracted directly from backend API responses.
 - **Build Verification**: `tsc --noEmit` and `npm run build` validated with zero errors. All changes committed to GitHub and synced to `erp`.
+
+### [Update: 2026-09-06]
+- **Finance & Accounting API Rebuild**: Architected inance_v2.py as a new ACID-compliant double-entry accounting engine replacing legacy finance API. Features automatic voucher sequence numbering (e.g. \JRN/2026-27/0129\), native multi-leg (1-to-many, many-to-many) voucher capabilities, integrated Indian Default Chart of Accounts seeding, and active fiscal year enforcement.
+- **Retroactive Voucher Migration**: Engineered a direct DB migration to convert 188 legacy standard invoices (which were lacking ledger ties) into compliant Journal/Sales vouchers under the new inance_v2 schema. All prior sales/purchases now properly hit ledger statements.
+- **Auto-Posting Hook Refactor**: Re-wrote the _auto_post_accounting logic in pi/sales.py to seamlessly build compliant VoucherEntry dicts that pass Pydantic VoucherCreate models, completely removing legacy crashes on invoice generation.
+- **UI Ledger Sync**: Fixed fatal schema drift bugs in LedgerStatement.tsx and DayBook.tsx. The frontend now dynamically reads the correctly typed backend fields (cr_amount, dr_amount, oucher_number, unning_balance), preventing silent React crashes where the UI was stuck permanently on 'Loading...'.
+- **Postgres Schema Sync**: Executed an ALTER TABLE vouchers direct migration to add critical missing schema columns (iscal_year_id, status, cancelled_by, ef_invoice_id) preventing 500 internal crashes without requiring full DB drop.

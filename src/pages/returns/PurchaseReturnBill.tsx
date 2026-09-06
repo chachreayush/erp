@@ -1113,10 +1113,21 @@ export default function PurchaseReturnBill() {
 
       </div>
 
-      {/* ── GRID CARD ── */}
-      <div style={{ backgroundColor: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', padding: '4px 6px', boxShadow: 'var(--shadow-md)', flex: 1, display: 'flex', flexDirection: 'column', gap: '0px', overflow: 'hidden' }}>
-        
-        <div style={{ border: '1px solid var(--color-border-strong)', borderRadius: '8px 8px 0 0', overflowY: 'auto', flex: 1 }}>
+      {/* ── MAIN WORKSPACE SPLIT ── */}
+      <div style={{ display: 'flex', flex: 1, gap: '8px', overflow: 'hidden' }}>
+
+        {/* ── GRID CARD (MODERN DATA TABLE) ── */}
+        <div style={{ 
+          backgroundColor: '#0f172a', 
+          border: '1px solid #334155', 
+          borderRadius: '8px', 
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)', 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          overflow: 'hidden' 
+        }}>
+        <div style={{ overflowY: 'auto', flex: 1 }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left", tableLayout: "fixed" }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
               <tr style={{ backgroundColor: 'var(--color-bg-elevated)', color: 'var(--color-text-secondary)', borderBottom: '1px solid var(--color-border-strong)', fontSize: '12px' }}>
@@ -1319,6 +1330,69 @@ export default function PurchaseReturnBill() {
             </tbody>
           </table>
         </div>
+
+      {/* ── RIGHT PANEL (INTELLIGENCE & MORE INFO) ── */}
+      <div style={{ 
+        width: '280px', 
+        backgroundColor: '#0f172a', 
+        border: '1px solid #334155', 
+        borderRadius: '8px', 
+        display: 'flex', 
+        flexDirection: 'column',
+        flexShrink: 0,
+        overflow: 'hidden',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
+      }}>
+        <div style={{ backgroundColor: '#1e293b', color: '#38bdf8', fontSize: '11px', fontWeight: 'bold', padding: '6px 12px', borderBottom: '1px solid #334155', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          Live Intelligence
+        </div>
+        <div style={{ padding: '12px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          
+          {/* Party Details */}
+          <div>
+            <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Selected Party</div>
+            <div style={{ fontSize: '13px', color: '#f8fafc', fontWeight: '600' }}>{partyName || 'Cash Sale'}</div>
+            <div style={{ fontSize: '11px', color: '#34d399', marginTop: '2px' }}>Balance: ₹0.00</div>
+          </div>
+
+          <div style={{ borderTop: '1px dashed #334155' }}></div>
+
+          {/* Active Product Details */}
+          <div>
+            <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Active Product</div>
+            <div style={{ fontSize: '13px', color: '#f8fafc', fontWeight: '600' }}>{gridRows.find(r => r.id === activeRowId)?.product || 'None Selected'}</div>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '11px' }}>
+              <span style={{ color: '#94a3b8' }}>M.R.P:</span>
+              <span style={{ color: '#e2e8f0' }}>₹{gridRows.find(r => r.id === activeRowId)?.mrp || '0.00'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '11px' }}>
+              <span style={{ color: '#94a3b8' }}>Stock:</span>
+              <span style={{ color: '#34d399', fontWeight: 'bold' }}>{gridRows.find(r => r.id === activeRowId)?.product ? 'Available' : '-'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '11px' }}>
+              <span style={{ color: '#94a3b8' }}>Margin:</span>
+              <span style={{ color: '#38bdf8' }}>25%</span>
+            </div>
+          </div>
+          
+          <div style={{ borderTop: '1px dashed #334155' }}></div>
+          
+          {/* Quick Actions */}
+          <div>
+              <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Shortcuts</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                <button style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', fontSize: '10px', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}>F2 - Sale</button>
+                <button style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', fontSize: '10px', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}>F3 - Batch</button>
+              </div>
+          </div>
+
+        </div>
+      </div>
+
+      </div> {/* Close MAIN WORKSPACE SPLIT */}
+
+
 
         {/* ── BOTTOM SUMMARY PANEL ── */}
         <div style={{ backgroundColor: '#0b1120', border: '1px solid var(--color-border-strong)', borderTop: 'none', borderBottom: 'none', display: 'flex', fontSize: '12px' }}>
@@ -1535,9 +1609,23 @@ export default function PurchaseReturnBill() {
             </div>
           </div>
 
-          <div style={{ width: '200px', backgroundColor: 'var(--color-bg-surface)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '8px 12px' }}>
-            <div style={{ fontSize: '15px', color: 'var(--color-text-secondary)' }}>Invoice Value</div>
-            <div style={{ fontSize: '26px', fontWeight: 'bold', color: 'var(--color-text-primary)', marginTop: '2px' }}>{invoiceValue.toFixed(2)}</div>
+          {/* Far Right: Total Invoice Value Hero Card */}
+          <div style={{ 
+            width: '210px', 
+            background: 'linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(30,58,138,0.3) 100%)', 
+            borderLeft: '1px solid #334155', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            padding: '12px' 
+          }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94a3b8' }}>
+              Total Invoice Value
+            </div>
+            <div style={{ fontSize: '28px', fontWeight: '800', color: '#38bdf8', marginTop: '2px', letterSpacing: '-0.02em', textShadow: '0 2px 10px rgba(56, 189, 248, 0.3)' }}>
+              ₹ {invoiceValue.toFixed(2)}
+            </div>
           </div>
 
         </div>

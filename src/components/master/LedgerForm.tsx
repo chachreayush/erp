@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Input, MODAL_FIELD, MODAL_LABEL, MODAL_GAP } from '../ui/Input'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
-import { apiGetStateCodes, apiGetStations, apiCreateStation, Station } from '../../lib/api'
+import { apiGetStateCodes, apiGetStations, apiCreateStation, Station, apiGetLedgerGroups, LedgerGroup } from '../../lib/api'
 
 interface LedgerFormProps {
   formData: any
@@ -23,7 +23,10 @@ const PREDEFINED_COLOURS = [
 
 export function LedgerForm({ formData, setFormData, errors, modalMode, firstInputRef }: LedgerFormProps) {
   const [states, setStates] = useState<{name: string, code: string}[]>([])
+
   const [stations, setStations] = useState<Station[]>([])
+  const [ledgerGroups, setLedgerGroups] = useState<LedgerGroup[]>([])
+
   const categories = [
     { value: 'na', label: 'N/A' },
     { value: 'schedule h', label: 'Schedule H' },
@@ -37,7 +40,10 @@ export function LedgerForm({ formData, setFormData, errors, modalMode, firstInpu
   useEffect(() => {
     // Fetch related master data
     apiGetStateCodes().then(res => setStates(res.map(s => ({ name: s.name, code: s.gst_code || '' })))).catch(console.error)
+    
     apiGetStations().then(res => setStations(res)).catch(console.error)
+    apiGetLedgerGroups().then(res => setLedgerGroups(res)).catch(console.error)
+
   }, [])
 
   // Auto-extract PAN from GSTIN if applicable (15 chars)
@@ -103,16 +109,12 @@ export function LedgerForm({ formData, setFormData, errors, modalMode, firstInpu
         <Input ref={firstInputRef} disabled={modalMode === 'view'} variant="compact" label="Account / Ledger Name *" error={errors?.name} required value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Select or enter account name" />
         
         <div>
-          <label style={MODAL_LABEL}>Account Group *</label>
-          <select disabled={modalMode === 'view'} value={formData.group || 'Sundry Debtors'} onChange={e => setFormData({ ...formData, group: e.target.value })} style={MODAL_FIELD}>
-            <option value="Sundry Debtors">Sundry Debtors (Customers)</option>
-            <option value="Sundry Creditors">Sundry Creditors (Suppliers)</option>
-            <option value="Bank Accounts">Bank Accounts</option>
-            <option value="Cash-in-Hand">Cash-in-Hand</option>
-            <option value="Direct Expenses">Direct Expenses</option>
-            <option value="Indirect Expenses">Indirect Expenses</option>
-          </select>
-        </div>
+            <label style={MODAL_LABEL}>Account Group *</label>
+            <select disabled={modalMode === 'view'} value={formData.group_id || ''} onChange={e => setFormData({ ...formData, group_id: e.target.value })} style={MODAL_FIELD}>
+              <option value="">Select Ledger Group</option>
+              {ledgerGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          </div>
         <div>
           <label style={MODAL_LABEL}>Station (Press F2 to create)</label>
           <select disabled={modalMode === 'view'} value={formData.station || ''} onChange={e => setFormData({ ...formData, station: e.target.value })} onKeyDown={handleStationF2} style={{...MODAL_FIELD, borderColor: errors?.station ? '#ef4444' : undefined}}>

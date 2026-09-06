@@ -110,3 +110,9 @@ npm run build
 - **Flexible Negative Stock**: Removed hard 400 exceptions on negative batch balances in `_update_stock_for_invoice` to support real-world backorders and delayed purchase entries.
 - **Client Impersonation Protocol**: Fixed Python indentation in `backend/auth/router.py` (`impersonate` route) ensuring Account Master admins can smoothly jump into Client Master ERP sessions.
 - **Theme & Header Ergonomics**: `activeTheme` defaults to `'minimal'` in `src/store/themeStore.ts`. In `SalesBill.tsx`, `Entry Date` precedes `Entry No.` with linked keyboard focus flow.
+
+### [Update: 2026-09-06]
+#### Finance & Accounting Engine V2
+- **ACID Double-Entry Module**: The old \inance.py\ was entirely removed and replaced with \inance_v2.py\. It implements standard double-entry bookkeeping (Ledgers, Ledger Groups, Vouchers, VoucherEntries) enforcing balance parity (\	otal_dr == total_cr\).
+- **Pydantic Schemas vs. ORM**: \_auto_post_accounting\ in \pi/sales.py\ was refactored. When building the \entries\ array for \VoucherCreate\, you must append raw dictionaries (e.g. \{'ledger_id': str, 'cr_dr': 'Dr', 'amount': X}\) instead of instantiated \schemas.VoucherEntryBase\ objects, as Pydantic V2 strictly expects raw dicts for nested validation.
+- **Frontend Statement Handling**: \LedgerStatement.tsx\ and \DayBook.tsx\ were adapted to read \inance_v2.py\'s API schemas (e.g. \oucher_number\ instead of \oucher_no\, \dr_amount\ instead of \debit\). If modifying frontend accounting UI, inspect the JSON structure returned from \pi/finance/*\ to avoid silent React render crashes (resulting in a permanent 'Loading...' state).

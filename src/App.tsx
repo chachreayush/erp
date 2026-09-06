@@ -45,6 +45,16 @@ import PurchaseReturnBill from './pages/returns/PurchaseReturnBill'
 import BrkReceiveBill from './pages/brk/BrkReceiveBill'
 import BrkIssueBill from './pages/brk/BrkIssueBill'
 import MasterPage from './pages/master/MasterPage'
+import ErrorEntries from './pages/master/ErrorEntries'
+import LedgerGroupMaster from './pages/master/LedgerGroupMaster'
+import VoucherEntry from './pages/finance/VoucherEntry'
+import VoucherList from './pages/finance/VoucherList'
+import DayBook from './pages/finance/DayBook'
+import LedgerStatement from './pages/finance/LedgerStatement'
+import TrialBalance from './pages/finance/TrialBalance'
+import ProfitAndLoss from './pages/finance/ProfitAndLoss'
+import BalanceSheet from './pages/finance/BalanceSheet'
+
 import CurrentStockPage from './pages/stock/CurrentStock'
 
 // ── PROTECTED ROUTE WRAPPER ───────────────────────────────────
@@ -103,6 +113,18 @@ function App() {
 
         {/* ERP Module routes */}
         <Route path="master"           element={<MasterPage />} />
+        <Route path="master/error-entries" element={<ErrorEntries />} />
+        <Route path="master/ledger-groups" element={<LedgerGroupMaster />} />
+        <Route path="finance/voucher/:type" element={<VoucherEntry />} />
+        <Route path="finance/voucher/:type/:id" element={<VoucherEntry />} />
+        <Route path="finance/vouchers" element={<VoucherList />} />
+        <Route path="finance/daybook" element={<DayBook />} />
+        <Route path="finance/ledger-statement" element={<LedgerStatement />} />
+        <Route path="finance/ledger-statement/:ledgerId" element={<LedgerStatement />} />
+        <Route path="finance/trial-balance" element={<TrialBalance />} />
+        <Route path="finance/profit-loss" element={<ProfitAndLoss />} />
+        <Route path="finance/balance-sheet" element={<BalanceSheet />} />
+
         
         {/* Inventory */}
         <Route path="stock"            element={<CurrentStockPage />} />

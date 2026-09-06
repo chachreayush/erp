@@ -84,3 +84,13 @@ Entering the **Sales Bill** or **Purchase Bill** automatically hides the top nav
 3. **Enhanced Sales Bill Workspace**
    - The billing screen now utilizes the full monitor width.
    - A **Live Intelligence Panel** on the right side provides instant details on the selected party balance and the currently highlighted product MRP, Stock, and Margins.
+
+### [Update: 2026-09-06]
+#### Finance & Accounting Upgrades
+1. **Fully Automated Ledger Posting**
+   - **Workflow**: When you save a Sales or Purchase Bill, the system automatically posts the corresponding accounting Voucher (Journal).
+   - The Ledger Statement for parties (e.g. Cipla Pharmaceuticals) now instantly reflects the debit/credit amounts of all sales and purchases.
+2. **Ledger Statement & Day Book Revamp**
+   - **Access**: Navigate to Finance > Ledger Statement.
+   - **Workflow**: Select a Party from the dropdown, adjust the From/To Dates, and click Load. The system calculates true Opening Balances based on the Fiscal Year and renders a running balance on each row.
+   - All historical bills have been successfully recovered and retroactively posted into the new accounting ledger.

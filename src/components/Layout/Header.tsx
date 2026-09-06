@@ -27,6 +27,7 @@ interface MenuItem {
   label?: string
   isSeparator?: boolean
   type?: string
+  path?: string
 }
 
 const parentMenuItems: MenuItem[] = [
@@ -104,6 +105,25 @@ const subItemsMap: Record<string, { label: string; path: string }[]> = {
   ]
 }
 
+
+const financeMenuItems: MenuItem[] = [
+  { label: 'Payment Voucher', path: '/finance/voucher/payment' },
+  { label: 'Receipt Voucher', path: '/finance/voucher/receipt' },
+  { label: 'Journal Voucher', path: '/finance/voucher/journal' },
+  { label: 'Contra Voucher', path: '/finance/voucher/contra' },
+  { isSeparator: true },
+  { label: 'Voucher Register', path: '/finance/vouchers' },
+  { label: 'Day Book', path: '/finance/daybook' },
+  { isSeparator: true },
+  { label: 'Ledger Statement', path: '/finance/ledger-statement' },
+  { label: 'Trial Balance', path: '/finance/trial-balance' },
+  { label: 'Profit & Loss', path: '/finance/profit-loss' },
+  { label: 'Balance Sheet', path: '/finance/balance-sheet' },
+  { isSeparator: true },
+  { label: 'Ledger Groups', path: '/master/ledger-groups' },
+  { label: 'Accounts & Ledgers', path: '/finance' }
+]
+
 const inventoryMenuItems: MenuItem[] = [
   { label: 'Product', type: 'product' },
   { label: 'Current Stock', type: 'current-stock' }
@@ -136,7 +156,9 @@ const masterSubItemsMap: Record<string, { label: string; path: string }[]> = {
     { label: 'Company', path: '/master?tab=company' },
     { label: 'HSN', path: '/master?tab=hsn' },
     { label: 'State', path: '/master?tab=state' },
-    { label: 'O/C Balances', path: '/master?tab=balances' }
+    { label: 'O/C Balances', path: '/master?tab=balances' },
+    { label: 'Ledger Groups', path: '/master/ledger-groups' },
+    { label: 'Crash Recovery', path: '/master/error-entries' }
   ]
 }
 
@@ -160,6 +182,7 @@ function Header() {
   
   const [masterDropdownOpen, setMasterDropdownOpen] = useState(false)
   const [masterSubDropdownOpen, setMasterSubDropdownOpen] = useState(false)
+  const [financeDropdownOpen, setFinanceDropdownOpen] = useState(false)
 
   // Keyboard navigation indexes
   const [_focusedMainIndex, setFocusedMainIndex] = useState(0)
@@ -171,6 +194,7 @@ function Header() {
 
   const [focusedMasterParentIndex, setFocusedMasterParentIndex] = useState(0)
   const [focusedMasterSubIndex, setFocusedMasterSubIndex] = useState(-1)
+  const [focusedFinanceParentIndex, setFocusedFinanceParentIndex] = useState(0)
 
   // Refs for focusing
   const mainItemRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -180,6 +204,7 @@ function Header() {
   const inventorySubRefs = useRef<(HTMLButtonElement | null)[]>([])
   const masterParentRefs = useRef<(HTMLButtonElement | null)[]>([])
   const masterSubRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const financeParentRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   // Filter permission items
   const visibleNavItems = NAV_ITEMS.filter(item => {
@@ -248,6 +273,14 @@ function Header() {
         setFocusedInvParentIndex(0)
         setTimeout(() => {
           inventoryParentRefs.current[0]?.focus()
+        }, 50)
+      } else if (item.label === 'Finance & Accounting') {
+        e.preventDefault()
+        closeAllDropdowns()
+        setFinanceDropdownOpen(true)
+        setFocusedFinanceParentIndex(0)
+        setTimeout(() => {
+          financeParentRefs.current[0]?.focus()
         }, 50)
       } else if (item.label === 'Master') {
         e.preventDefault()
@@ -426,6 +459,35 @@ function Header() {
     }
   }
 
+  // Finance dropdown key handlers
+  const handleFinanceParentDropdownKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const nextIndex = (index + 1) % financeMenuItems.length
+      setFocusedFinanceParentIndex(nextIndex)
+      financeParentRefs.current[nextIndex]?.focus()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const prevIndex = (index - 1 + financeMenuItems.length) % financeMenuItems.length
+      setFocusedFinanceParentIndex(prevIndex)
+      financeParentRefs.current[prevIndex]?.focus()
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      const item = financeMenuItems[index]
+      if (item && item.path) {
+        navigate(item.path)
+        closeAllDropdowns()
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      closeAllDropdowns()
+      const finIndex = headerItems.findIndex(item => item.label === 'Finance & Accounting')
+      if (finIndex !== -1) {
+        mainItemRefs.current[finIndex]?.focus()
+      }
+    }
+  }
+
   const closeAllDropdowns = () => {
     setSalesDropdownOpen(false)
     setSalesSubDropdownOpen(false)
@@ -435,6 +497,7 @@ function Header() {
     setFocusedInvSubIndex(-1)
     setMasterDropdownOpen(false)
     setMasterSubDropdownOpen(false)
+    setFinanceDropdownOpen(false)
     setFocusedMasterSubIndex(-1)
   }
 
@@ -499,6 +562,7 @@ function Header() {
           const isSalesPurchase = item.label === 'Sales & Purchase'
           const isInventory = item.label === 'Inventory'
           const isMaster = item.label === 'Master'
+                  const isFinance = item.label === 'Finance & Accounting'
 
           return (
             <div key={item.path} style={{ position: 'relative', display: 'inline-block' }}>
@@ -510,14 +574,22 @@ function Header() {
                     setSalesDropdownOpen(!salesDropdownOpen)
                     setInventoryDropdownOpen(false)
                     setMasterDropdownOpen(false)
+                    setFinanceDropdownOpen(false)
                   } else if (isInventory) {
                     setInventoryDropdownOpen(!inventoryDropdownOpen)
                     setSalesDropdownOpen(false)
                     setMasterDropdownOpen(false)
+                    setFinanceDropdownOpen(false)
                   } else if (isMaster) {
                     setMasterDropdownOpen(!masterDropdownOpen)
                     setSalesDropdownOpen(false)
                     setInventoryDropdownOpen(false)
+                    setFinanceDropdownOpen(false)
+                  } else if (isFinance) {
+                    setFinanceDropdownOpen(!financeDropdownOpen)
+                    setSalesDropdownOpen(false)
+                    setInventoryDropdownOpen(false)
+                    setMasterDropdownOpen(false)
                   } else {
                     closeAllDropdowns()
                     navigate(item.path)
@@ -525,10 +597,11 @@ function Header() {
                 }}
                 onKeyDown={(e) => handleMainKeyDown(e, index)}
                 onMouseEnter={() => {
-                  if (salesDropdownOpen || inventoryDropdownOpen || masterDropdownOpen) {
-                    if (isSalesPurchase) { setSalesDropdownOpen(true); setInventoryDropdownOpen(false); setMasterDropdownOpen(false) }
-                    else if (isInventory) { setInventoryDropdownOpen(true); setSalesDropdownOpen(false); setMasterDropdownOpen(false) }
-                    else if (isMaster) { setMasterDropdownOpen(true); setSalesDropdownOpen(false); setInventoryDropdownOpen(false) }
+                  if (salesDropdownOpen || inventoryDropdownOpen || masterDropdownOpen || financeDropdownOpen) {
+                    if (isSalesPurchase) { setSalesDropdownOpen(true); setInventoryDropdownOpen(false); setMasterDropdownOpen(false); setFinanceDropdownOpen(false); }
+                    else if (isInventory) { setInventoryDropdownOpen(true); setSalesDropdownOpen(false); setMasterDropdownOpen(false); setFinanceDropdownOpen(false); }
+                    else if (isMaster) { setMasterDropdownOpen(true); setSalesDropdownOpen(false); setInventoryDropdownOpen(false); setFinanceDropdownOpen(false); }
+                    else if (isFinance) { setFinanceDropdownOpen(true); setMasterDropdownOpen(false); setSalesDropdownOpen(false); setInventoryDropdownOpen(false); }
                     else { closeAllDropdowns() }
                   }
                 }}
@@ -546,7 +619,7 @@ function Header() {
                 }}
               >
                 {item.label}
-                {(isSalesPurchase || isInventory || isMaster) && <ChevronDown size={10} style={{ marginLeft: '4px', display: 'inline' }} />}
+                {(isSalesPurchase || isInventory || isMaster || isFinance) && <ChevronDown size={10} style={{ marginLeft: '4px', display: 'inline' }} />}
               </button>
 
               {/* ── SALES & PURCHASE PARENT DROPDOWN ───────────────── */}
@@ -663,6 +736,9 @@ function Header() {
                 </div>
               )}
 
+
+
+
               {/* ── INVENTORY PARENT DROPDOWN ───────────────── */}
               {isInventory && inventoryDropdownOpen && (
                 <div style={{
@@ -768,6 +844,9 @@ function Header() {
                 </div>
               )}
 
+
+
+
               {/* ── MASTER PARENT DROPDOWN ───────────────── */}
               {isMaster && masterDropdownOpen && (
                 <div style={{
@@ -872,6 +951,76 @@ function Header() {
                   })}
                 </div>
               )}
+
+              {/* ── FINANCE PARENT DROPDOWN ───────────────── */}
+              {isFinance && financeDropdownOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  marginTop: '4px',
+                  backgroundColor: 'var(--color-bg-surface)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '6px',
+                  boxShadow: 'var(--shadow-md)',
+                  padding: '4px',
+                  minWidth: '180px',
+                  zIndex: 110,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px'
+                }}>
+                  {financeMenuItems.map((finItem, idx) => {
+                    if (finItem.isSeparator) {
+                      return (
+                        <div 
+                          key={`fin-sep-${idx}`} 
+                          style={{ height: '1px', backgroundColor: 'var(--color-border)', margin: '4px 0' }} 
+                        />
+                      )
+                    }
+
+                    const isParentFocused = focusedFinanceParentIndex === idx
+
+                    return (
+                      <div key={finItem.label || `fin-${idx}`} style={{ position: 'relative' }}>
+                        <button
+                          ref={el => { financeParentRefs.current[idx] = el }}
+                          onKeyDown={e => handleFinanceParentDropdownKeyDown(e, idx)}
+                          onClick={() => {
+                            if (finItem.path) {
+                              navigate(finItem.path)
+                              closeAllDropdowns()
+                            }
+                          }}
+                          onMouseEnter={() => {
+                            setFocusedFinanceParentIndex(idx)
+                          }}
+                          style={{
+                            padding: '6px 10px',
+                            fontSize: '11px',
+                            fontWeight: 500,
+                            textAlign: 'left',
+                            border: 'none',
+                            borderRadius: '4px',
+                            backgroundColor: isParentFocused ? 'rgba(79,70,229,0.1)' : 'transparent',
+                            color: isParentFocused ? 'var(--color-primary)' : 'var(--color-text-primary)',
+                            cursor: 'pointer',
+                            width: '100%',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <span>{finItem.label}</span>
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+
             </div>
           )
         })}
