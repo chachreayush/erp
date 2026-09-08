@@ -1,3 +1,5 @@
+from decimal import Decimal
+from typing import List
 # ============================================================
 # schemas.py — Pydantic Request/Response Data Shapes
 # ============================================================
@@ -361,7 +363,8 @@ class StationResponse(StationBase):
 
 class LedgerBase(BaseModel):
     name: str
-    group_name: str
+    group_name: Optional[str] = None
+    group_id: Optional[UUID] = None
     mobile: Optional[str] = None
     state: Optional[str] = None
     opening_balance: float = 0
@@ -501,3 +504,239 @@ class BatchResponse(BaseModel):
     updated_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
+
+
+# -- LEDGER GROUP SCHEMAS --
+class LedgerGroupBase(BaseModel):
+    name: str
+    parent_id: Optional[UUID] = None
+    is_active: bool = True
+
+class LedgerGroupCreate(LedgerGroupBase):
+    pass
+
+class LedgerGroupResponse(LedgerGroupBase):
+    id: UUID
+    organization_id: UUID
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+# -- VOUCHER ENTRY SCHEMAS (V2) --
+class VoucherEntryBase(BaseModel):
+    ledger_id: UUID
+    cr_dr: str
+    amount: Decimal
+    ledger_name: Optional[str] = None  # Denormalized for display
+
+class VoucherEntryCreate(VoucherEntryBase):
+    pass
+
+class VoucherEntryResponse(VoucherEntryBase):
+    id: UUID
+    class Config:
+        from_attributes = True
+
+# -- VOUCHER SCHEMAS (V2) --
+class VoucherBase(BaseModel):
+    voucher_type: str
+    voucher_number: Optional[str] = None  # Auto-generated if not provided
+    date: datetime
+    narration: Optional[str] = None
+    total_amount: Decimal
+    is_active: bool = True
+
+class VoucherCreate(VoucherBase):
+    entries: List[VoucherEntryCreate]
+    fiscal_year_id: Optional[UUID] = None
+    ref_invoice_id: Optional[UUID] = None
+
+class VoucherResponse(VoucherBase):
+    id: UUID
+    organization_id: UUID
+    created_at: datetime
+    status: str = 'Active'
+    fiscal_year_id: Optional[UUID] = None
+    ref_invoice_id: Optional[UUID] = None
+    cancelled_at: Optional[datetime] = None
+    reversal_voucher_id: Optional[UUID] = None
+    entries: List[VoucherEntryResponse]
+    class Config:
+        from_attributes = True
+
+class VoucherListQuery(BaseModel):
+    """Query parameters for filtering voucher lists"""
+    voucher_type: Optional[str] = None
+    from_date: Optional[str] = None  # ISO date string
+    to_date: Optional[str] = None
+    ledger_id: Optional[UUID] = None
+    status: Optional[str] = None  # Active, Cancelled
+    search: Optional[str] = None  # Search narration/voucher_number
+    skip: int = 0
+    limit: int = 50
+
+# -- FISCAL YEAR SCHEMAS --
+class FiscalYearCreate(BaseModel):
+    name: str  # e.g. "2025-26"
+    start_date: str  # ISO date e.g. "2025-04-01"
+    end_date: str  # ISO date e.g. "2026-03-31"
+    is_active: bool = True
+
+class FiscalYearResponse(BaseModel):
+    id: UUID
+    organization_id: UUID
+    name: str
+    start_date: str
+    end_date: str
+    is_active: bool
+    is_locked: bool
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class FiscalYearSwitchRequest(BaseModel):
+    fiscal_year_id: UUID
+
+# -- LEDGER BALANCE (PER FISCAL YEAR) SCHEMAS --
+class LedgerBalanceResponse(BaseModel):
+    id: UUID
+    ledger_id: UUID
+    fiscal_year_id: UUID
+    opening_balance: Decimal
+    op_type: str
+    closing_balance: Decimal
+    cl_type: str
+    class Config:
+        from_attributes = True
+
+# -- VOUCHER SEQUENCE SCHEMAS --
+class NextVoucherNumberResponse(BaseModel):
+    voucher_type: str
+    next_number: str
+    prefix: str
+
+# -- CARRY FORWARD SCHEMAS --
+class CarryForwardRequest(BaseModel):
+    source_fiscal_year_id: UUID
+    target_fiscal_year_id: UUID
+
+class CarryForwardResponse(BaseModel):
+    ledgers_carried: int
+    message: str
+
+# -- CHART OF ACCOUNTS SEEDING --
+class SeedChartOfAccountsResponse(BaseModel):
+    groups_created: int
+    message: str
+
+# =============================================
+# REPORTING SCHEMAS
+# =============================================
+
+# -- DAY BOOK --
+class DayBookEntry(BaseModel):
+    voucher_id: UUID
+    voucher_number: str
+    voucher_type: str
+    date: datetime
+    narration: Optional[str] = None
+    total_amount: Decimal
+    status: str
+    entries: List[VoucherEntryResponse]
+
+class DayBookResponse(BaseModel):
+    from_date: str
+    to_date: str
+    vouchers: List[DayBookEntry]
+    total_dr: Decimal
+    total_cr: Decimal
+
+# -- LEDGER STATEMENT / ACCOUNT REGISTER --
+class LedgerStatementEntry(BaseModel):
+    date: datetime
+    voucher_id: UUID
+    voucher_number: str
+    voucher_type: str
+    particulars: str  # Contra ledger name(s)
+    dr_amount: Optional[Decimal] = None
+    cr_amount: Optional[Decimal] = None
+    running_balance: Decimal
+    balance_type: str  # 'Dr' or 'Cr'
+
+class LedgerStatementResponse(BaseModel):
+    ledger_id: UUID
+    ledger_name: str
+    from_date: str
+    to_date: str
+    opening_balance: Decimal
+    opening_type: str
+    entries: List[LedgerStatementEntry]
+    closing_balance: Decimal
+    closing_type: str
+    total_dr: Decimal
+    total_cr: Decimal
+
+# -- TRIAL BALANCE --
+class TrialBalanceRow(BaseModel):
+    ledger_id: UUID
+    ledger_name: str
+    group_name: Optional[str] = None
+    dr_total: Decimal
+    cr_total: Decimal
+    closing_balance: Decimal
+    balance_type: str  # 'Dr' or 'Cr'
+
+class TrialBalanceResponse(BaseModel):
+    as_of_date: str
+    fiscal_year_name: Optional[str] = None
+    rows: List[TrialBalanceRow]
+    grand_dr_total: Decimal
+    grand_cr_total: Decimal
+
+# -- PROFIT & LOSS --
+class PLRow(BaseModel):
+    group_name: str
+    ledger_name: Optional[str] = None
+    amount: Decimal
+    is_group_total: bool = False
+
+class PLResponse(BaseModel):
+    from_date: str
+    to_date: str
+    income_items: List[PLRow]
+    expense_items: List[PLRow]
+    total_income: Decimal
+    total_expense: Decimal
+    net_profit_or_loss: Decimal
+    result_type: str  # 'Profit' or 'Loss'
+
+# -- BALANCE SHEET --
+class BalanceSheetRow(BaseModel):
+    group_name: str
+    ledger_name: Optional[str] = None
+    amount: Decimal
+    is_group_total: bool = False
+
+class BalanceSheetResponse(BaseModel):
+    as_of_date: str
+    liabilities: List[BalanceSheetRow]
+    assets: List[BalanceSheetRow]
+    total_liabilities: Decimal
+    total_assets: Decimal
+
+# -- ERROR ENTRY (DRAFT) SCHEMAS --
+class ErrorEntryBase(BaseModel):
+    module_name: str
+    json_payload: str
+
+class ErrorEntryCreate(ErrorEntryBase):
+    pass
+
+class ErrorEntryResponse(ErrorEntryBase):
+    id: UUID
+    organization_id: UUID
+    created_at: datetime
+    restart_count_at_creation: int
+    class Config:
+        from_attributes = True
+

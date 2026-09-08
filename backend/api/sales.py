@@ -4,6 +4,8 @@ from sqlalchemy import desc
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
+from decimal import Decimal
+from api.finance_v2 import create_voucher, cancel_voucher, get_active_fiscal_year
 
 from database import get_db
 import models
@@ -148,6 +150,98 @@ def _update_stock_for_invoice(db: Session, org_id: UUID, items: list[schemas.Inv
             )
             db.add(new_batch)
 
+# ── ACCOUNTING AUTO-POSTING ───────────────────────────────────
+def _cancel_accounting(db: Session, current_user: models.User, invoice: models.Invoice):
+    org_id = current_user.organization_id
+    existing_vouchers = db.query(models.Voucher).filter(
+        models.Voucher.organization_id == org_id,
+        models.Voucher.ref_invoice_id == invoice.id,
+        models.Voucher.status == 'Active'
+    ).all()
+    for v in existing_vouchers:
+        cancel_voucher(v.id, db, current_user)
+
+def _auto_post_accounting(db: Session, current_user: models.User, invoice: models.Invoice):
+    if invoice.invoice_type not in ["sales-bill", "purchase-bill", "sales-return", "purchase-return"]:
+        return
+        
+    org_id = current_user.organization_id
+    _cancel_accounting(db, current_user, invoice)
+        
+    if invoice.grand_total <= 0:
+        return
+        
+    def get_or_create_ledger(name: str, group_name: str, op_type: str = "Dr"):
+        ledger = db.query(models.Ledger).filter(
+            models.Ledger.organization_id == org_id,
+            models.Ledger.name.ilike(name.strip())
+        ).first()
+        if not ledger:
+            ledger = models.Ledger(
+                organization_id=org_id,
+                name=name.strip(),
+                group_name=group_name,
+                opening_balance=0,
+                op_type=op_type,
+                closing_balance=0,
+                cl_type=op_type,
+                is_active=True
+            )
+            db.add(ledger)
+            db.flush()
+        return ledger
+        
+    entries = []
+    party_group = "Sundry Debtors" if "sales" in invoice.invoice_type else "Sundry Creditors"
+    party_ledger = get_or_create_ledger(invoice.customer_name, party_group)
+    
+    if invoice.invoice_type == "sales-bill":
+        sales_ledger = get_or_create_ledger("Sales Account", "Sales Accounts", "Cr")
+        entries = [
+            {"ledger_id": str(party_ledger.id), "cr_dr": "Dr", "amount": Decimal(str(invoice.grand_total))},
+            {"ledger_id": str(sales_ledger.id), "cr_dr": "Cr", "amount": Decimal(str(invoice.grand_total))}
+        ]
+        v_type = "Journal"
+    elif invoice.invoice_type == "purchase-bill":
+        purchase_ledger = get_or_create_ledger("Purchase Account", "Purchase Accounts", "Dr")
+        entries = [
+            {"ledger_id": str(purchase_ledger.id), "cr_dr": "Dr", "amount": Decimal(str(invoice.grand_total))},
+            {"ledger_id": str(party_ledger.id), "cr_dr": "Cr", "amount": Decimal(str(invoice.grand_total))}
+        ]
+        v_type = "Journal"
+    elif invoice.invoice_type == "sales-return":
+        sales_ret_ledger = get_or_create_ledger("Sales Return", "Sales Accounts", "Dr")
+        entries = [
+            {"ledger_id": str(sales_ret_ledger.id), "cr_dr": "Dr", "amount": Decimal(str(invoice.grand_total))},
+            {"ledger_id": str(party_ledger.id), "cr_dr": "Cr", "amount": Decimal(str(invoice.grand_total))}
+        ]
+        v_type = "Journal"
+    elif invoice.invoice_type == "purchase-return":
+        purch_ret_ledger = get_or_create_ledger("Purchase Return", "Purchase Accounts", "Cr")
+        entries = [
+            {"ledger_id": str(party_ledger.id), "cr_dr": "Dr", "amount": Decimal(str(invoice.grand_total))},
+            {"ledger_id": str(purch_ret_ledger.id), "cr_dr": "Cr", "amount": Decimal(str(invoice.grand_total))}
+        ]
+        v_type = "Journal"
+        
+    if entries:
+        fy = get_active_fiscal_year(db, org_id)
+        if not fy: return
+            
+        voucher_payload = schemas.VoucherCreate(
+            voucher_type=v_type,
+            date=invoice.date.strftime("%Y-%m-%d"),
+            narration=f"Auto-generated for {invoice.invoice_type} {invoice.invoice_number}",
+            total_amount=Decimal(str(invoice.grand_total)),
+            fiscal_year_id=fy.id,
+            ref_invoice_id=invoice.id,
+            entries=entries
+        )
+        try:
+            create_voucher(voucher_payload, db, current_user)
+        except Exception as e:
+            print(f"Error auto-posting: {e}")
+
 # ── CREATE INVOICE ─────────────────────────────────────────────
 @router.post("/invoices", response_model=schemas.InvoiceResponse, status_code=status.HTTP_201_CREATED)
 def create_invoice(
@@ -238,6 +332,9 @@ def create_invoice(
     # Commit all changes to the database
     db.commit()
     db.refresh(new_invoice)
+    
+    # Auto-post to accounting
+    _auto_post_accounting(db, current_user, new_invoice)
     
     return new_invoice
 
@@ -331,6 +428,10 @@ def update_invoice(
     
     db.commit()
     db.refresh(db_invoice)
+    
+    # Auto-post to accounting
+    _auto_post_accounting(db, current_user, db_invoice)
+    
     return db_invoice
 
 @router.delete("/invoices/{invoice_id}")
@@ -381,6 +482,10 @@ def delete_invoice(
     
     # Soft delete
     db_invoice.is_active = False
+    
+    # Cancel accounting voucher
+    _cancel_accounting(db, current_user, db_invoice)
+    
     db.commit()
     return {"message": "Invoice deleted successfully, stock restored"}
 
@@ -486,6 +591,9 @@ def cancel_invoice(
     
     # 4. Mark original as cancelled in remarks
     original.remarks = f"CANCELLED. Reversed by {rev_number}"
+    
+    # Cancel the accounting voucher for the original invoice
+    _cancel_accounting(db, current_user, original)
     
     db.commit()
     

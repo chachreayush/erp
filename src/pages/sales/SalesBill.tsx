@@ -1,4 +1,4 @@
-import { apiCreateInvoice, apiGetInvoice, InvoiceCreatePayload } from '../../lib/api';
+import { apiSaveDraft, apiCreateInvoice, apiGetInvoice, InvoiceCreatePayload } from '../../lib/api';
 import React, { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { apiGetProducts } from '../../lib/api'
@@ -256,6 +256,9 @@ const lookupRegisteredBatch = (product: string, batchNumber: string, currentGrid
 
 
 export default function SalesBill() {
+
+  // Auto-save logic will be moved below state definitions
+
   const [searchParams, setSearchParams] = useSearchParams()
   const type = searchParams.get('type') || 'bill' // bill, challan, modify-bill, modify-challan
   const baseType = type.includes('challan') ? 'challan' : 'bill';
@@ -427,6 +430,17 @@ export default function SalesBill() {
   const [showF3BatchModal, setShowF3BatchModal] = useState(false)
   const [f3SelectedIndex, setF3SelectedIndex] = useState(0)
   const [showZeroQtyBatches, setShowZeroQtyBatches] = useState(false)
+
+  // AUTO SAVE HOOK
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (partyName || gridRows.some(r => r.product)) {
+        const draftPayload = JSON.stringify({ items: gridRows, party: partyName, invoiceDate: invDateStr })
+        apiSaveDraft('SalesBill', draftPayload).catch(console.error)
+      }
+    }, 15000)
+    return () => clearInterval(timer)
+  }, [gridRows, partyName, invDateStr])
 
   // Escape to return hook
   const isDirty = React.useMemo(() => {

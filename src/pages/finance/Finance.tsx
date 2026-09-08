@@ -1,169 +1,164 @@
-import React, { useState } from 'react' 
-import { useReturnNavigation } from '../../hooks/useReturnNavigation'
-import { Plus, Download, Receipt } from 'lucide-react'
-import { Card } from '../../components/ui/Card'
-import { Button } from '../../components/ui/Button'
-import { Input } from '../../components/ui/Input'
-import { Modal } from '../../components/ui/Modal'
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useReturnNavigation } from '../../hooks/useReturnNavigation';
+import { apiListVouchers, apiGetLedgers, apiGetFiscalYears, apiActivateFiscalYear, Ledger } from '../../lib/api';
+import {
+  DollarSign, CreditCard, TrendingUp, TrendingDown,
+  FileText, BookOpen, BarChart3, PieChart, ArrowLeft
+} from 'lucide-react';
 
-export default function FinancePage() {
+export default function FinanceDashboard() {
+  const navigate = useNavigate();
+  useReturnNavigation();
 
-  const [isAdding, setIsAdding] = useState(false)
-  useReturnNavigation(isAdding)
-  const [ledgers, setLedgers] = useState<{name: string, group: string, balance: number}[]>([
-    { name: 'Cash Account', group: 'Cash-in-Hand', balance: 15000 },
-    { name: 'HDFC Bank', group: 'Bank Accounts', balance: 250000 },
-    { name: 'Sales A/c', group: 'Sales Accounts', balance: 0 }
-  ])
+  const [fiscalYears, setFiscalYears] = useState<any[]>([]);
+  const [ledgers, setLedgers] = useState<Ledger[]>([]);
+  const [recentVouchers, setRecentVouchers] = useState<any[]>([]);
 
-  const [newLedger, setNewLedger] = useState({
-    name: '',
-    group: '',
-    balance: ''
-  })
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [fyRes, ledgersRes, vouchersRes] = await Promise.all([
+          apiGetFiscalYears(),
+          apiGetLedgers(),
+          apiListVouchers({ limit: 10 })
+        ]);
+        setFiscalYears(fyRes);
+        setLedgers(ledgersRes);
+        setRecentVouchers(vouchersRes);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchData();
+  }, []);
 
-  const handleCreateSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setLedgers([{ name: newLedger.name, group: newLedger.group, balance: Number(newLedger.balance) || 0 }, ...ledgers])
-    setIsAdding(false)
-    setNewLedger({ name: '', group: '', balance: '' })
-  }
+  const handleFyChange = async (id: string) => {
+    try {
+      await apiActivateFiscalYear(id);
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const getBalance = (groupNames: string[]) => {
+    return ledgers
+      .filter(l => groupNames.includes(l.group_name))
+      .reduce((sum, l) => {
+        const bal = l.closing_balance || 0;
+        return l.cl_type === 'Dr' ? sum + bal : sum - bal;
+      }, 0);
+  };
+
+  const cashBalance = getBalance(['Cash-in-hand']);
+  const bankBalance = getBalance(['Bank Accounts']);
+  const receivables = getBalance(['Sundry Debtors']);
+  const payables = Math.abs(getBalance(['Sundry Creditors']));
+
+  const styles: Record<string, React.CSSProperties> = {
+    container: { backgroundColor: '#020617', color: '#e2e8f0', minHeight: '100vh', padding: '24px', fontFamily: 'sans-serif' },
+    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' },
+    title: { fontSize: '24px', fontWeight: 'bold', margin: 0 },
+    escButton: { position: 'absolute', right: '24px', top: '24px', padding: '6px 12px', background: '#334155', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' },
+    fySelect: { background: '#0f172a', color: '#e2e8f0', border: '1px solid #1e293b', padding: '8px', borderRadius: '4px' },
+    summaryRow: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' },
+    card: { backgroundColor: '#0f172a', border: '1px solid #1e293b', padding: '16px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '8px' },
+    cardTitle: { fontSize: '14px', color: '#94a3b8' },
+    cardValue: { fontSize: '24px', fontWeight: 'bold' },
+    quickAccessGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' },
+    quickActionBtn: { backgroundColor: '#0f172a', border: '1px solid #1e293b', padding: '16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px', color: '#e2e8f0', cursor: 'pointer', textAlign: 'left', transition: 'background 0.2s' },
+    table: { width: '100%', borderCollapse: 'collapse', marginTop: '16px' },
+    th: { textAlign: 'left', padding: '12px', borderBottom: '1px solid #1e293b', color: '#94a3b8' },
+    td: { padding: '12px', borderBottom: '1px solid #1e293b' },
+    badge: { padding: '4px 8px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold' }
+  };
+
+  const getBadgeColor = (type: string) => {
+    switch (type.toLowerCase()) {
+      case 'payment': return { bg: '#1e3a8a', color: '#60a5fa' };
+      case 'receipt': return { bg: '#14532d', color: '#4ade80' };
+      case 'journal': return { bg: '#4c1d95', color: '#a78bfa' };
+      case 'contra': return { bg: '#7c2d12', color: '#fb923c' };
+      default: return { bg: '#334155', color: '#94a3b8' };
+    }
+  };
 
   return (
-    <div style={{ margin: "0 auto", height: "100%", overflowY: "auto", maxWidth: '1200px', animation: 'fadeIn 0.3s ease-in-out', width: '100%' }}>
-      
-      {/* ── HEADER & ACTIONS ────────────────────────────────── */}
-      <div style={{ 
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-        marginBottom: '24px' 
-      }}>
-        <div>
-          <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 700, color: 'var(--color-text)', marginBottom: '4px' }}>
-            Finance & Accounting
-          </h1>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '14px' }}>
-            Manage ledgers, accounts, and financial transactions.
-          </p>
+    <div style={styles.container}>
+      <button style={styles.escButton} onClick={() => navigate(-1)}><ArrowLeft size={16} /> [ESC] Exit</button>
+      <div style={styles.header}>
+        <h1 style={styles.title}>Finance & Accounting</h1>
+        <select style={styles.fySelect} onChange={(e) => handleFyChange(e.target.value)}>
+          {fiscalYears.map(fy => (
+            <option key={fy.id} value={fy.id}>{fy.name} {fy.is_active ? ' (Active)' : ''}</option>
+          ))}
+        </select>
+      </div>
+
+      <div style={styles.summaryRow}>
+        <div style={styles.card}>
+          <div style={styles.cardTitle}>Cash Balance</div>
+          <div style={styles.cardValue}>${Math.abs(cashBalance).toFixed(2)} {cashBalance >= 0 ? 'Dr' : 'Cr'}</div>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <Button variant="secondary" leftIcon={<Download size={16} />}>
-            Export
-          </Button>
-          <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setIsAdding(true)}>
-            Create Ledger
-          </Button>
+        <div style={styles.card}>
+          <div style={styles.cardTitle}>Bank Balance</div>
+          <div style={styles.cardValue}>${Math.abs(bankBalance).toFixed(2)} {bankBalance >= 0 ? 'Dr' : 'Cr'}</div>
+        </div>
+        <div style={styles.card}>
+          <div style={styles.cardTitle}>Total Receivables</div>
+          <div style={styles.cardValue}>${receivables.toFixed(2)}</div>
+        </div>
+        <div style={styles.card}>
+          <div style={styles.cardTitle}>Total Payables</div>
+          <div style={styles.cardValue}>${payables.toFixed(2)}</div>
         </div>
       </div>
 
-      {/* ── ADD LEDGER MODAL (MARG POPUP WORKFLOW) ──────────── */}
-      <Modal 
-        isOpen={isAdding} 
-        onClose={() => setIsAdding(false)} 
-        title="Ledger Creation"
-        maxWidth="500px"
-      >
-        <p style={{ color: 'var(--color-text-muted)', fontSize: '13px', marginBottom: '16px' }}>
-          Create a new accounting ledger (Popup workflow).
-        </p>
-        <form onSubmit={handleCreateSubmit}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <Input 
-              label="Ledger Name *" 
-              required 
-              value={newLedger.name}
-              onChange={e => setNewLedger({...newLedger, name: e.target.value})}
-            />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text)', marginLeft: '2px' }}>
-                Account Group *
-              </label>
-              <select 
-                required
-                style={{
-                  width: '100%', padding: '12px 16px',
-                  backgroundColor: 'var(--color-bg-input)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 'var(--radius-md)',
-                  color: 'var(--color-text)',
-                  fontSize: '15px', outline: 'none'
-                }}
-                value={newLedger.group}
-                onChange={e => setNewLedger({...newLedger, group: e.target.value})}
-              >
-                <option value="">Select Group...</option>
-                <option value="Sundry Debtors">Sundry Debtors</option>
-                <option value="Sundry Creditors">Sundry Creditors</option>
-                <option value="Bank Accounts">Bank Accounts</option>
-                <option value="Cash-in-Hand">Cash-in-Hand</option>
-                <option value="Sales Accounts">Sales Accounts</option>
-                <option value="Purchase Accounts">Purchase Accounts</option>
-                <option value="Direct Expenses">Direct Expenses</option>
-              </select>
-            </div>
-            <Input 
-              label="Opening Balance (₹)" 
-              type="number"
-              value={newLedger.balance}
-              onChange={e => setNewLedger({...newLedger, balance: e.target.value})}
-            />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--color-border)' }}>
-            <Button type="button" variant="secondary" onClick={() => setIsAdding(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary">
-              Save Ledger
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      <h2 style={{ fontSize: '18px', marginBottom: '16px' }}>Quick Access</h2>
+      <div style={styles.quickAccessGrid}>
+        <button style={styles.quickActionBtn} onClick={() => navigate('/finance/voucher/payment')}><DollarSign size={20} color="#60a5fa" /> Payment Voucher</button>
+        <button style={styles.quickActionBtn} onClick={() => navigate('/finance/voucher/receipt')}><TrendingUp size={20} color="#4ade80" /> Receipt Voucher</button>
+        <button style={styles.quickActionBtn} onClick={() => navigate('/finance/voucher/journal')}><BookOpen size={20} color="#a78bfa" /> Journal Voucher</button>
+        <button style={styles.quickActionBtn} onClick={() => navigate('/finance/voucher/contra')}><CreditCard size={20} color="#fb923c" /> Contra Voucher</button>
+        <button style={styles.quickActionBtn} onClick={() => navigate('/finance/vouchers')}><FileText size={20} /> Voucher Register</button>
+        <button style={styles.quickActionBtn} onClick={() => navigate('/finance/daybook')}><BarChart3 size={20} /> Day Book</button>
+        <button style={styles.quickActionBtn} onClick={() => navigate('/finance/trial-balance')}><TrendingDown size={20} /> Trial Balance</button>
+        <button style={styles.quickActionBtn} onClick={() => navigate('/finance/profit-loss')}><PieChart size={20} /> Profit & Loss</button>
+      </div>
 
-      {/* ── LEDGERS DATA TABLE ──────────────────────────────── */}
-      <Card padding="none">
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-hover)' }}>
-                <th style={{ padding: '16px', fontSize: '12px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Ledger Name</th>
-                <th style={{ padding: '16px', fontSize: '12px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Under Group</th>
-                <th style={{ padding: '16px', fontSize: '12px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Balance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ledgers.map((ledger, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid var(--color-border)', cursor: 'pointer' }}>
-                  <td style={{ padding: '16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ 
-                        width: '32px', height: '32px', borderRadius: 'var(--radius-md)', 
-                        backgroundColor: 'var(--color-bg-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center' 
-                      }}>
-                        <Receipt size={16} color="var(--color-text-secondary)" />
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{ledger.name}</div>
-                      </div>
-                    </div>
+      <div style={{ ...styles.card, marginTop: '24px' }}>
+        <h2 style={{ fontSize: '18px', margin: 0 }}>Recent Vouchers</h2>
+        <table style={styles.table}>
+          <thead>
+            <tr>
+              <th style={styles.th}>Date</th>
+              <th style={styles.th}>Number</th>
+              <th style={styles.th}>Type</th>
+              <th style={styles.th}>Amount</th>
+              <th style={styles.th}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {recentVouchers.map(v => {
+              const badgeColors = getBadgeColor(v.voucher_type);
+              return (
+                <tr key={v.id}>
+                  <td style={styles.td}>{v.date}</td>
+                  <td style={styles.td}>{v.voucher_number}</td>
+                  <td style={styles.td}>
+                    <span style={{ ...styles.badge, backgroundColor: badgeColors.bg, color: badgeColors.color }}>
+                      {v.voucher_type}
+                    </span>
                   </td>
-                  <td style={{ padding: '16px', color: 'var(--color-text-secondary)' }}>{ledger.group}</td>
-                  <td style={{ padding: '16px' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                      ₹{ledger.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </div>
-                  </td>
+                  <td style={styles.td}>${v.amount?.toFixed(2)}</td>
+                  <td style={styles.td}>{v.status}</td>
                 </tr>
-              ))}
-              {ledgers.length === 0 && (
-                <tr>
-                  <td colSpan={3} style={{ padding: '32px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                    No ledgers found. Click "Create Ledger" to begin.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
-  )
+  );
 }

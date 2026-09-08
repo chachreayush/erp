@@ -258,7 +258,7 @@ class Bulletin(Base):
 
 
 # ── TABLE 5: Product (Inventory) ──────────────────────────────
-from sqlalchemy import Numeric, Integer
+from sqlalchemy import Numeric, Integer, Date
 
 class Product(Base):
     """
@@ -445,13 +445,14 @@ class Ledger(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     name = Column(String(255), nullable=False)
-    group_name = Column(String(100), nullable=False) # e.g. 'Cash-in-Hand', 'Bank Accounts'
+    group_name = Column(String(100), nullable=True) # e.g. 'Cash-in-Hand', 'Bank Accounts'
     mobile = Column(String(20), nullable=True)
     state = Column(String(100), nullable=True)
     opening_balance = Column(Numeric(15, 2), nullable=False, default=0)
     op_type = Column(String(2), nullable=False, default='Dr') # Dr or Cr
     closing_balance = Column(Numeric(15, 2), nullable=False, default=0)
     cl_type = Column(String(2), nullable=False, default='Dr') # Dr or Cr
+    group_id = Column(UUID(as_uuid=True), ForeignKey('ledger_groups.id', ondelete='SET NULL'), nullable=True)
 
     # --- New Fields ---
     station = Column(String(255), nullable=True)
@@ -479,6 +480,8 @@ class Ledger(Base):
 
     # -- RELATIONSHIPS --------------------------------------------
     organization = relationship("Organization")
+    ledger_group = relationship("LedgerGroup")
+    voucher_entries = relationship("VoucherEntry", back_populates="ledger")
 
     def __repr__(self):
         return f"<Ledger {self.name}: {self.closing_balance}>"
@@ -572,6 +575,186 @@ class StateCode(Base):
     capital = Column(String(255), nullable=True)
 
     is_active = Column(Boolean, default=True, nullable=False)
+
+    organization = relationship("Organization")
+
+
+
+# -- TABLE 13: LedgerGroup (Finance) ---------------------------------
+class LedgerGroup(Base):
+    __tablename__ = "ledger_groups"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    name = Column(String(255), nullable=False)
+    parent_id = Column(UUID(as_uuid=True), ForeignKey("ledger_groups.id", ondelete="SET NULL"), nullable=True)
+    
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    organization = relationship("Organization")
+    parent = relationship("LedgerGroup", remote_side=[id])
+
+
+# -- TABLE 14: Voucher (Finance) ---------------------------------
+class Voucher(Base):
+    __tablename__ = "vouchers"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    voucher_type = Column(String(50), nullable=False) # Receipt, Payment, Journal, Contra, Sales, Purchase
+    voucher_number = Column(String(100), nullable=False, index=True)
+    date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    narration = Column(Text, nullable=True)
+    total_amount = Column(Numeric(15, 2), nullable=False, default=0)
+
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    # ── NEW: Fiscal Year linkage ──
+    fiscal_year_id = Column(UUID(as_uuid=True), ForeignKey("fiscal_years.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    # ── NEW: Status & Cancellation tracking ──
+    status = Column(String(20), nullable=False, default='Active')  # Active, Cancelled, Reversed
+    ref_invoice_id = Column(UUID(as_uuid=True), ForeignKey("invoices.id", ondelete="SET NULL"), nullable=True)
+    cancelled_at = Column(DateTime, nullable=True)
+    cancelled_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    reversal_voucher_id = Column(UUID(as_uuid=True), ForeignKey("vouchers.id", ondelete="SET NULL"), nullable=True)
+
+    organization = relationship("Organization")
+    entries = relationship("VoucherEntry", back_populates="voucher", cascade="all, delete-orphan")
+    fiscal_year = relationship("FiscalYear")
+    ref_invoice = relationship("Invoice", foreign_keys=[ref_invoice_id])
+    reversal_voucher = relationship("Voucher", foreign_keys=[reversal_voucher_id], remote_side=[id])
+
+
+# -- TABLE 15: VoucherEntry (Finance) ---------------------------------
+class VoucherEntry(Base):
+    __tablename__ = "voucher_entries"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    voucher_id = Column(UUID(as_uuid=True), ForeignKey("vouchers.id", ondelete="CASCADE"), nullable=False, index=True)
+    ledger_id = Column(UUID(as_uuid=True), ForeignKey("ledgers.id", ondelete="RESTRICT"), nullable=False, index=True)
+
+    cr_dr = Column(String(2), nullable=False) # 'Cr' or 'Dr'
+    amount = Column(Numeric(15, 2), nullable=False, default=0)
+
+    # ── NEW: Denormalized ledger name for fast report rendering ──
+    ledger_name = Column(String(255), nullable=True)
+
+    voucher = relationship("Voucher", back_populates="entries")
+    ledger = relationship("Ledger", back_populates="voucher_entries")
+
+
+# -- TABLE 18: FiscalYear (Finance) ---------------------------------
+class FiscalYear(Base):
+    """
+    Represents an accounting fiscal year (e.g., April 2025 - March 2026).
+    Each organization can have multiple fiscal years but only one active at a time.
+    Vouchers are scoped to a fiscal year. Users switch between FYs to view
+    isolated data. Carry-forward is explicit.
+    """
+    __tablename__ = "fiscal_years"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    name = Column(String(50), nullable=False)           # e.g. "2025-26"
+    start_date = Column(Date, nullable=False)            # e.g. 2025-04-01
+    end_date = Column(Date, nullable=False)              # e.g. 2026-03-31
+    is_active = Column(Boolean, default=True, nullable=False)   # Only one active per org
+    is_locked = Column(Boolean, default=False, nullable=False)  # Prevents posting to closed years
+
+    organization = relationship("Organization")
+
+
+# -- TABLE 19: LedgerBalance (Finance - Per Fiscal Year) ---------------------------------
+class LedgerBalance(Base):
+    """
+    Stores opening and closing balances for each ledger PER fiscal year.
+    This enables complete fiscal year isolation — viewing FY 23-24 shows
+    only that year's opening/closing. Carry-forward copies closing of
+    FY X as opening of FY X+1.
+    """
+    __tablename__ = "ledger_balances"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    ledger_id = Column(UUID(as_uuid=True), ForeignKey("ledgers.id", ondelete="CASCADE"), nullable=False, index=True)
+    fiscal_year_id = Column(UUID(as_uuid=True), ForeignKey("fiscal_years.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    opening_balance = Column(Numeric(15, 2), nullable=False, default=0)
+    op_type = Column(String(2), nullable=False, default='Dr')  # 'Dr' or 'Cr'
+    closing_balance = Column(Numeric(15, 2), nullable=False, default=0)
+    cl_type = Column(String(2), nullable=False, default='Dr')  # 'Dr' or 'Cr'
+
+    organization = relationship("Organization")
+    ledger = relationship("Ledger")
+    fiscal_year = relationship("FiscalYear")
+
+
+# -- TABLE 20: VoucherSequence (Finance - Auto Numbering) ---------------------------------
+class VoucherSequence(Base):
+    """
+    Auto-incrementing voucher number generator per fiscal year and type.
+    Generates numbers like PAY/25-26/001, REC/25-26/002, etc.
+    Uses row-level locking for concurrency safety.
+    """
+    __tablename__ = "voucher_sequences"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    fiscal_year_id = Column(UUID(as_uuid=True), ForeignKey("fiscal_years.id", ondelete="CASCADE"), nullable=False, index=True)
+    voucher_type = Column(String(50), nullable=False)   # Payment, Receipt, Journal, Contra, Sales, Purchase
+    prefix = Column(String(20), nullable=False)         # e.g. "PAY/25-26/"
+    last_number = Column(Integer, nullable=False, default=0)
+
+    organization = relationship("Organization")
+    fiscal_year = relationship("FiscalYear")
+
+
+# -- TABLE 21: AccountSetting (Finance - Configuration) ---------------------------------
+class AccountSetting(Base):
+    """
+    Key-value configuration store for finance module settings.
+    Examples: default_cash_ledger_id, default_sales_account_id, etc.
+    """
+    __tablename__ = "account_settings"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    key = Column(String(100), nullable=False)   # e.g. 'default_cash_ledger_id'
+    value = Column(Text, nullable=True)         # e.g. UUID string or setting value
+
+    organization = relationship("Organization")
+
+
+# -- TABLE 16: SystemState (System) ---------------------------------
+class SystemState(Base):
+    __tablename__ = "system_state"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    restart_count = Column(Integer, nullable=False, default=0)
+    last_restarted_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+# -- TABLE 17: ErrorEntry (Crash Recovery) ---------------------------------
+class ErrorEntry(Base):
+    __tablename__ = "error_entries"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    module_name = Column(String(100), nullable=False) # e.g. 'SalesBill', 'PurchaseBill', 'PaymentVoucher'
+    json_payload = Column(Text, nullable=False) # The serialized form state
+    restart_count_at_creation = Column(Integer, nullable=False) # To track age across restarts
 
     organization = relationship("Organization")
 

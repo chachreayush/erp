@@ -709,3 +709,250 @@ export async function apiApplyMRPSuggestions(productIds: string[]): Promise<{mes
   const response = await apiClient.post<{message: string}>("/api/stock/mrp/apply", { product_ids: productIds })
   return response.data
 }
+
+// ==========================================
+// FINANCE & ACCOUNTING APIS (V2 — Complete Rebuild)
+// ==========================================
+
+export interface LedgerGroup {
+  id: string;
+  name: string;
+  parent_id?: string | null;
+  is_active: boolean;
+}
+
+export interface VoucherEntry {
+  id?: string;
+  ledger_id: string;
+  cr_dr: 'Cr' | 'Dr';
+  amount: number;
+  ledger_name?: string;
+}
+
+export interface Voucher {
+  id?: string;
+  voucher_type: string;
+  voucher_number?: string;
+  date: string;
+  narration?: string;
+  total_amount: number;
+  status?: string;
+  fiscal_year_id?: string;
+  ref_invoice_id?: string;
+  cancelled_at?: string;
+  reversal_voucher_id?: string;
+  entries: VoucherEntry[];
+}
+
+export interface FiscalYear {
+  id: string;
+  organization_id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+  is_locked: boolean;
+  created_at: string;
+}
+
+export interface NextVoucherNumber {
+  voucher_type: string;
+  next_number: string;
+  prefix: string;
+}
+
+export interface DayBookResponse {
+  from_date: string;
+  to_date: string;
+  vouchers: any[];
+  total_dr: string;
+  total_cr: string;
+}
+
+export interface LedgerStatementResponse {
+  ledger_id: string;
+  ledger_name: string;
+  from_date: string;
+  to_date: string;
+  opening_balance: string;
+  opening_type: string;
+  entries: any[];
+  closing_balance: string;
+  closing_type: string;
+  total_dr: string;
+  total_cr: string;
+}
+
+export interface TrialBalanceResponse {
+  as_of_date: string;
+  fiscal_year_name?: string;
+  rows: any[];
+  grand_dr_total: string;
+  grand_cr_total: string;
+}
+
+export interface PLResponse {
+  from_date: string;
+  to_date: string;
+  income_items: any[];
+  expense_items: any[];
+  total_income: string;
+  total_expense: string;
+  net_profit_or_loss: string;
+  result_type: string;
+}
+
+export interface BalanceSheetResponse {
+  as_of_date: string;
+  liabilities: any[];
+  assets: any[];
+  total_liabilities: string;
+  total_assets: string;
+}
+
+// ── Ledger Group APIs ──
+export async function apiGetLedgerGroups(): Promise<LedgerGroup[]> {
+  const response = await apiClient.get<LedgerGroup[]>("/api/finance/groups");
+  return response.data;
+}
+
+export async function apiCreateLedgerGroup(data: { name: string; parent_id?: string | null; is_active?: boolean }): Promise<LedgerGroup> {
+  const response = await apiClient.post<LedgerGroup>("/api/finance/groups", data);
+  return response.data;
+}
+
+// ── Fiscal Year APIs ──
+export async function apiGetFiscalYears(): Promise<FiscalYear[]> {
+  const response = await apiClient.get<FiscalYear[]>("/api/finance/fiscal-years");
+  return response.data;
+}
+
+export async function apiCreateFiscalYear(data: { name: string; start_date: string; end_date: string; is_active?: boolean }): Promise<FiscalYear> {
+  const response = await apiClient.post<FiscalYear>("/api/finance/fiscal-years", data);
+  return response.data;
+}
+
+export async function apiActivateFiscalYear(fyId: string): Promise<{ message: string }> {
+  const response = await apiClient.put<{ message: string }>(`/api/finance/fiscal-years/${fyId}/activate`);
+  return response.data;
+}
+
+export async function apiLockFiscalYear(fyId: string): Promise<{ message: string }> {
+  const response = await apiClient.put<{ message: string }>(`/api/finance/fiscal-years/${fyId}/lock`);
+  return response.data;
+}
+
+// ── Voucher APIs ──
+export async function apiCreateVoucher(voucher: Voucher): Promise<Voucher> {
+  const response = await apiClient.post<Voucher>("/api/finance/vouchers", voucher);
+  return response.data;
+}
+
+export async function apiListVouchers(params?: {
+  voucher_type?: string;
+  from_date?: string;
+  to_date?: string;
+  status?: string;
+  search?: string;
+  fiscal_year_id?: string;
+  skip?: number;
+  limit?: number;
+}): Promise<Voucher[]> {
+  const response = await apiClient.get<Voucher[]>("/api/finance/vouchers", { params });
+  return response.data;
+}
+
+export async function apiGetVoucher(voucherId: string): Promise<Voucher> {
+  const response = await apiClient.get<Voucher>(`/api/finance/vouchers/${voucherId}`);
+  return response.data;
+}
+
+export async function apiCancelVoucher(voucherId: string): Promise<{ message: string }> {
+  const response = await apiClient.post<{ message: string }>(`/api/finance/vouchers/${voucherId}/cancel`);
+  return response.data;
+}
+
+export async function apiGetNextVoucherNumber(voucherType: string, fiscalYearId?: string): Promise<NextVoucherNumber> {
+  const response = await apiClient.get<NextVoucherNumber>(`/api/finance/next-voucher-number/${voucherType}`, {
+    params: fiscalYearId ? { fiscal_year_id: fiscalYearId } : {}
+  });
+  return response.data;
+}
+
+// ── Chart of Accounts ──
+export async function apiSeedChartOfAccounts(): Promise<{ groups_created: number; message: string }> {
+  const response = await apiClient.post<{ groups_created: number; message: string }>("/api/finance/seed-chart-of-accounts");
+  return response.data;
+}
+
+// ── Carry Forward ──
+export async function apiCarryForward(sourceFyId: string, targetFyId: string): Promise<{ ledgers_carried: number; message: string }> {
+  const response = await apiClient.post<{ ledgers_carried: number; message: string }>("/api/finance/carry-forward", {
+    source_fiscal_year_id: sourceFyId,
+    target_fiscal_year_id: targetFyId
+  });
+  return response.data;
+}
+
+// ── Reporting APIs ──
+export async function apiGetDayBook(fromDate: string, toDate: string, fiscalYearId?: string): Promise<DayBookResponse> {
+  const response = await apiClient.get<DayBookResponse>("/api/finance/daybook", {
+    params: { from_date: fromDate, to_date: toDate, ...(fiscalYearId ? { fiscal_year_id: fiscalYearId } : {}) }
+  });
+  return response.data;
+}
+
+export async function apiGetLedgerStatement(ledgerId: string, fromDate: string, toDate: string, fiscalYearId?: string): Promise<LedgerStatementResponse> {
+  const response = await apiClient.get<LedgerStatementResponse>(`/api/finance/ledger-statement/${ledgerId}`, {
+    params: { from_date: fromDate, to_date: toDate, ...(fiscalYearId ? { fiscal_year_id: fiscalYearId } : {}) }
+  });
+  return response.data;
+}
+
+export async function apiGetTrialBalance(asOfDate?: string, fiscalYearId?: string): Promise<TrialBalanceResponse> {
+  const response = await apiClient.get<TrialBalanceResponse>("/api/finance/trial-balance", {
+    params: { ...(asOfDate ? { as_of_date: asOfDate } : {}), ...(fiscalYearId ? { fiscal_year_id: fiscalYearId } : {}) }
+  });
+  return response.data;
+}
+
+export async function apiGetProfitLoss(fromDate: string, toDate: string, fiscalYearId?: string): Promise<PLResponse> {
+  const response = await apiClient.get<PLResponse>("/api/finance/profit-loss", {
+    params: { from_date: fromDate, to_date: toDate, ...(fiscalYearId ? { fiscal_year_id: fiscalYearId } : {}) }
+  });
+  return response.data;
+}
+
+export async function apiGetBalanceSheet(asOfDate?: string, fiscalYearId?: string): Promise<BalanceSheetResponse> {
+  const response = await apiClient.get<BalanceSheetResponse>("/api/finance/balance-sheet", {
+    params: { ...(asOfDate ? { as_of_date: asOfDate } : {}), ...(fiscalYearId ? { fiscal_year_id: fiscalYearId } : {}) }
+  });
+  return response.data;
+}
+
+// ==========================================
+// SYSTEM CRASH RECOVERY APIS
+// ==========================================
+
+export interface ErrorEntry {
+  id: string;
+  module_name: string;
+  json_payload: string;
+  created_at: string;
+  restart_count_at_creation: number;
+}
+
+export async function apiGetDrafts(): Promise<ErrorEntry[]> {
+  const response = await apiClient.get<ErrorEntry[]>("/api/system/drafts");
+  return response.data;
+}
+
+export async function apiSaveDraft(module_name: string, json_payload: string): Promise<ErrorEntry> {
+  const response = await apiClient.post<ErrorEntry>("/api/system/drafts", { module_name, json_payload });
+  return response.data;
+}
+
+export async function apiDeleteDraft(draft_id: string): Promise<{message: string}> {
+  const response = await apiClient.delete<{message: string}>(`/api/system/drafts/${draft_id}`);
+  return response.data;
+}
