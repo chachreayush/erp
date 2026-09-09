@@ -181,45 +181,31 @@ const getProductHistory = (productName?: string): SalesHistoryRecord[] => {
 const getAvailableBatchesForProduct = (productName: string, currentGridRows: any[] = [], activeRowId: number = -1): SalesHistoryRecord[] => {
   if (!productName || !productName.trim()) return [];
   const name = productName.trim().toLowerCase();
-  const results: SalesHistoryRecord[] = [];
-  const seen = new Set<string>();
-
-  // 1. Check if another row in current grid has an entered batch (e.g. Row 1 when user is on Row 2)
+  
+  // 1. Get base historical batches
+  const pastHistory = getProductHistory(productName);
+  
+  // Deep clone to avoid mutating the original mock data
+  const results = pastHistory.map(rec => ({ ...rec }));
+  
+  // 2. Subtract quantities drafted in the current bill (excluding the active row)
   if (Array.isArray(currentGridRows)) {
     currentGridRows.forEach(row => {
       if (row.id !== activeRowId && row.product?.trim().toLowerCase() === name && row.batch?.trim()) {
-        const bCode = row.batch.trim().toUpperCase();
-        if (!seen.has(bCode.toLowerCase())) {
-          seen.add(bCode.toLowerCase());
-          results.push({
-            party: 'Current Voucher Item',
-            billNo: 'THIS BILL',
-            date: getTodayFormatted(),
-            qty: parseFloat(row.qty) || 100,
-            batch: row.batch.trim(),
-            expiry: row.expiry || '12/28',
-            rate: parseFloat(row.prate) || 0,
-            srate: Number(((parseFloat(row.prate) || 0) * 1.3).toFixed(2)),
-            mrg: '25.00%',
-            mrp: parseFloat(row.mrp) || 0,
-            disc: parseFloat(row.dis) || 0,
-            deal: '0.00',
-            cost: parseFloat(row.prate) || 0,
-            godown: '1'
-          });
+        const draftedQty = parseFloat(row.qty) || 0;
+        const draftedFree = parseFloat(row.free) || 0;
+        const totalDrafted = draftedQty + draftedFree;
+        
+        if (totalDrafted > 0) {
+          const bCode = row.batch.trim().toLowerCase();
+          const existingBatch = results.find(r => r.batch.toLowerCase() === bCode);
+          if (existingBatch) {
+            existingBatch.qty = Math.max(0, existingBatch.qty - totalDrafted);
+          }
         }
       }
     });
   }
-
-  // 2. Combine with actual saved historical bills
-  const pastHistory = getProductHistory(productName);
-  pastHistory.forEach(rec => {
-    if (!seen.has(rec.batch.toLowerCase())) {
-      seen.add(rec.batch.toLowerCase());
-      results.push(rec);
-    }
-  });
 
   return results;
 };
