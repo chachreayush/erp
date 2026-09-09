@@ -132,3 +132,9 @@ To keep inventory and accounts correct, items move through the software in a spe
 ### Feature Updates (August 2026)
 - The F3 Batch Modal now hides zero-quantity batches by default. To view them, press the **ArrowUp** key when selecting the topmost batch.
 - Each transaction type (Sales Bill, Challan, Purchase, Brk/Exp, GST) now maintains an independent auto-incrementing Entry No series (e.g. S0001, CRN0001). The system automatically prevents you from creating duplicates.
+
+
+### Recent Updates (September 2026)
+- **Deep Architecture Validation:** Successfully completed a comprehensive code and visual audit of the Multi-Tenant (AM/CM) structure, CQRS Append-Only Ledgers, and Bill-by-Bill allocations.
+- **Claude UI Handoff:** Formally assigned the UI/UX implementation of the Receipt Modal, Challan-to-Invoice Conversion Screen, CRM Permissions Grid, and ERP Finance & Billing Master to Claude (via `Frontend_UI_UX_Spec_For_Claude.docx`).
+- **Sync & Deployment:** Synced the `erp2` repository back to the original `erp` folder, committed to Git, and aligned with Vercel for continuous deployment.
