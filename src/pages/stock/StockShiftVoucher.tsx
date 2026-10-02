@@ -61,7 +61,7 @@ export default function StockShiftVoucher() {
           <button onClick={() => navigate(-1)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
             <ArrowLeft size={20} />
           </button>
-          <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0, color: '#f8fafc' }}>Internal Stock Shift (Main -> Brk/Exp)</h1>
+          <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0, color: '#f8fafc' }}>Internal Stock Shift (Main -&gt; Brk/Exp)</h1>
         </div>
         <button onClick={handleSave} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', padding: '8px 16px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Save size={16} /> Save Shift Voucher
