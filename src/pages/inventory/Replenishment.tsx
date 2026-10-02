@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import React, { useEffect, useState } from 'react';
+import apiClient from '../../lib/api';
 import { Settings, Calculator, ShoppingCart, List, FileText } from 'lucide-react';
 
 export default function Replenishment() {
@@ -16,6 +17,24 @@ export default function Replenishment() {
   }, [navigate]);
 
   const [activeTab, setActiveTab] = useState('proposals');
+  const [proposals, setProposals] = useState<any[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const generateProposals = async () => {
+    try {
+      setIsGenerating(true);
+      const res = await apiClient.post('/replenishment/proposals/generate');
+      if (res.data && res.data.proposals) {
+        setProposals(res.data.proposals);
+      }
+    } catch (error) {
+      console.error('Failed to generate proposals', error);
+      alert('Failed to generate proposals. Please check server connection.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
 
   return (
     <div style={{ backgroundColor: '#0b1120', flex: 1, display: 'flex', flexDirection: 'column', color: '#f8fafc', padding: '16px', height: '100vh', boxSizing: 'border-box' }}>
@@ -45,8 +64,8 @@ export default function Replenishment() {
             <div style={{ fontSize: '13px', color: '#94a3b8' }}>
               Select criteria to generate new purchase proposals based on current Reorder-Eligible stock.
             </div>
-            <button style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', padding: '8px 16px', fontSize: '13px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Calculator size={16} /> Generate Proposals
+            <button onClick={generateProposals} disabled={isGenerating} style={{ backgroundColor: isGenerating ? '#94a3b8' : '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', padding: '8px 16px', fontSize: '13px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Calculator size={16} /> {isGenerating ? 'Generating...' : 'Generate Proposals'}
             </button>
           </div>
           
@@ -62,12 +81,30 @@ export default function Replenishment() {
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
-                    <List size={32} style={{ opacity: 0.5, marginBottom: '12px', display: 'block', margin: '0 auto' }} />
-                    No proposals generated yet. Click "Generate Proposals" to run the engine.
-                  </td>
-                </tr>
+                {proposals.length > 0 ? (
+                  proposals.map((p, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #334155' }}>
+                      <td style={{ padding: '12px 16px', color: '#f8fafc' }}>{p.product}</td>
+                      <td style={{ padding: '12px 16px', color: '#94a3b8' }}>
+                        <span style={{ backgroundColor: '#1e293b', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontFamily: 'monospace' }}>{p.explanation}</span>
+                      </td>
+                      <td style={{ padding: '12px 16px', textAlign: 'right', color: '#f8fafc' }}>100</td>
+                      <td style={{ padding: '12px 16px', textAlign: 'right', color: '#34d399', fontWeight: 'bold' }}>{p.suggested_qty}</td>
+                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                        <button style={{ backgroundColor: 'transparent', color: '#38bdf8', border: '1px solid #334155', borderRadius: '4px', padding: '4px 8px', fontSize: '12px', cursor: 'pointer' }}>
+                          Approve
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                      <List size={32} style={{ opacity: 0.5, marginBottom: '12px', display: 'block', margin: '0 auto' }} />
+                      No proposals generated yet. Click "Generate Proposals" to run the engine.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
