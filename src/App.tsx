@@ -177,7 +177,11 @@ function App() {
           Any unknown URL redirects to "/" (dashboard).
           The ProtectedRoute will then redirect to /login if needed.
       ─────────────────────────────────────────────────────── */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="/inventory" element={<ProtectedRoute><InventoryDashboard /></ProtectedRoute>} />
+          <Route path="/inventory/customer-claims" element={<ProtectedRoute><CustomerClaims /></ProtectedRoute>} />
+          <Route path="/inventory/vendor-claims" element={<ProtectedRoute><VendorClaims /></ProtectedRoute>} />
+          <Route path="/inventory/replenishment" element={<ProtectedRoute><Replenishment /></ProtectedRoute>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </ThemeProvider>
   )
