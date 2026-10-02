@@ -1,7 +1,20 @@
-import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import React, { useEffect, { useState } from 'react';
 import { Settings, Calculator, ShoppingCart, List, FileText } from 'lucide-react';
 
 export default function Replenishment() {
+
+  const navigate = useNavigate();
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        navigate('/dashboard');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate]);
+
   const [activeTab, setActiveTab] = useState('proposals');
 
   return (
