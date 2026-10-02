@@ -128,13 +128,19 @@ const financeMenuItems: MenuItem[] = [
 
 const inventoryMenuItems: MenuItem[] = [
   { label: 'Product', type: 'product' },
-  { label: 'Current Stock', type: 'current-stock' }
+  { label: 'Current Stock', type: 'current-stock' },
+  { label: 'Claims & Replenishment', type: 'claims' }
 ]
 
 const inventorySubItemsMap: Record<string, { label: string; path: string }[]> = {
   'product': [
     { label: 'Create', path: '/inventory?action=create' },
     { label: 'Modify', path: '/inventory?action=modify' }
+  ],
+  'claims': [
+    { label: 'Customer Intake', path: '/inventory/customer-claims' },
+    { label: 'Vendor Claims', path: '/inventory/vendor-claims' },
+    { label: 'Reorder Engine', path: '/inventory/replenishment' }
   ],
   'current-stock': [
     { label: 'View Stock', path: '/stock' },

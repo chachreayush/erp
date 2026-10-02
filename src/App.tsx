@@ -66,6 +66,10 @@ import FinanceReports from './pages/finance/FinanceReports'
 import CurrentStockPage from './pages/stock/CurrentStock'
 
 import GstReports from './pages/gst/GstReports'
+import InventoryDashboard from './pages/inventory/InventoryDashboard';
+import CustomerClaims from './pages/inventory/CustomerClaims';
+import VendorClaims from './pages/inventory/VendorClaims';
+import Replenishment from './pages/inventory/Replenishment';
 
 // ── PROTECTED ROUTE WRAPPER ───────────────────────────────────
 // This component wraps any page that requires authentication.
