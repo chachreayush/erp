@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import React, { useEffect, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Settings, Calculator, ShoppingCart, List, FileText } from 'lucide-react';
 
 export default function Replenishment() {

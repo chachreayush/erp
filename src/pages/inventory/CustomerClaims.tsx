@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import React, { useEffect, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Search, Info, AlertCircle, RefreshCw } from 'lucide-react';
 
 export default function CustomerClaims() {
