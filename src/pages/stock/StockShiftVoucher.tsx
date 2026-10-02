@@ -54,78 +54,78 @@ export default function StockShiftVoucher() {
   };
 
   return (
-    <div style={{ backgroundColor: '#0b1120', flex: 1, display: 'flex', flexDirection: 'column', color: '#f8fafc', padding: '16px', height: '100vh', boxSizing: 'border-box' }}>
+    <div style={{ backgroundColor: 'var(--color-bg)', flex: 1, display: 'flex', flexDirection: 'column', color: 'var(--color-text)', padding: '20px', height: '100%', boxSizing: 'border-box' }}>
       {/* Action Bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', padding: '12px 20px', borderRadius: '8px', border: '1px solid #334155', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--color-bg-subtle)', padding: '12px 20px', borderRadius: '8px', border: '1px solid var(--color-border)', marginBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <button onClick={() => navigate(-1)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+          <button onClick={() => navigate(-1)} style={{ background: 'transparent', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
             <ArrowLeft size={20} />
           </button>
-          <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0, color: '#f8fafc' }}>Internal Stock Shift (Main -&gt; Brk/Exp)</h1>
+          <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0, color: 'var(--color-text)' }}>Internal Stock Shift (Main -&gt; Brk/Exp)</h1>
         </div>
-        <button onClick={handleSave} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', padding: '8px 16px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <button onClick={handleSave} style={{ backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', padding: '8px 16px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Save size={16} /> Save Shift Voucher
         </button>
       </div>
 
       {/* Header Info */}
       <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
-        <div style={{ flex: 1, backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '16px' }}>
-          <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>Shift Date</label>
-          <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '0 8px' }}>
-            <Calendar size={14} color="#64748b" />
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ background: 'transparent', border: 'none', color: '#f8fafc', padding: '8px', fontSize: '13px', width: '100%', outline: 'none' }} />
+        <div style={{ flex: 1, backgroundColor: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '16px' }}>
+          <label style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '4px' }}>Shift Date</label>
+          <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '0 8px' }}>
+            <Calendar size={14} color="var(--color-text-muted)" />
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ background: 'transparent', border: 'none', color: 'var(--color-text)', padding: '8px', fontSize: '13px', width: '100%', outline: 'none' }} />
           </div>
         </div>
-        <div style={{ flex: 1, backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '16px' }}>
-          <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>Shift Voucher No.</label>
-          <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '0 8px' }}>
-            <FileText size={14} color="#64748b" />
-            <input type="text" value={shiftNo} onChange={(e) => setShiftNo(e.target.value)} style={{ background: 'transparent', border: 'none', color: '#f8fafc', padding: '8px', fontSize: '13px', width: '100%', outline: 'none' }} />
+        <div style={{ flex: 1, backgroundColor: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '16px' }}>
+          <label style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '4px' }}>Shift Voucher No.</label>
+          <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '0 8px' }}>
+            <FileText size={14} color="var(--color-text-muted)" />
+            <input type="text" value={shiftNo} onChange={(e) => setShiftNo(e.target.value)} style={{ background: 'transparent', border: 'none', color: 'var(--color-text)', padding: '8px', fontSize: '13px', width: '100%', outline: 'none' }} />
           </div>
         </div>
-        <div style={{ flex: 2, backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '16px' }}>
-          <label style={{ display: 'block', fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>Remarks / Reason</label>
-          <input type="text" placeholder="e.g. Found expired on Shelf A" value={remarks} onChange={(e) => setRemarks(e.target.value)} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '4px', color: '#f8fafc', padding: '8px', fontSize: '13px', width: '100%', outline: 'none', boxSizing: 'border-box' }} />
+        <div style={{ flex: 2, backgroundColor: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '16px' }}>
+          <label style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '4px' }}>Remarks / Reason</label>
+          <input type="text" placeholder="e.g. Found expired on Shelf A" value={remarks} onChange={(e) => setRemarks(e.target.value)} style={{ backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-text)', padding: '8px', fontSize: '13px', width: '100%', outline: 'none', boxSizing: 'border-box' }} />
         </div>
       </div>
 
       {/* Grid */}
-      <div style={{ flex: 1, backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ flex: 1, backgroundColor: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: '8px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ flex: 1, overflowY: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead style={{ backgroundColor: '#1e293b', position: 'sticky', top: 0 }}>
+            <thead style={{ backgroundColor: 'var(--color-table-header)', position: 'sticky', top: 0 }}>
               <tr>
-                <th style={{ padding: '10px 16px', textAlign: 'left', color: '#94a3b8', fontWeight: '500', width: '40px' }}>#</th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', color: '#94a3b8', fontWeight: '500' }}>Product (Main Stock)</th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', color: '#94a3b8', fontWeight: '500' }}>Batch</th>
-                <th style={{ padding: '10px 16px', textAlign: 'right', color: '#94a3b8', fontWeight: '500', width: '120px' }}>Qty</th>
-                <th style={{ padding: '10px 16px', textAlign: 'right', color: '#94a3b8', fontWeight: '500', width: '120px' }}>Rate</th>
-                <th style={{ padding: '10px 16px', textAlign: 'right', color: '#94a3b8', fontWeight: '500', width: '120px' }}>Value</th>
-                <th style={{ padding: '10px 16px', textAlign: 'center', color: '#94a3b8', fontWeight: '500', width: '60px' }}></th>
+                <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--color-text)', fontWeight: '500', width: '40px', borderBottom: '1px solid var(--color-border)' }}>#</th>
+                <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--color-text)', fontWeight: '500', borderBottom: '1px solid var(--color-border)' }}>Product (Main Stock)</th>
+                <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--color-text)', fontWeight: '500', borderBottom: '1px solid var(--color-border)' }}>Batch</th>
+                <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--color-text)', fontWeight: '500', width: '120px', borderBottom: '1px solid var(--color-border)' }}>Qty</th>
+                <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--color-text)', fontWeight: '500', width: '120px', borderBottom: '1px solid var(--color-border)' }}>Rate</th>
+                <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--color-text)', fontWeight: '500', width: '120px', borderBottom: '1px solid var(--color-border)' }}>Value</th>
+                <th style={{ padding: '10px 16px', textAlign: 'center', color: 'var(--color-text)', fontWeight: '500', width: '60px', borderBottom: '1px solid var(--color-border)' }}></th>
               </tr>
             </thead>
             <tbody>
               {items.map((item, index) => (
-                <tr key={item.id} style={{ borderBottom: '1px solid #1e293b' }}>
-                  <td style={{ padding: '8px 16px', color: '#64748b' }}>{index + 1}</td>
+                <tr key={item.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: '8px 16px', color: 'var(--color-text-muted)' }}>{index + 1}</td>
                   <td style={{ padding: '8px 16px' }}>
-                    <input type="text" placeholder="Select Product" value={item.product} onChange={(e) => updateItem(item.id, 'product', e.target.value)} style={{ backgroundColor: 'transparent', border: 'none', color: '#f8fafc', width: '100%', outline: 'none' }} />
+                    <input type="text" placeholder="Select Product" value={item.product} onChange={(e) => updateItem(item.id, 'product', e.target.value)} style={{ backgroundColor: 'transparent', border: 'none', color: 'var(--color-text)', width: '100%', outline: 'none' }} />
                   </td>
                   <td style={{ padding: '8px 16px' }}>
-                    <input type="text" placeholder="Batch No" value={item.batch} onChange={(e) => updateItem(item.id, 'batch', e.target.value)} style={{ backgroundColor: 'transparent', border: 'none', color: '#f8fafc', width: '100%', outline: 'none' }} />
+                    <input type="text" placeholder="Batch No" value={item.batch} onChange={(e) => updateItem(item.id, 'batch', e.target.value)} style={{ backgroundColor: 'transparent', border: 'none', color: 'var(--color-text)', width: '100%', outline: 'none' }} />
                   </td>
                   <td style={{ padding: '8px 16px' }}>
-                    <input type="number" value={item.qty || ''} onChange={(e) => updateItem(item.id, 'qty', e.target.value)} style={{ backgroundColor: 'transparent', border: 'none', color: '#f8fafc', width: '100%', outline: 'none', textAlign: 'right' }} />
+                    <input type="number" value={item.qty || ''} onChange={(e) => updateItem(item.id, 'qty', e.target.value)} style={{ backgroundColor: 'transparent', border: 'none', color: 'var(--color-text)', width: '100%', outline: 'none', textAlign: 'right' }} />
                   </td>
                   <td style={{ padding: '8px 16px' }}>
-                    <input type="number" value={item.rate || ''} onChange={(e) => updateItem(item.id, 'rate', e.target.value)} style={{ backgroundColor: 'transparent', border: 'none', color: '#f8fafc', width: '100%', outline: 'none', textAlign: 'right' }} />
+                    <input type="number" value={item.rate || ''} onChange={(e) => updateItem(item.id, 'rate', e.target.value)} style={{ backgroundColor: 'transparent', border: 'none', color: 'var(--color-text)', width: '100%', outline: 'none', textAlign: 'right' }} />
                   </td>
-                  <td style={{ padding: '8px 16px', textAlign: 'right', color: '#f8fafc' }}>
+                  <td style={{ padding: '8px 16px', textAlign: 'right', color: 'var(--color-text)', fontWeight: '500' }}>
                     {item.value.toFixed(2)}
                   </td>
                   <td style={{ padding: '8px 16px', textAlign: 'center' }}>
-                    <button onClick={() => removeRow(item.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
+                    <button onClick={() => removeRow(item.id)} style={{ background: 'transparent', border: 'none', color: 'var(--color-danger)', cursor: 'pointer' }}>
                       <Trash2 size={16} />
                     </button>
                   </td>
@@ -136,19 +136,19 @@ export default function StockShiftVoucher() {
         </div>
         
         {/* Footer Summary */}
-        <div style={{ backgroundColor: '#0b1120', borderTop: '1px solid #334155', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <button onClick={addRow} style={{ backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #334155', borderRadius: '4px', padding: '6px 12px', fontSize: '12px', cursor: 'pointer' }}>
+        <div style={{ backgroundColor: 'var(--color-bg)', borderTop: '1px solid var(--color-border)', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <button onClick={addRow} style={{ backgroundColor: 'var(--color-bg-subtle)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '6px 12px', fontSize: '12px', cursor: 'pointer' }}>
             + Add Row
           </button>
           
           <div style={{ display: 'flex', gap: '32px' }}>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '2px' }}>Total Shift Qty</div>
-              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#f8fafc' }}>{totalQty}</div>
+              <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginBottom: '2px' }}>Total Shift Qty</div>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--color-text)' }}>{totalQty}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '2px' }}>Total Shift Value</div>
-              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#fbbf24' }}>₹{totalValue.toFixed(2)}</div>
+              <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginBottom: '2px' }}>Total Shift Value</div>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--color-primary)' }}>₹{totalValue.toFixed(2)}</div>
             </div>
           </div>
         </div>
