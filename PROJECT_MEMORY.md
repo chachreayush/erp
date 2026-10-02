@@ -120,3 +120,6 @@ robocopy C:\Users\DELL\OneDrive\Desktop\erp2\backend C:\Users\DELL\OneDrive\Desk
 - **Deep Architecture Validation:** Successfully completed a comprehensive code and visual audit of the Multi-Tenant (AM/CM) structure, CQRS Append-Only Ledgers, and Bill-by-Bill allocations.
 - **Claude UI Handoff:** Formally assigned the UI/UX implementation of the Receipt Modal, Challan-to-Invoice Conversion Screen, CRM Permissions Grid, and ERP Finance & Billing Master to Claude (via `Frontend_UI_UX_Spec_For_Claude.docx`).
 - **Sync & Deployment:** Synced the `erp2` repository back to the original `erp` folder, committed to Git, and aligned with Vercel for continuous deployment.
+
+## [Update - DOC-14 & DOC-15 Integration]
+Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Scheme Settlement (DOC-14) in Purchase/Sales flows. Purchase Bill Layout restructured and fixed.

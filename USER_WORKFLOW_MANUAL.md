@@ -101,3 +101,6 @@ The new Admin Dashboard features a highly visual, data-first approach:
 - Top 4 Cards: Finance Hub, Supply Chain, Human Capital, Projects & Tasks.
 - Middle Section: Auto-scaling Geographic Sales Map.
 - Bottom Section: Platform Alerts (Severity/Warning indicators) and Global Stats with trend lines.
+
+## [Update - DOC-14 & DOC-15 Integration]
+Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Scheme Settlement (DOC-14) in Purchase/Sales flows. Purchase Bill Layout restructured and fixed.

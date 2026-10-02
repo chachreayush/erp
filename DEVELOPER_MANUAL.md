@@ -122,3 +122,6 @@ npm run build
 When building dashboard widgets:
 - Do NOT import heavy charting libraries like Recharts unless strictly necessary. Use simple inline SVGs (like the Sparkline component) for visual trends.
 - Use a dark, deep blue/black surface (`#1e1f23`) with glowing subtle borders (`#3b82f620`) to maintain the modern SaaS aesthetic.
+
+## [Update - DOC-14 & DOC-15 Integration]
+Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Scheme Settlement (DOC-14) in Purchase/Sales flows. Purchase Bill Layout restructured and fixed.
