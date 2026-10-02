@@ -1,0 +1,447 @@
+DOC-03
+USERS, ROLES & PERMISSIONS ENGINE
+Detailed implementation specification for platform-level administration, client-company administration and granular access control
+
+
+
+Table of Contents
+1. Purpose and Scope
+2. Permission Philosophy
+3. Administrative Layers
+4. Authority Boundary: Platform vs Client Company
+5. User Identity Model
+6. Role Model
+7. Permission Model
+8. Permission Types / Actions
+9. Scope Model
+10. Master Admin Permission Ceiling
+11. Client Company Permission Delegation
+12. Role Templates and Initial Provisioning
+13. Company Admin Console
+14. Platform Admin Console
+15. User Lifecycle
+16. Role Lifecycle
+17. Permission Assignment UX
+18. Field-Level and Data-Level Security
+19. Approval and Segregation of Duties
+20. Temporary / Emergency Access
+21. Platform Support Access
+22. Multi-Company Users
+23. Branch / Warehouse Scope
+24. Permission Evaluation Engine
+25. Caching and Performance
+26. Audit Trail
+27. Security Controls
+28. Local/LAN + Sync Considerations
+29. API / Service Requirements
+30. Data Model
+31. Failure and Edge Cases
+32. Small-Business vs Large-Business Modes
+33. Acceptance Criteria
+34. Non-Negotiable Rules
+35. Dependencies and Next Documents
+Appendix A. Permission Matrix Template
+Appendix B. Example Roles
+Appendix C. Example Permission Evaluation
+
+1. Purpose and Scope
+DOC-03 defines how identity, roles, permissions and administrative scope work throughout the ERP. It converts the platform hierarchy defined in DOC-01 and the authentication/session behavior defined in DOC-02 into an enforceable authorization system.
+PLATFORM / MASTER ADMIN
+        │
+        ├── defines permission ceiling
+        ├── creates client company
+        ├── provisions initial roles
+        └── can administer platform scope
+                ↓
+        CLIENT COMPANY
+                │
+        COMPANY ADMIN
+                │
+        ├── users
+        ├── roles
+        ├── company permissions
+        └── operational scope
+                ↓
+       COMPANY USERS
+This document does not define every module-specific permission. Instead, it defines the engine that later documents will use. Each future module must publish its permission catalog and its default role mapping within this framework.
+2. Permission Philosophy
+Permissions are a security boundary, not a UI convenience.
+Never depend on hiding a menu item as the only protection; authorization must be enforced server-side and at the data/service layer.
+The client company is autonomous for its own administration but subordinate to the platform boundary.
+Client admins may delegate downward, never upward.
+Platform Admin permissions must never be assignable by client users.
+Permission scope should be as narrow as practical: company, branch, warehouse, module, document type, action and sometimes field or record set.
+Default access should be minimal; privileges are added deliberately.
+Financially sensitive actions such as posting, reversal, deleting masters, changing opening balances and viewing cost/margin can require separate permission.
+Permission changes must be auditable and should have effective timestamps.
+Role templates should make setup fast, while custom permissions handle unusual business needs.
+
+3. Administrative Layers
+
+4. Authority Boundary: Platform vs Client Company
+PLATFORM ADMIN DOMAIN
+├─ Platform identity and authentication policy
+├─ Client-company lifecycle
+├─ Global service configuration
+├─ Permission ceiling
+├─ Platform roles
+├─ Platform audit
+└─ Platform support access
+
+CLIENT COMPANY DOMAIN
+├─ Company users
+├─ Company roles
+├─ Company permissions
+├─ Company masters
+├─ Company transactions
+└─ Company reports
+
+5. User Identity Model
+
+5.1 One person vs one user account
+The preferred design is one global identity with one or more company memberships rather than multiple unrelated login identities for the same person. The active company context is then selected at login or switched through an authorized company switcher. Where strict separation is required, a company-specific identity can still be used, but the authorization engine should treat company membership as the decisive scope.
+6. Role Model
+A role is a reusable bundle of permissions. A user may receive one or more roles; the effective permission set is the union of allowed permissions subject to explicit deny rules, scope limits and platform ceilings.
+USER
+  ↓
+ROLE(S)
+  ↓
+PERMISSIONS
+  ↓
+SCOPE
+  ↓
+EFFECTIVE ACCESS
+
+7. Permission Model
+Permissions should be atomic enough to be meaningful, but bundled into understandable groups so users do not face hundreds of unrelated toggles.
+MODULE
+  ↓
+RESOURCE / OBJECT
+  ↓
+ACTION
+  ↓
+SCOPE
+  ↓
+OPTIONAL FIELD / CONDITION
+
+8. Permission Types / Actions
+
+
+9. Scope Model
+The same role can be useful in a small company and a large organization because its scope can change without creating an entirely new permission system.
+PLATFORM
+  ↓
+COMPANY
+  ↓
+BRANCH
+  ↓
+WAREHOUSE
+  ↓
+DEPARTMENT / TEAM
+  ↓
+TERRITORY / ROUTE / PRINCIPAL (when applicable)
+  ↓
+RECORD / DOCUMENT (when supported)
+
+10. Master Admin Permission Ceiling
+The Platform / Master Admin sets the maximum permission set that each client company may use. Think of it as a ceiling rather than a mandatory permission assignment.
+PLATFORM CEILING
+   ↓
+CLIENT COMPANY AVAILABLE PERMISSIONS
+   ↓
+COMPANY ROLES
+   ↓
+USERS
+
+
+11. Client Company Permission Delegation
+The Client Company Admin can create their own roles and assign permissions for company users, but the effective permission of any company user can never exceed the company’s platform-defined ceiling.
+PLATFORM ADMIN
+   ↓ establishes ceiling
+COMPANY ADMIN
+   ↓ creates role
+ROLE
+   ↓ assigns permitted permissions
+USER
+   ↓
+EFFECTIVE PERMISSION = ROLE PERMISSIONS ∩ PLATFORM CEILING ∩ USER / SCOPE LIMITS
+11.1 What Company Admin can do
+Create users
+Deactivate company users
+Create custom company roles
+Clone an allowed role
+Assign company roles
+Set branch/warehouse/module scope
+Set approval limits if platform permits
+Remove company permissions
+Review company permission matrix
+View company audit history
+11.2 What Company Admin cannot do
+Access Platform Admin screens
+Create/modify Platform Admin roles
+Grant platform-level permissions
+Grant access to another client company unless explicitly delegated through platform membership
+Change the platform permission ceiling
+Change platform security policy
+Modify platform audit records
+12. Role Templates & Initial Provisioning
+When a new client company is created, the Platform Admin should be able to assign a starter permission package. The client can then tailor internal roles.
+
+These are templates, not irreversible assignments. The platform should allow the template to be configured before company activation.
+13. Company Admin Console
+COMPANY ADMIN
+├─ Users
+├─ Roles
+├─ Permissions
+├─ Branch / Warehouse Scope
+├─ Approval Rules (within ceiling)
+├─ Security Settings allowed by platform
+├─ User Sessions
+└─ Permission Audit
+13.1 Recommended permission screen
+┌──────────────────────────────────────────────────────────────┐
+│ ROLE: Billing Manager                        Company A        │
+├───────────────┬────────┬────────┬────────┬────────┬──────────┤
+│ Module        │ View   │ Create │ Edit   │ Approve│ Post     │
+├───────────────┼────────┼────────┼────────┼────────┼──────────┤
+│ Sales         │   ✓    │   ✓    │   ✓    │   ✓    │   ✓*     │
+│ Purchase      │   ✓    │   -    │   -    │   -    │   -      │
+│ Inventory     │   ✓    │   -    │   ✓    │   -    │   -      │
+│ Cargo         │   ✓    │   ✓    │   ✓    │   ✓    │   -      │
+│ Accounting    │   ✓    │   -    │   -    │   -    │   -      │
+└───────────────┴────────┴────────┴────────┴────────┴──────────┘
+* only if enabled by Platform ceiling
+14. Platform Admin Console
+PLATFORM ADMIN
+├─ Client Companies
+├─ Company Provisioning
+├─ Permission Ceilings
+├─ Platform Roles
+├─ Support Access
+├─ Global Security
+├─ Authentication Policy
+├─ System Health
+├─ Audit
+└─ Subscription / Feature Flags (future)
+15. User Lifecycle
+INVITED → PENDING → ACTIVE → SUSPENDED → REACTIVATED → DEACTIVATED / ARCHIVED
+
+16. Role Lifecycle
+SYSTEM TEMPLATE → CLONED → CUSTOMIZED → ACTIVE → DEPRECATED → ARCHIVED
+Do not silently change an active role in a way that surprises existing users. Major changes should be versioned or audited.
+When a role is retired, users should be reassigned or moved to a replacement role.
+A deleted role should normally be soft-deleted/archived if it has historical assignments.
+17. Permission Assignment UX
+Use module grouping, not a flat list of hundreds of checkboxes.
+Show inherited permissions and effective permissions separately.
+Show the source of a permission: Platform ceiling, role, user override, scope.
+Show blocked permissions as disabled with a reason, not as unexplained grey boxes.
+Provide role clone and compare tools.
+Provide “View Effective Access” for every user.
+Support keyboard navigation and bulk toggles.
+Require confirmation for high-risk changes.
+17.1 Effective access view
+USER: Rahul
+COMPANY: Client A
+ROLE: Billing Manager
+
+ALLOWED
+✓ Sales / Invoice / View
+✓ Sales / Invoice / Create
+✓ Sales / Invoice / Edit Draft
+✓ Sales / Invoice / Approve
+✗ Sales / Invoice / Reverse  [Platform ceiling blocks]
+✗ Accounting / Change Opening Balance [Platform-only]
+
+SCOPE
+✓ Branch: Chhindwara
+✓ Warehouse: Main
+✓ Principal: ABC Healthcare
+18. Field-Level & Data-Level Security
+Some permissions are not adequately expressed by module access alone.
+
+19. Approval & Segregation of Duties
+The permission engine should support separation of incompatible duties where the business chooses to use it.
+
+
+20. Temporary & Emergency Access
+Time-bound permission
+Reason required
+Optional approval
+Automatic expiry
+Visible session banner
+Full audit trail
+Optional read-only mode
+Cannot silently convert into permanent access
+REQUEST → APPROVE → ACTIVATE → USE → AUTO-EXPIRE → AUDIT
+21. Platform Support Access
+Platform support is different from ordinary client administration. The platform should support explicit support sessions for diagnosing client problems without giving clients platform control.
+
+22. Multi-Company Users
+A person may be authorized for multiple client companies. Their roles and permissions must be evaluated per company; access in Company A does not imply access in Company B.
+GLOBAL IDENTITY
+   ├─ Membership: Company A → Role set A
+   ├─ Membership: Company B → Role set B
+   └─ Membership: Company C → No access
+
+23. Branch & Warehouse Scope
+
+24. Permission Evaluation Engine
+Every protected request should resolve authorization through one consistent policy engine rather than scattered if/else logic in individual screens.
+REQUEST
+ ↓
+IDENTITY
+ ↓
+ACTIVE SESSION
+ ↓
+ACTIVE COMPANY CONTEXT
+ ↓
+USER MEMBERSHIP
+ ↓
+ROLE(S)
+ ↓
+PERMISSIONS
+ ↓
+PLATFORM CEILING
+ ↓
+SCOPE FILTERS
+ ↓
+CONDITIONS / FIELD RULES
+ ↓
+ALLOW / DENY + AUDIT EVENT
+24.1 Pseudocode concept
+authorize(user, company, resource, action, context):
+  assert authenticated
+  assert active company == requested company
+  assert user has membership in company
+  ceiling = platform_ceiling(company, resource, action)
+  if ceiling == DENY: return DENY
+  roles = active_roles(user, company)
+  grant = union(role permissions)
+  scope = effective_scope(user, roles, company)
+  if not grant.includes(resource, action): return DENY
+  if not scope.allows(context): return DENY
+  if condition_fails(context): return DENY
+  return ALLOW
+25. Caching & Performance
+Cache role/permission definitions safely with version numbers.
+Invalidate permission cache immediately after a permission change where possible.
+Never cache authorization decisions longer than policy permits.
+Use server-side policy evaluation for sensitive operations.
+For LAN/offline use, maintain a signed/validated authorization snapshot that can support local operation according to security policy.
+Permission changes must propagate through sync and should include a version or epoch number so stale permission sets can be detected.
+26. Permission Audit Trail
+
+27. Security Controls
+Server-side authorization
+Tenant/company isolation checks
+Least privilege
+Sensitive action step-up authentication when needed
+Session binding
+Permission change confirmation
+Admin role protection
+No client role can reference platform permission IDs
+No client API token can call platform-only endpoints
+Audit logs protected from normal users
+Rate limiting on permission-sensitive endpoints
+Secure failure messages
+
+28. Local/LAN + Sync Considerations
+Because this ERP is local-first, authorization must work locally while still converging correctly with the platform/cloud state.
+PLATFORM PERMISSION CHANGE
+        ↓
+AUTHORITY VERSION ++
+        ↓
+CLOUD / SYNC EVENT
+        ↓
+LOCAL PRIMARY SERVER
+        ↓
+LAN CLIENTS RECEIVE UPDATED POLICY
+
+A permission change should have a monotonic version/epoch.
+Critical revocations should be designed to propagate as a priority event.
+A disconnected client should not be allowed to invent a permission the local server did not authorize.
+Sensitive platform policy changes should be rejected offline if current authority cannot be verified, according to the security policy.
+Permission sync must be idempotent and auditable.
+29. API / Service Requirements
+
+API names are illustrative. Exact contracts will be defined in the API architecture document later. All mutating authorization endpoints must enforce server-side scope.
+30. Data Model
+
+30.1 Key relationships
+USER
+ ├─ MEMBERSHIP → COMPANY
+ │       └─ ROLE ASSIGNMENT → ROLE
+ │                         └─ PERMISSIONS
+ │
+COMPANY
+ └─ PLATFORM CEILING → AVAILABLE PERMISSIONS
+
+EFFECTIVE ACCESS = USER MEMBERSHIP + ROLE(S) + SCOPE + CEILING + CONDITIONS
+31. Failure & Edge Cases
+
+32. Small-Business vs Large-Business Modes
+The same permission engine should support both. Complexity should be progressive rather than architectural duplication.
+
+
+33. Acceptance Criteria
+A newly created client company receives only the permissions defined by the Platform Admin ceiling.
+Company Admin can create a custom role using allowed permissions.
+Company Admin cannot create or assign a Platform Admin role.
+Company Admin cannot access another client company unless explicitly given separate membership by Platform Admin.
+Client users cannot access Platform Admin screens or APIs.
+Permission checks occur server-side.
+User permissions can be limited by branch and warehouse.
+High-risk permissions can be separated from general module access.
+Permission changes are audited.
+Permission changes propagate through local/cloud sync with versioning.
+Permission revocation takes effect within the defined security SLA.
+Effective access can be inspected for any user.
+Role changes do not silently overwrite another administrator’s concurrent edits.
+All sensitive admin actions leave an audit trail.
+34. Non-Negotiable Rules
+1. Platform Admin controls the permission ceiling; Client Admin controls only what exists below that ceiling.
+2. Client Company permissions never grant access to the Platform Admin / Master Company layer.
+3. A company admin may not elevate themselves above the ceiling.
+4. Every role assignment is scoped to an explicit company membership.
+5. No browser-provided company/role/permission identifier is trusted without server authorization.
+6. Posted financial permissions remain subject to Accounting module rules and segregation-of-duties controls.
+7. Permission changes are auditable and versioned.
+8. Permission denial is the default when policy cannot be resolved safely for sensitive actions.
+9. Local-first operation never becomes a backdoor around platform authorization.
+10. Future modules must publish their permission catalog using this engine rather than inventing their own authorization system.
+35. Dependencies & Next Documents
+
+
+Appendix A. Permission Matrix Template
+
+Appendix B. Example Roles
+
+Appendix C. Example Permission Evaluation
+REQUEST: Rahul wants to post Invoice INV-10025
+
+1. Authentication → ACTIVE
+2. Active company → Client A
+3. Membership → Client A ✓
+4. Role → Billing Manager
+5. Permission → Sales.Invoice.Post ✓
+6. Platform ceiling → Sales.Invoice.Post allowed ✓
+7. Scope → Branch Chhindwara ✓
+8. Warehouse → Main Warehouse ✓
+9. Approval status → Approved ✓
+10. Period → Open ✓
+11. Credit / posting policy → Passed ✓
+
+RESULT → ALLOW + AUDIT
+REQUEST: Rahul wants to change Platform Admin permissions
+
+1. Authentication → ACTIVE
+2. Active company → Client A
+3. Resource → Platform Admin Role
+4. Scope → Platform
+5. Company Admin role → no platform scope
+
+RESULT → DENY + SECURITY AUDIT EVENT
+Implementation Conclusion
+DOC-03 establishes a hierarchical authorization model that preserves the separation defined in DOC-01 while allowing each client company to manage its own workforce. The key idea is not “one global permission list”; it is a layered policy: platform ceiling → company role → user membership → operational scope → action/condition → audit.
+This makes the same ERP suitable for a small business that needs a handful of simple roles and a large organization that needs delegated administrators, branch/warehouse scope, approval chains and sensitive-data controls—without creating different products or security models.

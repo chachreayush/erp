@@ -30,7 +30,7 @@ from sqlalchemy import (
     Enum as SAEnum   # A column that only accepts specific values
 )
 from sqlalchemy.orm import relationship  # Defines relationships between tables
-from sqlalchemy.dialects.postgresql import UUID  # PostgreSQL-specific UUID type
+from sqlalchemy.dialects.postgresql import UUID, JSONB  # PostgreSQL-specific types
 from database import Base  # The declarative base all models inherit from
 import uuid                # Python standard library for generating UUIDs
 from datetime import datetime  # For timestamps
@@ -113,6 +113,16 @@ class Organization(Base):
     # created_at: When this organization record was created.
     # default=datetime.utcnow means the timestamp is set automatically.
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # role_permissions: JSONB column storing granular module-level access per role.
+    # Example value:
+    # {
+    #   "manager": ["sales", "purchase", "inventory", "reports"],
+    #   "staff": ["sales", "inventory"],
+    #   "viewer": ["reports"]
+    # }
+    # If NULL, all roles get default full access.
+    role_permissions = Column(JSONB, nullable=True)
 
     # ── RELATIONSHIPS ───────────────────────────────────────────
     # A organization has many users. This line creates a list of all
@@ -310,7 +320,16 @@ class Product(Base):
     is_active = Column(Boolean, default=True, nullable=False)
 
     # ── RELATIONSHIPS ────────────────────────────────────────────
+    # DOC-11: New UOM & Multi-Tenant Batch Flags
+    base_uom = Column(String(50), nullable=True, default="EACH")
+    purchase_uom = Column(String(50), nullable=True)
+    sales_uom = Column(String(50), nullable=True)
+    pack_size = Column(String(100), nullable=True)
+    track_batch = Column(Boolean, default=True, nullable=False)
+    tax_rule_id = Column(String(100), nullable=True)
+
     organization = relationship("Organization", back_populates="products")
+    principal_mappings = relationship("ProductPrincipalMapping", back_populates="product", cascade="all, delete-orphan")
     company = relationship("Manufacturer", foreign_keys=[company_id])
     salt_relation = relationship("Salt", foreign_keys=[salt_id])
     hsn = relationship("HSNCode", foreign_keys=[hsn_id])
@@ -320,16 +339,39 @@ class Product(Base):
 
 
 # -- TABLE 5.1: Batch (Inventory) ------------------------------
+class ProductPrincipalMapping(Base):
+    __tablename__ = "product_principal_mappings"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_id = Column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    principal_code = Column(String(100), nullable=False)
+    principal_name = Column(String(255), nullable=True)
+    principal_uom = Column(String(50), nullable=True)
+    principal_pack = Column(String(100), nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    organization = relationship("Organization")
+    product = relationship("Product", back_populates="principal_mappings")
+
+
 class Batch(Base):
     __tablename__ = "batches"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     product_id = Column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True)
+    principal_owner_id = Column(UUID(as_uuid=True), ForeignKey("principals.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     batch_number = Column(String(100), nullable=False, index=True)
     expiry = Column(String(50), nullable=True)
+    
+    # DOC-11 additions
+    mfg_date = Column(String(50), nullable=True)
+    sell_rate = Column(Numeric(12, 2), nullable=True, default=0)
     mrp = Column(Numeric(12, 2), nullable=False, default=0)
     rate = Column(Numeric(12, 2), nullable=False, default=0)
     rate_a = Column(Numeric(12, 2), nullable=False, default=0)
@@ -591,6 +633,10 @@ class LedgerGroup(Base):
     name = Column(String(255), nullable=False)
     parent_id = Column(UUID(as_uuid=True), ForeignKey("ledger_groups.id", ondelete="SET NULL"), nullable=True)
     
+    # NEW FIELDS: Account Hierarchy & Protections
+    class_type = Column(String(50), nullable=False, default="Asset") # 'Asset', 'Liability', 'Income', 'Expense'
+    is_system = Column(Boolean, default=False, nullable=False) # Prevents deletion/renaming of core groups
+    
     is_active = Column(Boolean, default=True, nullable=False)
 
     organization = relationship("Organization")
@@ -758,3 +804,474 @@ class ErrorEntry(Base):
 
     organization = relationship("Organization")
 
+
+# -- TABLE 22: InvoiceAllocation (Bill-by-Bill Allocation Engine) ----------
+class InvoiceAllocation(Base):
+    """
+    Maps a Receipt/Payment Voucher to specific Invoices, Credit Notes,
+    Debit Notes, or marks the amount as Floating (On Account advance).
+
+    BUSINESS RULES:
+    1. When a user enters a Receipt Voucher, they can allocate it against
+       one or more: Sales Invoices, Credit Notes (CN), Debit Notes (DN),
+       or previously unallocated Floating Vouchers.
+    2. If the user does not allocate the entire receipt amount, the
+       remaining balance is stored as a Floating/On Account advance
+       (is_floating=True, no target links). This can be pulled up and
+       allocated against future invoices.
+    3. APPEND-ONLY RULE: Once an allocation is saved, it is NEVER
+       hard-deleted. Mistakes are corrected by creating a new row
+       with a negative allocated_amount that offsets the original.
+
+    COLUMN LOGIC:
+    - source_voucher_id : The Receipt or Payment voucher being allocated.
+    - target_invoice_id : The Sales/Purchase Invoice being settled (nullable).
+    - target_cn_dn_id   : A Credit Note or Debit Note being settled (nullable).
+    - If BOTH target columns are NULL, the row is a Floating advance.
+    """
+    __tablename__ = "invoice_allocations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # ── Source: The Receipt/Payment Voucher being allocated ──
+    source_voucher_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("vouchers.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True
+    )
+
+    # ── Target: The Invoice being settled (nullable — NULL if floating) ──
+    target_invoice_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("invoices.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True
+    )
+
+    # ── Target: The Credit Note / Debit Note being settled (nullable) ──
+    target_cn_dn_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("vouchers.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True
+    )
+
+    # ── The amount allocated in this specific row ──
+    allocated_amount = Column(Numeric(15, 2), nullable=False)
+
+    # ── True if this row represents unallocated floating / on-account money ──
+    is_floating = Column(Boolean, default=False, nullable=False)
+
+    # ── Optional narration for audit trail ──
+    narration = Column(Text, nullable=True)
+
+    # ── Relationships ──
+    organization = relationship("Organization")
+    source_voucher = relationship(
+        "Voucher",
+        foreign_keys=[source_voucher_id],
+        backref="allocations_as_source"
+    )
+    target_invoice = relationship(
+        "Invoice",
+        foreign_keys=[target_invoice_id],
+        backref="allocations_as_target"
+    )
+    target_cn_dn = relationship(
+        "Voucher",
+        foreign_keys=[target_cn_dn_id],
+        backref="allocations_as_cn_dn"
+    )
+
+
+
+# -- DOC-10: Business Partner / Party Master ------------------------
+class Party(Base):
+    __tablename__ = "parties"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    legal_name = Column(String(255), nullable=False, index=True)
+    trade_name = Column(String(255), nullable=True)
+    pan = Column(String(15), nullable=True)
+    gst = Column(String(20), nullable=True)
+    status = Column(String(20), nullable=False, default='active') # 'active', 'inactive'
+
+    # Relationships
+    organization = relationship("Organization")
+    addresses = relationship("PartyAddress", back_populates="party", cascade="all, delete-orphan")
+    customer_profile = relationship("CustomerProfile", back_populates="party", uselist=False, cascade="all, delete-orphan")
+    supplier_profile = relationship("SupplierProfile", back_populates="party", uselist=False, cascade="all, delete-orphan")
+
+
+class PartyAddress(Base):
+    __tablename__ = "party_addresses"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    party_id = Column(UUID(as_uuid=True), ForeignKey("parties.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    address_type = Column(String(50), nullable=False) # 'Billing', 'Shipping', 'Corporate'
+    is_default = Column(Boolean, default=False, nullable=False)
+
+    line1 = Column(String(255), nullable=False)
+    line2 = Column(String(255), nullable=True)
+    city = Column(String(100), nullable=True)
+    state = Column(String(100), nullable=True)
+    pincode = Column(String(20), nullable=True)
+    country = Column(String(100), default="India")
+    
+    party = relationship("Party", back_populates="addresses")
+
+
+class CustomerProfile(Base):
+    __tablename__ = "customer_profiles"
+
+    party_id = Column(UUID(as_uuid=True), ForeignKey("parties.id", ondelete="CASCADE"), primary_key=True)
+    ledger_id = Column(UUID(as_uuid=True), ForeignKey("ledgers.id", ondelete="RESTRICT"), nullable=True) # Financial link
+    
+    route_id = Column(String(100), nullable=True) # String for now, can be FK to Routes later
+    credit_limit = Column(Numeric(15, 2), nullable=False, default=0)
+    credit_days = Column(Integer, nullable=False, default=0)
+    price_list = Column(String(50), nullable=True) # e.g. 'Retail', 'Wholesale'
+    
+    party = relationship("Party", back_populates="customer_profile")
+    ledger = relationship("Ledger")
+
+
+class SupplierProfile(Base):
+    __tablename__ = "supplier_profiles"
+
+    party_id = Column(UUID(as_uuid=True), ForeignKey("parties.id", ondelete="CASCADE"), primary_key=True)
+    ledger_id = Column(UUID(as_uuid=True), ForeignKey("ledgers.id", ondelete="RESTRICT"), nullable=True) # Financial link
+    
+    payment_terms = Column(String(100), nullable=True)
+    lead_time_days = Column(Integer, nullable=False, default=0)
+    supplier_rating = Column(String(20), nullable=True)
+    
+    party = relationship("Party", back_populates="supplier_profile")
+    ledger = relationship("Ledger")
+
+
+# -- DOC-12: Principal Master & Agreements ------------------------------
+
+class Principal(Base):
+    __tablename__ = "principals"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    code = Column(String(50), nullable=False, index=True)
+    legal_name = Column(String(255), nullable=False)
+    brand = Column(String(100), nullable=True)
+    gstin = Column(String(15), nullable=True)
+    status = Column(String(20), nullable=False, default='active') # active, suspended, archived
+    
+    # 🔗 RELATIONSHIPS 
+    organization = relationship("Organization")
+    agreements = relationship("PrincipalAgreement", back_populates="principal", cascade="all, delete-orphan")
+    warehouse_mappings = relationship("PrincipalWarehouseMapping", back_populates="principal", cascade="all, delete-orphan")
+
+
+class PrincipalAgreement(Base):
+    __tablename__ = "principal_agreements"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    principal_id = Column(UUID(as_uuid=True), ForeignKey("principals.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    version_name = Column(String(100), nullable=False)
+    valid_from = Column(DateTime, nullable=False)
+    valid_to = Column(DateTime, nullable=True)
+    commission_percent = Column(Numeric(5, 2), nullable=False, default=0)
+    handling_percent = Column(Numeric(5, 2), nullable=False, default=0)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    # 🔗 RELATIONSHIPS 
+    principal = relationship("Principal", back_populates="agreements")
+
+
+class PrincipalWarehouseMapping(Base):
+    __tablename__ = "principal_warehouse_mappings"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    principal_id = Column(UUID(as_uuid=True), ForeignKey("principals.id", ondelete="CASCADE"), nullable=False, index=True)
+    warehouse_id = Column(UUID(as_uuid=True), ForeignKey("warehouses.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    # 🔗 RELATIONSHIPS 
+    principal = relationship("Principal", back_populates="warehouse_mappings")
+    warehouse = relationship("Warehouse")
+
+
+# -- DOC-13: Warehouse & Transport Master -------------------------------
+
+class Warehouse(Base):
+    __tablename__ = "warehouses"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    code = Column(String(50), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    address = Column(Text, nullable=True)
+    manager_name = Column(String(100), nullable=True)
+    status = Column(String(20), nullable=False, default='active')
+
+    # Defaults for operations
+    default_receiving_bin_id = Column(UUID(as_uuid=True), nullable=True) # Logical foreign key to WarehouseBin
+    default_dispatch_bin_id = Column(UUID(as_uuid=True), nullable=True)
+    default_returns_bin_id = Column(UUID(as_uuid=True), nullable=True)
+
+    # 🔗 RELATIONSHIPS
+    zones = relationship("WarehouseZone", back_populates="warehouse", cascade="all, delete-orphan")
+
+
+class WarehouseZone(Base):
+    __tablename__ = "warehouse_zones"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    warehouse_id = Column(UUID(as_uuid=True), ForeignKey("warehouses.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    code = Column(String(50), nullable=False)
+    name = Column(String(100), nullable=False)
+    storage_type = Column(String(50), nullable=True) # e.g. Bulk, Picking, Cold
+    status = Column(String(20), nullable=False, default='active')
+
+    # 🔗 RELATIONSHIPS
+    warehouse = relationship("Warehouse", back_populates="zones")
+    bins = relationship("WarehouseBin", back_populates="zone", cascade="all, delete-orphan")
+
+
+class WarehouseBin(Base):
+    __tablename__ = "warehouse_bins"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    warehouse_id = Column(UUID(as_uuid=True), ForeignKey("warehouses.id", ondelete="CASCADE"), nullable=False, index=True)
+    zone_id = Column(UUID(as_uuid=True), ForeignKey("warehouse_zones.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    code = Column(String(50), nullable=False) # e.g. A1-R1-S1-B1
+    aisle = Column(String(20), nullable=True)
+    rack = Column(String(20), nullable=True)
+    shelf = Column(String(20), nullable=True)
+    bin_number = Column(String(20), nullable=True)
+    status = Column(String(20), nullable=False, default='available')
+
+    # 🔗 RELATIONSHIPS
+    zone = relationship("WarehouseZone", back_populates="bins")
+
+
+class Transporter(Base):
+    __tablename__ = "transporters"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    code = Column(String(50), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    gstin = Column(String(15), nullable=True)
+    contact_person = Column(String(100), nullable=True)
+    phone = Column(String(20), nullable=True)
+    status = Column(String(20), nullable=False, default='active')
+
+    # 🔗 RELATIONSHIPS
+    vehicles = relationship("Vehicle", back_populates="transporter", cascade="all, delete-orphan")
+
+
+class Vehicle(Base):
+    __tablename__ = "vehicles"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    transporter_id = Column(UUID(as_uuid=True), ForeignKey("transporters.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    registration_number = Column(String(50), nullable=False, index=True)
+    vehicle_type = Column(String(50), nullable=True) # e.g. LCV, HCV, 3-Wheeler
+    capacity_kg = Column(Numeric(10, 2), nullable=True)
+    driver_name = Column(String(100), nullable=True)
+    status = Column(String(20), nullable=False, default='active')
+
+    # 🔗 RELATIONSHIPS
+    transporter = relationship("Transporter", back_populates="vehicles")
+
+
+# -- DOC-14: Scheme & Free Goods Engine -------------------------------
+
+class Scheme(Base):
+    __tablename__ = "schemes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    principal_id = Column(UUID(as_uuid=True), ForeignKey("principals.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    code = Column(String(50), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    scheme_type = Column(String(50), nullable=False) # 'official', 'extra_allowance'
+    status = Column(String(20), nullable=False, default='active')
+
+    # 🔗 RELATIONSHIPS
+    versions = relationship("SchemeVersion", back_populates="scheme", cascade="all, delete-orphan")
+
+
+class SchemeVersion(Base):
+    __tablename__ = "scheme_versions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    scheme_id = Column(UUID(as_uuid=True), ForeignKey("schemes.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_id = Column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    version_number = Column(Integer, nullable=False, default=1)
+    valid_from = Column(Date, nullable=False)
+    valid_to = Column(Date, nullable=False)
+    
+    # Simple rule: buy_qty gets free_qty
+    buy_qty = Column(Numeric(10, 2), nullable=False, default=0)
+    free_qty = Column(Numeric(10, 2), nullable=False, default=0)
+    
+    status = Column(String(20), nullable=False, default='active')
+
+    # 🔗 RELATIONSHIPS
+    scheme = relationship("Scheme", back_populates="versions")
+    product = relationship("Product")
+
+
+class Entitlement(Base):
+    '''Tracks granted allowances like 3 extra units and their consumption'''
+    __tablename__ = "entitlements"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    scheme_version_id = Column(UUID(as_uuid=True), ForeignKey("scheme_versions.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    granted_qty = Column(Numeric(10, 2), nullable=False, default=0)
+    consumed_qty = Column(Numeric(10, 2), nullable=False, default=0)
+    claimable_qty = Column(Numeric(10, 2), nullable=False, default=0) # consumed_qty - claimed_qty
+    
+    status = Column(String(20), nullable=False, default='active')
+
+    # 🔗 RELATIONSHIPS
+    scheme_version = relationship("SchemeVersion")
+
+
+class SchemeMovement(Base):
+    '''Ledger of entitlement consumption against transactions'''
+    __tablename__ = "scheme_movements"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    entitlement_id = Column(UUID(as_uuid=True), ForeignKey("entitlements.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    document_type = Column(String(50), nullable=False) # e.g. 'invoice', 'challan'
+    document_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    qty = Column(Numeric(10, 2), nullable=False)
+    movement_type = Column(String(20), nullable=False) # 'consume', 'reverse'
+
+
+class SchemeClaim(Base):
+    '''Pending reimbursement claims sent to the principal'''
+    __tablename__ = "scheme_claims"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    principal_id = Column(UUID(as_uuid=True), ForeignKey("principals.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    claim_number = Column(String(50), nullable=False, index=True)
+    claim_date = Column(Date, nullable=False)
+    
+    total_claim_qty = Column(Numeric(10, 2), nullable=False, default=0)
+    settled_qty = Column(Numeric(10, 2), nullable=False, default=0)
+    status = Column(String(20), nullable=False, default='pending') # pending, approved, settled, rejected
+
+    # 🔗 RELATIONSHIPS
+    principal = relationship("Principal")
+
+
+# -- DOC-15: Pricing, Rate, MRP & Formula Engine ----------------------
+
+class PriceList(Base):
+    __tablename__ = "price_lists"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    code = Column(String(50), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(String(500), nullable=True)
+    status = Column(String(20), nullable=False, default='active')
+
+    rules = relationship("PriceListRule", back_populates="price_list", cascade="all, delete-orphan")
+
+
+class PriceListRule(Base):
+    __tablename__ = "price_list_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    price_list_id = Column(UUID(as_uuid=True), ForeignKey("price_lists.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_id = Column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    valid_from = Column(Date, nullable=False)
+    valid_to = Column(Date, nullable=False)
+    fixed_price = Column(Numeric(12, 4), nullable=False)
+    
+    price_list = relationship("PriceList", back_populates="rules")
+    product = relationship("Product")
+
+
+class PriceFormula(Base):
+    __tablename__ = "price_formulas"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    target_rate_type = Column(String(50), nullable=False) # e.g. 'retail'
+    source_rate_type = Column(String(50), nullable=False) # e.g. 'purchase'
+    operator = Column(String(20), nullable=False) # 'multiply', 'add_percent', etc.
+    operand = Column(Numeric(10, 4), nullable=False) # e.g. 1.20 for 20% markup
+    floor_price = Column(Numeric(12, 4), nullable=True)
+    
+    status = Column(String(20), nullable=False, default='active')
+
+
+class CustomerPriceConfig(Base):
+    __tablename__ = "customer_price_configs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    party_id = Column(UUID(as_uuid=True), ForeignKey("parties.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    default_rate_type = Column(String(50), nullable=True) # e.g. 'distributor'
+    price_list_id = Column(UUID(as_uuid=True), ForeignKey("price_lists.id", ondelete="SET NULL"), nullable=True)
+
+    party = relationship("Party")
+    price_list = relationship("PriceList")

@@ -409,6 +409,7 @@ export interface Ledger {
   id?: string
   name: string
   group_name: string
+  group_id?: string
   mobile?: string
   state?: string
   opening_balance: number
@@ -643,6 +644,28 @@ export async function apiRegisterOrganization(payload: ClientRegistrationRequest
   return response.data
 }
 
+// ── CRM PERMISSIONS API ──────────────────────────────────────
+
+export interface OrganizationPermissionsResponse {
+  org_id: string
+  org_name: string
+  role_permissions: Record<string, string[]> | null
+}
+
+export interface OrganizationPermissionsUpdate {
+  role_permissions: Record<string, string[]>
+}
+
+export async function apiGetOrganizationPermissions(orgId: string): Promise<OrganizationPermissionsResponse> {
+  const response = await apiClient.get<OrganizationPermissionsResponse>(`/api/organizations/${orgId}/permissions`)
+  return response.data
+}
+
+export async function apiUpdateOrganizationPermissions(orgId: string, payload: OrganizationPermissionsUpdate): Promise<OrganizationPermissionsResponse> {
+  const response = await apiClient.put<OrganizationPermissionsResponse>(`/api/organizations/${orgId}/permissions`, payload)
+  return response.data
+}
+
 export default apiClient
 
 export interface RegisterEntry {
@@ -719,6 +742,8 @@ export interface LedgerGroup {
   name: string;
   parent_id?: string | null;
   is_active: boolean;
+  class_type?: string;
+  is_system?: boolean;
 }
 
 export interface VoucherEntry {

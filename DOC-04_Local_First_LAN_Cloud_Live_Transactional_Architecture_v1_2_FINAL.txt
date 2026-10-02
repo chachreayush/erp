@@ -1,0 +1,488 @@
+DOC-04
+LOCAL-FIRST, LAN & CLOUD LIVE TRANSACTIONAL ARCHITECTURE
+Local installation • LAN high-volume operations • compact live cloud transaction tier • remote users • continuous synchronization • automatic backup
+
+Architectural requirement captured in this version
+The ERP is installed on the client’s local computer/local server for primary business operations. Remote users must access a compact, live cloud version of the company’s transactional ERP data. The cloud tier is not merely a backup: it is a live transactional data tier for remote users and is automatically synchronized with the local primary environment. The same cloud storage architecture also provides backup capability.
+Important implementation boundary
+Google Drive, OneDrive/SharePoint, or another supported low-cost provider may be used as the cloud persistence provider. The ERP must not open one SQLite/database file directly from a shared drive. Instead, the ERP must store transaction records/events as application-controlled objects and enforce transaction ordering, version checks, idempotency, commits, retries and reconciliation in its own application layer.
+
+
+Table of Contents
+1. Purpose and Scope
+2. Architecture Decision Summary
+3. Product Philosophy for Local-First ERP
+4. Definitions
+5. Target Deployment Models
+6. Logical Topology
+7. Local Primary Environment
+8. LAN Client Architecture
+9. Cloud Transactional Data Tier
+10. Live Remote User Experience
+11. Data Placement Strategy
+12. Transaction Lifecycle
+13. Local-to-Cloud Synchronization
+14. Cloud-to-Local Synchronization
+15. Remote Write Transactions
+16. Consistency, Concurrency & Conflict Control
+17. Transaction Identity & Idempotency
+18. Provider Abstraction
+19. Central Platform Cloud
+20. Client-Specific Cloud
+21. Automatic Backup Architecture
+22. Recovery & Disaster Scenarios
+23. Offline / Internet Failure
+24. Storage Quota & Provider Limits
+25. Security & Data Isolation
+26. Performance & Scalability
+27. Small-Business Mode
+28. Large-Business Mode
+29. Monitoring & Health
+30. Audit Trail
+31. Failure & Edge Cases
+32. Database/Object Organization
+33. API/Service Responsibilities
+34. Implementation Rules
+35. Testing Strategy
+36. Acceptance Criteria
+37. Dependencies
+38. Future Expansion
+Appendix A. Reference Record Layout
+Appendix B. Live Sync Status Model
+Appendix C. Example Transaction Scenarios
+Appendix D. Non-Negotiable Rules
+
+1. Purpose and Scope
+This document defines the architecture for the ERP deployment model in which the software runs primarily on local hardware, LAN users perform high-volume transactions locally, and remote users access a compact live cloud transactional data tier. It also defines how the same cloud storage layer supports automatic backup.
+The purpose is to make the ERP inexpensive to operate for small businesses while remaining capable of serving large businesses with more users, branches, warehouses and transaction volume. The architecture should scale by increasing processing/storage capacity and synchronization capacity rather than changing the fundamental product model.
+2. Architecture Decision Summary
+
+3. Product Philosophy for Local-First ERP
+HIGH-VOLUME / HEAVY WORK → LOCAL SERVER → FAST COMMIT
+LIGHT / REMOTE WORK → LIVE CLOUD TIER → AUTOMATIC SYNC → LOCAL PRIMARY
+                         ↓
+                    BACKUP / RECOVERY
+Local-first does not mean remote users see stale data by design; the cloud tier is intentionally live and is updated continuously when connectivity exists.
+Cloud storage is not treated as a shared executable database file. The ERP owns transaction semantics.
+Remote data is deliberately compact. The system should synchronize what remote roles actually need, not the entire local working set by default.
+Every accepted transaction receives a stable identity so the same transaction cannot be created twice during retries.
+The user should see the state of a transaction: pending sync, synced, conflict, rejected, or failed—not an unexplained disappearance.
+Live data meaning
+For this ERP, “live cloud database” means the cloud transactional tier is automatically updated as transactions occur and is continuously available to authorized remote users. It does not mean that a cloud file provider offers the same transactional semantics as a traditional relational database. The ERP application layer must provide those semantics.
+4. Definitions
+
+5. Target Deployment Models
+5.1 Small business
+Single local computer/server → optional LAN clients → one compact cloud tier → a few remote users
+Minimal setup wizard
+Simple default permissions
+Simple backup
+Single warehouse or few warehouses
+Low synchronization volume
+No paid database server required
+5.2 Medium business
+Local server → LAN team → cloud transaction tier → remote managers/sales/accounts → optional client cloud backup
+Multiple warehouses
+More concurrent users
+Approval workflows
+Principal-wise operations
+Higher sync frequency
+Dedicated backup policy
+5.3 Large business
+Primary local servers / sites → branch/LAN operations → centralized cloud transaction tiers → large remote workforce → optional company-specific cloud
+Multiple branches
+Multiple warehouses
+Delegated admins
+More granular permissions
+Higher concurrency
+Higher sync throughput
+Central monitoring
+Stronger disaster recovery
+One architecture, different scale
+Do not build separate “small” and “large” products. Use feature flags, role scopes, capacity settings and deployment topology to expose only the complexity each business needs.
+6. Logical Topology
+                         ERP PLATFORM / MASTER ADMIN
+                                  │
+                         CENTRAL CLOUD SPACE
+                                  │
+          ┌───────────────────────┼────────────────────────┐
+          ↓                       ↓                        ↓
+      COMPANY A               COMPANY B                COMPANY C
+          │                       │                        │
+   ┌──────┴──────┐         ┌──────┴──────┐          ┌──────┴──────┐
+   ↓             ↓         ↓             ↓          ↓             ↓
+LOCAL PRIMARY   REMOTE    LOCAL PRIMARY  REMOTE     LOCAL PRIMARY  REMOTE
+   │             │         │             │          │             │
+ LAN USERS   LIVE CLOUD   LAN USERS   LIVE CLOUD   LAN USERS  LIVE CLOUD
+Each company’s data namespace remains isolated. The platform cloud can store the transaction tier and backup material for all companies in separate company-scoped namespaces, but no company user receives platform-wide access.
+7. Local Primary Environment
+7.1 Responsibilities
+Full operational database
+High-volume transactions
+LAN concurrency coordination
+Primary accounting/stock processing
+Local print/PDF operations
+Local drafts/autosave
+Local queueing for cloud synchronization
+Local disaster-recovery cache
+7.2 Local components
+
+7.3 Local failure behavior
+The local ERP should remain usable for LAN operations as long as the local primary server/database is healthy. If the server stops, LAN clients should fail clearly and safely; they must not independently create duplicate “local primaries.”
+8. LAN Client Architecture
+Desktop/web client connects to local primary over LAN
+Low-latency operations
+Heavy data entry and billing performed locally
+Barcode/scanner operations supported
+Central permission evaluation from local primary
+No direct database-file sharing between workstations
+Clients maintain only temporary local UI/cache state
+LAN USER → AUTH → COMPANY CONTEXT → LOCAL API → LOCAL DB → COMMIT → SYNC QUEUE
+9. Cloud Transactional Data Tier
+The cloud tier is a live transactional representation of the company’s remote-accessible ERP state. It is intentionally compact and designed around provider APIs instead of allowing arbitrary concurrent file editing.
+9.1 What lives in the cloud tier
+Company identity and status needed for remote login
+Remote-visible masters
+Remote-visible current balances/summary data
+Remote-visible transactions
+Pending remote transaction events
+Indexes/manifests
+Version and revision metadata
+Audit/sync metadata
+Documents or references as configured
+Encrypted backup packages
+9.2 What does not have to live remotely
+Large local caches
+Unneeded historical detail
+High-volume intermediate working data
+Temporary barcode/scanner files
+Internal server diagnostics not needed remotely
+9.3 Live data requirement
+LOCAL COMMIT → CLOUD UPDATE → REMOTE USERS SEE UPDATED STATE
+REMOTE COMMIT → CLOUD UPDATE → LOCAL SERVER APPLIES → OTHER USERS SEE UPDATED STATE
+Live synchronization target
+The product should continuously attempt synchronization and should expose the current sync age/status. “Live” should be implemented as automatic change propagation as soon as the network and provider are available; the UI must not pretend a transaction is synchronized while it is still queued.
+10. Live Remote User Experience
+10.1 Remote login
+REMOTE USER → AUTHENTICATE → COMPANY CONTEXT → CLOUD TRANSACTION TIER → REMOTE DASHBOARD
+10.2 Remote reads
+Read current authorized balances and records from the cloud tier
+Show last synchronized timestamp
+Show stale/offline indicator when needed
+Use company-scoped permissions
+10.3 Remote writes
+Create compact transaction request/event
+Validate user permissions in cloud context
+Attach stable transaction ID
+Commit to cloud transaction tier
+Mark “Cloud committed / waiting local apply” when the local primary has not confirmed application
+Notify user when local application completes or rejects
+11. Data Placement Strategy
+
+12. Transaction Lifecycle
+1. USER ACTION
+   ↓
+2. LOCAL OR CLOUD VALIDATION
+   ↓
+3. CREATE STABLE TRANSACTION ID
+   ↓
+4. WRITE EVENT / RECORD
+   ↓
+5. WRITE COMMIT MARKER
+   ↓
+6. MARK SOURCE AS COMMITTED
+   ↓
+7. SYNC TO OTHER TIER
+   ↓
+8. APPLY + ACKNOWLEDGE
+   ↓
+9. UPDATE PROJECTION / INDEX
+   ↓
+10. AUDIT
+12.1 Source-of-truth rule
+For a heavy local transaction, the local primary is the first authoritative processor. For a remote light transaction, the cloud transaction tier can accept the request first, but the final application to the full local operational database must be acknowledged. Both paths carry the same immutable transaction identity.
+13. Local-to-Cloud Synchronization
+LOCAL DB COMMIT
+    ↓
+OUTBOX EVENT
+    ↓
+SYNC AGENT
+    ↓
+CLOUD PROVIDER API
+    ↓
+CLOUD RECORD / EVENT
+    ↓
+ACK
+    ↓
+OUTBOX MARKED SYNCED
+13.1 Required properties
+Ordered events where business ordering matters
+Stable event ID
+Company ID
+Entity ID
+Entity version
+Origin node
+Created timestamp
+Payload hash
+Retry count
+Acknowledgement state
+13.2 Remote visibility
+After a cloud commit has been accepted, subscribed remote sessions should receive or discover the new state without manual refresh. The UI may use push notifications, polling with change cursors, or provider change feeds depending on the implementation.
+14. Cloud-to-Local Synchronization
+CLOUD EVENT / REMOTE TRANSACTION
+    ↓
+CLOUD QUEUE / INDEX
+    ↓
+LOCAL SYNC AGENT
+    ↓
+VALIDATE LOCAL RULES
+    ↓
+APPLY TO LOCAL DB
+    ↓
+LOCAL COMMIT
+    ↓
+ACK TO CLOUD
+    ↓
+REMOTE STATUS = APPLIED
+14.1 When local validation rejects a remote transaction
+Do not silently delete the cloud transaction
+Mark it REJECTED/REQUIRES ACTION
+Store machine-readable and user-readable reason
+Create audit record
+Allow authorized user to correct/retry where policy permits
+15. Remote Write Transactions
+Remote users should not be limited to read-only access. The architecture supports controlled remote writes for tasks that the company enables, while protecting heavy, high-risk operations behind local processing or approval when necessary.
+
+Safety principle
+Remote access should expand business mobility without bypassing the local accounting/inventory controls. High-risk transactions can be accepted as “requests” in the cloud and become posted only after local validation/approval.
+16. Consistency, Concurrency & Conflict Control
+16.1 Consistency model
+The ERP should aim for strong consistency within a single transaction and controlled near-real-time convergence between local and cloud projections. The system should never silently produce two final versions of the same financial transaction.
+16.2 Concurrency
+Record version number
+Optimistic version check before update
+Provider revision/ETag check where available
+Server-side serialization for conflicting transactions
+Transaction locks for local high-risk operations
+Last-write-wins is NOT acceptable for financial posting
+16.3 Conflict types
+
+17. Transaction Identity & Idempotency
+COMPANY ID + ORIGIN NODE + TRANSACTION UUID + SEQUENCE + VERSION
+Every transaction/event has immutable ID
+Every retry uses the same ID
+Receiver checks whether ID already applied
+Duplicate event is acknowledged without reapplying
+Financial posting records source transaction ID
+Sync logs keep status independently of business data
+18. Provider Abstraction
+The ERP should not be permanently hard-coded to Google Drive or OneDrive. Build a storage-provider adapter interface so a company can use a supported provider without rewriting the ERP.
+
+Provider neutrality
+Google Drive documents change logs, revisions, quotas and an application-data area; Microsoft Graph exposes delta queries and eTag-based conditional writes. These capabilities are useful building blocks, but the ERP must still own transaction ordering and business validation.
+19. Central Platform Cloud
+PLATFORM ADMIN
+    ↓
+CENTRAL CLOUD SPACE
+    ├── Platform configuration
+    ├── Client-company registry
+    ├── Isolated company transaction namespaces
+    ├── Sync metadata
+    ├── Central backup packages
+    └── Platform audit
+All client companies remain logically and cryptographically isolated
+Platform data cannot be accessed by client company users
+Central cloud acts as a disaster-recovery and remote-access layer
+Centralized platform monitoring can observe sync health without exposing business data
+20. Client-Specific Cloud
+CLIENT COMPANY
+    ↓
+OPTIONAL COMPANY CLOUD
+    ├── Live remote transaction tier
+    ├── Company backup
+    ├── Documents
+    └── Recovery packages
+Client Admin may connect an approved cloud provider
+Provider credentials are stored securely and scoped to the company
+The client cloud namespace contains only that company’s data
+Platform Admin may manage provider configuration according to platform policy, but company data access remains audited
+21. Automatic Backup Architecture
+LOCAL PRIMARY
+   ├── Continuous cloud transaction updates
+   ├── Scheduled full backup
+   └── Local quick-recovery backup
+             ↓
+        CENTRAL PLATFORM CLOUD
+             ↓
+      OPTIONAL CLIENT CLOUD
+             ↓
+      RECOVERY / RESTORE TEST
+21.1 Backup layers
+
+21.2 Backup rules
+Encrypt sensitive backups
+Keep backup metadata
+Record backup timestamp/status
+Verify checksums
+Test restore regularly
+Do not treat an unverified upload as a valid backup
+Maintain retention policy
+22. Recovery & Disaster Scenarios
+
+23. Offline / Internet Failure
+The local ERP must continue operating for LAN users during normal internet outages. Remote users cannot expect cloud access when their cloud provider/network is unavailable, but the ERP must make the last known cloud state visible with a clear freshness timestamp.
+INTERNET DOWN
+LOCAL USERS → CONTINUE
+LOCAL TRANSACTIONS → OUTBOX
+REMOTE USERS → LAST CLOUD STATE + STALE STATUS
+INTERNET RESTORED → OUTBOX FLUSH → CLOUD CATCH-UP → REMOTE STATE CURRENT
+24. Storage Quota & Provider Limits
+Track storage usage per company
+Track API call/error/throttle rates
+Prefer compact record/event objects
+Avoid rewriting huge monolithic database files
+Batch compatible operations
+Compress archival/backup bundles
+Alert before quota exhaustion
+Allow provider migration/export
+Record provider health
+Cost-control philosophy
+The architecture is designed to minimize additional infrastructure spending, but “free” provider limits are not guaranteed permanently. The application should be able to detect a limit, operate locally, preserve pending transactions, and allow migration to another supported storage provider.
+25. Security & Data Isolation
+
+26. Performance & Scalability
+
+Use indexes/manifests for remote queries
+Avoid downloading entire company database for each screen
+Use incremental change feeds
+Cache stable masters
+Paginate large result sets
+Compress large payloads
+Keep cloud transaction objects small
+27. Small-Business Mode
+
+Small businesses should not be forced through enterprise complexity. The advanced architecture remains present but hidden behind defaults.
+28. Large-Business Mode
+
+29. Monitoring & Health
+PLATFORM DASHBOARD
+  ├── Companies online/offline
+  ├── Cloud provider health
+  ├── Pending sync
+  ├── Failed sync
+  ├── Last successful backup
+  └── Storage usage
+COMPANY DASHBOARD
+  ├── Local server health
+  ├── Cloud freshness
+  ├── Pending remote transactions
+  ├── Last sync
+  └── Backup status
+30. Audit Trail
+
+31. Failure & Edge Cases
+Remote user closes browser after submitting
+Transaction remains in cloud committed state and is not lost. On next login, the system shows pending/applied/rejected status.
+Network drops after cloud commit but before response
+Retry uses the same transaction ID. The server returns the existing result instead of creating another record.
+Two remote users update same customer
+Version conflict is detected. A safe merge or explicit resolution is used; silent last-write-wins is avoided for financial fields.
+Local user posts while remote changes same invoice
+Posting engine locks/version-checks the invoice. One result becomes authoritative and the other receives a conflict workflow.
+Provider API throttles
+Queue remains durable; backoff occurs; users see a non-destructive sync warning.
+Cloud object deleted accidentally
+Audit/recovery process restores from known committed state; destructive provider operations are restricted where possible.
+32. Database / Object Organization
+COMPANY_NAMESPACE
+├── /meta
+│   ├── company.json
+│   ├── schema-version
+│   └── sync-state
+├── /masters
+├── /transactions
+│   ├── /sales
+│   ├── /purchase
+│   ├── /receipts
+│   ├── /payments
+│   └── /expenses
+├── /events
+├── /indexes
+├── /projections
+├── /attachments
+├── /backups
+└── /audit
+The actual physical representation may be JSON, binary blocks, compressed record files or another structured object format chosen during DOC-26 Database Architecture. The important rule is that records are application-managed objects, not a shared desktop database file simultaneously edited by many devices.
+33. API / Service Responsibilities
+
+34. Implementation Rules
+1. Never share a raw database file between multiple computers over Drive/OneDrive.
+2. Every transactional record must have an immutable identity.
+3. Every remote write must be idempotent.
+4. Every cloud transaction must carry company context.
+5. Every sync operation must be retry-safe.
+6. Every financial transaction must remain traceable from cloud event to local posting.
+7. No sync failure may silently duplicate money, stock, customer balance or invoice values.
+8. Users must see whether data is current, pending or stale.
+9. Cloud storage credentials must be separated from business-user credentials.
+10. Backup success must be verified, not assumed.
+11. Provider-specific APIs must be isolated behind adapters.
+12. Changing cloud providers must not require redesigning business modules.
+35. Testing Strategy
+
+35.1 Live-update acceptance test
+LOCAL USER posts → cloud updated → remote user refresh/automatic update sees new transaction → remote user posts → cloud updated → local sync applies → local ledger/stock/report updated
+36. Acceptance Criteria
+ERP can be installed on a local computer/server and used by LAN clients.
+Local users can continue normal work during temporary internet outage.
+Cloud stores compact, structured, company-isolated transactional ERP state.
+Remote authorized users can see current cloud state without manual export/import.
+Remote authorized users can perform permitted light transactions.
+Remote transactions are automatically reflected into the local primary database.
+Local transactions are automatically reflected into the cloud tier.
+Sync status and freshness are visible to authorized users.
+Duplicates are prevented when a request is retried.
+Conflicts are detected and handled through explicit workflows.
+Backups are automatically created and restore-tested.
+Changing storage provider does not require rewriting the ERP business modules.
+37. Dependencies
+
+38. Future Expansion
+Multi-site local nodes
+Regional cloud transaction tiers
+Read-optimized reporting projection
+Company-selectable storage providers
+Encrypted customer-controlled storage
+Advanced cloud-to-cloud migration
+Data residency controls
+Edge computing for warehouses
+Mobile offline transactions with later sync
+Advanced conflict resolution tools
+Appendix A. Reference Record Layout
+
+Appendix B. Live Sync Status Model
+
+Appendix C. Example Transaction Scenarios
+C.1 Local invoice
+LAN user → local invoice → local accounting/stock → local commit → cloud event → cloud commit → remote users see invoice
+C.2 Remote sales order
+Remote user → cloud order → cloud commit → local sync → stock/credit validation → local order state updated → cloud status updated → remote user sees confirmed/rejected
+C.3 Remote receipt
+Remote collection user → cloud receipt event → cloud commit → local accounting validation/post → customer ledger updated → cloud balance projection updated
+C.4 Internet outage
+Local transaction → local commit → outbox → internet unavailable → queue retained → internet restored → cloud commit → ack → remote current
+C.5 Duplicate retry
+Remote send → timeout → resend SAME transaction_id → cloud recognizes existing transaction → return existing result → no duplicate
+Appendix D. Non-Negotiable Rules
+1. The cloud tier is a live transactional component for remote users, not merely a backup folder.
+2. Local primary remains the high-volume operational environment.
+3. Remote users receive live updates automatically whenever connectivity/provider availability permits.
+4. Remote writes can be enabled by permission and transaction type.
+5. High-risk financial/stock operations can require local validation/approval before becoming finally posted.
+6. No raw shared database file may be concurrently opened by multiple machines from cloud storage.
+7. Provider APIs are infrastructure; ERP transaction semantics remain in ERP services.
+8. Company data is isolated at every layer.
+9. Every transaction is uniquely identifiable and retry-safe.
+10. No hidden stale state: show freshness and sync status.
+11. Automatic backup is part of the architecture, not a manual afterthought.
+12. Provider failure must not destroy locally committed transactions.

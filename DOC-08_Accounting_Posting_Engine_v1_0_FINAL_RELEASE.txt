@@ -1,0 +1,438 @@
+DOC-08
+ACCOUNTING POSTING ENGINE
+Double-Entry, Source-to-Ledger Automation, Settlement Integration & Financial Integrity
+
+
+
+
+Document Map / Contents
+1. Purpose & Scope
+2. Accounting Posting Philosophy
+3. What the Posting Engine Owns
+4. End-to-End Posting Lifecycle
+5. Source Document and Event Model
+6. Journal Architecture
+7. Account Determination
+8. Posting Rules & Definitions
+9. Tax Determination
+10. Financial Dimensions & Cost Centres
+11. Customer/Supplier Open Items
+12. DOC-07 Bill-by-Bill Settlement Integration
+13. Universal Adjustment / Allocation Handling
+14. Inventory & Stock Accounting
+15. Cargo, Freight & Logistics Accounting
+16. Principal / C&F Accounting
+17. Payment, Receipt, Credit Note & Debit Note Posting
+18. Draft / Approval / Post States
+19. Atomicity, Idempotency & Duplicate Protection
+20. Reversal, Correction & Cancellation
+21. Fiscal Periods & Close Control
+22. Multi-Company / Platform Security
+23. Local-First & Live Cloud Posting
+24. Concurrency & Conflict Handling
+25. Rounding, Currency & FX
+26. Approval / Segregation of Duties
+27. Audit Trail
+28. Error Handling & Recovery
+29. UI / Keyboard Workflow
+30. Data Model
+31. API / Service Contracts
+32. Reporting Consequences
+33. Small vs Large Business Modes
+34. Posting Rule Administration
+35. Testing & Acceptance
+36. Implementation Sequence
+Appendix A. Posting Matrix
+Appendix B. Example Transactions
+Appendix C. Non-Negotiable Invariants
+Appendix D. Research References
+
+1. Purpose & Scope
+The Posting Engine converts approved business events into balanced accounting entries and related financial sub-ledger records. It must be the only normal path by which application modules create official accounting effects.
+BUSINESS DOCUMENT
+   ↓
+VALIDATE
+   ↓
+CALCULATE
+   ↓
+DETERMINE ACCOUNTS + TAX + DIMENSIONS
+   ↓
+BUILD POSTING PACKAGE
+   ↓
+ATOMIC POST
+   ├── Journal Entry / GL
+   ├── Party Open Item
+   ├── Tax Record
+   ├── Settlement Eligibility
+   └── Source Link / Audit
+   ↓
+POSTED
+
+2. Accounting Posting Philosophy
+Post the economic event once; derive all accounting views from that posting.
+Never let each module invent its own debit/credit logic.
+Every posted journal must balance within the required accounting dimensions and currencies.
+Every financial posting must reference its source document and company context.
+Every posted document must be reproducible from stored rules and master data snapshots.
+Settlement/clearing links must not duplicate the original monetary posting.
+Corrections happen through controlled reversal/adjustment, not silent mutation.
+Posting must be atomic, idempotent and auditable.
+Company boundaries are mandatory: a posting cannot cross a client-company boundary unless a future explicit inter-company rule authorizes it.
+3. What the Posting Engine Owns
+
+4. End-to-End Posting Lifecycle
+CREATE DRAFT → VALIDATE → CALCULATE → RESOLVE POSTING RULES → BUILD PACKAGE → APPROVAL (IF REQUIRED) → PRE-POST CHECK → ATOMIC COMMIT → POSTED → SETTLEMENT ELIGIBLE → REPORTABLE
+4.1 Pre-post validation
+Company context valid
+User permission valid
+Document status valid
+Accounting period open
+Required master records active
+Account mappings found
+Tax result valid
+Dimension combinations valid
+Currency/rounding valid
+Stock result valid where applicable
+Settlement instructions valid
+Idempotency key not already consumed
+4.2 Posting package
+Posting Package
+├── Source Document ID
+├── Company ID
+├── Transaction Type
+├── Rule Version
+├── Currency / FX context
+├── Journal Header
+├── Journal Lines
+├── Open Items
+├── Settlement Instructions
+├── Tax Records
+├── Stock Accounting References
+└── Audit Metadata
+5. Source Document and Event Model
+Every accounting result begins with a business source document or approved adjustment. The source document is immutable in identity even when its lifecycle state changes.
+
+6. Journal Architecture
+JOURNAL HEADER
+├── Journal ID
+├── Company
+├── Document Type
+├── Source Document
+├── Posting Date
+├── Currency
+├── Rule Version
+├── Status
+└── Audit Metadata
+
+JOURNAL LINE
+├── Account / Party
+├── Debit / Credit
+├── Base Amount
+├── Transaction Amount
+├── Currency
+├── Dimensions
+├── Tax Reference
+├── Open-Item Reference
+└── Description
+6.1 Journal invariants
+Total debits = total credits
+Currency/base-currency balancing rules satisfied
+Every line has a valid account destination
+Required dimensions are present
+Source document cannot be missing
+Posted journal cannot be destructively edited
+7. Account Determination
+The engine should not hard-code account numbers into screens. Account determination should resolve accounts through configurable posting rules and mappings.
+TRANSACTION CONTEXT
+(Customer / Supplier / Product / Principal / Warehouse / Tax / Expense Type / Transaction Type)
+        ↓
+POSTING RULE RESOLUTION
+        ↓
+MAIN ACCOUNT + PARTY RECONCILIATION ACCOUNT + TAX ACCOUNT + COST/DIMENSIONS
+
+8. Posting Rules & Definitions
+The ERP should maintain versioned posting definitions. Each definition tells the engine which conditions apply and which accounting entries result. This mirrors established ERP approaches such as Dynamics 365 posting definitions and SAP posting/clearing concepts.
+
+9. Tax Determination
+Tax calculation should occur before posting and return a structured result. The posting engine consumes that result; it should not duplicate tax formulas independently in multiple modules.
+TRANSACTION → TAX ENGINE → TAX RESULT
+                           ├── Tax base
+                           ├── Rate/category
+                           ├── Tax components
+                           ├── Place of supply
+                           ├── RCM/other flags
+                           └── Tax account mapping
+                                      ↓
+                              POSTING PACKAGE
+Store tax result snapshot with the posted document
+Use effective-dated tax configuration
+Keep statutory integration adapters separate
+Validate tax totals before commit
+10. Financial Dimensions & Cost Centres
+The engine should support financial dimensions so the same ledger account can be analyzed by branch, principal, department, warehouse, project or other configured dimensions. Established ERP systems use account structures and default/fixed financial dimensions to control valid combinations during posting.
+
+11. Customer / Supplier Open Items
+Party invoices, credit/debit notes, advances and eligible financial documents should create open-item records. Outstanding is a view of open items and their settlement state, not a manually maintained balance.
+INVOICE → OPEN ITEM
+PAYMENT → PAYMENT OPEN ITEM / SETTLEMENT SOURCE
+CREDIT NOTE → CREDIT OPEN ITEM
+DEBIT NOTE → DEBIT OPEN ITEM
+           ↓
+     SETTLEMENT / CLEARING
+           ↓
+      OPEN AMOUNT CHANGES
+
+12. DOC-07 Bill-by-Bill Settlement Integration
+DOC-07 is mandatory for the posting engine. The engine must create settlement-eligible open items and consume explicit allocation instructions without duplicating financial effects.
+
+13. Universal Adjustment / Allocation Handling
+ANY ELIGIBLE DOCUMENT
+      ↓
+[ Adjust / Allocate / Settle ]
+      ↓
+Settlement Workspace
+      ├── Open Invoices
+      ├── Open Payments
+      ├── Open Credit Notes
+      ├── Open Debit Notes
+      ├── Advances
+      └── Allowed Write-Off / Difference
+      ↓
+Validation
+      ↓
+Settlement Record
+      ↓
+Updated Open Items
+13.1 Direction rules
+A customer payment normally reduces a customer debit/open receivable item.
+A customer credit note normally reduces receivable exposure and can be allocated to eligible invoices.
+A customer debit note normally increases receivable exposure and cannot be treated as a payment merely to make an invoice disappear.
+Supplier-side documents use the mirrored payable logic.
+Cross-party netting is disabled by default and requires explicit policy/relationship authorization.
+14. Inventory & Stock Accounting Integration
+STOCK EVENT → INVENTORY SUBLEDGER → VALUATION RESULT → ACCOUNTING POSTING
+
+
+15. Cargo, Freight & Logistics Accounting
+CONSIGNMENT
+ ↓
+ACTUAL EXPENSES ─────→ EXPENSE / PAYABLE
+ ↓
+RECOVERY / CHARGE ───→ AR / RECOVERY ACCOUNT
+ ↓
+TAX / PRICING RULES
+ ↓
+LOGISTICS PROFITABILITY
+
+16. Principal / C&F Accounting
+Principal dimensions on relevant entries
+Commission income
+Handling income/recovery
+Principal stock ownership context
+Principal claims/expenses
+Principal settlement
+Principal statement
+Principal-specific account mappings
+TRANSACTION → PRINCIPAL CONTEXT → ACCOUNT MAPPING + DIMENSION → GL / SUBLEDGER → PRINCIPAL MIS
+17. Payment, Receipt, Credit Note & Debit Note Posting
+
+
+18. Draft / Approval / Post States
+
+19. Atomicity, Idempotency & Duplicate Protection
+19.1 Atomicity
+POSTING TRANSACTION
+├── Journal Header
+├── Journal Lines
+├── Open Items
+├── Settlement instructions
+├── Tax records
+├── Stock accounting link
+└── Audit event
+       ↓
+ALL COMMIT or ALL ROLLBACK
+19.2 Idempotency
+Every posting request carries a unique idempotency key derived from source document + posting attempt/version.
+Retrying the same request returns the original posting result instead of creating duplicate entries.
+Sync retries cannot create duplicate journals.
+Settlement retries cannot create duplicate allocation rows.
+19.3 Duplicate guards
+UNIQUE(source_company, source_document_id, posting_version, posting_action)
+UNIQUE(settlement_source_id, allocation_idempotency_key)
+20. Reversal, Correction & Cancellation
+
+21. Fiscal Periods & Close Control
+Define fiscal year and posting periods per company
+Open/closed/locked period states
+Prevent normal posting into locked periods
+Separate backdated-document permission
+Period close checklist
+Post-close adjustment workflow
+Trial balance freeze / snapshot
+Year-end carry-forward rules
+22. Multi-Company / Platform Security
+PLATFORM → COMPANY → BRANCH → WAREHOUSE / DIMENSION → USER / ROLE → POSTING
+Posting must execute inside a company context.
+Client company cannot post into the Platform Admin company.
+Platform Admin access is separately attributed and audited.
+Cross-company posting requires explicit future intercompany capability.
+Every query and posting service validates tenant/company authorization server-side.
+23. Local-First & Live Cloud Posting
+Posting must work within the local-first architecture defined in DOC-04. Remote users interact with the live cloud transactional state; local and cloud posting paths must use the same business rules and posting package model.
+LOCAL USER → LOCAL POSTING ENGINE → LOCAL DB → LIVE CLOUD SYNC
+REMOTE USER → CLOUD TRANSACTION LAYER → SAME POSTING RULES → CLOUD STATE → LIVE SYNC TO LOCAL
+Same source IDs and posting rules
+Idempotent sync
+Version/sequence validation
+No duplicate financial effect
+Clear last-synced/posted state
+Conflict routed to controlled resolution
+
+24. Concurrency & Conflict Handling
+
+25. Rounding, Currency & FX
+Store transaction currency and base/company currency
+Use decimal arithmetic
+Define line/tax/document rounding rules
+Store rounded posting values
+Support realized/unrealized FX policies where enabled
+Settlement must use the relevant transaction/base-currency values
+Do not hide rounding differences
+26. Approval / Segregation of Duties
+
+The engine should return explicit “approval required” states rather than bypassing the posting pipeline.
+27. Audit Trail
+
+28. Error Handling & Recovery
+Never partially post a financial transaction
+Return human-readable error plus machine-readable code
+Keep failed request correlation ID
+Allow safe retry
+Do not create duplicate result on retry
+Maintain local durable queue where required
+Expose sync/posting health to authorized users
+Provide reconciliation tools to detect inconsistencies
+29. UI / Keyboard Workflow
+29.1 Journal review
+OPEN SOURCE DOCUMENT → REVIEW POSTING PREVIEW → FOCUS “POST” → ENTER → CONFIRM → POSTED
+29.2 Settlement integration
+PAYMENT / CREDIT NOTE / INVOICE → ALT+A / COMMAND PALETTE → SETTLEMENT WORKSPACE → SEARCH BILL → SPACE/ENTER SELECT → ENTER AMOUNT → POST/CONFIRM
+Show posting preview before final commit where useful
+Highlight debit/credit totals
+Show open-item effect before settlement
+Keyboard-select invoice rows
+Display company/branch/period context prominently
+30. Data Model
+
+30.1 Key relationships
+SOURCE DOCUMENT → POSTING REQUEST → JOURNAL ENTRY → JOURNAL LINES
+                               ├→ OPEN ITEMS
+                               ├→ TAX RECORDS
+                               ├→ STOCK ACCOUNTING REF
+                               └→ POSTING AUDIT
+OPEN ITEMS <-> SETTLEMENT ALLOCATIONS <-> PAYMENT / CREDIT / DEBIT / INVOICE
+31. API / Service Contracts
+
+31.1 Explainability requirement
+A user with the appropriate permission should be able to ask “Why was this account posted?” and see the transaction type, rule ID/version, source fields and dimension decisions that led to the result.
+32. Reporting Consequences
+Trial balance derives from posted journal lines
+P&L derives from posted income/expense balances
+Balance Sheet derives from posted asset/liability/equity balances
+Customer outstanding derives from open items + settlements
+Supplier outstanding derives from open items + settlements
+Cash/bank book derives from posted bank/cash lines
+Principal MIS uses principal dimensions and linked operations
+Logistics margin uses actual cost/recovery records
+33. Small vs Large Business Modes
+
+The engine itself stays the same; complexity is activated through configuration.
+34. Posting Rule Administration
+Rule versioning
+Effective dates
+Simulation/test mode
+Conflict detection
+Account mapping validation
+Dimension validation
+Approval before activation
+Rule impact preview
+Audit history
+Rollback to previous rule version
+35. Testing & Acceptance
+
+35.1 Golden accounting scenarios
+Sale ₹100,000 + applicable tax
+Partial payment ₹40,000
+Second payment ₹60,000
+Payment applied to a specific one of four invoices
+Credit note fully applied to invoice
+Credit note partially applied across invoices
+Invoice with payment + credit note adjustment
+Advance receipt later allocated
+Debit note increases customer balance
+Freight actual cost vs recovery
+Sales return
+Purchase return
+Wrong posting reversed
+36. Implementation Sequence
+1. Finalize posting rule data model.
+2. Implement journal/open-item core.
+3. Implement account determination.
+4. Implement posting preview.
+5. Implement atomic post.
+6. Integrate DOC-07 settlement engine.
+7. Integrate tax result.
+8. Integrate inventory accounting.
+9. Integrate cargo/freight accounting.
+10. Implement reversal/period controls.
+11. Implement audit/explainability.
+12. Build API and local/cloud synchronization hooks.
+13. Add comprehensive automated tests.
+Appendix A. Posting Matrix
+
+Appendix B. Example Transactions
+B.1 Payment to one of four bills
+Party A
+INV-001 ₹10,000
+INV-002 ₹15,000
+INV-003 ₹20,000
+INV-004 ₹12,000
+
+Receipt ₹15,000 → select INV-002 → settle ₹15,000
+Outstanding excludes INV-002 and shows ₹42,000 open.
+B.2 One invoice, payment + credit note
+Invoice ₹10,000
+Payment ₹6,000
+Credit Note ₹2,000
+Settlement allocation: Payment ₹6,000 + Credit ₹2,000
+Residual invoice = ₹2,000
+B.3 Credit note larger than one invoice
+Credit Note ₹15,000
+Allocate ₹10,000 to INV-001
+Allocate ₹5,000 to INV-002
+Remaining credit = ₹0
+B.4 Floating payment
+Receipt ₹20,000 posted on-account
+Later allocate ₹12,000 to INV-005
+Remaining on-account = ₹8,000
+B.5 Retry-safe remote posting
+Remote post request ID X → cloud accepts → journal created → local sync receives X
+Retry X → system finds existing result → no duplicate journal
+Appendix C. Non-Negotiable Invariants
+1. Every posted journal balances.
+2. Every journal has a company context.
+3. Every posting has a source document and idempotency key.
+4. Posted history is not silently rewritten.
+5. Settlement does not duplicate monetary posting.
+6. Outstanding is derived from open items and settlement state.
+7. Payment, credit note and debit note retain their own document identity even when settled together.
+8. Client companies cannot post into Platform Admin accounting.
+9. Rules are versioned and explainable.
+10. Local and remote posting paths use equivalent business rules.
+11. Failed/partial posting is rolled back atomically.
+12. All sensitive overrides are permission and audit controlled.
+Appendix D. Research References
+The engine design incorporates established ERP patterns for posting definitions, financial dimensions, open-item clearing and settlement. The references below are used as design inputs, not as copied implementation.
+
+Final Specification Statement
+DOC-08 establishes the Accounting Posting Engine as the single controlled financial execution layer of the ERP. DOC-07 defines what may be settled against what; DOC-08 ensures those settlement instructions interact with correctly posted invoices, payments, credit notes, debit notes, advances, expenses, freight, inventory and tax without duplicate or missing accounting effects.

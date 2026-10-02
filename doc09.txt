@@ -1,0 +1,427 @@
+DOC-09
+GENERAL LEDGER, AR/AP & OPEN-ITEM DATA ARCHITECTURE
+Implementation specification built on DOC-07 Bill-by-Bill Settlement and DOC-08 Accounting Posting Engine
+
+
+
+Table of Contents
+1. Executive Scope & Objectives
+2. Design Principles
+3. Financial Data Model Overview
+4. General Ledger Architecture
+5. Account / Subledger Relationship
+6. Customer Receivable Subledger
+7. Supplier Payable Subledger
+8. Open-Item Architecture
+9. Bill-by-Bill Settlement Architecture
+10. Universal Settlement Workspace
+11. Payments & Receipts
+12. Credit Notes & Debit Notes
+13. Advances, On-Account & Floating Amounts
+14. Partial, Residual & Write-Off Handling
+15. Unapply / Reapply & Reset Clearing
+16. Cross-Document Netting
+17. Outstanding & Aging Engine
+18. Ledger & Statement Views
+19. Reconciliation
+20. Posting Integration with DOC-08
+21. C&F-Specific Dimensions
+22. Currency & Exchange Differences
+23. Periods, Closing & Locking
+24. Permissions & Segregation of Duties
+25. Audit Trail
+26. Database Entities & Relationships
+27. APIs / Services
+28. Keyboard-First User Workflows
+29. Local-First & Live Cloud Compatibility
+30. Concurrency & Idempotency
+31. Reporting Data Model
+32. Failure & Edge Cases
+33. Small vs Large Business Modes
+34. Security & Data Integrity
+35. Testing & Acceptance Criteria
+36. Implementation Checklist
+Appendix A. Settlement Matrix
+Appendix B. Sample Transactions
+Appendix C. Minimum Field Set
+
+1. Executive Scope & Objectives
+DOC-09 defines the financial ledger and open-item data architecture used after a transaction is posted. It must preserve the difference between the accounting event itself and the settlement of that event. This distinction is essential for your ERP because a payment, credit note or debit note can exist before or after it is allocated to an invoice.
+SOURCE DOCUMENT
+   ↓
+DOC-08 POSTING ENGINE
+   ↓
+JOURNAL + SUBLEDGER OPEN ITEM
+   ↓
+SETTLEMENT / CLEARING ALLOCATION
+   ↓
+OPEN BALANCE CHANGES
+   ↓
+OUTSTANDING / AGING / LEDGER / MIS
+
+2. Design Principles
+1. One posted financial event creates one authoritative accounting record; derived views may be rebuilt.
+2. Open items are first-class records for parties that require bill-by-bill settlement.
+3. Settlement allocation does not create a second payment or invoice; it links already-posted items.
+4. An open item can be partially settled and remain open with a residual balance.
+5. An on-account payment remains open until allocated; the allocation changes settlement state, not the original receipt amount.
+6. Credit and debit notes retain their accounting direction while remaining eligible for controlled settlement where rules permit.
+7. Outstanding is a calculated/read-model result, not a manually edited field.
+8. Every financial adjustment must be attributable to a document, user, date, reason and source item.
+9. Accounting, settlement and reporting must remain company-scoped and tenant-isolated.
+10. All posting and clearing operations must be idempotent and concurrency-safe.
+11. Historical postings are immutable in principle; corrections use reversal, adjustment, return or controlled reset-clearing workflows.
+12. User experience may be simple, but the underlying data model must retain enough detail for audit and reconciliation.
+3. Financial Data Model Overview
+GENERAL LEDGER
+  │
+  ├── Account balances
+  │
+  ├── Customer control account
+  │       └── Customer subledger / open items
+  │
+  └── Supplier control account
+          └── Supplier subledger / open items
+
+OPEN ITEM
+  ├── Source document
+  ├── Original amount
+  ├── Open amount
+  ├── Settled amount
+  ├── Status
+  └── Allocation links
+
+4. General Ledger Architecture
+4.1 Journal structure
+
+4.2 Journal lines
+
+
+5. Account / Subledger Relationship
+CUSTOMER: ABC MEDICAL
+   ↓
+AR CONTROL ACCOUNT
+   ↓
+CUSTOMER SUBLEDGER
+   ├── INV-001 ₹10,000 OPEN
+   ├── INV-002 ₹15,000 CLOSED
+   ├── RCPT-012 ₹15,000 CLOSED/APPLIED
+   └── CN-004 ₹2,000 OPEN
+The General Ledger control account and the party subledger must reconcile. The party subledger provides detail; the GL provides the official financial account balance. Neither should be allowed to drift from the other.
+
+6. Customer Receivable Subledger
+
+6.1 Customer statement
+DATE | DOC NO | TYPE | DEBIT | CREDIT | SETTLED | OPEN | DUE DATE | REFERENCE
+Statements must allow filtering by date, document type, invoice number, reference, branch, principal, currency and settlement status, subject to permission.
+7. Supplier Payable Subledger
+
+The same settlement engine should be reusable for AR and AP while applying the correct debit/credit direction and party-type rules.
+8. Open-Item Architecture
+An open item represents an amount that still has financial significance for settlement. This is the core data structure that makes your bill-by-bill outstanding system reliable.
+
+9. Bill-by-Bill Settlement Architecture
+DOC-07 established the business requirement. DOC-08 established that settlement allocation must not create a second financial posting of the payment itself. DOC-09 defines the persistent data relationships needed to make that behavior reliable.
+PAYMENT / RECEIPT ₹15,000
+        ↓
+OPEN ITEM RCPT-001 ₹15,000
+        ↓
+ALLOCATE ₹15,000
+        ↓
+INV-002 ₹15,000
+        ↓
+SETTLEMENT LINK
+        ↓
+RCPT OPEN ₹0 | INV-002 OPEN ₹0
+9.1 Allocation record
+
+9.2 Settlement invariant
+
+10. Universal Settlement Workspace
+A single settlement workspace should be callable from Payment, Receipt, Invoice, Credit Note, Debit Note, Customer Ledger, Supplier Ledger and Outstanding screens. The user chooses the starting document; the same engine performs the allocation.
+┌──────────────────────────────────────────────────────────────┐
+│ SETTLEMENT WORKSPACE                                         │
+├──────────────────────────────────────────────────────────────┤
+│ Party: ABC Medical     Currency: INR     As-of: 17-09-2026 │
+│                                                              │
+│ SOURCE ITEM        AVAILABLE                                 │
+│ Receipt RC-001      ₹15,000                                  │
+│                                                              │
+│ ELIGIBLE OPEN ITEMS                                          │
+│ ☑ INV-002           ₹15,000     Due 10-09-2026              │
+│ ☐ INV-003           ₹20,000     Due 20-09-2026              │
+│ ☐ CN-004             ₹2,000     Credit                     │
+│                                                              │
+│ Applied: ₹15,000   Remaining source: ₹0                     │
+│ Target remaining: ₹0                                        │
+│ [Suggest] [Select All] [Clear] [Unapply] [Save/Post]         │
+└──────────────────────────────────────────────────────────────┘
+10.1 Starting contexts
+From Payment: show eligible invoices/notes for allocation.
+From Invoice: show available payments, credit notes and eligible debits.
+From Credit Note: show invoices/bills to which it can be allocated.
+From Customer Ledger: show all eligible open items.
+From Outstanding report: open settlement workspace for the selected party/document.
+11. Payments & Receipts
+11.1 Immediate vs on-account
+
+11.2 Matching signals
+Exact invoice number/reference
+Exact amount
+Customer/party
+Payment date
+Bank reference
+Customer-provided remittance advice
+Due date
+Currency
+Past settlement behavior
+Manual selection
+
+12. Credit Notes & Debit Notes
+
+12.1 User experience requirement
+When the user is creating or viewing a credit/debit note, the document should offer an “Adjust / Allocate” action that opens the universal settlement workspace. This is the exact behavior requested in DOC-07.
+12.2 Invoice-side floating adjustment
+When viewing an invoice, the user should see eligible floating/unapplied payments and credit/debit notes and be able to allocate permitted amounts directly without leaving the invoice context. The system must record the same centralized allocation record used everywhere else.
+13. Advances, On-Account & Floating Amounts
+
+14. Partial, Residual & Write-Off Handling
+14.1 Partial settlement
+INVOICE ₹10,000
+PAYMENT ₹7,000 → ALLOCATE ₹7,000
+INVOICE OPEN = ₹3,000
+PAYMENT OPEN = ₹0
+14.2 Residual item
+If business policy allows a payment difference to create a residual item, the system should create a new controlled open item linked to the original transaction and reason code. This follows the general enterprise pattern of treating residuals as explicit accounting objects rather than hiding the difference. SAP documents residual-item handling during incoming-payment clearing. citeturn283862search2
+14.3 Write-off
+User selects write-off reason
+Permission/approval rule evaluated
+Write-off amount validated
+Controlled journal posted
+Open item marked adjusted/closed
+Audit link created
+15. Unapply / Reapply & Reset Clearing
+Mistaken settlement must be recoverable. The preferred method is to reverse the settlement allocation relationship, not to rewrite the historical invoice or payment.
+ACTIVE ALLOCATION
+      ↓
+UNAPPLY REQUEST
+      ↓
+VALIDATE NO FORBIDDEN DEPENDENCIES
+      ↓
+REVERSE ALLOCATION
+      ↓
+SOURCE OPEN AMOUNT RESTORED
+TARGET OPEN AMOUNT RESTORED
+      ↓
+OPTIONAL REAPPLY TO CORRECT ITEM
+
+16. Cross-Document Netting
+The system should support a controlled netting view where an eligible payment, credit note and invoice can be considered together. Netting must still preserve each underlying accounting event and separate settlement links.
+INVOICE ₹50,000
+CREDIT NOTE ₹5,000
+PAYMENT ₹40,000
+      ↓
+ALLOCATE CN ₹5,000
+ALLOCATE PAYMENT ₹40,000
+      ↓
+INVOICE OPEN ₹5,000
+17. Outstanding & Aging Engine
+Outstanding should be calculated from open items and active settlement allocations. A precomputed read model may be maintained for performance but must be rebuildable from authoritative records.
+AUTHORITATIVE RECORDS
+  ├─ Posted source items
+  ├─ Active allocations
+  ├─ Adjustments/write-offs
+  └─ Reversals
+          ↓
+OPEN ITEM BALANCE
+          ↓
+AGING / OUTSTANDING VIEW
+17.1 Invoice status
+
+17.2 Aging date logic
+Due-date aging for normal customer/supplier aging
+Document-date aging when policy requires
+Separate aging for disputed items
+Separate display for advances/on-account balances
+Configurable buckets (Current, 1–30, 31–60, etc.)
+18. Ledger & Statement Views
+
+19. Reconciliation
+CUSTOMER SUBLEDGER TOTAL
+       ↕
+AR CONTROL ACCOUNT
+       ↕
+TRIAL BALANCE
+       ↕
+BALANCE SHEET
+
+19.1 Exception queue
+Unbalanced subledger
+Open item mismatch
+Allocation exceeds source
+Allocation exceeds target
+Orphan source document
+Missing accounting link
+Duplicate settlement ID
+Currency mismatch
+Reversal mismatch
+20. Posting Integration with DOC-08
+DOC-08 POSTING ENGINE
+      ↓
+POSTING PACKAGE
+      ├─ Journal Header + Lines
+      ├─ Party Subledger Instruction
+      ├─ Open Item Creation/Update
+      ├─ Tax Effects
+      └─ Source/Audit References
+      ↓
+DOC-09 LEDGER + OPEN-ITEM DATA
+      ↓
+SETTLEMENT ENGINE
+
+21. C&F-Specific Dimensions
+Company
+Branch
+Warehouse
+Principal
+Customer
+Supplier
+Transporter
+Consignment
+Route
+Salesman
+Cost Centre
+Expense Type
+Product/Batch where applicable
+Dimensions should be attached to ledger lines when required by reporting and profitability rules. They should not be duplicated into unrelated ledgers without a clear purpose.
+22. Currency & Exchange Differences
+
+23. Periods, Closing & Locking
+Open/closed fiscal periods
+Posting date validation
+Backdated transaction permissions
+Period close process
+Reopen with high-level authorization
+Settlement-date vs posting-date rules
+Year-end carry forward
+Opening balance controls
+24. Permissions & Segregation of Duties
+
+25. Audit Trail
+
+26. Database Entities & Relationships
+
+26.1 Relationship diagram
+PARTY
+  │
+  ├── PARTY LEDGER ENTRY
+  │        │
+  │        └── OPEN ITEM
+  │               │
+  │        ┌──────┴────────┐
+  │        ↓               ↓
+  │  SOURCE ALLOCATION  TARGET ALLOCATION
+  │
+  └── GL CONTROL ACCOUNT ←→ GL LINES
+27. APIs / Services
+
+28. Keyboard-First User Workflows
+F4 / Ctrl+K → Open settlement command
+Search party → Enter
+Search invoice/reference → Space/Enter to select
+Type allocation amount → Tab
+Ctrl+Enter → Preview / Save
+Esc → Exit without changing
+Arrow keys → Navigate open-item grid
+Exact shortcut bindings remain subject to DOC-05. Financial actions must still pass permission and validation checks regardless of keyboard or mouse entry.
+29. Local-First & Live Cloud Compatibility
+The ledger/open-item model must work identically on the local primary database and the live cloud transactional tier. Remote settlement actions must become visible to authorized local users and local postings must become visible to remote users after successful synchronization.
+LOCAL POSTING → CLOUD LIVE STATE → REMOTE READ/SETTLE
+REMOTE SETTLEMENT → CLOUD LIVE STATE → LOCAL POSTING/RECONCILIATION
+Stable IDs across local/cloud
+Idempotency keys
+Version numbers
+Allocation conflict detection
+Last-write-wins prohibited for financial conflicts unless explicitly safe
+Reconciliation after sync
+Audit actor preserved across locations
+30. Concurrency & Idempotency
+
+31. Reporting Data Model
+
+32. Failure & Edge Cases
+
+33. Small vs Large Business Modes
+
+
+34. Security & Data Integrity
+Every record is company-scoped.
+Party data is permission-scoped.
+Settlement operations are server-side authorized.
+Financial amounts are stored using exact numeric types.
+No client UI can bypass posting rules.
+No direct file edits to accounting/open-item data.
+Audit records are append-only to normal users.
+Export and admin access are audited.
+35. Testing & Acceptance Criteria
+
+36. Implementation Checklist
+1. Freeze open-item statuses and settlement rules.
+2. Implement GL/subledger relationship.
+3. Implement open-item creation from DOC-08 posting packages.
+4. Implement settlement allocation entity and service.
+5. Implement payment/receipt allocation.
+6. Implement credit/debit note allocation.
+7. Implement partial/residual/write-off policy.
+8. Implement unapply/reapply.
+9. Implement outstanding read model.
+10. Implement aging.
+11. Implement reconciliation controls.
+12. Implement audit trail.
+13. Implement local/cloud idempotency hooks.
+14. Implement report queries.
+15. Complete UAT with DOC-07 and DOC-08 scenarios.
+Appendix A. Settlement Matrix
+
+Appendix B. Sample Transactions
+B.1 Four bills, one selected payment
+PARTY A
+INV-001 ₹10,000
+INV-002 ₹15,000
+INV-003 ₹20,000
+INV-004 ₹12,000
+
+PAYMENT RC-100 ₹15,000
+USER SELECTS INV-002
+
+ACTIVE ALLOCATION = ₹15,000
+INV-002 OPEN = ₹0
+TOTAL PARTY OPEN = ₹42,000
+B.2 Payment + credit note
+INV-001 ₹50,000
+CN-001 ₹5,000
+PAYMENT ₹40,000
+
+CN allocation = ₹5,000
+Payment allocation = ₹40,000
+Invoice open = ₹5,000
+B.3 Partial payment
+INV-100 ₹1,00,000
+PAYMENT ₹60,000
+OPEN = ₹40,000
+Later PAYMENT ₹40,000
+OPEN = ₹0 → SETTLED
+Appendix C. Minimum Field Set
+
+Final Design Rules for DOC-09
+1. The General Ledger is authoritative for accounting balances.
+2. The party subledger is authoritative for party-level transaction detail.
+3. Open items are authoritative for settlement eligibility and outstanding detail.
+4. Allocations are authoritative for bill-by-bill settlement relationships.
+5. Outstanding reports are derived, not manually maintained.
+6. Payments and credit/debit notes can remain floating until allocated.
+7. Invoices can expose eligible floating payments and notes through the same settlement engine.
+8. Unapply/reapply must preserve history and auditability.
+9. No settlement operation may over-allocate an item.
+10. All local/cloud financial operations must be idempotent and company-scoped.
+11. Every future Billing, Purchase, Receipt, Payment, Credit Note, Debit Note and Report document must use this architecture rather than inventing its own settlement logic.

@@ -1,0 +1,443 @@
+DOC-10
+CUSTOMER & SUPPLIER MASTER FRAMEWORK
+Business Partner, Accounts, Addresses, Credit, Commercial Defaults & Party Controls
+
+
+
+1. Executive Summary
+Customer and supplier masters are foundational records. Every invoice, receipt, payment, outstanding report, credit check, purchase bill, tax document and many operational workflows depend on them. The ERP should therefore avoid treating a customer as merely a name and phone number.
+PARTY / BUSINESS PARTNER
+      ↓
+ROLE(S)
+  ┌───┴────────────┐
+ CUSTOMER        SUPPLIER
+      ↓               ↓
+ COMMERCIAL / FINANCIAL PROFILE
+      ↓
+ ACCOUNTS + ADDRESSES + CONTACTS + CONTROLS
+      ↓
+ TRANSACTIONS
+      ↓
+ DOC-07 SETTLEMENT + DOC-08 POSTING + DOC-09 OPEN ITEMS
+
+2. Relationship to the ERP Company Architecture
+The master is company-scoped. Platform Admin can provision the capability and defaults, but company records belong to the Client Company. A Client Company cannot access or alter another company’s customer/supplier masters unless an explicitly authorized platform-level service account or platform function is used.
+PLATFORM
+  ↓
+CLIENT COMPANY
+  ↓
+BUSINESS PARTNER / PARTY
+  ├─ Customer Role
+  ├─ Supplier Role
+  ├─ Addresses
+  ├─ Contacts
+  ├─ Financial Profile
+  ├─ Tax Profile
+  ├─ Commercial Defaults
+  └─ Operational Tags
+
+3. Business Partner Philosophy
+3.1 Why a unified party identity
+Established ERP designs increasingly separate the real-world party identity from role-specific customer/supplier data. SAP Business Partner is an example: the same business partner can hold customer and other roles, and current SAP documentation supports multiple addresses with address-dependent data. This reduces unnecessary duplicate records for one legal entity with multiple operating locations.
+3.2 ERP rule for this project
+ONE PARTY
+   ├─ Customer Role (optional)
+   ├─ Supplier Role (optional)
+   ├─ Multiple Addresses
+   ├─ Multiple Contacts
+   ├─ Multiple Operational Sites
+   └─ Multiple Financial/Commercial Profiles
+Do not force users to create two different party identities when one legal/business entity is both customer and supplier.
+Allow separate customer and supplier account numbers if accounting policy needs separate ledgers while preserving the common party ID.
+Allow one party to have many addresses and designate their business purpose.
+Keep transaction history attached to the role/account under which it occurred.
+4. Party Identity & Duplicate Prevention
+4.1 Party identity
+
+4.2 Duplicate detection
+Duplicate prevention must operate at create and merge stages. The system should identify likely matches without making users manually search every record.
+
+4.3 Merge policy
+Do not physically delete a party with financial history.
+Merging requires elevated permission and a reason.
+Choose a surviving party record.
+Transfer allowed non-conflicting master attributes.
+Preserve all document, ledger, settlement and audit references.
+Create a merge audit event.
+5. Customer Master — Complete Functional Structure
+5.1 Customer master screen
+┌──────────────────────────────────────────────────────────────────────┐
+│ CUSTOMER  [Active ▼]                    Code: CUST-00125            │
+├──────────────────────────────────────────────────────────────────────┤
+│ PARTY ID / LEGAL NAME / TRADE NAME / TYPE                           │
+├──────────────────────────────────────────────────────────────────────┤
+│ CONTACTS | ADDRESSES | TAX | CREDIT | COMMERCIAL | SALES | ACCOUNT │
+├──────────────────────────────────────────────────────────────────────┤
+│ Customer Account | Receivable Ledger | Terms | Price List | Route   │
+├──────────────────────────────────────────────────────────────────────┤
+│ Outstanding | Credit Available | Last Invoice | Last Receipt       │
+└──────────────────────────────────────────────────────────────────────┘
+5.2 Customer identity fields
+
+6. Multiple Addresses & Address Roles
+A single party can have multiple business addresses. This is important for customers with head office, billing office, delivery sites, returns address and multiple branches. SAP explicitly supports multiple business-partner addresses and address-dependent data in current S/4HANA documentation.
+
+6.1 Address behavior
+One party can have unlimited practical addresses subject to configuration.
+Each address has its own active/inactive state and effective dates.
+The invoice can default billing and shipping independently.
+Shipping address should be selectable at transaction time.
+Address changes should not rewrite historical documents; documents retain their posted address snapshot.
+If an address is used as a tax determinant, the selected address and its tax-relevant attributes are captured on the source transaction.
+7. Customer Contacts
+
+A contact can be linked to one or more addresses/sites and can have role-specific communication preferences.
+8. Customer Credit Management
+Credit is a central control because invoices can create receivables that later flow into DOC-07 and DOC-09. Mature ERP designs support both individual and group-based credit controls; Microsoft Dynamics documents customer credit groups that can assign shared credit limits while retaining individual customer limits.
+
+CREDIT AVAILABLE = CREDIT LIMIT − CURRENT CREDIT EXPOSURE
+9. Customer Payment Terms & Due Date
+
+Due dates should be generated automatically but remain visible on invoice and outstanding reports. Manual overrides require permission and a reason.
+10. Customer Commercial Defaults
+Default price list
+Discount group
+Scheme eligibility
+Free-quantity eligibility
+Freight treatment
+Tax category
+Salesman
+Territory/route
+Default warehouse
+Payment terms
+Credit group
+Commission category
+Preferred invoice format
+11. Customer Operational Features for C&F
+
+12. Supplier Master — Complete Functional Structure
+The supplier model should share the same party identity foundation but expose supplier-specific purchasing and payable settings.
+
+13. Supplier Multiple Addresses & Contacts
+Use the same address-role framework, with supplier-specific roles such as registered office, pickup point, billing address, factory/warehouse and returns address. This avoids creating duplicate supplier records just because a supplier has several locations.
+14. Customer + Supplier Dual Role
+PARTY: ABC HEALTHCARE
+      ├── CUSTOMER ACCOUNT: AR-00123
+      │      └── Sales Invoices / Receipts / Credit Notes
+      └── SUPPLIER ACCOUNT: AP-00456
+             └── Purchase Bills / Payments / Debit Notes
+
+15. Contact vs Party vs Account vs Address
+
+16. Company, Branch & Warehouse Scope
+The master framework must support both small and large organizations without forcing unnecessary complexity.
+SMALL BUSINESS
+Company
+ └─ One Branch
+     └─ One Warehouse
+          └─ Customers / Suppliers
+
+LARGE BUSINESS
+Company
+ ├─ Branch A
+ │   ├─ Warehouse 1
+ │   └─ Warehouse 2
+ ├─ Branch B
+ │   └─ Warehouse 3
+ └─ Shared / regional customer master
+      with scoped commercial and operational defaults
+16.1 Scope controls
+Global within the client company
+Branch-specific
+Warehouse-specific
+Salesman-specific
+Principal-specific
+User/team-specific where permissions require
+17. Customer Groups & Supplier Groups
+
+Groups should be reusable and can drive reporting, pricing, credit, approvals and workflows without duplicating master records.
+18. Customer Credit Group & Shared Exposure
+Where a real-world business has multiple customer accounts or branches, the ERP should optionally support a shared credit group. Dynamics 365 documents this pattern as a way to apply group-level credit limits while also considering individual limits.
+CUSTOMER GROUP CREDIT LIMIT
+       ↓
+Customer Account A
+Customer Account B
+Customer Account C
+       ↓
+Combined Exposure Check
+       ↓
+Approval / Warning / Block
+19. Customer Statement & Master 360 View
+CUSTOMER 360
+ ├─ Profile
+ ├─ Contacts
+ ├─ Addresses
+ ├─ Sales
+ ├─ Outstanding
+ ├─ Bill-by-Bill Settlement
+ ├─ Credit Notes
+ ├─ Receipts
+ ├─ Credit Limit
+ ├─ Deliveries / Consignments
+ ├─ Communications
+ └─ Attachments
+The customer master should provide a 360-degree summary but never replace the underlying ledgers or source documents.
+20. Supplier 360 View
+SUPPLIER 360
+ ├─ Profile
+ ├─ Contacts
+ ├─ Addresses
+ ├─ Purchases
+ ├─ Payables
+ ├─ Payments
+ ├─ Debit/Credit Notes
+ ├─ Payment Terms
+ ├─ Purchase Price History
+ └─ Documents
+21. Tax & Statutory Validation
+
+The exact statutory rules should be maintained in the separate tax configuration/compliance document and verified against current Indian requirements before production.
+22. Banking Data & Verification
+Multiple bank accounts where business policy allows
+Account type
+Bank name
+Account number or secure reference
+IFSC or equivalent
+Beneficiary name
+Primary account flag
+Verification status
+Change history
+
+23. Blocking, Freezing & Status Management
+
+24. Master Approval Workflow
+CREATE / EDIT DRAFT
+      ↓
+VALIDATE
+      ↓
+DUPLICATE / TAX / CREDIT CHECK
+      ↓
+APPROVAL (if rule applies)
+      ↓
+ACTIVE
+      ↓
+USABLE IN TRANSACTIONS
+High-risk changes—credit limits, tax identity, bank details, payment terms, major discounts and blocked-status overrides—should support configurable approval.
+25. Master Change History
+
+26. Import, Export & Migration
+CSV/Excel import templates
+Field mapping preview
+Duplicate preview before commit
+Validation report
+Partial error handling without silent skips
+Rollback or controlled import batch
+Import batch ID
+Original source row reference
+Export respects permissions
+Sensitive data masked by default
+27. Bulk Operations
+Bulk activate/deactivate
+Bulk assign group
+Bulk assign salesman/route
+Bulk update payment terms
+Bulk update price list
+Bulk update credit rules where permitted
+Bulk address import
+Bulk merge candidate review
+
+28. Search & Keyboard-First Master UX
+CTRL/CMD + K → GLOBAL SEARCH
+      ↓
+CUSTOMER / SUPPLIER
+      ↓
+Type-ahead search
+      ↓
+↑ ↓ Select
+ENTER Open
+CTRL+N New
+CTRL+S Save
+ESC Close
+Search by name, code, GSTIN, phone, email, external reference
+Recent records
+Favorites
+Fuzzy match
+Duplicate suggestions
+Keyboard-only navigation
+Quick-create related contact/address without losing context
+29. Customer/Supplier Selection on Transactions
+TRANSACTION
+   ↓
+SELECT PARTY
+   ↓
+LOAD ROLE + DEFAULTS
+   ├─ Address
+   ├─ Tax
+   ├─ Payment Terms
+   ├─ Price List
+   ├─ Credit Status
+   ├─ Route / Salesman
+   └─ Warehouse / Logistics Defaults
+   ↓
+USER CAN OVERRIDE ONLY PERMITTED FIELDS
+The transaction stores a snapshot of fields necessary to preserve historical accuracy. Changing the master later should not rewrite posted documents.
+30. Integration with DOC-07 Settlement & DOC-08 Posting
+CUSTOMER MASTER
+   ↓
+CUSTOMER ACCOUNT / RECEIVABLE LEDGER
+   ↓
+INVOICE POSTED (DOC-08)
+   ↓
+OPEN ITEM (DOC-09)
+   ↓
+PAYMENT / CREDIT NOTE / DEBIT NOTE
+   ↓
+BILL-BY-BILL ALLOCATION (DOC-07)
+   ↓
+CUSTOMER OUTSTANDING
+The party master therefore provides identity and default control information; it must never be used to manually overwrite accounting balances.
+31. Integration with Inventory, Cargo & Principal
+Customer can have a default delivery warehouse or route.
+Customer can have principal/product relationships where relevant.
+Customer delivery addresses can be associated with delivery/consignment instructions.
+Supplier can have default pickup/inward location.
+Transporter remains a separate master and can also be linked operationally to the party framework.
+32. Data Model Blueprint
+
+32.1 Key relationship
+PARTY
+ ├─ party_roles
+ │    ├─ customer_account
+ │    └─ supplier_account
+ ├─ addresses
+ ├─ contacts
+ ├─ tax_profile
+ ├─ bank_accounts
+ └─ groups
+
+customer_account
+ ├─ credit_profile
+ ├─ commercial_profile
+ ├─ open_items
+ └─ settlements
+
+supplier_account
+ ├─ payment_profile
+ ├─ commercial_profile
+ ├─ open_items
+ └─ settlements
+33. Remote / Cloud Live Data Requirements
+Because your ERP uses a local-first system with a live cloud transactional tier, customer/supplier master changes must be synchronized as business data, not merely copied as backup files.
+LOCAL MASTER CHANGE
+   ↓
+LOCAL COMMIT
+   ↓
+SYNC EVENT
+   ↓
+LIVE CLOUD TRANSACTIONAL STORE
+   ↓
+REMOTE USERS SEE UPDATED MASTER
+
+REMOTE MASTER CHANGE
+   ↓
+CLOUD COMMIT
+   ↓
+LOCAL SYNC
+   ↓
+LOCAL MASTER UPDATED
+Stable party ID across local and cloud copies
+Version number / revision
+Last modified by and device
+Conflict detection
+Idempotent application
+Audit event preserved
+Remote user must see freshness status when data is not current
+34. Small-Business Mode vs Large-Business Mode
+
+The underlying data model remains the same; the UI exposes only the complexity the business needs.
+35. Reporting & Master Analytics
+Customer count by status
+New customers
+Blocked/inactive customers
+Credit exposure
+Customers over credit limit
+Overdue customers
+Top customers by sales
+Supplier concentration
+Supplier payment due
+Customers by route/territory
+Customers by principal
+Master duplicates/candidates
+Missing tax data
+Missing addresses
+Bank verification pending
+36. Performance & Data Quality Rules
+Index customer/supplier search fields
+Normalize phone/email for duplicate matching
+Use stable internal IDs
+Avoid duplicating address text in every master row
+Use snapshots in transactions where historical accuracy requires it
+Archive rather than delete referenced masters
+Paginate large party lists
+Use asynchronous duplicate analysis for large datasets
+37. Security & Permission Rules
+
+38. Non-Negotiable Rules
+1. One real-world business identity should not be duplicated merely because it has multiple addresses.
+2. Customer and supplier roles may coexist under one party identity.
+3. Customer and supplier balances are separate accounting roles unless an explicit authorized netting process exists.
+4. Master changes must never rewrite posted historical transactions.
+5. Credit and banking changes are controlled and auditable.
+6. Party masters are company-scoped and protected by the ERP company boundary.
+7. Every transaction uses the party/account IDs, not display names, as authoritative references.
+8. Bill-by-bill settlement belongs to DOC-07; posting/open-item creation belongs to DOC-08/DOC-09; the master provides the accounts and defaults needed by those engines.
+9. Batch/product/warehouse/transport data is not duplicated unnecessarily inside customer/supplier masters.
+10. All master screens must support the keyboard-first UX rules defined in DOC-05.
+39. Acceptance Criteria
+Create a party once and add Customer role, Supplier role or both.
+Create multiple addresses with distinct purposes.
+Select a shipping address independently from billing address.
+Prevent/flag duplicate GSTIN.
+Set a customer credit limit and test warning/block behavior.
+Create a shared customer credit group where configured.
+Create customer and supplier accounts under the same party while keeping AR/AP independent.
+Change a master address and verify posted invoices retain their original snapshot.
+Block a customer and verify new sales behavior follows policy.
+Import 1,000+ party records with duplicate preview and error report.
+Search customer/supplier by keyboard using name/code/GSTIN/phone.
+Synchronize a master update to the live cloud and verify remote users receive it.
+Audit credit, tax, bank and status changes.
+Merge two duplicate parties without losing transaction history.
+40. Design References & ERP Patterns
+This document was designed using established ERP patterns as reference points, particularly around unified business partners, multiple addresses and credit groups. It is not a copy of any proprietary system.
+
+Appendix A — Core Customer Fields
+
+Appendix B — Core Supplier Fields
+
+Appendix C — Recommended Screen Inventory
+Party 360
+Customer List
+Customer Create/Edit
+Customer Addresses
+Customer Contacts
+Customer Credit Profile
+Customer Commercial Profile
+Customer Sites
+Customer Statement
+Customer Credit Exposure
+Supplier List
+Supplier Create/Edit
+Supplier Addresses
+Supplier Contacts
+Supplier Payment Profile
+Supplier Bank Accounts
+Supplier 360
+Customer/Supplier Merge
+Duplicate Review
+Master Import
+Master Export
+Master Approval Inbox
+Master Audit History
+Final Specification
+DOC-10 establishes the party/customer/supplier master as the reusable identity layer of the ERP. Later documents should never create a competing customer/supplier identity structure. Sales, purchasing, billing, cargo, receipts, payments, accounting, settlement, reports and CRM should all reference this master framework.

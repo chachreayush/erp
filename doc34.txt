@@ -1,0 +1,181 @@
+DOC-34
+Cargo & Consignment Management Engine
+C&F ERP Architecture & Implementation Blueprint
+Version 1.0  |  Authoritative cargo/consignment layer  |  Code-free design
+Purpose: define the complete cargo and consignment layer between physical dispatch and freight/cost management. DOC-34 owns consignment identity, transport movement, package/measurement details, LR/GR/POD and transit exceptions. It integrates with DOC-19 Dispatch, DOC-20 Billing, DOC-13 Transport/Vehicle Master, DOC-35 Freight, DOC-36 Principal/C&F and DOC-30/31/32/33 reporting, dashboard, workflow and audit.
+Executive architecture
+Critical new project requirement: Admin-funded client cargo
+Where configured by the Platform/Master Admin Company, cargo and consignment costs incurred for a Client Company are economically borne by the Admin Company. DOC-34 must therefore separate physical service attribution, management visibility and accounting ownership. The same cargo movement can be visible to the Client Company as a client-level operational cost while the authoritative accounting expense is posted only to the Admin Company. No duplicate expense posting is created in the Client Company unless an approved recovery/chargeback policy is explicitly enabled.
+This creates three distinct scopes: (1) Physical/Operational Owner - the client/order/dispatch for which the cargo exists; (2) Cost Bearer - Admin Company when the funding policy says Admin bears the cost; (3) Recovery/Chargeback Owner - optional configuration if the Admin later recovers some or all cost from the Client Company. This distinction is mandatory for reporting and audit.
+1. Scope & Objectives
+Create a first-class consignment record independent of invoice numbering.
+Link one consignment to one or many invoices, challans, orders and dispatches, and link one invoice to many consignments where required.
+Capture LR/GR and transporter/vehicle/driver information without duplicating master identities.
+Model packages, weight, dimensions, CBM, route, origin, destination and delivery milestones.
+Handle split, merge, repack, short-delivery, damage and reverse logistics events.
+Provide a controlled POD lifecycle and exception workflow.
+Capture planned, actual, recoverable and Admin-funded cargo costs for later consumption by DOC-35.
+Provide client-level, Admin Company, and combined reporting scopes with authorization controls.
+Support small-business simple mode and large-business multi-consignment/multi-leg mode.
+Be keyboard-first, local-first/LAN compatible, sync-safe and fully auditable.
+2. Ownership & Cost-Bearing Model
+Cost-bearer rules
+At company/service setup, the Admin Company may enable “Admin bears cargo/consignment cost” for selected Client Companies, branches, customers, principals, routes or service types.
+When enabled, DOC-34 marks the consignment cost bearer as Admin Company and records the related Client Company as the operational beneficiary.
+The Client Company can see the allocated cargo cost in authorized operational/MIS views, but the client ledger is not debited automatically.
+The Admin Company records the expense through the configured accounting/freight process. DOC-08 remains the only posting authority.
+If cost recovery is enabled, the system creates a recoverable/chargeback candidate for DOC-35 and/or the appropriate billing/accounting workflow. Recovery never changes the historical gross cost.
+Every cost record stores gross cost, recoverable amount, net borne amount, beneficiary client, bearer company and recovery status so reports can reconcile without ambiguity.
+3. Core Data Model
+Core integrity rules
+Consignment number is unique within configured company/branch/series scope.
+LR/GR numbers may be unique by transporter where business practice requires it, with controlled duplicate warnings.
+A package belongs to exactly one active consignment at a time; split/merge creates auditable successor/parent relationships.
+Weights and CBM can be estimated and later verified; both values remain history-bearing.
+One physical movement must never silently appear as two consignments without an explicit split event.
+Cost records cannot be orphaned; every charge must reference a consignment, leg or approved operational cost event.
+Admin-funded cost must contain both cost bearer and client beneficiary identifiers.
+4. Consignment Lifecycle
+Partial delivery and split consignment are modeled as controlled events, not edits to historical movement. A consignment can have multiple legs and multiple delivery outcomes.
+5. Cargo & Consignment Operational Features
+LR/GR management
+Configurable LR/GR series and numbering
+Carrier booking date/time
+Freight/payment terms
+Transporter acknowledgement
+Document reference storage
+LR/GR correction/reissue with audit
+Packages & handling
+Carton/box/bag/pallet/loose/other configurable package types
+Package barcode/label
+Package split/merge/repack
+Package-to-product/batch mapping
+Fragile/temperature/special handling indicators
+Measurements
+Gross weight
+Tare weight
+Net weight
+Dimensions
+CBM/volume
+Estimated vs verified values
+Multiple UOM and conversion rules
+Movement & route
+Origin/destination
+Route/leg sequence
+Hub/transshipment points
+Expected departure/arrival
+Actual milestones
+Multi-leg movement
+Vehicle/driver changes with audit
+POD
+Digital/physical POD reference
+Receiver name and timestamp
+Accepted/short/damaged/rejected quantity
+Photo/signature/document evidence
+POD pending queue
+Redelivery/re-attempt
+Exceptions
+Shortage
+Transit damage
+Lost package
+Wrong destination
+Delay
+Customer rejection
+Vehicle/transport failure
+Claim linkage
+6. Integration Architecture
+7. Admin-Borne Client Cargo Cost Architecture
+This section is mandatory for the user’s multi-tenant model. The Admin Company may bear cargo/consignment costs incurred for Client Companies. The system must distinguish physical beneficiary from accounting cost bearer.
+7.1 Company policy setup
+Default: Admin Company bears cargo cost: Yes/No
+Scope: all clients / selected clients / branches / service types / routes / principals
+Recovery mode: none / full / partial / contractual
+Accounting destination: configured Admin expense ledger/cost centre
+Analytical allocation: mandatory when client reporting is enabled
+7.2 Expense recording
+Every qualifying cargo charge creates an Admin-cost candidate
+Capture transporter bill/charge, tax, ancillary costs, date, document reference and consignment
+Mark whether cost is invoiceable/recoverable
+Store client beneficiary and optional principal/customer attribution
+Post only through DOC-08 after applicable approval
+7.3 Client-company visibility
+Client dashboard/report can show cargo cost incurred for its business
+Label clearly as “Admin-borne cargo cost” or configured equivalent
+Do not present the amount as a Client Company ledger expense unless chargeback is posted
+Allow authorized users to drill from client report → consignment → cost document
+7.4 Admin Company visibility
+Admin dashboard/report shows total cargo expense borne for all clients
+Breakdown by Client Company, branch, customer, principal, transporter, route, vehicle, consignment, month and cost type
+Separate gross cargo cost, recoveries and net Admin-borne cost
+Optional combined view across all enabled client companies
+Access controlled by Platform/Admin permissions
+7.5 Combined reporting toggle
+Admin can enable “Include Client Company Cargo Costs” in Admin MIS
+When enabled, combined dashboards/reports aggregate selected client-company cost data
+When disabled, client costs remain individually visible under authorized client scopes but are excluded from Admin combined management view
+Any combined report must show scope and whether figures are accounting-posted or analytical/allocated
+7.6 Audit and safeguards
+Every change to cost bearer/recovery policy is audited
+Historical transactions retain the policy snapshot applicable at the time
+No retroactive change silently rewrites prior accounting
+Client visibility can be revoked without deleting cost data
+Admin consolidated reporting never bypasses company isolation; it uses an authorized cross-company reporting service
+8. Cargo Cost Lifecycle
+Consignment created and linked to Client Company/dispatch.
+Transporter/service cost captured or estimated.
+System determines cost bearer from effective company policy.
+If Admin-borne: record Admin expense candidate and Client operational beneficiary.
+Apply DOC-35 freight calculation/recovery rules where applicable.
+If recovery enabled, calculate recoverable amount separately from gross cost.
+Approval is routed through DOC-32 according to amount/type/risk.
+Financial posting goes only to DOC-08 and appropriate ledger/cost centre.
+Client and Admin reporting receives synchronized analytical dimensions.
+Final settlement/claim/recovery remains traceable to the original cost record.
+Any cancellation/reversal creates a new auditable corrective event rather than deleting history.
+9. Reports & Management Views
+10. Permissions & Data Scope
+Client users see only their company’s consignments and authorized cost views.
+Admin users with cross-company permission can view combined cargo data and Admin-borne expenses.
+Cost-bearer changes require elevated permission and audit.
+Editing LR/GR after dispatch requires controlled permission and may require approval.
+POD evidence access follows document permissions and sensitive-data rules.
+Export of combined Admin/company data is separately permission-controlled.
+Users cannot change accounting ownership by editing a dashboard or report filter.
+11. Keyboard-First UI
+12. Local-First, Sync & Offline Behavior
+Consignment creation and routine milestone entry must work on the local primary server/LAN without cloud dependency.
+Each event receives a globally unique event/change ID and idempotency key.
+Remote users synchronize through the existing sync architecture; no module may directly open a shared cloud file as a database.
+Conflicts on non-critical fields may use configured merge rules; status, cost bearer and POD completion require explicit conflict handling where needed.
+Admin-funded cost dimensions must synchronize with the same client/company context and never cross tenant boundaries without authorized reporting scope.
+Failed synchronization creates a visible exception rather than silently losing cargo movement history.
+13. Small-Business and Large-Business Modes
+14. Regional & Compliance Hooks
+Transport and tax/e-document fields must be jurisdiction-configurable; India-specific GST/e-way data is consumed from DOC-29 rather than hard-coded here.
+Country/region/company setup determines applicable document fields, measurement conventions, currency and statutory references.
+LR/GR terminology may be localized through labels while preserving a common internal cargo model.
+Any regulatory field or expiry rule must be effective-dated and validated against current jurisdiction rules before production use.
+15. Audit, Evidence & Data Quality
+Log all create/edit/cancel/status/cost-bearer/recovery/POD/evidence changes.
+Retain before/after values for high-risk cargo and cost fields.
+Capture who, when, source device/session and company context.
+Link supporting LR/GR, transporter bill, POD, damage evidence and recovery documents through the document layer.
+Provide “why this cost is in Admin expense” explanation with policy, beneficiary, bearer and recovery status.
+No destructive deletion after financial or dispatch significance; use reversal/amendment lifecycle.
+16. Acceptance Criteria
+One invoice can have multiple consignments and one consignment can link to multiple compatible sources.
+Consignment can be split, merged or repacked without losing traceability.
+LR/GR, package, weight, CBM, route, transporter and POD are fully traceable.
+Shortage/damage/delay exceptions can be recorded and escalated.
+Admin Company can be configured as cargo-cost bearer for selected Client Companies.
+Admin expense reports can identify cost individually by Client Company and across all enabled companies.
+Client Company can see authorized analytical cargo cost without automatically creating a client accounting expense.
+Combined Admin reports can be enabled/disabled by authorization and policy.
+Accounting consequences post only through DOC-08; settlement through DOC-07 where applicable.
+DOC-30/31 reports and dashboards can distinguish accounting-posted vs analytical Admin-borne cost.
+All significant changes are auditable through DOC-33.
+Offline/LAN operation and synchronization preserve event identity and prevent duplicates.
+17. Handoff to DOC-35 and Other Future Modules
+DOC-34 intentionally does not own final freight pricing, recovery formulas or logistics margin. It provides movement facts and cost-source records. DOC-35 will consume these facts to calculate freight and recovery. DOC-36 may consume them for Principal/C&F operational reporting. DOC-41 can use them for closing/financial statements. DOC-42/43 will manage evidence and rendering. DOC-44–54 will harden security, database, API, sync, QA, deployment and go-live.
+Architecture rule
+Physical movement belongs to DOC-34; cost calculation belongs to DOC-35; accounting posting belongs to DOC-08; settlement belongs to DOC-07; reporting calculation belongs to DOC-30; dashboard presentation belongs to DOC-31; approvals belong to DOC-32; audit evidence belongs to DOC-33. The Admin-funded client cargo feature adds a cost-bearer dimension but does not create a second accounting engine.

@@ -41,7 +41,7 @@ export default function HomeScreen() {
   ]
 
   if (user?.role === 'am_admin') {
-    modules.push({ label: 'Client Management', path: '/admin/clients', icon: <Users size={28} />, color: '#ec4899', desc: 'Manage organizations' })
+    modules.push({ label: 'Client Management', path: '/clients', icon: <Users size={28} />, color: '#ec4899', desc: 'Manage organizations' })
   }
 
   return (

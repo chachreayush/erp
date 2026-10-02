@@ -1,0 +1,536 @@
+DOC-06
+MASTER DATA & BATCH MANAGEMENT FRAMEWORK
+Foundation for Products, Customers, Principals, Inventory Identity, Batch Traceability, Pricing and Shared Business Masters
+
+
+
+Table of Contents
+1. Purpose & Scope
+2. Master Data Philosophy
+3. Master Data Hierarchy
+4. Master Ownership & Company Isolation
+5. Common Master Record Standards
+6. Master Lifecycle
+7. Customer Master
+8. Supplier Master
+9. Principal Master
+10. Product Master
+11. Batch / Lot Management — Core Architecture
+12. Batch Creation & Assignment
+13. Batch Attributes & Expiry
+14. Batch Inventory State
+15. Batch Traceability & Recall
+16. Batch Allocation & FEFO/FIFO Rules
+17. Batch Controls in Purchase
+18. Batch Controls in Sales & Billing
+19. Batch Controls in Returns & Adjustments
+20. Warehouse & Location Master
+21. Transporter & Vehicle Master
+22. Units of Measure
+23. Tax & Statutory Master
+24. Price List & Commercial Master
+25. Scheme & Promotion Master
+26. Salesman / Employee / Route Masters
+27. Expense & Charge Masters
+28. Master Search, Selection & Keyboard UX
+29. Import, Export & Bulk Operations
+30. Master Security & Permissions
+31. Master Audit & Versioning
+32. Master Data Quality
+33. Small-Business Mode
+34. Large-Business Mode
+35. Database & Relationship Blueprint
+36. API / Service Responsibilities
+37. Sync & Cloud Behavior
+38. Reporting Requirements
+39. Validation & Error Handling
+40. Testing Strategy
+41. Acceptance Criteria
+42. Non-Negotiable Rules
+Appendix A. Master Screen Inventory
+Appendix B. Recommended Product/Bath Fields
+Appendix C. Example Batch Lifecycle
+Appendix D. Future Detailed Documents
+1. Purpose & Scope
+This document defines the common master-data framework that every future ERP module must use. It does not replace the detailed module implementation documents for Billing, Accounting, Inventory, Purchase, CRM, Principal Management or GST; instead, it defines the trusted records those modules consume.
+MASTER → VALIDATION → TRANSACTION → LEDGER / MOVEMENT → REPORT
+
+2. Master Data Philosophy
+One master record = one controlled business identity within its company scope.
+Masters have stable internal IDs; display codes/names can be changed under controlled rules.
+Referenced masters are normally deactivated, not deleted.
+Every master has company scope unless explicitly declared platform/system scope.
+Effective dates are used for rules that change over time, such as prices, taxes and schemes.
+Operational transactions should not overwrite master history silently.
+Batch identity belongs to inventory traceability and must be linked to stock movements.
+Product and batch are separate entities: product describes what the item is; batch describes a specific identifiable quantity/group.
+Company ownership, warehouse location and batch are separate dimensions.
+All masters must work with keyboard-first search and quick creation.
+3. Master Data Hierarchy
+PLATFORM / SYSTEM MASTER
+       ↓
+COMPANY MASTER
+       ↓
+BUSINESS MASTERS
+ ├─ Customer / Supplier / Principal
+ ├─ Product / UOM / Tax
+ ├─ Warehouse / Location
+ ├─ Transporter / Vehicle
+ ├─ Price List / Scheme
+ └─ Employee / Route / Expense
+       ↓
+INVENTORY IDENTITY
+ ├─ Product
+ ├─ Batch / Lot
+ └─ Serial (future/configurable)
+       ↓
+TRANSACTIONS
+3.1 Product vs Batch
+
+
+4. Master Ownership & Company Isolation
+Masters must follow the same company-isolation model established in DOC-01. Platform administrators can create or govern platform-level structures, while client companies control their own operational masters subject to the permission ceiling defined by the Platform Admin.
+PLATFORM ADMIN
+    ↓ defines platform capabilities / defaults
+CLIENT COMPANY
+    ↓ owns company masters
+COMPANY ADMIN
+    ↓ manages allowed masters
+COMPANY USERS
+    ↓ use masters according to role/scope
+
+
+5. Common Master Record Standards
+
+6. Master Lifecycle
+DRAFT / SETUP → ACTIVE → BLOCKED / INACTIVE → ARCHIVED
+New masters can begin as Draft when they require review or mandatory setup.
+Active masters can be used in transactions.
+Blocked masters remain searchable for history but are prevented from new transactions according to the rule.
+Archived masters remain for historical reporting and audit but are not selectable for new activity.
+Deletion is allowed only for unreferenced draft/setup records under controlled permission.
+7. Customer Master
+7.1 Customer capabilities
+Multiple billing/shipping addresses
+GST and statutory identity
+Contacts
+Credit limit
+Payment terms
+Price list
+Salesman/route
+Customer type
+Opening balance
+Tax defaults
+Preferred transport/delivery details
+Outstanding/collection preferences
+Customer notes
+Document attachments
+7.2 Customer validation
+
+8. Supplier Master
+Identity and statutory information
+Multiple addresses
+Payment terms
+Bank/payment data
+Purchase price references
+Supplier credit/debit history
+Opening balance
+Attachments
+Supplier rating/notes if adopted later
+9. Principal Master
+A Principal is a core C&F business dimension and must not be modeled simply as a generic customer or supplier.
+
+10. Product Master
+Product is the core inventory identity. It must be designed to support simple businesses while allowing high-complexity inventory, pharma-style batch control and principal-specific operations.
+PRODUCT
+ ├─ Identity
+ ├─ Classification
+ ├─ Units / Pack
+ ├─ Tax / HSN
+ ├─ Pricing defaults
+ ├─ Inventory behavior
+ ├─ Batch / expiry policy
+ ├─ Barcode
+ ├─ Principal mapping
+ └─ Reporting attributes
+10.1 Product tracking mode
+
+
+10.2 Product fields
+
+11. Batch / Lot Management — Core Architecture
+Batch/lot management is a first-class feature of this ERP. It is especially important where products are perishable, regulated, recall-sensitive or commercially differentiated by manufacturing batch. Established ERP systems use lots/batches for traceability, expiration and lifecycle tracking; this document takes those patterns as design references while keeping the C&F ERP configurable and company-specific.
+PRODUCT
+   ↓
+BATCH / LOT
+   ├─ Batch number
+   ├─ Manufacturing date
+   ├─ Expiry date
+   ├─ Best-before / removal / alert dates
+   ├─ Supplier / source
+   ├─ Principal / owner
+   ├─ Quality / status
+   └─ Additional characteristics
+   ↓
+STOCK POSITIONS
+   ↓
+RECEIPT → TRANSFER → SALE → RETURN → ADJUSTMENT
+   ↓
+TRACEABILITY REPORT
+11.1 Batch identity rules
+Batch number is unique within the defined identity scope; the scope should be configurable (for example company + product, or company + principal + product where needed).
+A batch must always be linked to a product.
+A batch cannot be reassigned to a different product after it has been used in stock movements.
+Batch quantity is derived from stock movements; it is not an independently editable balance.
+Batch-specific attributes must remain available for historical reporting.
+If the same physical batch is received into multiple warehouses, the ERP should keep one batch identity with multiple stock positions rather than create unrelated batch identities.
+12. Batch Creation & Assignment
+12.1 Batch creation sources
+Purchase inward / goods receipt
+Opening stock migration
+Stock adjustment under controlled process
+Manufacturing/production future capability
+Principal-provided batch data
+Manual controlled creation for exceptional cases
+12.2 Assignment workflow
+RECEIPT
+  ↓
+PRODUCT SELECTED
+  ↓
+TRACKING = BATCH
+  ↓
+SELECT EXISTING BATCH / CREATE BATCH
+  ↓
+ENTER / IMPORT BATCH ATTRIBUTES
+  ↓
+VALIDATE EXPIRY + DUPLICATE + PRODUCT
+  ↓
+POST RECEIPT
+  ↓
+STOCK POSITION CREATED
+
+13. Batch Attributes & Expiry
+
+Odoo, for example, documents expiration, best-before, removal and alert timing on tracked lots/serials. The C&F ERP should use the underlying concept while keeping the rules configurable for different industries.
+14. Batch Inventory State
+BATCH
+  ├─ On Hand
+  ├─ Reserved
+  ├─ Available
+  ├─ Quarantine
+  ├─ Blocked
+  ├─ Expiring Soon
+  ├─ Expired
+  ├─ Damaged
+  └─ Returned
+
+15. Batch Traceability & Recall
+A user should be able to start from either a batch or a transaction and navigate the full chain of custody.
+BATCH → RECEIPT → SUPPLIER / PRINCIPAL → WAREHOUSE → TRANSFERS → DISPATCH → INVOICES → CUSTOMERS → RETURNS
+15.1 Traceability questions the ERP must answer
+Where is this batch now?
+How much remains?
+Where did it come from?
+Which supplier/principal supplied it?
+Which invoices used it?
+Which customers received it?
+How much was returned?
+Was any quantity damaged/expired?
+Which warehouses hold it?
+Which transactions changed it?
+
+16. Batch Allocation & FEFO/FIFO Rules
+The system should support configurable allocation rules instead of assuming one method for every business.
+
+16.1 Recommended default for expiry-controlled products
+AVAILABLE BATCHES → REMOVE EXPIRED/BLOCKED → SORT BY EXPIRY → SUGGEST EARLIEST VALID BATCH → USER CONFIRMS → RESERVE/ISSUE
+The user must be able to override an automated suggestion only when the business rules permit it. An override should record the reason when configured.
+17. Batch Controls in Purchase
+Require batch for batch-tracked products
+Capture/validate expiry
+Warn on short-dated stock
+Allow multiple batches on one receipt
+Show existing matching batches
+Prevent accidental duplicate batch identity
+Record source supplier/principal
+Create stock position only after receipt posting
+Support batch-wise purchase cost where required
+18. Batch Controls in Sales & Billing
+INVOICE LINE → PRODUCT → SHOW AVAILABLE BATCHES → EXPIRY / QTY → FEFO SUGGESTION → SELECT/CONFIRM → RESERVE → POST STOCK OUT
+Show available qty per batch
+Show expiry prominently
+Warn/block expired batch
+Show blocked/quarantine batches but prevent use
+Allow multiple batches against one invoice line where needed
+Print batch/expiry on documents where configured
+Preserve exact batch allocation in accounting/stock source records
+
+19. Batch Controls in Returns & Adjustments
+Returns must identify the batch when the original sale was batch-tracked
+Returned stock should initially enter the appropriate return/quarantine state according to configured rules
+Do not automatically make returned goods available for sale if quality inspection is required
+Batch quantity changes only through controlled stock movements
+Adjustments require reason and appropriate permission
+20. Warehouse & Location Master
+COMPANY → BRANCH → WAREHOUSE → ZONE / BIN / LOCATION → STOCK POSITION
+Multiple warehouses
+Internal locations/bins where useful
+Warehouse status
+Stock ownership rules
+Allowed users
+Dispatch/receipt capabilities
+Default warehouse
+Warehouse-specific numbering where required
+21. Transporter & Vehicle Master
+
+22. Units of Measure
+UOM is a foundational master because billing, inventory, purchase and freight can use different units.
+
+
+23. Tax & Statutory Master
+Tax category
+HSN/SAC
+GST rate configuration
+Effective dates
+Exempt/non-taxable attributes
+Reverse-charge applicability
+Place-of-supply inputs
+E-invoice/e-way configuration flags
+Actual statutory rates and rules should be validated against current requirements before production and should live in a configurable tax engine, not inside product code.
+24. Price List & Commercial Master
+Customer-specific price list
+Principal-specific price list
+Warehouse/channel-specific pricing
+Effective dates
+Minimum/maximum quantity bands
+MRP/reference price
+Base rate
+Discount structures
+Manual override permission
+Rate-history view
+CUSTOMER + PRODUCT + PRINCIPAL + DATE + CHANNEL → PRICE RESOLUTION → SCHEME → DISCOUNT → FINAL RATE
+25. Scheme & Promotion Master
+Buy X Get Y
+Free quantity
+Percentage discount
+Amount discount
+Slab scheme
+Principal-funded scheme
+Company-funded scheme
+Effective dates
+Eligibility rules
+Approval for manual overrides
+Scheme application audit
+26. Salesman / Employee / Route Masters
+
+27. Expense & Charge Masters
+Expenses and recoveries should use controlled master categories so the ERP can report actual cost separately from recovered charges.
+
+28. Master Search, Selection & Keyboard UX
+The master framework must be optimized for the keyboard-first principles in DOC-05.
+FOCUS FIELD → TYPE SEARCH → FILTER → ARROW SELECT → ENTER → RECORD LOADED
+Global master search
+Code/name/phone/GSTIN/barcode search
+Recent records
+Favorites/pinned records
+Quick create
+Inline create from transactions
+Keyboard navigation through result grids
+Visible status and warning badges
+Batch search by batch number/product/expiry
+28.1 Quick-create safety
+Quick-create may create only the minimum fields required for the transaction. The record should enter Draft/Incomplete status if additional setup is required; this prevents half-configured masters from silently becoming production records.
+29. Import, Export & Bulk Operations
+CSV/Excel import where appropriate
+Template download
+Preview before commit
+Validation report
+Duplicate detection
+Row-level error messages
+Partial success rules
+Rollback option for failed batches
+Import audit
+Permission-controlled export
+29.1 Batch import
+Batch import must support product, batch number, expiry, opening quantity, warehouse, principal/owner and source reference where applicable. Imported stock must not bypass normal reconciliation controls.
+30. Master Security & Permissions
+
+31. Master Audit & Versioning
+Created by/time
+Updated by/time
+Before/after sensitive changes
+Effective dates
+Who deactivated a master
+Who changed a batch status
+Who overrode expiry or allocation
+Who imported records
+Source document/reference
+Version / revision
+32. Master Data Quality
+
+33. Small-Business Mode
+A small business should be able to use the same data model without being overwhelmed.
+Simple Product form
+Optional batch tracking per product
+One warehouse by default
+Basic price list
+Simple customer/supplier master
+Simplified role templates
+Quick-create
+Keyboard-first billing
+Automatic accounting
+Optional advanced fields hidden by default
+34. Large-Business Mode
+Multiple branches and warehouses
+Principal-specific stock ownership
+Advanced batch attributes
+Multiple UOMs
+Complex price lists
+Scheme engines
+Approval workflows
+Bulk master imports
+Field-level permissions
+Advanced traceability
+API integrations
+Large-scale batch operations
+Advanced reporting
+
+35. Database & Relationship Blueprint
+companies
+  ├─ customers
+  ├─ suppliers
+  ├─ principals
+  ├─ products
+  │    └─ product_batches
+  │          └─ stock_positions / stock_movements
+  ├─ warehouses
+  ├─ transporters
+  ├─ vehicles
+  ├─ uoms
+  ├─ tax_configs
+  ├─ price_lists
+  ├─ schemes
+  └─ expense_types
+
+36. API / Service Responsibilities
+
+37. Sync & Cloud Behavior
+Masters are business data and therefore must follow the DOC-04 live cloud architecture.
+LOCAL MASTER CHANGE
+   ↓
+LOCAL COMMIT
+   ↓
+SYNC EVENT
+   ↓
+CLOUD LIVE STATE
+   ↓
+REMOTE USERS SEE UPDATED MASTER
+   ↓
+REMOTE MASTER CHANGE (when permitted)
+   ↓
+CLOUD COMMIT
+   ↓
+LOCAL SYNC
+   ↓
+LOCAL MASTER UPDATED
+Use version/change IDs for master mutations
+Idempotent synchronization
+Conflict handling for simultaneous edits
+Batch identity conflicts must never be silently merged
+Remote users should see freshness/status when cloud state is not current
+Sensitive admin changes require appropriate online authorization and audit
+38. Reporting Requirements
+Master list
+Inactive master list
+Duplicate candidates
+Product-wise stock
+Batch-wise stock
+Batch expiry
+Near-expiry dashboard
+Blocked/quarantine batches
+Batch traceability
+Stock by warehouse/principal
+Customer/product mappings
+Price history
+Scheme usage
+Transporter/vehicle master reports
+39. Validation & Error Handling
+
+40. Testing Strategy
+
+41. Acceptance Criteria
+1. Every company has isolated masters unless an explicit platform/shared rule exists.
+2. Product tracking mode determines whether batch entry is mandatory.
+3. Batch records are separate from Product records.
+4. Batch quantities come from stock movements rather than manual balance edits.
+5. Expiry-controlled batches cannot be sold when expired unless a controlled exception is explicitly configured.
+6. Traceability can move from batch to source receipt and downstream transactions.
+7. Batch selection is available in keyboard-first billing without unnecessary navigation.
+8. Small businesses can operate with minimal master complexity.
+9. Large businesses can activate advanced batch, principal, warehouse and permission functionality.
+10. Master updates synchronize according to the live cloud architecture.
+11. All sensitive changes and overrides are auditable.
+42. Non-Negotiable Rules
+1. Product and Batch are separate concepts.
+2. A Batch must belong to exactly one Product within its company scope.
+3. Batch stock is derived from movement history.
+4. Expired/blocked/quarantined batches cannot silently become sellable.
+5. Batch identity cannot be changed after posted stock usage.
+6. Customer, supplier, principal and product masters are company-isolated by default.
+7. Master lifecycle must protect historical reporting.
+8. Effective dates must be used for rules that change over time.
+9. Batch allocation must be auditable.
+10. Keyboard-first search and selection applies to all high-volume masters.
+11. No module should create duplicate master logic outside the common master framework.
+12. All master changes must respect Platform Admin permission ceilings and company permissions.
+Appendix A. Master Screen Inventory
+Customer Master
+Supplier Master
+Principal Master
+Product Master
+Batch/Lot Master
+Batch Traceability
+Warehouse Master
+Location/Bin Master
+Transporter Master
+Vehicle Master
+UOM Master
+Tax Master
+Price List
+Scheme Master
+Employee/Salesman
+Route/Territory
+Expense Type
+Charge/Recovery Type
+Master Import Center
+Master Audit Viewer
+Appendix B. Recommended Product / Batch Fields
+
+Appendix C. Example Batch Lifecycle
+PRODUCT CREATED
+   ↓
+BATCH A123 RECEIVED
+   ↓
+500 UNITS STOCK IN
+   ↓
+WAREHOUSE TRANSFER
+   ↓
+100 UNITS RESERVED
+   ↓
+60 UNITS SOLD
+   ↓
+20 UNITS RETURNED
+   ↓
+BATCH NOW = remaining quantity by stock ledger
+   ↓
+EXPIRY APPROACHES
+   ↓
+ALERT → RESERVATION/SALE RULES CHANGE
+   ↓
+EXPIRY → BLOCK / REMOVE / QUARANTINE
+   ↓
+TRACEABILITY REPORT
+Appendix D. Future Detailed Documents
+
+Final Design Position
+The Master Data Framework should make the ERP feel simple to the operator while preserving the data structure needed for serious accounting, distribution and C&F operations. The most important decision in this document is to treat Batch/Lot as a first-class inventory identity: Product defines the commercial item, Batch defines the traceable group, Stock Position defines where and how much exists, and Stock Movement defines how the quantity changed.

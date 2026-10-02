@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useReturnNavigation } from '../../hooks/useReturnNavigation';
 import { apiGetLedgers, apiCreateVoucher, apiGetNextVoucherNumber, Ledger } from '../../lib/api';
 import { Trash, Plus, Save, ArrowLeft } from 'lucide-react';
+import ReceiptAllocationModal from './ReceiptAllocationModal';
 
 interface Entry {
   id: number;
@@ -27,9 +28,20 @@ export default function VoucherEntry() {
     { id: Date.now() + 1, ledgerId: '', isDr: type === 'payment', amount: '' }
   ]);
 
+  // ── Allocation Modal State ──
+  const [allocationModalOpen, setAllocationModalOpen] = useState(false);
+  const [savedVoucherId, setSavedVoucherId] = useState('');
+  const [savedVoucherNumber, setSavedVoucherNumber] = useState('');
+  const [savedTotalAmount, setSavedTotalAmount] = useState(0);
+
   useEffect(() => {
     apiGetLedgers().then(setLedgers).catch(console.error);
     fetchNextVoucherNo();
+    setEntries([
+      { id: Date.now(), ledgerId: '', isDr: type !== 'payment', amount: '' },
+      { id: Date.now() + 1, ledgerId: '', isDr: type === 'payment', amount: '' }
+    ]);
+    setIsDirty(false);
   }, [type]);
 
   const fetchNextVoucherNo = () => {
@@ -60,10 +72,21 @@ export default function VoucherEntry() {
   const diff = Math.abs(totalDr - totalCr);
   const isValid = totalDr === totalCr && totalDr > 0 && entries.every(e => e.ledgerId && e.amount);
 
+  // ── Reset form to blank state ──
+  const resetForm = () => {
+    setIsDirty(false);
+    setEntries([
+      { id: Date.now(), ledgerId: '', isDr: type !== 'payment', amount: '' },
+      { id: Date.now() + 1, ledgerId: '', isDr: type === 'payment', amount: '' }
+    ]);
+    setNarration('');
+    fetchNextVoucherNo();
+  };
+
   const handleSave = async () => {
     if (!isValid) return;
     try {
-      await apiCreateVoucher({
+      const res = await apiCreateVoucher({
         voucher_type: type || 'Payment',
         voucher_number: voucherNumber,
         date,
@@ -75,18 +98,29 @@ export default function VoucherEntry() {
           amount: parseFloat(e.amount)
         }))
       });
-      alert('Voucher saved successfully');
-      setIsDirty(false);
-      setEntries([
-        { id: Date.now(), ledgerId: '', isDr: type !== 'payment', amount: '' },
-        { id: Date.now() + 1, ledgerId: '', isDr: type === 'payment', amount: '' }
-      ]);
-      setNarration('');
-      fetchNextVoucherNo();
+
+      // If Receipt or Payment, open allocation modal instead of resetting
+      const lowerType = (type || '').toLowerCase();
+      if (lowerType === 'receipt' || lowerType === 'payment') {
+        setSavedVoucherId(res?.id || '');
+        setSavedVoucherNumber(res?.voucher_number || voucherNumber);
+        setSavedTotalAmount(totalDr);
+        setAllocationModalOpen(true);
+        setIsDirty(false);
+      } else {
+        alert('Voucher saved successfully');
+        resetForm();
+      }
     } catch (err) {
       console.error(err);
       alert('Error saving voucher');
     }
+  };
+
+  // ── Called when allocation modal closes ──
+  const handleAllocationClose = () => {
+    setAllocationModalOpen(false);
+    resetForm();
   };
 
   const styles: Record<string, React.CSSProperties> = {
@@ -178,6 +212,16 @@ export default function VoucherEntry() {
           <Save size={18} /> Save Voucher
         </button>
       </div>
+
+      {/* ── Bill-by-Bill Allocation Modal ── */}
+      <ReceiptAllocationModal
+        isOpen={allocationModalOpen}
+        onClose={handleAllocationClose}
+        sourceVoucherId={savedVoucherId}
+        voucherNumber={savedVoucherNumber}
+        totalAmount={savedTotalAmount}
+        onSuccess={handleAllocationClose}
+      />
     </div>
   );
 }

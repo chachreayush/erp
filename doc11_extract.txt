@@ -1,0 +1,279 @@
+DOC-11
+PRODUCT, SKU & BATCH MASTER FRAMEWORK
+Master-data architecture for products, variants, UOM, packaging, pricing hooks, traceability and batch-controlled inventory
+1. Purpose & Scope
+This document defines the functional and architectural requirements for Product, SKU, Variant, UOM, Packaging, Pricing hooks and Batch master data. It is intentionally detailed enough to guide screen design, database design, APIs, validation and later transaction-module documents.
+1.1 What this master must achieve
+One authoritative product identity per company context.
+Clear separation between product-level facts and batch-level facts.
+Fast search and selection for billing, purchase and warehouse operators.
+Strong traceability from receipt to dispatch, invoice, return and recall.
+Support for small-business simplicity and large-business depth without two different data models.
+Safe integration with DOC-07 bill-by-bill settlement indirectly through transaction line identity; product master itself must never carry payment state.
+2. Product Master Philosophy
+PRODUCT MASTER
+    ↓
+PRODUCT / SKU IDENTITY
+    ├── Commercial Data
+    ├── Tax Data
+    ├── UOM / Packaging
+    ├── Inventory Rules
+    ├── Pricing Hooks
+    ├── C&F / Principal Mapping
+    └── Tracking Rules
+             ↓
+        BATCH / LOT (when enabled)
+             ↓
+       STOCK MOVEMENTS
+             ↓
+ SALES / PURCHASE / DISPATCH / RETURN
+3. Product Identity Levels
+3.1 Product vs SKU decision
+The ERP should support both simple and advanced modes. For a small business, Product and SKU may appear as one screen. For larger operations, Product Family → Product Master → Variant/SKU can be enabled. Internal IDs remain stable regardless of display mode.
+4. Product Master — Core Identity
+5. Unit of Measure (UOM) Architecture
+The product must have a base unit of measure and may have alternative units used for purchase, sale, dispatch and reporting. Established ERP systems support centrally maintained product units and alternative conversions; SAP also documents batch-specific unit conversions where a batch can have an actual ratio different from the planned product ratio. Odoo likewise supports multiple units and packagings.
+5.1 Conversion architecture
+PURCHASE UOM → BASE UOM ← SALES UOM
+             ↑
+     BATCH-SPECIFIC FACTOR
+     (only where permitted)
+Conversion must be mathematically consistent and decimal-safe.
+Conversion changes must be audited.
+Product-level planned conversion can exist as a default; batch-specific actual conversion can override when the business case requires it.
+The transaction should show both entered UOM/quantity and normalized base quantity.
+Do not silently change a historical conversion used by a posted transaction.
+6. Packaging & Pack Hierarchy
+EACH
+  ↓ 10 each
+STRIP
+  ↓ 10 strips
+BOX
+  ↓ 20 boxes
+CARTON
+7. Product Attributes & Variants
+Advanced businesses may need multiple variants of a product master. Microsoft Dynamics 365 documents product masters and variants generated from dimension values; the ERP can use the same conceptual pattern while keeping the first release simpler.
+8. Product ↔ Batch Architecture
+Batch must be treated as a child traceability record linked to a Product/SKU. Batch management is particularly important where expiry, recall, quality, ownership, or batch-specific price/MRP applies. SAP describes batches as uniform traceable quantities and highlights recall and expiration use cases; Odoo similarly uses lots/serials with expiration tracking.
+PRODUCT: SKU-0001
+     │
+     ├── Batch A123 → MFG / EXP / MRP / stock / supplier
+     ├── Batch A124 → MFG / EXP / MRP / stock / supplier
+     └── Batch A125 → MFG / EXP / MRP / stock / supplier
+9. Batch Numbering & Uniqueness
+Batch number should not be globally unique across every product unless configured; recommended default is Product + Batch Number within Company/Principal scope.
+The system should detect duplicate batch numbers when an inward entry is created.
+If the same batch arrives multiple times, use the same batch record with multiple stock movements rather than creating duplicate batch masters.
+For principal-owned stock, principal should be included in the uniqueness/ownership context when business rules require it.
+Batch import should validate duplicate combinations before commit.
+10. Expiry & Shelf-Life Management
+BATCH CREATED
+   ↓
+EXPIRY / BEST-BEFORE CALCULATION
+   ↓
+ALERT WINDOW
+   ↓
+FEFO SUGGESTION
+   ↓
+BLOCK / HOLD AFTER EXPIRY (per policy)
+11. Batch Traceability
+SUPPLIER / PRINCIPAL
+       ↓
+GOODS RECEIPT
+       ↓
+BATCH A123
+       ↓
+WAREHOUSE STOCK
+       ↓
+SALES / DISPATCH
+       ↓
+INVOICE
+       ↓
+CUSTOMER
+
+Reverse trace:
+Customer / Invoice → Batch → Receipt → Supplier / Principal
+Every stock movement must carry product and batch identity when batch tracking is enabled.
+Every posted invoice line using a batch should be traceable back to the batch stock movement.
+Returns must preserve original batch where possible.
+Recall reporting must identify affected stock, documents, customers and remaining quantity.
+12. Batch Allocation Policies
+FEFO should be a recommendation engine rather than an invisible forced choice. The user should see the proposed batches, available quantity and expiry, then confirm unless company policy requires automatic enforcement.
+13. Pricing Architecture Hooks
+PRODUCT MASTER
+    ↓
+PRICE LIST / CUSTOMER / PRINCIPAL / DATE
+    ↓
+SCHEME / DISCOUNT RULES
+    ↓
+TRANSACTION RATE
+14. MRP & Smart Price Intelligence
+The product master should provide a stable place for MRP-related rules, while actual transaction-time MRP may be determined at batch/variant level when applicable. The system should never blindly overwrite a batch MRP with a product-level value.
+14.1 Smart MRP / pricing suggestions
+Compare product master price, price list, customer history, principal rule and batch MRP.
+Show the reason for the suggested rate.
+Never allow a suggestion engine to bypass statutory constraints or configured approval ceilings.
+Keep the original source price and final applied rate for audit.
+15. Tax & Compliance Hooks
+16. Inventory Control Flags
+17. C&F & Principal-Specific Product Mapping
+GLOBAL COMPANY PRODUCT
+       ↓
+PRINCIPAL PRODUCT MAPPING
+       ├── Principal Code
+       ├── Principal Description
+       ├── Principal UOM
+       ├── Principal Pack
+       ├── Commission Rule Hook
+       └── Principal Batch / Ownership Rules
+A company product may be mapped to different principal codes or descriptions.
+Do not duplicate the product master merely because a principal uses another code.
+Principal ownership remains a separate stock dimension.
+Principal-specific rules should be effective-dated where they change over time.
+18. Warehouse & Location Product Settings
+19. Product Search & Selection
+TYPE / SCAN / SEARCH
+      ↓
+SEARCH INDEX
+      ↓
+PRODUCT + PACK + AVAILABLE STOCK
+      ↓
+BATCH OPTIONS (if required)
+      ↓
+SELECT + CONTINUE
+Search by SKU, barcode, name, alias, HSN, customer code, principal code.
+Show available stock and relevant batch count in search results when permission allows.
+In billing, show only sellable/active products.
+In purchase, show purchasable products.
+Keyboard navigation must support search → product → batch → quantity without a mouse.
+20. Bulk Import & Data Quality
+Upload file to staging.
+Run validation and show row-level errors.
+Allow corrected re-upload.
+Preview create/update counts.
+Commit only validated rows.
+Generate an import audit record.
+21. Product Lifecycle & Versioning
+DRAFT → ACTIVE → BLOCKED / INACTIVE → ARCHIVED
+Draft products cannot be used in posting transactions unless company policy permits.
+Inactive products should not appear in new transactional search but remain visible in historical documents.
+Blocked products should explicitly show a block reason.
+Historical invoices must retain the original product description/rate context used at posting.
+Master changes that alter accounting/tax behavior should be audited.
+22. Local-First & Live Cloud Synchronization
+The product master must be safe to edit on the local primary system while its compact, necessary data is propagated to the live cloud transaction tier for remote users. Synchronization should preserve product IDs, version numbers and batch relationships.
+LOCAL PRODUCT CHANGE
+      ↓
+CHANGE EVENT
+      ↓
+CLOUD TRANSACTIONAL STORE
+      ↓
+REMOTE USER SEES UPDATED PRODUCT/BATCH
+      ↓
+ACK / VERSION CONFIRMATION
+      ↓
+LOCAL STATUS = SYNCED
+Do not allow two users to create two different internal IDs for the same master after synchronization.
+Use immutable IDs and version metadata.
+Conflict resolution must be explicit for concurrent edits.
+Batch stock quantity itself is not edited from a product master screen; stock movement is authoritative.
+23. Permissions & Approval
+24. Audit Trail
+Who created/changed the product.
+Which field changed.
+Old value and new value.
+When it changed.
+Which company/user context.
+Whether change was local or remote.
+Which batch was created/changed.
+Which approval authorized a sensitive change.
+Which transactions were affected after a change (through references, not by rewriting history).
+25. Logical Data Model
+products
+   ├── product_aliases
+   ├── product_barcodes
+   ├── product_uoms
+   ├── product_packaging
+   ├── product_tax_rules
+   ├── product_price_hooks
+   ├── product_principal_mappings
+   └── batches
+          ├── batch_attributes
+          ├── batch_status_history
+          ├── batch_attachments
+          └── batch_traceability_links
+26. Service & API Requirements
+27. Product & Batch Reports
+Product master register
+Inactive/blocked product list
+Product-wise stock summary
+Batch stock summary
+Near-expiry report
+Expired batch report
+Batch recall/traceability report
+Batch-wise sales
+Batch-wise purchase/inward
+Product price history
+Product principal mapping
+UOM conversion report
+Barcode/label report
+Products with missing tax/HSN
+Products with duplicate barcode
+Products with incomplete master data
+28. Small-Business vs Large-Business Mode
+29. Keyboard-First Product & Batch Operation
+CTRL/COMMAND + K → Search
+ENTER → Open selected product
+ALT + N → New product
+TAB/SHIFT+TAB → Field navigation
+CTRL + S → Save draft
+CTRL + ENTER → Save/confirm where permitted
+ESC → Close modal
+F2 → Edit selected record (permission-based)
+F3 → Batch lookup in stock/billing context
+Actual shortcut bindings should follow DOC-05 and be configurable where conflicts with browser/OS behavior exist.
+30. Critical Validation Rules
+31. Integration With Future Modules
+32. Governance Rules
+1. Do not duplicate a product solely because a principal/customer has a different code.
+2. Do not store stock balances as editable master values.
+3. Do not store payment/settlement information in Product or Batch.
+4. Do not delete a product/batch that is referenced by posted transactions.
+5. Do not change historical batch facts in a way that rewrites the meaning of a posted transaction.
+6. Do not change base UOM casually after movements exist.
+7. Do not allow price/MRP overrides without controlled permissions where configured.
+8. Keep product, batch, stock movement and accounting records logically separate but linked.
+33. Testing & Acceptance
+34. Example End-to-End Product & Batch Scenarios
+34.1 New product with batch tracking
+Create Product → Enable Batch + Expiry → Define Base UOM → Define Pack → Define Tax → Activate → Receive Batch B001 → Stock Created → Batch Available for Billing
+34.2 Two batches, same product
+Product P001
+ ├─ B001 → Expiry Jan-2027 → 100 units
+ └─ B002 → Expiry Aug-2027 → 150 units
+Billing recommends FEFO → B001 first
+34.3 Batch recall
+Flag B001 as Recall → Block new allocation → Find all stock → Find invoices/customers → Create controlled return/recall workflow
+34.4 Principal-specific product code
+One internal Product P001 → Principal A code PA-001 → Principal B code PB-784 → Same product identity, different external references
+35. Reference Design Patterns Used
+This framework uses documented enterprise patterns as references rather than copying any proprietary product implementation.
+Reference documentation: SAP Product Master and Batch Management; Microsoft Dynamics 365 Supply Chain product dimensions and unit-conversion documentation; Odoo product management/UOM/expiration documentation.
+36. Definition of Done for DOC-11
+Product identity and IDs defined.
+Batch relationship defined.
+UOM and conversion rules defined.
+Packaging hierarchy defined.
+Pricing and MRP hooks defined.
+Tax hooks defined.
+Principal mappings defined.
+Warehouse settings defined.
+Keyboard operations defined.
+Permissions defined.
+Audit requirements defined.
+Sync behavior defined.
+Database entities defined.
+Validation rules defined.
+Testing scenarios defined.
+Future-module integration points defined.
+37. Final Product Master Principle

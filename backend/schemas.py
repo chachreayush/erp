@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import List
+from typing import List, Dict
 # ============================================================
 # schemas.py — Pydantic Request/Response Data Shapes
 # ============================================================
@@ -23,7 +23,7 @@ from typing import List
 
 from pydantic import BaseModel, EmailStr, Field, UUID4, ConfigDict
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date
 from uuid import UUID
 from models import UserRole  # Import the role enum from our models
 
@@ -208,6 +208,8 @@ class InvoiceItemBase(BaseModel):
     # Advanced ERP fields
     batch: Optional[str] = None
     expiry: Optional[str] = None
+    mfg_date: Optional[str] = None
+    sell_rate: Optional[float] = None
     mrp: Optional[float] = 0.0
     discount_percent: Optional[float] = 0.0
     margin_percent: Optional[str] = None
@@ -314,6 +316,14 @@ class ProductBase(BaseModel):
     company_name: Optional[str] = None
     salt: Optional[str] = None
     
+    # DOC-11 Fields
+    base_uom: Optional[str] = "EACH"
+    purchase_uom: Optional[str] = None
+    sales_uom: Optional[str] = None
+    pack_size: Optional[str] = None
+    track_batch: bool = True
+    tax_rule_id: Optional[str] = None
+    
     # Taxes & HSN
     hsn_applicable: str = "no"
     hsn_code: Optional[str] = None
@@ -335,6 +345,23 @@ class ProductBase(BaseModel):
     min_stock_level: int = 0
     reorder_quantity: int = 0
     is_active: bool = True
+
+
+class ProductPrincipalMappingBase(BaseModel):
+    principal_code: str
+    principal_name: Optional[str] = None
+    principal_uom: Optional[str] = None
+    principal_pack: Optional[str] = None
+
+class ProductPrincipalMappingCreate(ProductPrincipalMappingBase):
+    product_id: UUID4
+
+class ProductPrincipalMappingResponse(ProductPrincipalMappingBase):
+    id: UUID4
+    product_id: UUID4
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)
 
 class ProductCreate(ProductBase):
     pass
@@ -493,6 +520,8 @@ class BatchResponse(BaseModel):
     product_id: UUID4
     batch_number: str
     expiry: Optional[str] = None
+    mfg_date: Optional[str] = None
+    sell_rate: Optional[float] = None
     mrp: float
     rate: float
     rate_a: float = 0
@@ -510,6 +539,8 @@ class BatchResponse(BaseModel):
 class LedgerGroupBase(BaseModel):
     name: str
     parent_id: Optional[UUID] = None
+    class_type: str = "Asset"
+    is_system: bool = False
     is_active: bool = True
 
 class LedgerGroupCreate(LedgerGroupBase):
@@ -740,3 +771,511 @@ class ErrorEntryResponse(ErrorEntryBase):
     class Config:
         from_attributes = True
 
+
+# ── BILL-BY-BILL ALLOCATION SCHEMAS ──────────────────────────────────
+
+class AllocationItemCreate(BaseModel):
+    """
+    A single allocation line within a Receipt/Payment allocation request.
+    The user can allocate against an Invoice, a CN/DN, or leave it floating.
+
+    RULES:
+    - If target_invoice_id is set: this settles (part of) an Invoice.
+    - If target_cn_dn_id is set: this settles (part of) a Credit/Debit Note.
+    - If BOTH are None: this is a Floating / On Account advance.
+    - allocated_amount can be negative to offset a prior mistake (append-only).
+    """
+    target_invoice_id: Optional[UUID] = Field(
+        None, description="The Sales/Purchase Invoice ID being settled"
+    )
+    target_cn_dn_id: Optional[UUID] = Field(
+        None, description="The Credit Note or Debit Note voucher ID being settled"
+    )
+    allocated_amount: Decimal = Field(
+        ..., description="Amount allocated in this line (negative for offset corrections)"
+    )
+    narration: Optional[str] = Field(
+        None, max_length=500, description="Optional note for audit trail"
+    )
+
+
+class AllocationCreate(BaseModel):
+    """
+    Top-level request body for creating allocations from a single
+    Receipt/Payment Voucher. Contains one or more allocation lines.
+
+    The API must validate:
+    - SUM(allocated_amount) <= source voucher's total_amount
+    - Each target_invoice_id or target_cn_dn_id exists and belongs to the same org
+    - Any line with both targets as None is automatically marked is_floating=True
+    """
+    source_voucher_id: UUID = Field(
+        ..., description="The Receipt or Payment Voucher being allocated"
+    )
+    allocations: List[AllocationItemCreate] = Field(
+        ..., min_length=1, description="One or more allocation lines"
+    )
+
+
+class AllocationRead(BaseModel):
+    """
+    Response schema for a single allocation row.
+    Returned when reading allocation history for a voucher or invoice.
+    """
+    id: UUID
+    organization_id: UUID
+    created_at: datetime
+    source_voucher_id: UUID
+    target_invoice_id: Optional[UUID] = None
+    target_cn_dn_id: Optional[UUID] = None
+    allocated_amount: Decimal
+    is_floating: bool
+    narration: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AllocationSummary(BaseModel):
+    """
+    Summary view for the "Pending Allocations" screen.
+    Shows a voucher or invoice with its total amount and how much
+    has been allocated vs. how much remains outstanding.
+    """
+    id: UUID
+    voucher_number: Optional[str] = None
+    invoice_number: Optional[str] = None
+    date: Optional[datetime] = None
+    total_amount: Decimal
+    allocated_total: Decimal = Field(
+        default=Decimal("0"), description="Sum of all allocated_amount rows"
+    )
+    outstanding: Decimal = Field(
+        default=Decimal("0"), description="total_amount - allocated_total"
+    )
+    document_type: str = Field(
+        ..., description="'Invoice', 'Receipt', 'Payment', 'CN', 'DN', 'Floating'"
+    )
+
+
+# ── CRM PERMISSIONS MATRIX SCHEMAS ────────────────────────────
+# Used by GET/PUT /api/organizations/{org_id}/permissions
+
+class OrganizationPermissionsResponse(BaseModel):
+    """
+    Returns the role_permissions JSONB for a single organization.
+    Maps role names to lists of allowed module strings.
+    Example: { "manager": ["sales", "inventory"], "staff": ["sales"] }
+    """
+    org_id: UUID
+    org_name: str
+    role_permissions: Optional[Dict[str, List[str]]] = None
+
+    class Config:
+        from_attributes = True
+
+
+class OrganizationPermissionsUpdate(BaseModel):
+    """
+    Accepts a full replacement of the role_permissions JSONB.
+    The frontend sends the entire permissions object on every save.
+    """
+    role_permissions: Dict[str, List[str]] = Field(
+        ..., description="Map of role name → list of allowed module slugs"
+    )
+
+
+
+# -- DOC-10: Business Partner / Party Master ------------------------
+from typing import List
+
+class PartyAddressBase(BaseModel):
+    address_type: str
+    is_default: bool = False
+    line1: str
+    line2: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    country: str = "India"
+
+class PartyAddressCreate(PartyAddressBase):
+    pass
+
+class PartyAddressResponse(PartyAddressBase):
+    id: UUID
+    party_id: UUID
+
+    class Config:
+        orm_mode = True
+
+class CustomerProfileBase(BaseModel):
+    route_id: Optional[str] = None
+    credit_limit: float = 0
+    credit_days: int = 0
+    price_list: Optional[str] = None
+
+class SupplierProfileBase(BaseModel):
+    payment_terms: Optional[str] = None
+    lead_time_days: int = 0
+    supplier_rating: Optional[str] = None
+
+class CustomerProfileCreate(CustomerProfileBase):
+    pass
+
+class SupplierProfileCreate(SupplierProfileBase):
+    pass
+
+class CustomerProfileResponse(CustomerProfileBase):
+    party_id: UUID
+    ledger_id: Optional[UUID] = None
+
+    class Config:
+        orm_mode = True
+
+class SupplierProfileResponse(SupplierProfileBase):
+    party_id: UUID
+    ledger_id: Optional[UUID] = None
+
+    class Config:
+        orm_mode = True
+
+class PartyBase(BaseModel):
+    legal_name: str
+    trade_name: Optional[str] = None
+    pan: Optional[str] = None
+    gst: Optional[str] = None
+    status: str = 'active'
+
+class PartyCreate(PartyBase):
+    addresses: List[PartyAddressCreate] = []
+    customer_profile: Optional[CustomerProfileCreate] = None
+    supplier_profile: Optional[SupplierProfileCreate] = None
+    
+    # Customer Ledger Info
+    create_customer_ledger: bool = False
+    customer_ledger_group_id: Optional[UUID] = None
+    customer_opening_balance: float = 0
+    customer_op_type: str = "Dr"
+    
+    # Supplier Ledger Info
+    create_supplier_ledger: bool = False
+    supplier_ledger_group_id: Optional[UUID] = None
+    supplier_opening_balance: float = 0
+    supplier_op_type: str = "Cr"
+
+class PartyResponse(PartyBase):
+    id: UUID
+    organization_id: UUID
+    created_at: datetime
+    updated_at: datetime
+    addresses: List[PartyAddressResponse] = []
+    customer_profile: Optional[CustomerProfileResponse] = None
+    supplier_profile: Optional[SupplierProfileResponse] = None
+
+    class Config:
+        orm_mode = True
+
+
+# ============================================================
+# DOC-12: Principal Master Schemas
+# ============================================================
+
+class PrincipalBase(BaseModel):
+    code: str
+    legal_name: str
+    brand: Optional[str] = None
+    gstin: Optional[str] = None
+    status: str = "active"
+
+class PrincipalCreate(PrincipalBase):
+    pass
+
+class PrincipalResponse(PrincipalBase):
+    id: UUID
+    organization_id: UUID
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class PrincipalAgreementBase(BaseModel):
+    version_name: str
+    valid_from: datetime
+    valid_to: Optional[datetime] = None
+    commission_percent: float = 0
+    handling_percent: float = 0
+    is_active: bool = True
+
+class PrincipalAgreementCreate(PrincipalAgreementBase):
+    principal_id: UUID
+
+class PrincipalAgreementResponse(PrincipalAgreementBase):
+    id: UUID
+    organization_id: UUID
+    principal_id: UUID
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class PrincipalWarehouseMappingCreate(BaseModel):
+    principal_id: UUID
+    warehouse_id: UUID
+
+class PrincipalWarehouseMappingResponse(BaseModel):
+    id: UUID
+    organization_id: UUID
+    principal_id: UUID
+    warehouse_id: UUID
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ============================================================
+# DOC-13: Warehouse & Transport Schemas
+# ============================================================
+
+# -- WAREHOUSE --
+class WarehouseBinBase(BaseModel):
+    code: str
+    aisle: Optional[str] = None
+    rack: Optional[str] = None
+    shelf: Optional[str] = None
+    bin_number: Optional[str] = None
+    status: str = "available"
+
+class WarehouseBinCreate(WarehouseBinBase):
+    zone_id: UUID
+
+class WarehouseBinResponse(WarehouseBinBase):
+    id: UUID
+    organization_id: UUID
+    warehouse_id: UUID
+    zone_id: UUID
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class WarehouseZoneBase(BaseModel):
+    code: str
+    name: str
+    storage_type: Optional[str] = None
+    status: str = "active"
+
+class WarehouseZoneCreate(WarehouseZoneBase):
+    pass
+
+class WarehouseZoneResponse(WarehouseZoneBase):
+    id: UUID
+    organization_id: UUID
+    warehouse_id: UUID
+    created_at: datetime
+    bins: List[WarehouseBinResponse] = []
+    class Config:
+        from_attributes = True
+
+class WarehouseBase(BaseModel):
+    code: str
+    name: str
+    address: Optional[str] = None
+    manager_name: Optional[str] = None
+    status: str = "active"
+
+class WarehouseCreate(WarehouseBase):
+    pass
+
+class WarehouseResponse(WarehouseBase):
+    id: UUID
+    organization_id: UUID
+    created_at: datetime
+    zones: List[WarehouseZoneResponse] = []
+    default_receiving_bin_id: Optional[UUID] = None
+    default_dispatch_bin_id: Optional[UUID] = None
+    default_returns_bin_id: Optional[UUID] = None
+    class Config:
+        from_attributes = True
+
+
+# -- TRANSPORT --
+class VehicleBase(BaseModel):
+    registration_number: str
+    vehicle_type: Optional[str] = None
+    capacity_kg: Optional[float] = None
+    driver_name: Optional[str] = None
+    status: str = "active"
+
+class VehicleCreate(VehicleBase):
+    transporter_id: UUID
+
+class VehicleResponse(VehicleBase):
+    id: UUID
+    organization_id: UUID
+    transporter_id: UUID
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class TransporterBase(BaseModel):
+    code: str
+    name: str
+    gstin: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    status: str = "active"
+
+class TransporterCreate(TransporterBase):
+    pass
+
+class TransporterResponse(TransporterBase):
+    id: UUID
+    organization_id: UUID
+    created_at: datetime
+    vehicles: List[VehicleResponse] = []
+    class Config:
+        from_attributes = True
+
+
+# ============================================================
+# DOC-14: Scheme & Free Goods Engine
+# ============================================================
+
+class SchemeVersionBase(BaseModel):
+    version_number: int = 1
+    valid_from: date
+    valid_to: date
+    buy_qty: float
+    free_qty: float
+    status: str = "active"
+
+class SchemeVersionCreate(SchemeVersionBase):
+    product_id: UUID
+
+class SchemeVersionResponse(SchemeVersionBase):
+    id: UUID
+    scheme_id: UUID
+    product_id: UUID
+    class Config:
+        from_attributes = True
+
+class SchemeBase(BaseModel):
+    code: str
+    name: str
+    scheme_type: str
+    status: str = "active"
+
+class SchemeCreate(SchemeBase):
+    principal_id: UUID
+
+class SchemeResponse(SchemeBase):
+    id: UUID
+    principal_id: UUID
+    versions: List[SchemeVersionResponse] = []
+    class Config:
+        from_attributes = True
+
+class EntitlementBase(BaseModel):
+    granted_qty: float
+    status: str = "active"
+
+class EntitlementCreate(EntitlementBase):
+    scheme_version_id: UUID
+
+class EntitlementResponse(EntitlementBase):
+    id: UUID
+    organization_id: UUID
+    scheme_version_id: UUID
+    consumed_qty: float
+    claimable_qty: float
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class SchemeClaimBase(BaseModel):
+    claim_number: str
+    claim_date: date
+    total_claim_qty: float
+    status: str = "pending"
+
+class SchemeClaimCreate(SchemeClaimBase):
+    principal_id: UUID
+
+class SchemeClaimResponse(SchemeClaimBase):
+    id: UUID
+    organization_id: UUID
+    principal_id: UUID
+    settled_qty: float
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+
+# ============================================================
+# DOC-15: Pricing, Rate, MRP & Formula Engine
+# ============================================================
+
+class PriceListRuleBase(BaseModel):
+    product_id: UUID
+    valid_from: date
+    valid_to: date
+    fixed_price: float
+
+class PriceListRuleCreate(PriceListRuleBase):
+    pass
+
+class PriceListRuleResponse(PriceListRuleBase):
+    id: UUID
+    price_list_id: UUID
+    class Config:
+        from_attributes = True
+
+class PriceListBase(BaseModel):
+    code: str
+    name: str
+    description: Optional[str] = None
+    status: str = "active"
+
+class PriceListCreate(PriceListBase):
+    pass
+
+class PriceListResponse(PriceListBase):
+    id: UUID
+    organization_id: UUID
+    rules: List[PriceListRuleResponse] = []
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class PriceFormulaBase(BaseModel):
+    target_rate_type: str
+    source_rate_type: str
+    operator: str
+    operand: float
+    floor_price: Optional[float] = None
+    status: str = "active"
+
+class PriceFormulaCreate(PriceFormulaBase):
+    pass
+
+class PriceFormulaResponse(PriceFormulaBase):
+    id: UUID
+    organization_id: UUID
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class CustomerPriceConfigBase(BaseModel):
+    party_id: UUID
+    default_rate_type: Optional[str] = None
+    price_list_id: Optional[UUID] = None
+
+class CustomerPriceConfigCreate(CustomerPriceConfigBase):
+    pass
+
+class CustomerPriceConfigResponse(CustomerPriceConfigBase):
+    id: UUID
+    organization_id: UUID
+    created_at: datetime
+    class Config:
+        from_attributes = True

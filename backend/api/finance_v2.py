@@ -246,7 +246,15 @@ def get_ledger_groups(db: Session = Depends(get_db), current_user: models.User =
 @router.post("/groups", response_model=schemas.LedgerGroupResponse)
 def create_ledger_group(group: schemas.LedgerGroupCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     org_id = get_org_id(current_user)
-    db_group = models.LedgerGroup(**group.model_dump(), organization_id=org_id)
+    
+    group_data = group.model_dump()
+    if group.parent_id:
+        parent = db.query(models.LedgerGroup).filter(models.LedgerGroup.id == group.parent_id).first()
+        if not parent:
+            raise HTTPException(status_code=400, detail="Parent group not found")
+        group_data["class_type"] = parent.class_type
+
+    db_group = models.LedgerGroup(**group_data, organization_id=org_id)
     db.add(db_group)
     db.commit()
     db.refresh(db_group)
@@ -262,7 +270,18 @@ def update_ledger_group(group_id: UUID, group: schemas.LedgerGroupCreate, db: Se
     ).first()
     if not db_group:
         raise HTTPException(status_code=404, detail="Ledger group not found")
-    for key, val in group.model_dump().items():
+        
+    if db_group.is_system and group.name != db_group.name:
+        raise HTTPException(status_code=400, detail="Cannot rename a system group")
+
+    group_data = group.model_dump()
+    if group.parent_id:
+        parent = db.query(models.LedgerGroup).filter(models.LedgerGroup.id == group.parent_id).first()
+        if not parent:
+            raise HTTPException(status_code=400, detail="Parent group not found")
+        group_data["class_type"] = parent.class_type
+
+    for key, val in group_data.items():
         setattr(db_group, key, val)
     db.commit()
     db.refresh(db_group)
@@ -278,6 +297,8 @@ def delete_ledger_group(group_id: UUID, db: Session = Depends(get_db), current_u
     ).first()
     if not db_group:
         raise HTTPException(status_code=404, detail="Ledger group not found")
+    if db_group.is_system:
+        raise HTTPException(status_code=400, detail="Cannot delete a system group")
     db_group.is_active = False
     db.commit()
     return {"message": "Ledger group deactivated"}
@@ -1137,3 +1158,121 @@ def get_balance_sheet(
         "total_liabilities": str(total_liabilities),
         "total_assets": str(total_assets)
     }
+
+# =============================================
+# BILL-BY-BILL ALLOCATION ENGINE
+# =============================================
+
+@router.get("/allocations/pending", response_model=List[schemas.AllocationSummary])
+def get_pending_allocations(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """
+    Fetches all unallocated/partially allocated vouchers and unpaid invoices.
+    """
+    org_id = get_org_id(current_user)
+    
+    invoices = db.query(models.Invoice).filter(
+        models.Invoice.organization_id == org_id,
+        models.Invoice.is_active == True
+    ).all()
+
+    vouchers = db.query(models.Voucher).filter(
+        models.Voucher.organization_id == org_id,
+        models.Voucher.is_active == True,
+        models.Voucher.status != "Cancelled",
+        models.Voucher.voucher_type.in_(["Receipt", "Payment", "Credit Note", "Debit Note"])
+    ).all()
+
+    summaries = []
+    
+    for inv in invoices:
+        allocs = db.query(func.sum(models.InvoiceAllocation.allocated_amount)).filter(
+            models.InvoiceAllocation.target_invoice_id == inv.id
+        ).scalar() or Decimal("0")
+        
+        outstanding = Decimal(inv.net_amount) - allocs
+        if outstanding > 0:
+            summaries.append({
+                "id": inv.id,
+                "invoice_number": inv.invoice_number,
+                "date": inv.invoice_date,
+                "total_amount": inv.net_amount,
+                "allocated_total": allocs,
+                "outstanding": outstanding,
+                "document_type": "Invoice"
+            })
+
+    for vch in vouchers:
+        source_allocs = db.query(func.sum(models.InvoiceAllocation.allocated_amount)).filter(
+            models.InvoiceAllocation.source_voucher_id == vch.id
+        ).scalar() or Decimal("0")
+        
+        cn_dn_allocs = db.query(func.sum(models.InvoiceAllocation.allocated_amount)).filter(
+            models.InvoiceAllocation.target_cn_dn_id == vch.id
+        ).scalar() or Decimal("0")
+        
+        total_allocs = source_allocs + cn_dn_allocs
+        outstanding = Decimal(vch.total_amount) - total_allocs
+        
+        if outstanding > 0:
+            summaries.append({
+                "id": vch.id,
+                "voucher_number": vch.voucher_number,
+                "date": vch.date,
+                "total_amount": vch.total_amount,
+                "allocated_total": total_allocs,
+                "outstanding": outstanding,
+                "document_type": vch.voucher_type
+            })
+
+    return summaries
+
+
+@router.post("/allocations", response_model=List[schemas.AllocationRead])
+def create_allocations(request: schemas.AllocationCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """
+    Creates one or more allocations from a source Receipt/Payment voucher.
+    """
+    org_id = get_org_id(current_user)
+    
+    source_voucher = db.query(models.Voucher).filter(
+        models.Voucher.id == request.source_voucher_id,
+        models.Voucher.organization_id == org_id
+    ).first()
+    
+    if not source_voucher:
+        raise HTTPException(status_code=404, detail="Source voucher not found")
+        
+    source_allocs = db.query(func.sum(models.InvoiceAllocation.allocated_amount)).filter(
+        models.InvoiceAllocation.source_voucher_id == source_voucher.id
+    ).scalar() or Decimal("0")
+    
+    source_outstanding = Decimal(source_voucher.total_amount) - source_allocs
+    requested_total = sum((alloc.allocated_amount for alloc in request.allocations))
+    
+    if requested_total > source_outstanding:
+        raise HTTPException(status_code=400, detail=f"Cannot allocate {requested_total}. Only {source_outstanding} outstanding on source voucher.")
+
+    created_allocations = []
+    
+    for item in request.allocations:
+        is_floating = False
+        if not item.target_invoice_id and not item.target_cn_dn_id:
+            is_floating = True
+            
+        new_alloc = models.InvoiceAllocation(
+            organization_id=org_id,
+            source_voucher_id=request.source_voucher_id,
+            target_invoice_id=item.target_invoice_id,
+            target_cn_dn_id=item.target_cn_dn_id,
+            allocated_amount=item.allocated_amount,
+            is_floating=is_floating,
+            narration=item.narration
+        )
+        db.add(new_alloc)
+        created_allocations.append(new_alloc)
+        
+    db.commit()
+    for alloc in created_allocations:
+        db.refresh(alloc)
+        
+    return created_allocations

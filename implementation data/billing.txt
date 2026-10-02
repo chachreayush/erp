@@ -1,0 +1,780 @@
+=== USER'S ORIGINAL PROMPT (CONTEXT) ===
+
+Yes. **This should definitely be part of the billing architecture of your C&F ERP.** In fact, for your type of business, I would make **Cargo / Consignment & Freight Management a dedicated section inside the billing workflow**, rather than treating freight as just another miscellaneous charge.
+
+The important idea is that one invoice/dispatch can contain:
+
+* Cargo/consignment information
+* Transporter information
+* Freight calculation
+* Loading/unloading
+* Other logistics expenses
+* Charges recovered from customer/principal
+* Actual expenses paid
+* Profit/margin on the consignment
+* Accounting entries
+* Stock/dispatch information
+
+And the ERP should calculate the relevant totals automatically.
+
+---
+
+# 1. Updated Billing Architecture
+
+Previously we had:
+
+Customer
+   ↓
+Sales Order
+   ↓
+Sales Invoice
+   ↓
+Tax + Stock + Accounting
+   ↓
+Reports
+
+For your C&F ERP, I would expand it to:
+
+                         BILLING / DISPATCH
+                                │
+             ┌──────────────────┼──────────────────┐
+             ↓                  ↓                  ↓
+        SALES ORDER        DIRECT BILL        RETURN
+             │                  │
+             └──────────────────┼──────────────────┘
+                                ↓
+                         INVOICE ENGINE
+                                │
+             ┌──────────────────┼───────────────────┐
+             ↓                  ↓                   ↓
+        CARGO DETAILS       PRICING/TAX       LOGISTICS
+             │                  │                   │
+             ↓                  ↓                   ↓
+       Consignment          Discounts             Freight
+       Packages             GST                   Transport
+       Weight                                      Loading
+       Volume                                      Unloading
+       LR/GR                                        Other Expense
+       Vehicle
+             │                  │                   │
+             └──────────────────┼───────────────────┘
+                                ↓
+                       COST CALCULATION ENGINE
+                                │
+                     ┌──────────┴──────────┐
+                     ↓                     ↓
+              CUSTOMER/PRINCIPAL       ACTUAL COST
+                 CHARGES                  EXPENSE
+                     │                     │
+                     └──────────┬──────────┘
+                                ↓
+                         BILLING TOTAL
+                                │
+                                ↓
+                        POSTING ENGINE
+                                │
+             ┌──────────────────┼──────────────────┐
+             ↓                  ↓                  ↓
+          INVENTORY          ACCOUNTING          GST
+             │                  │                  │
+             ↓                  ↓                  ↓
+        Stock Ledger       General Ledger      Tax Records
+                                │
+             ┌──────────────────┼──────────────────┐
+             ↓                  ↓                  ↓
+       Customer Ledger      Expense Ledger      Profitability
+             │
+             ↓
+        Outstanding
+
+This is much closer to what I would recommend for your ERP.
+
+---
+
+# 2. Add a dedicated "Cargo & Consignment" section
+
+On your invoice screen:
+
+Sales Invoice
+│
+├── Invoice Header
+├── Products
+├── Additional Details
+│
+└── Cargo & Consignment
+
+But I would actually make **Cargo & Consignment** prominent enough that users can access it without digging through 10 menus.
+
+For example:
+
+┌─────────────────────────────────────────────┐
+│ Invoice Header                              │
+│                                             │
+│ Customer      Warehouse       Salesman      │
+│ Invoice Date  Payment Terms   Due Date      │
+└─────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────┐
+│ Products                                    │
+│                                             │
+│ Product | Batch | Qty | Rate | GST | Amount │
+└─────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────┐
+│ 🚚 Cargo & Consignment                      │
+│                                             │
+│ Consignment No.     LR/GR No.               │
+│ Transporter         Vehicle No.             │
+│ Packages            Gross Weight            │
+│ Net Weight          Freight                 │
+│                                             │
+│ [+ Cargo Details]                           │
+└─────────────────────────────────────────────┘
+
+---
+
+# 3. What should Cargo Details contain?
+
+I would divide it into **five logical sections**.
+
+## A. Consignment Details
+
+CONSIGNMENT DETAILS
+
+Consignment No.       [ Auto / Enter ]
+LR / GR No.            [____________]
+LR / GR Date           [📅__________]
+
+Dispatch Date          [📅__________]
+
+Transport Mode         [ Road ▼ ]
+
+Transporter            [ ABC Transport ▼ ]
+
+Vehicle No.            [ MP28XX1234 ]
+
+Driver Name             [____________]
+Driver Mobile           [____________]
+
+Origin                  [ Chhindwara ▼ ]
+Destination             [ Nagpur ▼ ]
+
+---
+
+# 4. B. Cargo / Package Details
+
+This is particularly useful for C&F operations.
+
+CARGO DETAILS
+
+Package Type        Packages       Weight
+──────────────────────────────────────────
+Carton                 20          350 KG
+Box                    10          120 KG
+Other                    2           30 KG
+
+Total Packages: 32
+Gross Weight: 500 KG
+Net Weight: 460 KG
+
+You could also allow:
+
+Volume / CBM
+Dimensions
+Pallet Count
+Container No.
+
+when applicable.
+
+---
+
+# 5. C. Freight Calculation
+
+This is where I would make your ERP substantially smarter.
+
+Instead of simply entering:
+
+Freight = ₹5,000
+
+allow the system to calculate it.
+
+For example:
+
+FREIGHT CALCULATION
+
+Calculation Basis:
+[ Weight ▼ ]
+
+Chargeable Weight:
+500 KG
+
+Rate:
+₹10 / KG
+
+Base Freight:
+₹5,000
+
+Loading:
+₹500
+
+Unloading:
+₹300
+
+Other Charges:
+₹200
+
+--------------------------------
+Total Logistics Cost:
+₹6,000
+
+Or:
+
+Calculation Basis:
+[ Package ▼ ]
+
+Packages: 32
+Rate: ₹150/package
+
+Freight = ₹4,800
+
+Or:
+
+Calculation Basis:
+[ Fixed Amount ▼ ]
+
+Freight = ₹5,000
+
+So the ERP can support different freight models.
+
+---
+
+# 6. Freight should support multiple calculation methods
+
+I strongly recommend:
+
+Freight Calculation Method
+
+○ Fixed Amount
+
+○ Per KG
+
+○ Per Quintal
+
+○ Per Ton
+
+○ Per Package
+
+○ Per Box
+
+○ Per Kilometer
+
+○ Percentage of Invoice
+
+○ Slab Based
+
+○ Transporter Rate Contract
+
+○ Manual
+
+This becomes extremely powerful.
+
+For example:
+
+0–100 KG       ₹12/KG
+101–500 KG     ₹10/KG
+501–1000 KG     ₹8/KG
+1000+ KG        ₹7/KG
+
+The ERP calculates the amount automatically.
+
+---
+
+# 7. D. Actual Expense vs Customer Charge
+
+This is **very important**.
+
+Don't mix:
+
+> What the transporter charged us
+
+with:
+
+> What we charged the customer/principal.
+
+They are not necessarily the same.
+
+Example:
+
+ACTUAL COST
+
+Transporter Freight       ₹5,000
+Loading                     ₹500
+Unloading                   ₹300
+Other                       ₹200
+--------------------------------
+Actual Cost               ₹6,000
+
+But you may recover:
+
+CUSTOMER / PRINCIPAL CHARGE
+
+Freight                   ₹6,000
+Handling                    ₹500
+Other                       ₹200
+--------------------------------
+Recovered                 ₹6,700
+
+Therefore:
+
+Recovery = ₹6,700
+
+Actual Cost = ₹6,000
+
+Logistics Margin = ₹700
+
+Your ERP can automatically calculate this.
+
+---
+
+# 8. E. Expense Details
+
+I would provide an expense grid:
+
+LOGISTICS EXPENSES
+
+Expense              Basis       Qty    Rate       Amount
+──────────────────────────────────────────────────────────
+Freight              Per KG      500    ₹10       ₹5,000
+Loading              Fixed        1     ₹500        ₹500
+Unloading            Fixed        1     ₹300        ₹300
+Hamali               Fixed        1     ₹200        ₹200
+Other                Fixed        1     ₹100        ₹100
+──────────────────────────────────────────────────────────
+
+TOTAL ACTUAL COST                              ₹6,100
+
+The user shouldn't need to manually calculate the total.
+
+---
+
+# 9. Then add "Charges to Customer"
+
+Separate this from expenses.
+
+CHARGES TO CUSTOMER
+
+Charge                 Basis        Amount
+───────────────────────────────────────────
+Freight                               ₹6,000
+Handling                              ₹500
+Loading                               ₹300
+Other                                 ₹200
+───────────────────────────────────────────
+Total Charges                         ₹7,000
+
+Now:
+
+Customer Recovery      ₹7,000
+Actual Cost             ₹6,100
+───────────────────────────────
+Logistics Margin          ₹900
+
+This gives management a very useful number.
+
+---
+
+# 10. Should freight be included in the invoice total?
+
+The system should allow configuration.
+
+For example:
+
+### Option A — Freight taxable and billed
+
+Products                     ₹50,000
+Freight                       ₹5,000
+Taxable Value                ₹55,000
+GST                           ₹6,600
+--------------------------------
+Invoice Total                ₹61,600
+
+### Option B — Freight separately recoverable
+
+Product Invoice              ₹50,000
+GST                           ₹6,000
+Invoice Total                ₹56,000
+
+Freight Recovery              ₹5,000
+
+### Option C — Freight absorbed by company
+
+Product Value                ₹50,000
+GST                           ₹6,000
+
+Customer Total               ₹56,000
+
+Actual Freight                ₹5,000
+
+So your billing engine should have a setting:
+
+Freight Treatment
+
+[ Included in Invoice ▼ ]
+
+Options:
+• Included in product price
+• Added to taxable invoice
+• Added as separate charge
+• Non-recoverable expense
+• Principal-recoverable
+• Customer-recoverable
+
+The exact tax treatment should be governed by your applicable GST configuration/rules rather than simply by this label.
+
+---
+
+# 11. Cargo can be connected to the Delivery Challan
+
+This gives you a very clean workflow:
+
+SALES ORDER
+     ↓
+PICKING
+     ↓
+DELIVERY CHALLAN
+     ↓
+CARGO / CONSIGNMENT
+     ↓
+DISPATCH
+     ↓
+SALES INVOICE
+     ↓
+ACCOUNTING
+
+But you should also allow:
+
+DIRECT INVOICE
+     ↓
+CARGO DETAILS
+     ↓
+DISPATCH
+
+because not every transaction will necessarily require a Sales Order.
+
+---
+
+# 12. One invoice can potentially have multiple consignments
+
+This is something I'd plan for **now**, even if you don't use it initially.
+
+Example:
+
+Invoice INV-125
+₹5,00,000
+
+Consignment 1
+LR-1001
+Nagpur
+500 KG
+
+Consignment 2
+LR-1002
+Bhopal
+300 KG
+
+Consignment 3
+LR-1003
+Indore
+400 KG
+
+Your structure should therefore be:
+
+INVOICE
+   │
+   ├── Invoice Items
+   │
+   ├── Consignment 1
+   │      └── Expenses
+   │
+   ├── Consignment 2
+   │      └── Expenses
+   │
+   └── Consignment 3
+          └── Expenses
+
+This is much more scalable than putting one `freight_amount` field directly into the invoice.
+
+---
+
+# 13. Even better: Cargo should connect to individual products when necessary
+
+For example:
+
+Invoice
+│
+├── Product A
+│   └── Batch A123
+│
+├── Product B
+│   └── Batch B456
+│
+└── Product C
+    └── Batch C789
+
+Then:
+
+Consignment
+│
+├── Product A → 10 boxes
+├── Product B → 5 boxes
+└── Product C → 20 boxes
+
+This can later help with:
+
+* Cargo reconciliation
+* Dispatch reconciliation
+* Batch tracking
+* Claims
+* Shortage/damage
+* Principal reporting
+* Freight allocation
+
+---
+
+# 14. Freight allocation
+
+This is another feature I would put into the architecture.
+
+Suppose:
+
+Total Freight = ₹10,000
+
+and the invoice contains:
+
+Product A     ₹50,000
+Product B     ₹30,000
+Product C     ₹20,000
+
+The system can allocate freight:
+
+### By invoice value
+
+Product A     ₹5,000
+Product B     ₹3,000
+Product C     ₹2,000
+
+or:
+
+### By weight
+
+Product A     400 KG
+Product B     300 KG
+Product C     300 KG
+
+Freight = ₹10,000
+
+A = ₹4,000
+B = ₹3,000
+C = ₹3,000
+
+or:
+
+Allocation Method:
+[ By Weight ▼ ]
+
+Other options:
+• By Value
+• By Quantity
+• By Package
+• Equal
+• Manual
+
+This is useful for **true product-level profitability/costing**.
+
+---
+
+# 15. Add a Cargo Profitability panel
+
+I really like this for your ERP.
+
+At the bottom of Cargo Details:
+
+┌─────────────────────────────────────────────┐
+│ LOGISTICS PROFITABILITY                     │
+├─────────────────────────────────────────────┤
+│                                             │
+│ Customer / Principal Recovery     ₹7,000   │
+│ Actual Logistics Cost             ₹6,100   │
+│                                             │
+│ Logistics Margin                    ₹900   │
+│ Margin %                            14.75%  │
+│                                             │
+└─────────────────────────────────────────────┘
+
+This information can be restricted to authorized users.
+
+A salesperson might see:
+
+Freight: ₹7,000
+
+while an administrator/owner can see:
+
+Actual Cost: ₹6,100
+Margin: ₹900
+
+That's where your **role-based access system** becomes important.
+
+---
+
+# 16. Updated Additional Details structure
+
+So I would now change our earlier structure to:
+
+ADDITIONAL DETAILS
+│
+├── Order & References
+│
+├── Transport & Delivery
+│
+├── 🚚 Cargo & Consignment
+│   │
+│   ├── Consignment Details
+│   ├── Package Details
+│   ├── Weight / Volume
+│   ├── LR / GR
+│   ├── Transporter
+│   ├── Vehicle
+│   ├── Freight Calculation
+│   ├── Logistics Expenses
+│   ├── Customer / Principal Charges
+│   ├── Freight Allocation
+│   └── Logistics Profitability
+│
+├── GST & E-Invoice
+│
+├── Billing & Shipping Address
+│
+├── Sales & Commission
+│
+├── Commercial Details
+│
+├── Principal / C&F Details
+│
+├── Internal Control
+│
+├── Attachments
+│
+└── Notes
+
+---
+
+# 17. And the complete ERP billing architecture becomes
+
+This is the version I would now use as the **master architecture** for your project:
+
+                         ┌──────────────────┐
+                         │     CUSTOMER     │
+                         └────────┬─────────┘
+                                  ↓
+                         ┌──────────────────┐
+                         │   SALES ORDER    │
+                         └────────┬─────────┘
+                                  ↓
+                    ┌──────────────────────────┐
+                    │      BILLING ENGINE      │
+                    └────────────┬─────────────┘
+                                 │
+            ┌────────────────────┼────────────────────┐
+            ↓                    ↓                    ↓
+      PRODUCT/SALES         CARGO/LOGISTICS      TAX ENGINE
+            │                    │                    │
+            │              ┌─────┼─────┐              │
+            │              ↓     ↓     ↓              │
+            │          Consignment Freight Expenses   │
+            │              │     │     │              │
+            │              └─────┼─────┘              │
+            │                    ↓                    │
+            │             COST ENGINE                 │
+            │                    │                    │
+            │          ┌─────────┴─────────┐          │
+            │          ↓                   ↓          │
+            │     Actual Cost         Recovery        │
+            │          │                   │          │
+            │          └─────────┬─────────┘          │
+            │                    ↓                    │
+            └────────────────────┼────────────────────┘
+                                 ↓
+                       ┌────────────────────┐
+                       │  INVOICE TOTAL     │
+                       └─────────┬──────────┘
+                                 ↓
+                       ┌────────────────────┐
+                       │  POSTING ENGINE    │
+                       └─────────┬──────────┘
+                                 │
+              ┌──────────────────┼──────────────────┐
+              ↓                  ↓                  ↓
+          INVENTORY          ACCOUNTING           GST
+              │                  │                  │
+              ↓                  ↓                  ↓
+        Stock Ledger       General Ledger       Tax Records
+                                 │
+              ┌──────────────────┼──────────────────┐
+              ↓                  ↓                  ↓
+        Customer Ledger     Expense Ledger    Cargo Cost Ledger
+              │                  │                  │
+              ↓                  ↓                  ↓
+         Outstanding        P&L / BS          Profitability
+
+The key change is making freight, cargo and expenses a proper subsystem of Billing/Dispatch, supporting:
+Invoice → Consignment → Transporter → Freight → Expenses → Recovery → Margin → Accounting → Reports.
+
+=== IMPLEMENTATION PLAN / BLUEPRINT (FOR CLAUDE) ===
+
+# Cargo & Freight Billing Architecture Specification
+
+Claude, your task is to implement the comprehensive **Cargo/Consignment & Freight Management** subsystem inside the ERP's billing workflow.
+
+## Phase 1: Database Updates (backend/models.py)
+
+### 1. `Consignment` Model (New Table)
+Create a new table linked to `Invoice`.
+- `id`, `invoice_id` (ForeignKey)
+- `consignment_no`, `lr_gr_no`, `lr_gr_date`
+- `dispatch_date`, `transport_mode`, `transporter_name`
+- `vehicle_no`, `driver_name`, `driver_mobile`
+- `origin`, `destination`
+
+### 2. `PackageDetails` Model (New Table)
+Create a table linked to `Consignment`.
+- `id`, `consignment_id` (ForeignKey)
+- `package_type` (Carton, Box, etc.)
+- `package_count`
+- `gross_weight`, `net_weight`
+
+### 3. `LogisticsCost` Model (New Table)
+Create a table to track expenses vs recovery, linked to `Invoice`.
+- `id`, `invoice_id` (ForeignKey)
+- `freight_calc_method` (Weight, Fixed, Per Package, etc.)
+- `actual_freight_cost`, `actual_loading_cost`, `actual_unloading_cost`, `actual_other_cost`
+- `recovered_freight`, `recovered_handling`, `recovered_other`
+- `freight_treatment` (Included in Invoice, Separate Charge, Non-recoverable)
+
+## Phase 2: Frontend UI/UX (Invoice Screen)
+
+### 1. Cargo & Consignment Panel
+- Update `SalesBill.tsx` and `PurchaseBill.tsx` to include a prominent **Cargo & Consignment** panel right under the main Invoice Header or in the Additional Details tabs.
+- Add fields for Consignment Details, Package Details, and Freight Calculation.
+
+### 2. Profitability View (Role-Based)
+- Add a **Logistics Profitability** summary card that calculates `Logistics Margin = (Total Recovered) - (Total Actual Cost)`.
+- Restrict visibility of `actual_cost` and `Logistics Margin` to Admin roles, while Sales roles only see the `Recovered` charges.
+
+## Phase 3: Accounting Engine Integration
+- Ensure that when the Invoice is finalized, the **Posting Engine** creates distinct Journal Entries for:
+  - Inventory (Stock deductions)
+  - Accounts Receivable (Customer Ledger)
+  - Revenue (Sales)
+  - Cargo Cost Ledger (Actual freight paid to transporter)
+  - Tax Records (GST)
+- Keep freight expense strictly separate from product revenue in the General Ledger.

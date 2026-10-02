@@ -1331,67 +1331,6 @@ export default function PurchaseBill() {
           </table>
         </div>
 
-      {/* ── RIGHT PANEL (INTELLIGENCE & MORE INFO) ── */}
-      <div style={{ 
-        width: '280px', 
-        backgroundColor: '#0f172a', 
-        border: '1px solid #334155', 
-        borderRadius: '8px', 
-        display: 'flex', 
-        flexDirection: 'column',
-        flexShrink: 0,
-        overflow: 'hidden',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
-      }}>
-        <div style={{ backgroundColor: '#1e293b', color: '#38bdf8', fontSize: '11px', fontWeight: 'bold', padding: '6px 12px', borderBottom: '1px solid #334155', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          Live Intelligence
-        </div>
-        <div style={{ padding: '12px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          
-          {/* Party Details */}
-          <div>
-            <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Selected Party</div>
-            <div style={{ fontSize: '13px', color: '#f8fafc', fontWeight: '600' }}>{partyName || 'Cash Sale'}</div>
-            <div style={{ fontSize: '11px', color: '#34d399', marginTop: '2px' }}>Balance: ₹0.00</div>
-          </div>
-
-          <div style={{ borderTop: '1px dashed #334155' }}></div>
-
-          {/* Active Product Details */}
-          <div>
-            <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Active Product</div>
-            <div style={{ fontSize: '13px', color: '#f8fafc', fontWeight: '600' }}>{gridRows.find(r => r.id === activeRowId)?.product || 'None Selected'}</div>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '11px' }}>
-              <span style={{ color: '#94a3b8' }}>M.R.P:</span>
-              <span style={{ color: '#e2e8f0' }}>₹{gridRows.find(r => r.id === activeRowId)?.mrp || '0.00'}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '11px' }}>
-              <span style={{ color: '#94a3b8' }}>Stock:</span>
-              <span style={{ color: '#34d399', fontWeight: 'bold' }}>{gridRows.find(r => r.id === activeRowId)?.product ? 'Available' : '-'}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '11px' }}>
-              <span style={{ color: '#94a3b8' }}>Margin:</span>
-              <span style={{ color: '#38bdf8' }}>25%</span>
-            </div>
-          </div>
-          
-          <div style={{ borderTop: '1px dashed #334155' }}></div>
-          
-          {/* Quick Actions */}
-          <div>
-              <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Shortcuts</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                <button style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', fontSize: '10px', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}>F2 - Sale</button>
-                <button style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', fontSize: '10px', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}>F3 - Batch</button>
-              </div>
-          </div>
-
-        </div>
-      </div>
-
-      </div> {/* Close MAIN WORKSPACE SPLIT */}
-
 
 
         {/* ── BOTTOM SUMMARY PANEL ── */}
@@ -1687,8 +1626,71 @@ export default function PurchaseBill() {
             )}
           </div>
         </div>
+      </div> {/* Close GRID CARD */}
+
+      {/* ── RIGHT PANEL (INTELLIGENCE & MORE INFO) ── */}
+      <div style={{ 
+        width: '280px', 
+        backgroundColor: '#0f172a', 
+        border: '1px solid #334155', 
+        borderRadius: '8px', 
+        display: 'flex', 
+        flexDirection: 'column',
+        flexShrink: 0,
+        overflow: 'hidden',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
+      }}>
+        <div style={{ backgroundColor: '#1e293b', color: '#38bdf8', fontSize: '11px', fontWeight: 'bold', padding: '6px 12px', borderBottom: '1px solid #334155', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          Live Intelligence
+        </div>
+        <div style={{ padding: '12px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          
+          {/* Party Details */}
+          <div>
+            <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Selected Party</div>
+            <div style={{ fontSize: '13px', color: '#f8fafc', fontWeight: '600' }}>{partyName || 'Cash Sale'}</div>
+            <div style={{ fontSize: '11px', color: '#34d399', marginTop: '2px' }}>Balance: ₹0.00</div>
+          </div>
+
+          <div style={{ borderTop: '1px dashed #334155' }}></div>
+
+          {/* Active Product Details */}
+          <div>
+            <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Active Product</div>
+            <div style={{ fontSize: '13px', color: '#f8fafc', fontWeight: '600' }}>{gridRows.find(r => r.id === activeRowId)?.product || 'None Selected'}</div>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '11px' }}>
+              <span style={{ color: '#94a3b8' }}>M.R.P:</span>
+              <span style={{ color: '#e2e8f0' }}>₹{gridRows.find(r => r.id === activeRowId)?.mrp || '0.00'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '11px' }}>
+              <span style={{ color: '#94a3b8' }}>Stock:</span>
+              <span style={{ color: '#34d399', fontWeight: 'bold' }}>{gridRows.find(r => r.id === activeRowId)?.product ? 'Available' : '-'}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '11px' }}>
+              <span style={{ color: '#94a3b8' }}>Margin:</span>
+              <span style={{ color: '#38bdf8' }}>25%</span>
+            </div>
+          </div>
+          
+          <div style={{ borderTop: '1px dashed #334155' }}></div>
+          
+          {/* Quick Actions */}
+          <div>
+              <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Shortcuts</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                <button style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', fontSize: '10px', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}>F2 - Sale</button>
+                <button style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', fontSize: '10px', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}>F3 - Batch</button>
+              </div>
+          </div>
+
+        </div>
       </div>
+
+      </div> {/* Close MAIN WORKSPACE SPLIT */}
+
       
+
       {/* ── FOOTER ACTION BAR (ULTRA LOW PROFILE TO MAXIMIZE PRODUCT GRID HEIGHT) ── */}
       <div style={{ display: 'flex', gap: '4px', padding: '2px 8px', backgroundColor: '#0f172a', borderRadius: '4px', color: '#fff', alignItems: 'center', fontSize: '11px', overflowX: 'auto', minHeight: '26px', borderTop: '1px solid var(--color-border)' }}>
         <button style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '1px 6px', cursor: 'pointer', borderRadius: '2px', fontSize: '10px', fontWeight: '500', opacity: 0.85 }}>HELP</button>

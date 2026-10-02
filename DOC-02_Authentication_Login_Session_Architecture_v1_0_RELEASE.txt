@@ -1,0 +1,490 @@
+DOC-02
+AUTHENTICATION, LOGIN & SESSION ARCHITECTURE
+Developer-ready specification for the C&F ERP platform, Platform Admin, Client Companies and secure user sessions
+
+
+
+1. Purpose & Scope
+This document defines how a person, device and company context are authenticated and how secure sessions are created, maintained, switched and terminated across the C&F ERP platform. The goal is to make daily login extremely simple for small businesses while providing enterprise-grade controls for larger organizations.
+1.1 In scope
+Main login screen
+Platform Admin login
+Direct Client Company login
+User identity
+Company discovery/selection
+Default company
+Multi-company user membership
+Platform Admin access into client companies
+Administrative access banners and audit
+Password lifecycle
+MFA
+Session lifecycle
+Device/session management
+LAN/local authentication
+Remote authentication
+Crash/reconnect behavior
+Logout
+Account lockout/risk controls
+Authentication audit
+Recovery
+Support/emergency access
+1.2 Out of scope / linked documents
+Detailed permission matrix → DOC-03
+LAN/server networking implementation → DOC-04
+Live synchronization → DOC-05/06 depending final numbering
+Full database schema → database document
+Detailed UI design system → UX document
+Compliance identity requirements beyond ERP login → compliance/security documents
+
+2. Authentication Philosophy
+The ERP should feel like one application to the user even though it contains platform-level administration, company isolation, local-first execution and remote access. Complexity should stay behind the interface.
+IDENTITY
+   ↓
+AUTHENTICATE
+   ↓
+CREATE SECURE SESSION
+   ↓
+RESOLVE COMPANY CONTEXT
+   ↓
+LOAD ROLE / PERMISSIONS
+   ↓
+LOAD LOCATION CONTEXT (branch / warehouse where applicable)
+   ↓
+OPEN ERP
+2.1 Core philosophy
+Login should be fast and predictable.
+A user should not have to repeatedly choose data they always work in.
+High-risk actions can require stronger authentication or re-authentication without making low-risk data entry painful.
+A Platform Admin must always be distinguishable from a client-company user.
+Every session must be attributable to a specific identity.
+Company context must be explicit in the session and server-side, not inferred only by the UI.
+3. Identity Model
+3.1 Platform identity
+The platform has its own administrative identity space. Platform Administrators are not ordinary users inside each client company.
+PLATFORM IDENTITY
+   └── Platform Admin / Support / Platform Auditor (as configured)
+3.2 Company identity
+A client-company user identity is bound to one or more allowed client companies. The same human may be granted membership in several companies when explicitly required, but each session must carry an active company context.
+USER
+ ├── Company Membership A
+ ├── Company Membership B
+ └── Company Membership C
+        ↓
+ACTIVE COMPANY = exactly one for ordinary transaction context
+3.3 Identity IDs
+
+
+4. Main Login Page
+4.1 Recommended UX
+┌──────────────────────────────────────────────────────────────┐
+│                         C&F ERP                               │
+│                                                              │
+│  Username / Email / User ID                                  │
+│  [____________________________________________]              │
+│                                                              │
+│  Password                                                    │
+│  [____________________________________________]  👁           │
+│                                                              │
+│  [ Sign In ]                                                 │
+│                                                              │
+│  Forgot password?     Use another sign-in method             │
+│                                                              │
+│  Company: Auto-detected or Select if required                │
+│                                                              │
+│  Server / Mode indicator: Local / Remote / Sync status       │
+└──────────────────────────────────────────────────────────────┘
+4.2 Recommended login behavior
+If the login identifier uniquely identifies a Platform Admin, route to the Platform Admin environment.
+If the identifier belongs to exactly one active client company, resolve that company automatically.
+If the user belongs to multiple companies, show a company-selection step after authentication.
+Never reveal whether a particular username/email exists through a detailed error message.
+Keep error messaging generic enough to reduce account enumeration.
+Allow keyboard navigation for every field and action.
+4.3 Company selection
+AUTHENTICATED USER
+     ↓
+How many allowed companies?
+     ├── 0 → block / support path
+     ├── 1 → open default company
+     └── 2+ → company selector
+
+5. Direct Client Company Login
+The ERP should allow a client user to enter their company directly from the main login page. This preserves the fast experience required for daily use while keeping company resolution secure.
+MAIN LOGIN
+   ↓
+USER AUTHENTICATION
+   ↓
+COMPANY MEMBERSHIP CHECK
+   ↓
+COMPANY A ACTIVE?
+   ├── YES → CREATE SESSION IN COMPANY A
+   └── NO  → DENY / SHOW SAFE ERROR
+5.1 Optional company identifier
+For businesses with many client companies, a company code/domain may be accepted as an optional login hint. It should be a routing hint, not a trust boundary; the server must still verify that the authenticated user is actually allowed to enter that company.
+6. Platform Admin Login & Platform Console
+6.1 Platform Admin flow
+MAIN LOGIN
+    ↓
+PLATFORM ADMIN AUTHENTICATION
+    ↓
+PLATFORM DASHBOARD
+    ├── Client Companies
+    ├── Platform Users
+    ├── Health / Sync
+    ├── Subscription / Status (if enabled)
+    └── Platform Settings
+6.2 Platform Admin privileges
+
+7. Platform Admin → Client Company Access
+This is one of the unique requirements of the ERP. A Platform Admin should be able to enter a client company without knowing or entering a client user password. This should be implemented as a distinct administrative access session, not as password impersonation.
+PLATFORM ADMIN SESSION
+       ↓
+SELECT CLIENT COMPANY
+       ↓
+CLICK “ACCESS COMPANY”
+       ↓
+RE-AUTHENTICATE / STEP-UP IF REQUIRED
+       ↓
+CREATE ADMINISTRATIVE COMPANY SESSION
+       ↓
+CLIENT ERP
+       ↓
+PROMINENT “PLATFORM ADMIN ACCESS” BANNER
+       ↓
+ALL ACTIONS LOGGED
+7.1 Access modes
+
+7.2 What the client should see
+Prominent but non-disruptive “Platform Admin Access” indicator for active sessions where appropriate.
+Ability to inspect access history.
+No client password is revealed or reused.
+Admin actions are not falsely recorded as actions by a client user.
+
+8. Company Membership & Multi-Company Users
+The normal rule should be one user with explicit membership in one or more companies. Multi-company access is useful for owners, group accountants, auditors and platform support users, but should never automatically mean cross-company write access.
+
+8.1 Active company banner
+┌──────────────────────────────────────────────────────────────┐
+│ COMPANY: ABC C&F   • Branch: Main   • User: Rahul   • Role  │
+└──────────────────────────────────────────────────────────────┘
+The active company should always be visible so users do not accidentally create transactions in the wrong company.
+9. Session Architecture
+Sessions must be server-controlled, attributable and revocable. OWASP recommends secure HTTPS for the full session, Secure/HttpOnly cookies where cookies are used, appropriate SameSite protections, server-side session expiry and both idle and absolute timeouts. (Source: OWASP Session Management Cheat Sheet)
+9.1 Session lifecycle
+LOGIN SUCCESS
+   ↓
+CREATE SESSION
+   ↓
+STORE SERVER-SIDE SESSION STATE
+   ↓
+ISSUE SECURE CLIENT SESSION TOKEN
+   ↓
+REQUEST
+   ↓
+AUTHENTICATE SESSION
+   ↓
+AUTHORIZE ACTION
+   ↓
+UPDATE ACTIVITY
+   ↓
+LOGOUT / EXPIRY / REVOCATION
+9.2 Session data
+
+9.3 Recommended timeout model
+Use configurable policies rather than a single hard-coded value. For ordinary office users, a practical baseline can be an idle timeout in the tens of minutes and an absolute session lifetime measured in hours; high-risk admin/support sessions should be shorter and/or require step-up authentication. OWASP emphasizes that idle and absolute timeout values should reflect application risk and usability. (Source: OWASP Session Management Cheat Sheet)
+10. Session Types
+
+11. Authentication Methods
+The ERP should start with a secure password-based method but be designed to add stronger authentication methods without redesigning the identity model.
+
+
+12. Password Policy
+Passwords are never stored in plaintext.
+Use a dedicated password hashing/KDF implementation such as Argon2id (or another vetted adaptive password hashing scheme supported by the chosen stack). OWASP specifically recommends slow, memory-hard password hashing and unique salts.  (Source: OWASP Password Storage Cheat Sheet)
+Do not force arbitrary frequent password changes without a risk reason.
+Block known-compromised/common passwords if an appropriate service/library is used.
+Require current password or step-up authentication for sensitive changes when appropriate.
+Never display or log passwords.
+Rate-limit authentication attempts and recovery attempts.
+13. MFA & Step-Up Authentication
+13.1 Default philosophy
+Keep basic login simple, but allow the security policy to require MFA by role, company, device, risk level or action. Platform Administrators should have stronger protection by default than ordinary low-risk operational users.
+
+14. Login Error & Anti-Enumeration Design
+Login and recovery responses should not disclose whether an account exists. Use a consistent message such as “Sign-in details could not be verified” instead of separate “user not found” vs “wrong password” messages.
+Rate-limit repeated failures.
+Use progressive delay or temporary lock/risk controls.
+Do not lock accounts in a way that enables simple denial-of-service against a known user; prefer risk-based or bounded protections.
+Record security events without exposing sensitive details to the end user.
+Notify users/admins about suspicious login patterns where configured.
+15. Password Recovery & Account Recovery
+FORGOT PASSWORD
+   ↓
+IDENTIFY ACCOUNT SAFELY
+   ↓
+SEND RECOVERY CHALLENGE
+   ↓
+VERIFY
+   ↓
+ALLOW NEW PASSWORD
+   ↓
+REVOKE OLD SESSIONS (recommended for sensitive changes)
+   ↓
+AUDIT EVENT
+15.1 Recovery principles
+Recovery tokens must be single-use and short-lived.
+Do not reveal whether an account exists.
+Do not allow support staff to see existing passwords.
+Account recovery should be harder than a normal login when risk is high.
+Platform Admin and Company Admin recovery should follow different authority boundaries.
+16. Device & Session Management
+Users should have a “My Sessions / Devices” screen. This is especially useful for managers, owners and remote users.
+MY ACCOUNT
+  ├── Current Session
+  ├── Other Active Sessions
+  ├── Device / Browser
+  ├── Last Seen
+  ├── Approx. Location / Network Metadata (only if policy supports it)
+  └── Revoke
+Allow “Sign out of all other sessions”.
+Allow admins to revoke a specific session when policy permits.
+Log session revocations.
+Do not expose unnecessary sensitive device data.
+17. Local-First / LAN Authentication
+Because your ERP is local-first, authentication must work even when the internet is unavailable. The local server should be the authority for local company sessions while online synchronization remains a separate concern.
+LAN CLIENT
+   ↓
+LOCAL ERP SERVER
+   ↓
+LOCAL IDENTITY / SESSION SERVICE
+   ↓
+COMPANY CONTEXT
+   ↓
+ERP
+17.1 Offline rules
+If the local server is healthy, LAN users authenticate normally against the local server.
+If the internet fails but LAN remains available, authorized users can continue normal local work.
+Remote login should not silently fall back to an unsecured local mode.
+The sync engine should not become the authentication authority for normal company users.
+Offline/standalone login behavior should be explicit and policy-controlled.
+18. Local Server Failure & Recovery
+NORMAL
+LOCAL SERVER → AUTH → ERP
+
+SERVER INTERRUPTION
+    ↓
+CLIENT SHOWS “SERVER UNAVAILABLE”
+    ↓
+AUTO RETRY / RECONNECT
+    ↓
+RESTORE SESSION IF VALID
+    ↓
+RESUME WORK
+Do not create a separate uncontrolled local identity system on every workstation. That would make user identity and permission management inconsistent.
+19. Remote Authentication
+REMOTE USER
+   ↓
+SECURE INTERNET CHANNEL
+   ↓
+IDENTITY SERVICE
+   ↓
+SESSION
+   ↓
+COMPANY CONTEXT
+   ↓
+REMOTE ERP
+Remote sessions must use the same identity and authorization model as the local environment. The local-first architecture affects where work is processed and synchronized; it must not create a second, weaker security model.
+20. Company Switching
+For multi-company users, company switching must be explicit and must re-evaluate permissions and company context. Do not simply change a company label in the UI.
+CURRENT COMPANY A
+      ↓
+SELECT COMPANY B
+      ↓
+VERIFY MEMBERSHIP
+      ↓
+LOAD COMPANY B SETTINGS / PERMISSIONS
+      ↓
+RE-CHECK ACTIVE DOCUMENTS
+      ↓
+COMPANY B SESSION CONTEXT
+20.1 Draft behavior when switching
+If unsaved work exists, warn the user before switching.
+Auto-save draft first where the document supports crash recovery.
+Do not silently move a draft from Company A to Company B.
+Reset company-specific filters, warehouse, tax context and numbering context where required.
+
+21. Administrative Access & “Impersonation” Terminology
+Internally, avoid treating Platform Admin access as true credential impersonation. The safer design is “Administrative Company Access” or “Support Access”, where the original administrator identity remains visible and attributable.
+
+22. Session Security Controls
+
+
+23. Login & Session Audit Trail
+
+24. Security Notifications
+New login/device (where enabled)
+MFA enrollment/change
+Password change/reset
+Platform Admin access to company
+Repeated login failure
+Suspicious session/risk event
+Session revoked by administrator
+Notifications should be configurable so small businesses are not overwhelmed while large businesses can enable more detailed security monitoring.
+25. Small-Business vs Large-Business Experience
+The same architecture should support both segments. The system should scale in controls, not split into unrelated products.
+
+26. Accessibility & Keyboard-First Login
+Username field focused on page load.
+Tab order follows visual order.
+Enter submits the form.
+Esc closes non-critical dialogs.
+Password show/hide must be keyboard accessible.
+Company selection supports arrow keys/type-ahead.
+Error messages move focus to the first actionable issue.
+Screen-reader labels are provided.
+High-contrast status indicators are available.
+No authentication action should require a mouse.
+26.1 Recommended shortcuts
+
+27. Crash Recovery & Draft Continuity
+Authentication/session design must work with the ERP’s crash-recovery philosophy. A temporary browser/server failure should not turn into a duplicate login or duplicate transaction problem.
+USER WORKING
+   ↓
+DRAFT AUTOSAVE
+   ↓
+CONNECTION FAILURE / CRASH
+   ↓
+RECONNECT
+   ↓
+VALID SESSION?
+   ├── YES → RECOVER DRAFT
+   └── NO  → SAFE RE-AUTHENTICATION
+   ↓
+CONTINUE WITHOUT DUPLICATING POSTED TRANSACTION
+28. Duplicate Login / Concurrent Session Policy
+Do not automatically force one session per user. Many legitimate business users need a desktop + laptop or office + warehouse session. Instead, use configurable session policies by role/company.
+
+29. Recovery, Support & Emergency Access
+29.1 Support hierarchy
+USER
+  ↓
+COMPANY ADMIN
+  ↓
+PLATFORM SUPPORT
+  ↓
+PLATFORM SECURITY / ADMIN
+29.2 Emergency access
+Time-limited
+Explicit reason
+Strong authentication
+High-priority audit
+Prefer read-only unless write access is necessary
+Automatic expiry
+Post-event review for high-risk actions
+30. Identity & Authorization Decision Sequence
+REQUEST RECEIVED
+   ↓
+Is session valid?
+   ↓
+Who is the user?
+   ↓
+What company is active?
+   ↓
+Is company membership valid?
+   ↓
+What role/permissions apply?
+   ↓
+Is the requested action allowed?
+   ↓
+Does the action require step-up authentication?
+   ↓
+ALLOW / DENY
+   ↓
+AUDIT
+31. Failure & Edge Cases
+
+32. Implementation Architecture
+CLIENT UI
+   ↓
+AUTHENTICATION CONTROLLER
+   ↓
+IDENTITY SERVICE
+   ├── User Identity Store
+   ├── Credential Verification
+   ├── MFA Service
+   └── Recovery Service
+   ↓
+SESSION SERVICE
+   ├── Session Store
+   ├── Revocation
+   └── Timeout Policy
+   ↓
+COMPANY CONTEXT SERVICE
+   ├── Membership
+   ├── Active Company
+   └── Branch/Warehouse Defaults
+   ↓
+AUTHORIZATION SERVICE (DOC-03)
+   ↓
+ERP MODULE
+This separation keeps authentication stable even while business modules evolve.
+33. API / Service Contracts — Logical Requirements
+
+
+34. Data Entities — Logical
+
+35. Security Invariants
+1. No user can enter a company without a valid company membership or authorized Platform Admin access.
+2. Company context is enforced server-side.
+3. Platform Admin access never writes actions under a client user identity.
+4. Passwords are never stored or logged in plaintext.
+5. Sessions are revocable server-side.
+6. Posted business transactions are not authorized solely by a UI control.
+7. MFA/security settings require appropriate re-authentication.
+8. Authentication failure messages do not unnecessarily disclose account existence.
+9. Local-first operation does not create a weaker permission model than remote operation.
+10. Every privileged administrative access is auditable.
+36. Acceptance Criteria
+
+37. Recommended Defaults
+
+38. Reference Principles Used for This Specification
+This document incorporates established security guidance and ERP multi-company patterns while adapting them to the specific C&F ERP architecture.
+OWASP Authentication Cheat Sheet — authentication identity and credential guidance.  (Source: OWASP Authentication Cheat Sheet)
+OWASP Session Management Cheat Sheet — HTTPS, cookie security, session timeouts and server-side invalidation. (Source: OWASP Session Management Cheat Sheet)
+OWASP Password Storage Cheat Sheet — adaptive password hashing such as Argon2id, unique salts and secure storage.  (Source: OWASP Password Storage Cheat Sheet)
+Microsoft Entra Conditional Access documentation — contextual authentication, authentication strengths and session controls. (Sources: Microsoft Entra Conditional Access and Authentication Strength documentation)
+Odoo 19 multi-company/user documentation — user company membership, default company and company-aware access. (Sources: Odoo 19 Multi-company and Users documentation)
+39. Dependencies on Later Documents
+
+40. Final Architecture Summary
+                         MAIN LOGIN
+                             │
+              ┌──────────────┴──────────────┐
+              ↓                             ↓
+       PLATFORM ADMIN                CLIENT USER
+              │                             │
+       PLATFORM SESSION          AUTHENTICATE USER
+              │                             │
+       CLIENT COMPANY LIST             MEMBERSHIP
+              │                             │
+     SELECT / ACCESS COMPANY        ACTIVE COMPANY
+              │                             │
+              └──────────────┬──────────────┘
+                             ↓
+                    SECURE COMPANY SESSION
+                             ↓
+                  ROLE / PERMISSION CHECK
+                             ↓
+                       ERP MODULES
+
+41. Decision Register
+
+42. Reference Sources
+OWASP Authentication Cheat Sheet — https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html
+OWASP Session Management Cheat Sheet — https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html
+OWASP Password Storage Cheat Sheet — https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
+Microsoft Entra Conditional Access overview — https://learn.microsoft.com/en-us/entra/identity/conditional-access/overview
+Microsoft Entra Authentication Strengths — https://learn.microsoft.com/en-us/entra/identity/authentication/concept-authentication-strength-how-it-works
+Odoo 19 Multi-company — https://www.odoo.com/documentation/19.0/applications/general/companies/multi_company.html
+Odoo 19 Users — https://www.odoo.com/documentation/19.0/applications/general/users.html

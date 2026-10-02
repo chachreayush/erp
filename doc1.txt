@@ -1,0 +1,381 @@
+C&F ERP
+MASTER PRINCIPLES, PRODUCT PHILOSOPHY & DOCUMENT MAP
+The constitution of the ERP project — defining what the product is, how it is built, and how future specifications are governed.
+
+
+
+
+1. Master Document Map — How the ERP Project Will Be Documented
+The project will be documented as a controlled family of documents. This master file defines the common rules. Future documents describe one bounded area in implementation detail and must not redefine the master principles without an explicit architecture change.
+MASTER PRINCIPLES / PRODUCT PHILOSOPHY
+                │
+                ├── Platform Architecture
+                ├── Security & Identity
+                ├── Data / Sync Architecture
+                ├── UX / Keyboard Standard
+                └── Global Engineering Rules
+                        │
+        ┌───────────────┼────────────────┐
+        ↓               ↓                ↓
+   MODULE SPECS     TECHNICAL SPECS   OPERATING SPECS
+        │               │                │
+   Billing etc.     DB/API/Sync       UAT/Support
+        │               │                │
+        └───────────────┼────────────────┘
+                        ↓
+                 TEST & RELEASE PACK
+1.1 Document hierarchy
+
+1.2 Rules for future documents
+Every future document must declare which master principles it uses.
+A module document may refine a principle but must not contradict it silently.
+If a requirement conflicts with this master document, create an Architecture Decision Record (ADR) before coding.
+Every implementation specification must define scope, assumptions, dependencies, permissions, data impact, accounting/stock impact and test acceptance.
+The master document changes rarely; implementation documents change more frequently.
+Document IDs and version numbers must be retained so developers can trace the source of a requirement.
+2. Executive Summary
+The ERP is designed as a highly scalable, multi-tenant C&F platform that prioritizes data sovereignty, operational speed, financial integrity and usability. The intended product combines a central Platform Administration layer with independently operated client companies. Each client company owns its own users, permissions, masters, inventory, billing, accounting, reports, settings and data.
+The system is local-first for heavy transaction operations. A client company can operate a primary local server, while multiple LAN users connect to that primary node for high-volume billing, inventory, accounting and operational work. Remote users access an appropriate remote state through a synchronization architecture. Synchronization must be designed as a transactional system, not as an unsafe file-copy mechanism.
+MAIN LOGIN
+   ├── Platform Admin Login
+   │      ↓
+   │   Platform Administration
+   │      ├── Company A
+   │      ├── Company B
+   │      └── Company C
+   │
+   └── Client Login
+          ↓
+       Selected Client Company
+          ↓
+       Company ERP
+
+3. MASTER PRODUCT PHILOSOPHY
+The product philosophy describes the beliefs that should guide every design decision. When a future feature request is ambiguous, the product philosophy is the first lens used to decide how the system should behave.
+3.1 Principle: Business-first, technology-supported
+Technology should serve the real C&F workflow. The user should describe the business event once; the system should perform the repetitive calculation, posting, cross-module updates and reporting automatically.
+3.2 Principle: Simple on screen, rigorous underneath
+The interface should remain understandable to an operator while the backend maintains strong rules, audit trails, calculations and transactional integrity.
+3.3 Principle: One business event, many automatic consequences
+ONE POSTED INVOICE
+   ├── Stock movement
+   ├── Customer receivable
+   ├── Revenue
+   ├── Tax records
+   ├── Cargo / freight
+   ├── Logistics cost
+   └── Reporting / MIS
+3.4 Principle: No duplicate entry when the system already knows
+Customer GST details should come from the customer master.
+Product tax/HSN/UOM data should come from product configuration.
+Payment terms should calculate due dates.
+Freight should be calculated from cargo/rate rules where configured.
+Accounting entries should come from posting rules.
+Outstanding balances should come from financial transactions and allocations.
+3.5 Principle: Fast for high-volume users
+Billing and warehouse operations must optimize for keyboard use, search, predictable navigation and minimal mouse movement.
+3.6 Principle: Powerful without becoming confusing
+Advanced facilities should be available through progressive disclosure, collapsible sections, role-based visibility and contextual actions instead of putting every field on one screen.
+3.7 Principle: Financial truth is immutable
+Posted accounting effects should not be silently rewritten. Corrections use controlled workflows such as reversal, return, credit note, debit note or adjustment.
+3.8 Principle: C&F is the core domain, not an add-on
+Cargo, principal, stock ownership, transporter, freight, loading, unloading, recovery and logistics profitability must be native concepts.
+4. MASTER PRINCIPLES
+
+5. Platform Architecture — Admin Company + Independent Client Companies
+                         ERP PLATFORM
+                               │
+                     ┌─────────┴─────────┐
+                     │ PLATFORM ADMIN    │
+                     └─────────┬─────────┘
+                               │
+          ┌────────────────────┼────────────────────┐
+          ↓                    ↓                    ↓
+     CLIENT COMPANY A     CLIENT COMPANY B     CLIENT COMPANY C
+          │                    │                    │
+      Users/Roles          Users/Roles          Users/Roles
+      Masters              Masters              Masters
+      Inventory            Inventory            Inventory
+      Accounts             Accounts             Accounts
+      Reports              Reports              Reports
+5.1 Client company isolation
+A client company must have its own business environment. Cross-company reads, writes or exports are blocked unless a platform-level permission explicitly allows access.
+
+5.2 Platform admin access into a client company
+PLATFORM ADMIN LOGIN
+      ↓
+SELECT CLIENT COMPANY
+      ↓
+ACCESS COMPANY
+      ↓
+COMPANY CONTEXT CREATED
+      ↓
+AUDIT SESSION STARTED
+      ↓
+ADMIN OPERATES WITH EXPLICIT PLATFORM PERMISSION
+      ↓
+AUDIT SESSION ENDS
+
+6. Local-First Execution & Live Synchronization Philosophy
+6.1 Primary local node
+The local primary server is the authoritative transaction processor for a client office when local-first mode is enabled. LAN clients connect to it for high-volume operations.
+LOCAL PRIMARY SERVER
+ ├── Local transactional database
+ ├── Posting engine
+ ├── Inventory engine
+ ├── Accounting engine
+ ├── Billing engine
+ ├── Sync engine
+ └── Local audit log
+        ↑  ↑  ↑
+      LAN CLIENTS
+6.2 Remote/light access
+Remote users can perform permitted lighter tasks against the synchronized remote state. The remote architecture must not assume that cloud object storage itself is the transactional database.
+6.3 Synchronization principles
+Each change receives a unique event/change ID.
+Every sync operation is idempotent.
+Ordering is tracked for dependent changes.
+The source of authority for each object/state is explicit.
+Acknowledgements prove receipt/application.
+Retries must not duplicate transactions.
+Conflicts are detected and resolved by policy, not silently overwritten.
+Critical financial posting should not be duplicated by replay.
+Offline work, if supported, uses a durable local queue.
+6.4 Conceptual sync flow
+LOCAL CHANGE
+  ↓
+CHANGE EVENT / OUTBOX
+  ↓
+SYNC SERVICE
+  ↓
+REMOTE STATE
+  ↓
+ACKNOWLEDGEMENT
+  ↓
+LOCAL MARKED SYNCED
+7. Keyboard-First ERP Philosophy
+Keyboard operation is not a cosmetic shortcut feature. It is a product principle. The ERP should be engineered so high-volume users can work quickly without repeatedly moving between keyboard and mouse.
+7.1 Global keyboard system
+
+Actual key choices should be finalized in the keyboard-standard document and must avoid collisions with browser/OS shortcuts where possible.
+7.2 Keyboard principles
+Every primary action has a visible shortcut.
+Focus order is predictable.
+Dropdowns are searchable by typing.
+Tables support row navigation without mouse dependency.
+Barcode/product entry supports immediate keyboard flow.
+The system never traps focus unexpectedly.
+Modal dialogs have clear Esc/Enter behavior.
+Destructive actions require confirmation and should not be a single accidental key press.
+7.3 Command palette
+Ctrl + K
+  → New Invoice
+  → New Receipt
+  → Search Customer
+  → Search Product
+  → Open Outstanding
+  → Open Stock Ledger
+  → Open Principal Dashboard
+  → Settings
+  → Help / Shortcut Reference
+8. Crash Recovery & Continuity Philosophy
+The ERP should assume that terminals can crash, networks can drop and users can close windows accidentally. In-progress work must therefore be recoverable without corrupting posted accounting.
+USER ENTERS DATA
+   ↓
+LOCAL DRAFT AUTOSAVE
+   ↓
+CRASH / POWER FAILURE
+   ↓
+REOPEN MODULE
+   ↓
+RECOVER DRAFT
+   ↓
+USER REVIEWS
+   ↓
+POST ONLY AFTER VALIDATION
+Drafts must never be treated as posted accounting.
+Autosave frequency should be configurable within sensible limits.
+Recovered drafts should show last-saved time and source terminal/user.
+Duplicate posting protection must use idempotent transaction keys.
+9. Financial & Accounting Integrity Principles
+9.1 Three-level accounting hierarchy
+LEVEL 1 — ACCOUNT CLASS
+Assets / Liabilities / Income / Expenses
+      ↓
+LEVEL 2 — GROUP / SUB-GROUP
+Current Assets / Current Liabilities / Warehouse Expenses...
+      ↓
+LEVEL 3 — POSTING LEDGER
+Customer / Bank / Sales / Expense / Tax ledger
+9.2 Protected ledgers
+Core system ledgers cannot be deleted.
+Referenced ledgers cannot be deleted.
+Changing names/codes must preserve internal IDs and audit history.
+Posting destinations must remain valid.
+9.3 Bill-by-bill allocation
+Receipts should be allocatable to exact invoices, multiple invoices or on-account balances while preserving an allocation history.
+RECEIPT ₹100,000
+   ├── Invoice A ₹40,000 → Allocated
+   ├── Invoice B ₹35,000 → Allocated
+   └── On-account ₹25,000 → Unallocated
+9.4 Financial non-negotiables
+Balanced journal entries
+Controlled posting periods
+No hidden ledger edits
+Source document links
+Reversal/adjustment workflow
+Audit trail
+Report drill-down
+10. Operational Workflow Principles
+10.1 Challan-to-Invoice data pipeline
+DELIVERY CHALLAN
+   ↓
+VALIDATE DISPATCH / QUANTITY / CUSTOMER
+   ↓
+CONVERT TO INVOICE
+   ↓
+REUSE ORIGINAL DATA
+   ↓
+CALCULATE TAX / CHARGES
+   ↓
+POST
+The conversion must reuse authoritative challan information rather than force the operator to re-enter every item.
+10.2 Smart MRP / pricing
+The pricing engine may suggest a selling price based on the active price list, product/customer/principal rules, configured commercial schemes and effective dates. User overrides should require appropriate permission/reason where policy requires.
+10.3 C&F cargo-native workflow
+ORDER / REQUEST → DISPATCH → CONSIGNMENT → FREIGHT → EXPENSES → RECOVERY → BILLING → ACCOUNTING → PROFITABILITY
+11. Security, Identity & Data Governance Principles
+Identity is global only where necessary; business data is company-scoped.
+Every API request establishes a trusted company context.
+Server-side authorization is mandatory; UI hiding is not security.
+Exports and bulk operations are permission-controlled.
+Sensitive cost/margin information has separate permissions.
+Administrative cross-company access is auditable.
+Backups preserve company isolation.
+Attachments inherit access control from the source document.
+12. Data & Engineering Principles
+
+13. Global UX & Accessibility Principles
+Keyboard-first
+Search-first
+Progressive disclosure
+Consistent layouts
+Clear status
+Strong validation
+Visible source/reference
+Minimal duplicate entry
+Responsive where practical
+Accessible focus and contrast
+Role-aware actions
+Contextual help
+Undo/recovery where safe
+13.1 Standard transaction page anatomy
+HEADER / CONTEXT
+   ↓
+PRIMARY DATA
+   ↓
+DETAIL LINES
+   ↓
+ADVANCED / ADDITIONAL DETAILS
+   ↓
+CALCULATED SUMMARY
+   ↓
+VALIDATION / APPROVAL
+   ↓
+POST / SAVE / PRINT
+14. Core Feature Principles
+
+15. Anti-Patterns — What This ERP Must Not Become
+A collection of disconnected screens.
+A system where accounting balances are manually edited.
+A system where each report calculates its own version of the truth.
+A system where company A can accidentally query company B.
+A system requiring constant mouse use for billing.
+A system that copies files to cloud and calls that live synchronization.
+A system where posted invoices can be silently overwritten.
+A system where every setting is hard-coded.
+A system with unlimited admin powers and no audit trail.
+A system where AI-generated code is deployed without tests.
+16. Requirements Governance
+16.1 Change hierarchy
+BUSINESS IDEA
+   ↓
+PRODUCT REQUIREMENT
+   ↓
+MASTER PRINCIPLE CHECK
+   ↓
+MODULE SPECIFICATION
+   ↓
+IMPLEMENTATION SPECIFICATION
+   ↓
+CODE + TESTS
+   ↓
+UAT
+   ↓
+RELEASE
+16.2 Architecture Decision Records
+Any design choice that materially changes the platform should be recorded as an ADR with context, options considered, decision, consequences and date/version.
+16.3 Definition of done for a requirement
+Requirement documented
+Affected modules identified
+Permissions identified
+Data impact identified
+Accounting/stock/tax impact identified
+UX impact identified
+Failure/recovery behavior defined
+Test cases defined
+UAT acceptance defined
+17. DETAILED DOCUMENT MAP — FUTURE FILES TO CREATE
+The following documents form the planned specification library. Each will be a separate Word file and, where useful, a matching developer/technical companion file.
+
+17.1 Every future module document must contain these headings
+
+18. Hierarchy of Truth & Source Ownership
+
+19. Quality Model
+CORRECTNESS
+   +
+SECURITY
+   +
+USABILITY
+   +
+RECOVERABILITY
+   +
+AUDITABILITY
+   +
+PERFORMANCE
+   +
+MAINTAINABILITY
+   =
+RELEASE-READY ERP
+
+20. Final “North Star” for the ERP
+When deciding whether a feature belongs in the product, the following questions should be asked:
+Does this make the real C&F business process faster or safer?
+Does it preserve company data separation?
+Can the user perform it efficiently with the keyboard?
+Does it create a single authoritative source of truth?
+Does it preserve accounting/stock/tax integrity?
+Does it remain auditable?
+Can it recover safely from failures?
+Can the feature be understood and maintained by future developers?
+Does it fit the document/module boundaries defined in this master plan?
+
+Appendix A. Global Terminology Standard
+
+Appendix B. Initial Release Boundary
+The first production release should focus on proving the architecture. Advanced features can be added without breaking the principles.
+Platform Admin + client company model
+Direct client login
+Company-scoped roles/permissions
+Local primary + LAN transaction model
+Core sync infrastructure
+Accounting core
+Inventory core
+Billing core
+Cargo/freight core
+Receipts/payments
+Essential reports
+Audit trail
+Keyboard-first UI foundation
+Appendix C. Change Control Record

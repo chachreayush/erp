@@ -1,18 +1,26 @@
 import { useState, useEffect } from 'react'
-import { Building2, Plus, ArrowRight, Activity, Users } from 'lucide-react'
+import { Building2, Plus, ArrowRight, Activity, Users, Shield } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { useAuthStore } from '../../store/authStore'
 import { apiClient, apiGetOrganizations, Organization } from '../../lib/api'
 import { useNavigate } from 'react-router-dom'
 import { RegisterClientModal } from './RegisterClientModal'
+import PermissionsMatrixModal from './PermissionsMatrixModal'
 import { useReturnNavigation } from '../../hooks/useReturnNavigation'
 
 export default function ClientManagementPage() {
-  useReturnNavigation(false);
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false)
+
+  // ── Permissions Matrix state ──
+  const [permissionsModalOpen, setPermissionsModalOpen] = useState(false)
+  const [selectedOrgId, setSelectedOrgId] = useState('')
+  const [selectedOrgName, setSelectedOrgName] = useState('')
+
+  useReturnNavigation(isRegisterModalOpen || permissionsModalOpen);
+
   const impersonate = useAuthStore(state => state.impersonate)
   const navigate = useNavigate()
 
@@ -57,6 +65,12 @@ export default function ClientManagementPage() {
       const errorDetail = error?.response?.data?.detail || error.message || "Unknown error";
       alert("Failed to switch to client ERP. Detail: " + errorDetail)
     }
+  }
+
+  const handleOpenPermissions = (org: Organization) => {
+    setSelectedOrgId(org.id)
+    setSelectedOrgName(org.name)
+    setPermissionsModalOpen(true)
   }
 
   return (
@@ -115,14 +129,25 @@ export default function ClientManagementPage() {
                 </div>
               </div>
 
-              <Button 
-                variant="secondary" 
-                style={{ width: '100%', justifyContent: 'center' }}
-                rightIcon={<ArrowRight size={16} />}
-                onClick={() => handleSwitchToClient(org.id)}
-              >
-                Switch to ERP
-              </Button>
+              {/* ── ACTION BUTTONS ── */}
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <Button 
+                  variant="secondary" 
+                  style={{ flex: 1, justifyContent: 'center' }}
+                  rightIcon={<Shield size={16} />}
+                  onClick={() => handleOpenPermissions(org)}
+                >
+                  Permissions
+                </Button>
+                <Button 
+                  variant="secondary" 
+                  style={{ flex: 1, justifyContent: 'center' }}
+                  rightIcon={<ArrowRight size={16} />}
+                  onClick={() => handleSwitchToClient(org.id)}
+                >
+                  Switch to ERP
+                </Button>
+              </div>
             </Card>
           ))}
           {organizations.length === 0 && (
@@ -140,6 +165,14 @@ export default function ClientManagementPage() {
           setIsRegisterModalOpen(false)
           fetchOrganizations()
         }}
+      />
+
+      {/* ── PERMISSIONS MATRIX MODAL ────────────────────────── */}
+      <PermissionsMatrixModal
+        isOpen={permissionsModalOpen}
+        onClose={() => setPermissionsModalOpen(false)}
+        orgId={selectedOrgId}
+        orgName={selectedOrgName}
       />
     </div>
   )

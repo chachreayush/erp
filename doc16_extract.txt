@@ -1,0 +1,520 @@
+DOC-16
+INVENTORY, STOCK, EXPIRY, BREAKAGE & CLAIMS ENGINE
+Developer-ready functional and architectural specification for sellable stock, non-sellable stock, traceability, returns, vendor/principal claims, reimbursement and configurable replenishment
+1. Executive Summary
+Inventory in this ERP is a movement-and-provenance system, not a manually editable balance. Every quantity must have a source, location, ownership, status and history. The inventory engine must also support non-sellable goods as first-class stock states so that expired and broken goods can be received, quarantined, claimed, returned upstream and settled without contaminating sellable inventory.
+SOURCE DOCUMENT
+      ↓
+STOCK MOVEMENT
+      ↓
+STOCK POSITION
+  ├─ Company
+  ├─ Warehouse / Location
+  ├─ Principal / Owner
+  ├─ Product
+  ├─ Batch
+  ├─ Status
+  └─ Quantity
+      ↓
+SELLABLE OR NON-SELLABLE WORKFLOW
+      ↓
+CLAIM / RETURN / DISPOSAL
+      ↓
+SETTLEMENT + ACCOUNTING
+v2.0 revision note: This release incorporates the new configurable Reorder & Replenishment Engine and Supply/Stock Classification framework. These rules are authoritative wherever they differ from earlier wording in this document.
+2. Inventory Philosophy & Non-Negotiable Rules
+Every stock change must be represented by an authorized stock movement.
+Stock balance is derived from movements and reservations, not manually overwritten.
+Sellable, expired, breakage, quarantine, blocked, returned and scrap-pending stock are separate states.
+Batch/lot traceability must be preserved wherever the product requires it.
+Physical location and economic ownership are separate dimensions.
+Customer-returned expiry/breakage can be accepted under a configurable policy even when the exact original sale cannot be proven; such quantities remain unverified/non-sellable until policy and inspection are satisfied.
+Upstream vendor/principal claim attribution must not be guessed when multiple sources exist; the system must show provenance confidence and require adjudication where ambiguous.
+Financial claim income/receivable should follow controlled recognition rules and must use DOC-07 settlement and DOC-08 posting rather than a second settlement system.
+No expired or broken goods can be selected by a normal sales allocation process.
+All claim, return, inspection and disposal actions are auditable.
+Normal sellable stock and Reorder-Eligible Stock are separate logical pools. A quantity can be sellable for a specific transaction but excluded from normal replenishment.
+Special/restricted/undercutting supply must be represented by a configurable stock or supply classification, not by hidden quantity exclusions.
+Reorder calculations must use the configured Reorder-Eligible Stock pool and the selected demand formula; physical on-hand quantity alone must never drive purchase recommendations.
+The reorder engine must support both simple configuration and user-defined formulas, with validation, versioning and an explanation of how each suggested quantity was calculated.
+Vendor eligibility, fixed/authorized vendor rules and vendor complaint/hold logic are owned by DOC-17; DOC-16 consumes those rules when creating a reorder proposal but does not duplicate vendor-master logic.
+3. Inventory Dimensions & Stock Identity
+COMPANY
+  ↓
+BRANCH
+  ↓
+WAREHOUSE
+  ↓
+LOCATION / BIN
+  ↓
+OWNER / PRINCIPAL
+  ↓
+PRODUCT / SKU
+  ↓
+BATCH / LOT
+  ↓
+STATUS
+  ↓
+QUANTITY + UOM
+4. Stock Status Architecture
+5. Sellable vs Non-Sellable Stock Pools
+SELLABLE POOL
+  ├─ Available
+  ├─ Reserved
+  └─ Picked
+
+NON-SELLABLE POOLS
+  ├─ Quarantine
+  ├─ Customer Return Pending
+  ├─ Expired
+  ├─ Breakage
+  ├─ Blocked
+  ├─ Recalled
+  ├─ Vendor Return Pending
+  └─ Scrap Pending
+A product quantity can move between these pools only through an authorized movement. The system must not simply change a status without a movement/history record.
+6. Batch & Expiry Integration
+DOC-11 defines the product and batch master. DOC-16 makes the batch operational by maintaining batch-wise stock and movement history.
+6.1 Batch movement lineage
+PURCHASE / PRINCIPAL RECEIPT
+        ↓
+BATCH CREATED / RECEIVED
+        ↓
+WAREHOUSE + LOCATION
+        ↓
+SALE / TRANSFER / RETURN
+        ↓
+CUSTOMER / NEXT LOCATION
+        ↓
+EXPIRY / BREAKAGE EVENT
+        ↓
+CLAIM / RETURN TO SOURCE / DISPOSAL
+7. Stock Ledger & Movement Engine
+Every movement must carry a source document ID, line ID where applicable, user/device context, timestamp, company context and before/after status or location when relevant.
+8. Ownership & Provenance Model
+PHYSICAL STOCK
+      ≠
+ECONOMIC OWNER
+      ≠
+CLAIM RESPONSIBLE PARTY
+A product can be physically held by the C&F company, economically owned by a principal, and have a claim responsibility with a vendor/manufacturer. The system therefore needs separate fields rather than one generic “supplier” field.
+9. Reservations, Availability & Physical Reconciliation
+ON-HAND
+  − RESERVED
+  − NON-SELLABLE
+  − ALREADY PICKED
+  = AVAILABLE FOR SALE
+9.1 Physical count workflow
+Freeze or snapshot the counted scope according to policy.
+Capture physical count by product/batch/location/status.
+Compare system quantity to counted quantity.
+Generate variance.
+Require approval for configured thresholds.
+Post controlled stock adjustment movement.
+Preserve count sheet and variance audit.
+9.2 Reorder & Replenishment Engine
+DOC-16 is responsible for answering: "How much stock should be replenished, for which product/batch/owner/location, and why?" The calculation must be configurable by company, branch, warehouse, product, principal, supply classification and product category so that different businesses can use different reorder methods.
+The engine must distinguish physical stock from Reorder-Eligible Stock. Normal reorder suggestions should normally ignore quantities classified as Restricted, Special Supply, Undercutting/Non-Reorder, Quarantine, Expired, Breakage, Returned, Recalled or other configured non-reorder states.
+DEMAND / USAGE DATA
+        +
+LEAD TIME + SAFETY STOCK
+        +
+TARGET / REORDER RULE
+        -
+REORDER-ELIGIBLE AVAILABLE STOCK
+        -
+ELIGIBLE OPEN RECEIPTS
+        =
+SUGGESTED REORDER QTY
+        ↓
+VENDOR / SUPPLY-RULE CHECK (DOC-17)
+        ↓
+PURCHASE PROPOSAL / SALES ORDER COVER / EXCEPTION
+9.3 Reorder calculation inputs & availability layers
+Gross On-Hand: all physically held quantity, regardless of sellability or reorder classification.
+Sellable On-Hand: stock that is currently allowed for normal sale subject to batch/shelf-life/ownership rules.
+Reorder-Eligible On-Hand: sellable or otherwise configured stock that is explicitly included in replenishment calculations.
+Reserved / Committed: quantity already committed to open orders or allocations and therefore not freely available for the reorder calculation.
+Safety Stock: protected quantity defined by the selected reorder policy.
+Open Receipts: confirmed purchase receipts, principal supplies or other incoming quantities that are eligible to cover future demand under policy.
+Open Demand: approved sales orders, standing demand or other demand sources selected by the formula.
+Lead Time: expected replenishment time from the applicable vendor/supply rule; when vendor is not yet determined, use the configured product/principal default.
+UOM Conversion: all calculations must normalize to a calculation UOM and convert back to purchase UOM before document creation.
+9.4 Formula builder and configurable reorder rules
+A non-technical administrator should be able to choose a simple method or build a controlled custom formula from approved variables. The formula builder must show the resulting quantity before approval and provide a "Why this quantity?" explanation showing each input and intermediate result.
+Example custom formula
+Suggested Order Qty = MAX(0, (AVG_SALES_60D × Coverage_Factor) + Safety_Stock − Reorder_Eligible_Stock − Eligible_Open_PO)
+The exact formula is configurable and must not be hard-coded as the only business rule. Circular dependencies, unsupported variables, invalid units and negative/overflow results must be blocked before activation.
+9.5 Supply / Stock Classification
+The system needs two related but distinct concepts: Stock Status describes the physical/quality lifecycle, while Supply Classification describes the commercial or operational treatment of the quantity. This allows a quantity to remain sellable while still being excluded from normal reorder calculations.
+Important terminology rule: "Undercutting" is used here as an internal configurable ERP label for the special-supply case described by the business. It is not intended as a universal legal or industry definition. The system should let the administrator rename or configure the classification and its controls.
+9.6 Special-supply / undercutting stock behavior
+Specially supplied quantity can remain physically available and, where policy allows, sellable, but must be excluded from normal reorder calculations by default.
+The transaction should store the classification at order, receipt, stock and invoice/challan level so that the quantity remains identifiable later.
+A classification may override normal reorder inclusion, pricing behavior, claim eligibility or reporting without changing the physical stock location.
+When the same product has both normal stock and special-supply stock, the inventory engine must maintain separate logical quantities so the normal reorder pool is not inflated by special-supply units.
+Reorder proposals should display excluded special-supply quantities as an explanation line (for example: "12 units on hand, 8 reorder-eligible, 4 special/non-reorder").
+9.7 Reorder proposal, exception and vendor-rule handoff
+DOC-16 may generate a reorder proposal, but vendor eligibility remains governed by DOC-17. If a product has a fixed/authorized vendor, restricted-supply rule, territory/customer restriction or an active vendor hold/complaint, the proposal must display that condition before a purchase document is created.
+REORDER PROPOSAL
+   ↓
+CHECK PRODUCT / PRINCIPAL SUPPLY RULES
+   ↓
+CHECK FIXED / AUTHORIZED VENDOR RULES (DOC-17)
+   ↓
+CHECK OPEN VENDOR ISSUES / HOLDS (DOC-17)
+   ↓
+VALID / WARNING / BLOCKED
+   ↓
+CREATE PURCHASE PROPOSAL OR ROUTE TO REVIEW
+9.8 Reorder auditability and explanation
+Store the rule version used for each calculation.
+Store the exact input snapshot used for the calculation.
+Store excluded quantities and the reason for exclusion.
+Store the resulting suggested quantity, rounded purchase quantity and UOM conversion.
+Allow the user to open "Why this reorder?" from the proposal.
+Do not silently recalculate a submitted proposal using a newer formula version; retain the historical result and explicitly recalculate when requested.
+Reorder rules must be company/branch/warehouse aware and respect tenant isolation from DOC-01.
+10. Expiry Management Engine
+Expiry is not merely a report. It is a lifecycle controller that can alert, restrict, quarantine and route stock into claims or disposal.
+BATCH APPROACHES EXPIRY
+       ↓
+ALERT / REMOVE-FROM-PICKING WINDOW
+       ↓
+EXPIRED
+       ↓
+QUARANTINE / EXPIRED POOL
+       ↓
+CLAIM ELIGIBILITY CHECK
+       ↓
+RETURN TO SOURCE / WRITE-OFF / SCRAP
+Established ERP systems use expiration/shelf-life and removal/alert concepts; this document adapts those ideas to the C&F claim and return process.
+11. Breakage / Damage Engine
+Breakage is incident-driven rather than date-driven. It must be recorded separately from expiry and ordinary stock loss.
+12. Customer Expiry / Breakage Receiving System
+This is a dedicated intake workflow for expiry/breakage goods received from customers. It is distinct from a normal sales return because the returned goods may be unsaleable and may or may not correspond to an original invoice.
+CUSTOMER
+  ↓
+EXPIRY / BREAKAGE RECEIPT
+  ↓
+IDENTIFY PRODUCT + BATCH + QTY
+  ↓
+SYSTEM SHOWS SALES / BATCH HISTORY
+  ↓
+POLICY + PROVENANCE CHECK
+  ↓
+QUARANTINE / NON-SELLABLE STOCK
+  ↓
+ACCEPT / PARTIAL ACCEPT / REJECT
+  ↓
+CLAIM ELIGIBILITY
+  ↓
+UPSTREAM CLAIM / CUSTOMER SETTLEMENT
+12.1 Customer claim screen
+Customer: [ Party A ]     Claim Type: [ Expiry ▼ ]
+
+Product: [ Product A ]      Batch: [ ABC123 ▼ ]
+Qty received: [ 3 ]          Expiry: [ 06/2027 ]
+
+System information:
+Last sold by us?        YES / NO / UNKNOWN
+Original invoice(s):   INV-1002, INV-1044
+Source receipt(s):     PUR-201, PUR-245
+Principal:              Principal A
+Eligible claim party:   Principal A
+Previous returns:       1
+Previously claimed:     0
+
+[Receive to Quarantine] [View History] [Check Claim Eligibility]
+13. Market / Non-Original-Sale Customer Returns
+14. Source / Vendor / Principal Claim Determination Engine
+When the same product is supplied by multiple vendors, product identity alone must never determine the claim source. The system must use batch, receipt, ownership, dates and commercial policy.
+CLAIMED PRODUCT + BATCH
+        ↓
+Find RECEIPT LINEAGE
+        ↓
+Find PRINCIPAL / OWNER
+        ↓
+Find PURCHASE / TRANSFER SOURCES
+        ↓
+Find PRIOR SALES / RETURNS
+        ↓
+APPLY CLAIM POLICY
+        ↓
+MATCHED / AMBIGUOUS / UNVERIFIED
+15. Multiple Vendors Selling the Same Product — Critical Design
+This addresses the specific scenario where the same Product A is purchased from Vendor X, Vendor Y and Vendor Z, while customers may return expired/broken Product A. The ERP should not use a simple Product → Vendor mapping.
+PRODUCT A
+ ├─ Vendor X: Batches X001, X002
+ ├─ Vendor Y: Batches Y010, Y011
+ └─ Vendor Z: Batch Z050
+
+Customer returns Batch Y010
+        ↓
+ERP identifies Vendor Y as the likely source
+        ↓
+Checks principal / ownership / claim policy
+        ↓
+Creates claim against Vendor Y or Principal as configured
+15.1 Provenance allocation policy
+Exact batch match first
+Exact receipt-line match next
+Principal ownership rule
+Purchase date window
+FIFO by source receipt when policy allows
+Quantity-cap protection so the same source quantity cannot be claimed twice
+Manual adjudication where ambiguous
+Store the chosen reason and evidence
+16. Vendor / Principal Expiry & Breakage Return System
+NON-SELLABLE STOCK
+      ↓
+SELECT SOURCE / CLAIM PARTY
+      ↓
+SYSTEM SHOWS:
+  • Batches
+  • Quantities
+  • Original receipts
+  • Prior claims
+  • Prior vendor returns
+  • Prior customer returns
+  • Eligibility
+      ↓
+RETURN / CLAIM DOCUMENT
+      ↓
+DISPATCH TO SOURCE
+      ↓
+CLAIM SETTLEMENT
+      ↓
+CN / DN / PAYMENT / REPLACEMENT
+      ↓
+DOC-07 SETTLEMENT
+SAP supports return-to-vendor processes for damaged goods and return deliveries, while modern warehouse systems also support blocked/quarantine stock and distinct disposition actions. The ERP should adapt those concepts to the C&F expiry/breakage claim lifecycle.
+17. Vendor / Principal Claim Workspace
+Claim Party: [ Vendor Y ▼ ]      Type: [ Breakage ▼ ]
+
+Eligible batches / cases
+--------------------------------------------------
+Batch | Product | Source Receipt | Qty | Eligible
+Y010  | A       | PUR-245        | 10  | 8
+Y011  | A       | PUR-290        | 5   | 5
+--------------------------------------------------
+Selected quantity: 3
+Settlement: [ CN ▼ ]
+Reference: [____________________]
+
+[Create Return] [Create Claim] [View Traceability]
+18. Claim Lifecycle & State Machine
+DRAFT
+  ↓
+RECEIVED / REGISTERED
+  ↓
+QUARANTINED
+  ↓
+INSPECTED
+  ├─ REJECTED / RETURN TO CUSTOMER
+  └─ ACCEPTED
+        ↓
+CLAIM CANDIDATE
+        ↓
+CLAIM SUBMITTED
+        ↓
+APPROVED / DISPUTED
+        ↓
+SETTLED
+  ├─ CN
+  ├─ DN
+  ├─ PAYMENT
+  ├─ REPLACEMENT STOCK
+  └─ OTHER APPROVED SETTLEMENT
+        ↓
+CLOSED / SCRAPPED / RETURNED
+19. Claim Settlement Integration with DOC-07 / DOC-08 / DOC-09
+The inventory claim engine must not invent its own financial settlement system. It creates a commercial claim/open item where appropriate; the universal settlement engine from DOC-07 allocates the resulting CN, DN or payment.
+EXPIRY / BREAKAGE CLAIM
+        ↓
+CLAIM RECEIVABLE / CLAIM DOCUMENT
+        ↓
+PRINCIPAL / VENDOR CN OR PAYMENT
+        ↓
+DOC-07 UNIVERSAL SETTLEMENT
+        ↓
+ALLOCATE TO CLAIM / BILL / PAYMENT / CREDIT
+        ↓
+DOC-08 POSTING
+        ↓
+DOC-09 OPEN ITEM + OUTSTANDING
+20. Customer-Side Financial Treatment
+A customer expiry/breakage receipt is not automatically the same as a sales return. The ERP should distinguish: (a) return of goods from an original sale, (b) market return accepted under policy, and (c) unverified/non-credit return.
+21. Disposal, Scrap & Write-Off
+EXPIRED / BREAKAGE / DAMAGED
+       ↓
+CLAIM ELIGIBILITY CHECK
+       ↓
+RETURN TO SOURCE?
+   YES → RETURN PROCESS
+   NO  → DISPOSAL DECISION
+              ↓
+         SCRAP / DESTROY
+              ↓
+       WRITE-OFF / EXPENSE
+              ↓
+           FINALIZE
+The system should never delete expired/broken quantities. Disposal creates a final stock movement and, where applicable, an accounting expense/write-off according to company policy.
+22. Inventory, Expiry, Breakage & Claim Reporting
+23. Inventory & Claim Cockpit
+TODAY
+Sellable stock        125,400
+Expired stock           1,250
+Breakage stock            185
+Customer returns           42
+Vendor claim pending      ₹82,000
+Claims overdue            ₹21,000
+
+[Expiry Queue] [Breakage Queue] [Customer Returns] [Vendor Claims]
+The dashboard should be role-sensitive. Warehouse users see operational queues; accounts see claim receivables; management sees exposure and recovery.
+24. Barcode / Scan / Mobile Workflow
+Scan product barcode
+Scan/enter batch
+Show product + batch + expiry immediately
+Show status and ownership
+Scan returned item during customer expiry/breakage receipt
+Use photo/evidence capture when available
+Prevent scanning of an expired/broken item into a sellable movement
+Allow offline local capture and later live sync consistent with DOC-04
+25. Keyboard-First Inventory Operations
+Ctrl/Alt + I → Inventory Home
+N → New Stock Entry
+R → Customer Return
+V → Vendor Return
+E → Expiry Queue
+B → Breakage Queue
+C → Claim Workspace
+S → Stock Search
+F → Focus Search
+Enter → Confirm selected action
+Esc → Cancel/close current panel
+Exact shortcuts are governed by DOC-05. DOC-16 defines operational actions and required focus order; users must be able to perform high-volume receiving/return/claim tasks with minimal mouse use.
+26. Local-First + Live Cloud Inventory Behavior
+Inventory movements, expiry/breakage receipts, claim records and status changes must participate in DOC-04 live cloud transactional synchronization.
+LOCAL / LAN
+  ↓
+Stock movement committed
+  ↓
+Cloud transactional state updated
+  ↓
+Remote user sees fresh quantity/status
+  ↓
+Remote claim/return can be entered
+  ↓
+Sync to local primary
+  ↓
+Final posting / reconciliation
+Each movement has a unique event ID
+Claim consumption and source-quantity reservation are idempotent
+Cloud and local versions are compared before commit
+Remote users see freshness timestamp/status
+Conflicts require deterministic resolution, not silent overwrites
+A claimed quantity cannot be claimed twice after sync convergence
+27. Permissions & Segregation of Duties
+28. Logical Data Model
+29. Service / API Responsibilities
+Inventory Service
+  ├─ getAvailability()
+  ├─ reserveStock()
+  ├─ issueStock()
+  ├─ receiveStock()
+  ├─ transferStock()
+  ├─ quarantineStock()
+  ├─ recordExpiry()
+  ├─ recordBreakage()
+  └─ reconcileStock()
+
+Claim Service
+  ├─ receiveCustomerClaim()
+  ├─ findProvenance()
+  ├─ evaluateEligibility()
+  ├─ createVendorClaim()
+  ├─ approveClaim()
+  ├─ createReturn()
+  └─ settleClaim()
+30. Edge Cases & Exception Rules
+31. Best-Practice Enhancements Added by Design
+Provenance confidence score to avoid automatic wrong-vendor claims.
+Separate sale lineage, purchase lineage and ownership lineage.
+Non-sellable stock pools to prevent accidental sale.
+Claim quantity reservation so the same quantity cannot be claimed twice.
+Market-return path for commercially accepted goods not originally sold by the ERP company.
+Inspection/disposition layer before financial credit is finalized.
+Claim aging and pending-settlement reporting.
+Batch-level traceability for recall and reverse tracing.
+Integrated settlement through DOC-07 instead of duplicating financial allocation logic.
+Company/principal/vendor policy rules so small businesses can keep the workflow simple while large businesses can enable full controls.
+32. Small-Business vs Large-Business Modes
+33. Testing & Acceptance Matrix
+34. Final Acceptance Criteria
+No expired or broken quantity can enter ordinary sellable availability without explicit controlled release.
+Every non-sellable quantity is traceable to a source event.
+Every customer expiry/breakage receipt can show batch history and prior sales/returns when available.
+Every upstream vendor/principal claim can show source receipts, batch lineage and prior claim usage.
+The same source quantity cannot be claimed twice.
+Original-sale returns and market returns remain distinguishable.
+Vendor/principal claim settlement can use CN, DN, payment or replacement stock.
+Financial allocation uses DOC-07; posting uses DOC-08; open items use DOC-09.
+Batch/provenance data remains synchronized for remote users under DOC-04.
+All exceptions and overrides are auditable.
+Reorder suggestions use Reorder-Eligible Stock, not raw physical stock.
+Special/undercutting/non-reorder supply can be excluded from normal replenishment without removing the physical quantity from inventory.
+Different products, warehouses or businesses can use different reorder methods and approved custom formulas.
+Every reorder recommendation records its formula/rule version, inputs, excluded quantities and explanation.
+Reorder proposals hand off fixed-vendor, restricted-supply and vendor-hold checks to DOC-17 rather than duplicating vendor logic in DOC-16.
+35. Reference ERP Patterns Used for Design
+This document uses established ERP/WMS patterns as reference points while tailoring them to the C&F use case. SAP documents batch traceability, customer-return inspection and return-to-vendor workflows; Microsoft Dynamics documents quarantine, disposition and return inspection; Odoo documents lot-based expiry lifecycle controls. These references are patterns, not a prescription to copy any product UI or implementation.
+36. Dependencies & Future Documents
+37. Final Inventory Architecture
+INVENTORY ENGINE
+                                │
+        ┌───────────────────────┼────────────────────────────┐
+        ↓                       ↓                            ↓
+   PRODUCT / BATCH          OWNERSHIP                    LOCATION
+        │                       │                            │
+        └───────────────────────┼────────────────────────────┘
+                                ↓
+                         STOCK POSITION
+                                │
+          ┌─────────────────────┼─────────────────────────┐
+          ↓                     ↓                         ↓
+      SELLABLE              NON-SELLABLE             IN-TRANSIT
+          │                     │
+          │          ┌──────────┼────────────┐
+          │          ↓          ↓            ↓
+          │       EXPIRED   BREAKAGE     QUARANTINE
+          │          │          │            │
+          └──────────┼──────────┴────────────┘
+                     ↓
+        SUPPLY CLASSIFICATION / REORDER ELIGIBILITY
+                     │
+        ┌────────────┴────────────────────┐
+        ↓                                 ↓
+ REORDER-ELIGIBLE STOCK             NON-REORDER / SPECIAL
+        │                                 │
+        ↓                                 └─ Under-cutting / restricted / scheme / allowance
+ REORDER & REPLENISHMENT ENGINE
+        │
+        ↓
+ PURCHASE PROPOSAL / DOC-17 VENDOR RULES
+        │
+        └───────────────┐
+                        ↓
+             CLAIM / RETURN ENGINE
+                        │
+           ┌────────────┴─────────────┐
+           ↓                          ↓
+      CUSTOMER ORIGIN            SOURCE RETURN
+           ↓                          ↓
+      CLAIM / CREDIT          VENDOR / PRINCIPAL
+           │                          │
+           └────────────┬─────────────┘
+                        ↓
+               SETTLEMENT / POSTING
+                        ↓
+                    MIS / AUDIT

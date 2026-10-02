@@ -17,7 +17,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Finance & Accounting', path: '/finance', module: 'finance' },
   { label: 'Inventory', path: '/inventory', module: 'inventory' },
   { label: 'Sales & Purchase', path: '/sales', module: 'sales' },
-  { label: 'CRM', path: '/crm', module: 'crm' },
+  { label: 'CRM & Admin', path: '/crm', module: 'crm' },
+  { label: 'GST & Compliance', path: '/gst', module: undefined },
   { label: 'HR Management', path: '/hr', module: 'hr' },
   { label: 'Reports', path: '/reports', module: 'reports' },
   { label: 'Settings', path: '/settings', module: 'settings' }
@@ -120,6 +121,7 @@ const financeMenuItems: MenuItem[] = [
   { label: 'Profit & Loss', path: '/finance/profit-loss' },
   { label: 'Balance Sheet', path: '/finance/balance-sheet' },
   { isSeparator: true },
+  { label: 'Scheme Claims', path: '/finance/claims' },
   { label: 'Ledger Groups', path: '/master/ledger-groups' },
   { label: 'Accounts & Ledgers', path: '/finance' }
 ]
@@ -152,15 +154,25 @@ const masterSubItemsMap: Record<string, { label: string; path: string }[]> = {
     { label: 'Delete Ledger', path: '/master?tab=ledger&action=delete' }
   ],
   'masters': [
+      { label: 'Business Partners', path: '/master/parties' },
     { label: 'Salt', path: '/master?tab=salt' },
     { label: 'Company', path: '/master?tab=company' },
     { label: 'HSN', path: '/master?tab=hsn' },
     { label: 'State', path: '/master?tab=state' },
     { label: 'O/C Balances', path: '/master?tab=balances' },
-    { label: 'Ledger Groups', path: '/master/ledger-groups' },
+    { label: 'Account Heads', path: '/master/ledger-groups' },
+    { label: 'Principal Master', path: '/master/principals' },
+    { label: 'Warehouse Master', path: '/master/warehouses' },
+    { label: 'Transport Master', path: '/master/transport' },
+    { label: 'Scheme Master', path: '/master/schemes' },
+    { label: 'Pricing & Formulas', path: '/master/pricing' },
     { label: 'Crash Recovery', path: '/master/error-entries' }
   ]
 }
+
+// CRM & Admin menu items — built dynamically based on role
+// (defined as a function inside the component to access `user`)
+
 
 function Header() {
   const user = useAuthStore(state => state.user)
@@ -183,6 +195,8 @@ function Header() {
   const [masterDropdownOpen, setMasterDropdownOpen] = useState(false)
   const [masterSubDropdownOpen, setMasterSubDropdownOpen] = useState(false)
   const [financeDropdownOpen, setFinanceDropdownOpen] = useState(false)
+  const [crmDropdownOpen, setCrmDropdownOpen] = useState(false)
+  const [gstDropdownOpen, setGstDropdownOpen] = useState(false)
 
   // Keyboard navigation indexes
   const [_focusedMainIndex, setFocusedMainIndex] = useState(0)
@@ -195,6 +209,8 @@ function Header() {
   const [focusedMasterParentIndex, setFocusedMasterParentIndex] = useState(0)
   const [focusedMasterSubIndex, setFocusedMasterSubIndex] = useState(-1)
   const [focusedFinanceParentIndex, setFocusedFinanceParentIndex] = useState(0)
+  const [focusedCrmParentIndex, setFocusedCrmParentIndex] = useState(0)
+  const [focusedGstParentIndex, setFocusedGstParentIndex] = useState(0)
 
   // Refs for focusing
   const mainItemRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -205,6 +221,8 @@ function Header() {
   const masterParentRefs = useRef<(HTMLButtonElement | null)[]>([])
   const masterSubRefs = useRef<(HTMLButtonElement | null)[]>([])
   const financeParentRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const crmParentRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const gstParentRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   // Filter permission items
   const visibleNavItems = NAV_ITEMS.filter(item => {
@@ -212,11 +230,25 @@ function Header() {
     return hasPermission(item.module as any, 'view')
   })
 
-  // Full header menu items
+  // Build CRM menu items dynamically based on role
+  const crmMenuItems: MenuItem[] = [
+    { label: 'CRM Dashboard', path: '/crm' },
+    ...(user?.role === 'am_admin' ? [{ label: 'Client Management', path: '/clients' }] : []),
+    { label: 'Bulletin Board', path: '/bulletin' }
+  ]
+
+  // GST & Compliance menu items
+  const gstMenuItems: MenuItem[] = [
+    { label: 'GSTR-1', path: '/gst?tab=gstr1' },
+    { label: 'GSTR-2', path: '/gst?tab=gstr2' },
+    { label: 'GSTR-3B', path: '/gst?tab=gstr3b' },
+    { isSeparator: true },
+    { label: 'Finance Reports', path: '/finance-reports' }
+  ]
+
+  // Full header menu items (CRM & Admin, Client Mgmt, Bulletin are now inside the CRM dropdown)
   const headerItems = [
-    ...visibleNavItems,
-    ...(user?.role === 'am_admin' ? [{ label: 'Client Management', path: '/clients', module: undefined }] : []),
-    { label: 'Bulletin Board', path: '/bulletin', module: undefined }
+    ...visibleNavItems
   ]
 
   // Auto-focus Dashboard on mount
@@ -281,6 +313,22 @@ function Header() {
         setFocusedFinanceParentIndex(0)
         setTimeout(() => {
           financeParentRefs.current[0]?.focus()
+        }, 50)
+      } else if (item.label === 'CRM & Admin') {
+        e.preventDefault()
+        closeAllDropdowns()
+        setCrmDropdownOpen(true)
+        setFocusedCrmParentIndex(0)
+        setTimeout(() => {
+          crmParentRefs.current[0]?.focus()
+        }, 50)
+      } else if (item.label === 'GST & Compliance') {
+        e.preventDefault()
+        closeAllDropdowns()
+        setGstDropdownOpen(true)
+        setFocusedGstParentIndex(0)
+        setTimeout(() => {
+          gstParentRefs.current[0]?.focus()
         }, 50)
       } else if (item.label === 'Master') {
         e.preventDefault()
@@ -488,6 +536,76 @@ function Header() {
     }
   }
 
+  // GST & Compliance dropdown key handlers
+  const handleGstParentDropdownKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    // Skip separators for navigation
+    const navigableGstItems = gstMenuItems.filter(item => !item.isSeparator)
+    const getNextGstIdx = (idx: number) => {
+      let next = (idx + 1) % gstMenuItems.length
+      while (gstMenuItems[next].isSeparator) next = (next + 1) % gstMenuItems.length
+      return next
+    }
+    const getPrevGstIdx = (idx: number) => {
+      let prev = (idx - 1 + gstMenuItems.length) % gstMenuItems.length
+      while (gstMenuItems[prev].isSeparator) prev = (prev - 1 + gstMenuItems.length) % gstMenuItems.length
+      return prev
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const nextIndex = getNextGstIdx(index)
+      setFocusedGstParentIndex(nextIndex)
+      gstParentRefs.current[nextIndex]?.focus()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const prevIndex = getPrevGstIdx(index)
+      setFocusedGstParentIndex(prevIndex)
+      gstParentRefs.current[prevIndex]?.focus()
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      const item = gstMenuItems[index]
+      if (item && item.path) {
+        navigate(item.path)
+        closeAllDropdowns()
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      closeAllDropdowns()
+      const gstIndex = headerItems.findIndex(item => item.label === 'GST & Compliance')
+      if (gstIndex !== -1) {
+        mainItemRefs.current[gstIndex]?.focus()
+      }
+    }
+  }
+
+  // CRM & Admin dropdown key handlers
+  const handleCrmParentDropdownKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const nextIndex = (index + 1) % crmMenuItems.length
+      setFocusedCrmParentIndex(nextIndex)
+      crmParentRefs.current[nextIndex]?.focus()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const prevIndex = (index - 1 + crmMenuItems.length) % crmMenuItems.length
+      setFocusedCrmParentIndex(prevIndex)
+      crmParentRefs.current[prevIndex]?.focus()
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      const item = crmMenuItems[index]
+      if (item && item.path) {
+        navigate(item.path)
+        closeAllDropdowns()
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      closeAllDropdowns()
+      const crmIndex = headerItems.findIndex(item => item.label === 'CRM & Admin')
+      if (crmIndex !== -1) {
+        mainItemRefs.current[crmIndex]?.focus()
+      }
+    }
+  }
+
   const closeAllDropdowns = () => {
     setSalesDropdownOpen(false)
     setSalesSubDropdownOpen(false)
@@ -498,6 +616,8 @@ function Header() {
     setMasterDropdownOpen(false)
     setMasterSubDropdownOpen(false)
     setFinanceDropdownOpen(false)
+    setCrmDropdownOpen(false)
+    setGstDropdownOpen(false)
     setFocusedMasterSubIndex(-1)
   }
 
@@ -510,6 +630,8 @@ function Header() {
 
   const isActive = (path: string) => {
     if (path === '/dashboard') return location.pathname === '/' || location.pathname === '/dashboard'
+    if (path === '/crm') return location.pathname.startsWith('/crm') || location.pathname.startsWith('/clients') || location.pathname.startsWith('/bulletin')
+    if (path === '/gst') return location.pathname.startsWith('/gst') || location.pathname.startsWith('/finance-reports')
     return location.pathname.startsWith(path)
   }
 
@@ -529,7 +651,13 @@ function Header() {
     }}>
       
       {/* ── LEFT: LOGO & APP BRAND ─────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginRight: '24px' }}>
+      <div 
+        onClick={() => {
+          closeAllDropdowns()
+          navigate('/')
+        }}
+        style={{ display: 'flex', alignItems: 'center', gap: '12px', marginRight: '24px', cursor: 'pointer' }}
+      >
         <div style={{
           width: '28px', height: '28px',
           borderRadius: '6px',
@@ -562,7 +690,9 @@ function Header() {
           const isSalesPurchase = item.label === 'Sales & Purchase'
           const isInventory = item.label === 'Inventory'
           const isMaster = item.label === 'Master'
-                  const isFinance = item.label === 'Finance & Accounting'
+          const isFinance = item.label === 'Finance & Accounting'
+          const isCrm = item.label === 'CRM & Admin'
+          const isGst = item.label === 'GST & Compliance'
 
           return (
             <div key={item.path} style={{ position: 'relative', display: 'inline-block' }}>
@@ -571,25 +701,17 @@ function Header() {
                 ref={el => { mainItemRefs.current[index] = el }}
                 onClick={() => {
                   if (isSalesPurchase) {
-                    setSalesDropdownOpen(!salesDropdownOpen)
-                    setInventoryDropdownOpen(false)
-                    setMasterDropdownOpen(false)
-                    setFinanceDropdownOpen(false)
+                    closeAllDropdowns(); setSalesDropdownOpen(!salesDropdownOpen)
                   } else if (isInventory) {
-                    setInventoryDropdownOpen(!inventoryDropdownOpen)
-                    setSalesDropdownOpen(false)
-                    setMasterDropdownOpen(false)
-                    setFinanceDropdownOpen(false)
+                    closeAllDropdowns(); setInventoryDropdownOpen(!inventoryDropdownOpen)
                   } else if (isMaster) {
-                    setMasterDropdownOpen(!masterDropdownOpen)
-                    setSalesDropdownOpen(false)
-                    setInventoryDropdownOpen(false)
-                    setFinanceDropdownOpen(false)
+                    closeAllDropdowns(); setMasterDropdownOpen(!masterDropdownOpen)
                   } else if (isFinance) {
-                    setFinanceDropdownOpen(!financeDropdownOpen)
-                    setSalesDropdownOpen(false)
-                    setInventoryDropdownOpen(false)
-                    setMasterDropdownOpen(false)
+                    closeAllDropdowns(); setFinanceDropdownOpen(!financeDropdownOpen)
+                  } else if (isCrm) {
+                    closeAllDropdowns(); setCrmDropdownOpen(!crmDropdownOpen)
+                  } else if (isGst) {
+                    closeAllDropdowns(); setGstDropdownOpen(!gstDropdownOpen)
                   } else {
                     closeAllDropdowns()
                     navigate(item.path)
@@ -597,11 +719,13 @@ function Header() {
                 }}
                 onKeyDown={(e) => handleMainKeyDown(e, index)}
                 onMouseEnter={() => {
-                  if (salesDropdownOpen || inventoryDropdownOpen || masterDropdownOpen || financeDropdownOpen) {
-                    if (isSalesPurchase) { setSalesDropdownOpen(true); setInventoryDropdownOpen(false); setMasterDropdownOpen(false); setFinanceDropdownOpen(false); }
-                    else if (isInventory) { setInventoryDropdownOpen(true); setSalesDropdownOpen(false); setMasterDropdownOpen(false); setFinanceDropdownOpen(false); }
-                    else if (isMaster) { setMasterDropdownOpen(true); setSalesDropdownOpen(false); setInventoryDropdownOpen(false); setFinanceDropdownOpen(false); }
-                    else if (isFinance) { setFinanceDropdownOpen(true); setMasterDropdownOpen(false); setSalesDropdownOpen(false); setInventoryDropdownOpen(false); }
+                  if (salesDropdownOpen || inventoryDropdownOpen || masterDropdownOpen || financeDropdownOpen || crmDropdownOpen || gstDropdownOpen) {
+                    if (isSalesPurchase) { closeAllDropdowns(); setSalesDropdownOpen(true); }
+                    else if (isInventory) { closeAllDropdowns(); setInventoryDropdownOpen(true); }
+                    else if (isMaster) { closeAllDropdowns(); setMasterDropdownOpen(true); }
+                    else if (isFinance) { closeAllDropdowns(); setFinanceDropdownOpen(true); }
+                    else if (isCrm) { closeAllDropdowns(); setCrmDropdownOpen(true); }
+                    else if (isGst) { closeAllDropdowns(); setGstDropdownOpen(true); }
                     else { closeAllDropdowns() }
                   }
                 }}
@@ -619,7 +743,7 @@ function Header() {
                 }}
               >
                 {item.label}
-                {(isSalesPurchase || isInventory || isMaster || isFinance) && <ChevronDown size={10} style={{ marginLeft: '4px', display: 'inline' }} />}
+                {(isSalesPurchase || isInventory || isMaster || isFinance || isCrm || isGst) && <ChevronDown size={10} style={{ marginLeft: '4px', display: 'inline' }} />}
               </button>
 
               {/* ── SALES & PURCHASE PARENT DROPDOWN ───────────────── */}
@@ -1013,6 +1137,131 @@ function Header() {
                           }}
                         >
                           <span>{finItem.label}</span>
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* ── CRM & ADMIN DROPDOWN ───────────────── */}
+              {isCrm && crmDropdownOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  marginTop: '4px',
+                  backgroundColor: 'var(--color-bg-surface)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '6px',
+                  boxShadow: 'var(--shadow-md)',
+                  padding: '4px',
+                  minWidth: '170px',
+                  zIndex: 110,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px'
+                }}>
+                  {crmMenuItems.map((crmItem, idx) => {
+                    const isParentFocused = focusedCrmParentIndex === idx
+
+                    return (
+                      <div key={crmItem.label || `crm-${idx}`} style={{ position: 'relative' }}>
+                        <button
+                          ref={el => { crmParentRefs.current[idx] = el }}
+                          onKeyDown={e => handleCrmParentDropdownKeyDown(e, idx)}
+                          onClick={() => {
+                            if (crmItem.path) {
+                              navigate(crmItem.path)
+                              closeAllDropdowns()
+                            }
+                          }}
+                          onMouseEnter={() => {
+                            setFocusedCrmParentIndex(idx)
+                          }}
+                          style={{
+                            padding: '6px 10px',
+                            fontSize: '11px',
+                            fontWeight: 500,
+                            textAlign: 'left',
+                            border: 'none',
+                            borderRadius: '4px',
+                            backgroundColor: isParentFocused ? 'rgba(79,70,229,0.1)' : 'transparent',
+                            color: isParentFocused ? 'var(--color-primary)' : 'var(--color-text-primary)',
+                            cursor: 'pointer',
+                            width: '100%',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <span>{crmItem.label}</span>
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* ── GST & COMPLIANCE DROPDOWN ───────────────── */}
+              {isGst && gstDropdownOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  marginTop: '4px',
+                  backgroundColor: 'var(--color-bg-surface)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '6px',
+                  boxShadow: 'var(--shadow-md)',
+                  padding: '4px',
+                  minWidth: '170px',
+                  zIndex: 110,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px'
+                }}>
+                  {gstMenuItems.map((gstItem, idx) => {
+                    if (gstItem.isSeparator) {
+                      return (
+                        <div
+                          key={`gst-sep-${idx}`}
+                          style={{ height: '1px', backgroundColor: 'var(--color-border)', margin: '4px 0' }}
+                        />
+                      )
+                    }
+                    const isParentFocused = focusedGstParentIndex === idx
+                    return (
+                      <div key={gstItem.label || `gst-${idx}`} style={{ position: 'relative' }}>
+                        <button
+                          ref={el => { gstParentRefs.current[idx] = el }}
+                          onKeyDown={e => handleGstParentDropdownKeyDown(e, idx)}
+                          onClick={() => {
+                            if (gstItem.path) {
+                              navigate(gstItem.path)
+                              closeAllDropdowns()
+                            }
+                          }}
+                          onMouseEnter={() => {
+                            setFocusedGstParentIndex(idx)
+                          }}
+                          style={{
+                            padding: '6px 10px',
+                            fontSize: '11px',
+                            fontWeight: 500,
+                            textAlign: 'left',
+                            border: 'none',
+                            borderRadius: '4px',
+                            backgroundColor: isParentFocused ? 'rgba(79,70,229,0.1)' : 'transparent',
+                            color: isParentFocused ? 'var(--color-primary)' : 'var(--color-text-primary)',
+                            cursor: 'pointer',
+                            width: '100%',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <span>{gstItem.label}</span>
                         </button>
                       </div>
                     )

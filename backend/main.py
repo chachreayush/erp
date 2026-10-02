@@ -139,7 +139,12 @@ from api.stock import router as stock_router
 app.include_router(stock_router, prefix="/api")
 
 # Inventory routes (products)
+from inventory.router import router as inventory_router
 app.include_router(inventory_router, prefix="/api")
+
+# Parties routes (Business Partners)
+from api.parties import router as parties_router
+app.include_router(parties_router, prefix="/api")
 
 # Master data routes
 from api.master import router as master_router
@@ -153,9 +158,30 @@ app.include_router(finance_router, prefix="/api/finance", tags=["Finance"])
 from api.system import router as system_router
 app.include_router(system_router, prefix="/api/system", tags=["System"])
 
+# Reports routes (Party Ledger, Trial Balance, Ageing)
+from api.reports import router as reports_router
+app.include_router(reports_router, prefix="/api/reports", tags=["Reports"])
+
+# DOC-12: Principal Master routes
+from api.principals import router as principals_router
+app.include_router(principals_router)
+
+# DOC-13: Warehouse & Transport Master routes
+from api.warehouses import router as warehouses_router
+from api.transport import router as transport_router
+app.include_router(warehouses_router)
+app.include_router(transport_router)
+
+# DOC-14: Scheme & Free Goods Engine
+from api.schemes import router as schemes_router
+app.include_router(schemes_router)
+
+# DOC-15: Pricing & Formula Engine
+from api.pricing import router as pricing_router
+app.include_router(pricing_router)
+
 # Future routers will be added here as modules are built:
 # app.include_router(hr_router)
-# app.include_router(reports_router)
 
 
 # ── STARTUP EVENT ─────────────────────────────────────────────

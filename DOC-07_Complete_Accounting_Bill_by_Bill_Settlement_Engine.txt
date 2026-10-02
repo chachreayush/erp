@@ -1,0 +1,695 @@
+C&F ERP — DOC-07
+COMPLETE CHART OF ACCOUNTS, ACCOUNTING & BILL-BY-BILL SETTLEMENT ENGINE
+Release: Complete v1.1 — includes universal payment / credit / debit / invoice adjustment architecture
+This release preserves the full earlier accounting specification and adds a detailed universal settlement layer for bill-by-bill payment, credit-note, debit-note and on-account adjustment.
+
+DOC-07
+CHART OF ACCOUNTS, ACCOUNTING STRUCTURE
+& BILL-BY-BILL SETTLEMENT ENGINE
+Developer-ready functional and accounting specification for the C&F ERP
+
+
+
+Document Map / Contents
+1. Purpose and Scope
+2. Accounting Philosophy
+3. Accounting Architecture
+4. Chart of Accounts Hierarchy
+5. Account Master
+6. System-Protected Ledgers
+7. General Ledger
+8. Party Subledgers
+9. Bill-by-Bill Architecture
+10. Universal Adjustment & Settlement Engine
+11. Payment Allocation
+12. Floating / On-Account Payments
+13. Credit Note Allocation
+14. Debit Note Allocation
+15. Invoice-Level Adjustment Panel
+16. Cross-Document Netting
+17. Partial / Split Settlement
+18. Automatic Matching & Suggestions
+19. Manual Matching Workspace
+20. Outstanding Engine
+21. Customer / Supplier Statement
+22. Payment Terms & Due Dates
+23. Discounts / Write-Offs
+24. Advance / Deposit Handling
+25. Multi-Currency and FX
+26. Accounting Dimensions & Cost Centres
+27. C&F-Specific Accounting Mappings
+28. Posting Engine Integration
+29. Reversal / Correction Rules
+30. Period & Fiscal Controls
+31. Reconciliation
+32. Permissions & Segregation of Duties
+33. Audit Trail
+34. Small vs Large Business Configuration
+35. Data Model
+36. UI / Keyboard Workflows
+37. API / Service Contracts
+38. Failure & Edge Cases
+39. Testing / Acceptance Criteria
+40. Reference ERP Patterns
+Appendix A. Settlement Matrix
+Appendix B. Example Scenarios
+Appendix C. Recommended Default Rules
+Appendix D. Implementation Dependencies
+
+1. Purpose and Scope
+DOC-07 defines the accounting foundation used by every later financial and operational module. It covers the Chart of Accounts, General Ledger, receivable/payable subledgers, document balances, bill-by-bill allocation, payment adjustment, credit/debit note adjustment, on-account money, netting, reconciliation and controls.
+
+2. Accounting Philosophy
+BUSINESS EVENT
+   ↓
+DOCUMENT / TRANSACTION
+   ↓
+CALCULATION
+   ↓
+POSTING
+   ↓
+OPEN PARTY ITEM
+   ↓
+SETTLEMENT / ADJUSTMENT
+   ↓
+REMAINING OUTSTANDING
+   ↓
+REPORTS / FINANCIAL STATEMENTS
+Accounting must be generated from business events instead of manually maintaining parallel balances.
+Every posted journal must balance.
+Invoices, credit notes, debit notes and payments are permanent financial events; settlement only links or offsets open items.
+Unallocated money must remain visible as an on-account credit/debit instead of disappearing into a total balance.
+Outstanding reports should be calculated from open items after posted allocations, not from manually edited totals.
+The same customer account must support many invoices, many receipts, credit notes, debit notes and mixed settlements.
+The accounting engine must support both small-business simplicity and large-business controls.
+3. Accounting Architecture
+                    ACCOUNTING PLATFORM
+                            │
+        ┌───────────────────┼───────────────────┐
+        ↓                   ↓                   ↓
+   MASTER DATA          TRANSACTIONS        CONTROLS
+        │                   │                   │
+        ↓                   ↓                   ↓
+   CHART OF ACCOUNTS   SALES/PURCHASE       PERIODS
+   PARTY ACCOUNTS      PAYMENTS             APPROVALS
+   COST CENTRES        CN/DN/ADJ            AUDIT
+        │                   │
+        └───────────┬───────┘
+                    ↓
+             POSTING ENGINE
+                    ↓
+        ┌───────────┼────────────┐
+        ↓           ↓            ↓
+     GENERAL      PARTY        TAX / OTHER
+      LEDGER     SUBLEDGER      LEDGERS
+        │           │
+        └──────┬────┘
+               ↓
+       SETTLEMENT ENGINE
+               ↓
+       OPEN ITEM / OUTSTANDING
+               ↓
+        FINANCIAL REPORTS
+4. Chart of Accounts Hierarchy
+LEVEL 1 — ACCOUNT CLASS
+   ↓
+LEVEL 2 — GROUP / SUB-GROUP
+   ↓
+LEVEL 3 — POSTING LEDGER
+
+4.1 Recommended C&F hierarchy
+ASSETS
+ ├─ Current Assets
+ │   ├─ Cash
+ │   ├─ Bank
+ │   ├─ Accounts Receivable
+ │   └─ Inventory
+ └─ Fixed Assets
+
+LIABILITIES
+ ├─ Current Liabilities
+ │   ├─ Accounts Payable
+ │   ├─ GST Payable
+ │   └─ Other Statutory Payables
+ └─ Long-term Liabilities
+
+INCOME
+ ├─ C&F Commission
+ ├─ Handling Income / Recovery
+ ├─ Freight Recovery
+ └─ Other Income
+
+EXPENSES
+ ├─ Freight / Transport
+ ├─ Loading / Unloading
+ ├─ Warehouse
+ ├─ Salary / Incentive
+ ├─ Administration
+ └─ Other Operating Expenses
+5. Account Master
+
+6. System-Protected Ledgers
+System-created core ledgers must not be deleted if referenced.
+Users may deactivate rather than destroy a used ledger.
+Core control accounts should have protected mappings.
+Changes to sensitive mappings require elevated permission and audit.
+A client company can configure its own operational accounts but cannot alter platform-level financial security rules.
+7. General Ledger
+
+7.1 GL invariants
+Total debit = total credit for every posted journal.
+Every source document has a traceable posting reference.
+Reversal uses a new controlled entry rather than deleting history.
+Posted journal lines are immutable to ordinary users.
+8. Party Subledgers
+Customers, suppliers and other parties can have detailed subledger activity while the General Ledger remains the financial control layer.
+PARTY
+ ├─ Invoice 1
+ ├─ Invoice 2
+ ├─ Invoice 3
+ ├─ Receipt 1
+ ├─ Receipt 2
+ ├─ Credit Note
+ ├─ Debit Note
+ └─ Adjustment / Write-off
+        ↓
+   OPEN ITEMS
+        ↓
+   SETTLEMENT
+9. Bill-by-Bill Architecture
+Bill-by-bill means that an account can show every open invoice and every available credit/debit item separately, with a settlement amount against each. The balance is the sum of remaining open amounts, not simply one running number.
+PARTY A
+
+INV-001   ₹10,000   → Payment ₹10,000 → CLOSED
+INV-002   ₹15,000   → Payment ₹ 5,000 → OPEN ₹10,000
+INV-003   ₹ 8,000   → CN ₹ 2,000      → OPEN ₹ 6,000
+INV-004   ₹12,000   → OPEN ₹12,000
+
+TOTAL OUTSTANDING = ₹28,000
+10. Universal Adjustment & Settlement Engine
+
+10.1 Settlement model
+OPEN ITEMS FOR ONE PARTY
+        │
+        ├── DEBIT-SIDE ITEMS (amount owed to company)
+        │      ├─ Invoice
+        │      └─ Customer Debit Note / Adjustment
+        │
+        └── CREDIT-SIDE ITEMS (amount available to party)
+               ├─ Receipt / Payment
+               ├─ Credit Note
+               └─ Advance / On-account Credit
+
+SETTLEMENT ENGINE MATCHES OPPOSITE SIDES
+        ↓
+ALLOCATION RECORD
+        ↓
+REMAINING OPEN AMOUNTS
+10.2 User can start adjustment from either document
+
+11. Payment Allocation
+11.1 Example requested workflow
+PARTY A
+  4 open invoices
+       ↓
+Payment received ₹15,000
+       ↓
+User opens Receipt
+       ↓
+Select "Bill-by-Bill Allocation"
+       ↓
+INV-002 ₹15,000 → Allocate ₹15,000
+       ↓
+POST
+       ↓
+INV-002 = CLOSED
+INV-001, INV-003, INV-004 remain according to their balances
+11.2 Partial payment
+If the payment is lower than the selected invoice balance, the user can allocate only part. The invoice remains open with the exact remaining amount.
+11.3 One payment against multiple invoices
+Receipt ₹50,000
+ → INV-001 ₹20,000 FULL
+ → INV-002 ₹15,000 FULL
+ → INV-003 ₹10,000 PARTIAL
+ → Unallocated ₹5,000 remains ON-ACCOUNT
+12. Floating / On-Account Payments
+A “floating payment” is an amount received from a party but not yet assigned to a specific invoice, or an amount deliberately left as a credit for future settlement.
+
+12.1 Automatic suggestion
+Suggest oldest due invoice first (configurable).
+Suggest exact-reference invoice if payment reference matches.
+Suggest same customer only.
+Show confidence/reason for suggestion.
+Never auto-post an uncertain allocation without the configured approval rule.
+13. Credit Note Allocation
+A credit note reduces the amount receivable from a customer. It should be possible to create it from an invoice, from the credit note screen, or from the party settlement workspace. Credit notes can be partially or fully allocated to one or several invoices.
+CREDIT NOTE ₹5,000
+     ↓
+AVAILABLE CREDIT
+     ├─ INV-101 → ₹3,000
+     └─ INV-103 → ₹2,000
+     ↓
+CN CLOSED
+INVOICE BALANCES REDUCED
+13.1 Invoice ↔ Credit Note
+If a user opens an invoice, the invoice screen should show an “Available Credits / Adjustments” panel with eligible credit notes. If the user opens the credit note, the same engine should show eligible invoices. Both routes produce the same allocation records.
+14. Debit Note Allocation
+A debit note normally increases the amount owed by the party. Therefore, in a customer receivable subledger, a customer debit note is a debit-side open item. It can be linked to/reference the invoice that caused the adjustment, but it should not be falsely treated as a payment or credit.
+INVOICE ₹20,000
+     ↓
+DEBIT NOTE ₹2,000
+     ↓
+NET CUSTOMER DEBIT = ₹22,000
+
+IF A CREDIT NOTE ₹3,000 EXISTS:
+NET AFTER CREDIT = ₹19,000
+
+15. Invoice-Level Adjustment Panel
+INVOICE INV-1001
+Total ₹50,000
+
+ADJUSTMENTS
+Available Receipts / Advances
+  Receipt R-003  ₹10,000   [Apply]
+  Receipt R-007   ₹5,000   [Apply]
+
+Available Credit Notes
+  CN-012          ₹2,000   [Apply]
+  CN-018          ₹1,500   [Apply]
+
+Linked Debit Notes / References
+  DN-004          ₹3,000   [View / Link]
+
+CURRENT SETTLEMENT
+Invoice             ₹50,000
+Payment             -₹15,000
+Credit Note          -₹ 3,500
+--------------------------------
+REMAINING DUE       ₹31,500
+16. Cross-Document Netting
+The system should allow an authorized user to net multiple open items for the same party when the accounting/business policy permits.
+PARTY A
+Invoice  ₹100,000  DEBIT
+Invoice   ₹40,000  DEBIT
+Credit    ₹25,000  CREDIT
+Receipt   ₹50,000  CREDIT
+Debit Note ₹10,000 DEBIT
+
+NET OPEN = ₹75,000 DEBIT
+
+17. Partial / Split Settlement
+
+18. Automatic Matching & Suggestions
+Exact invoice reference match
+Exact amount + party match
+Customer + payment reference
+Customer + instrument/reference number
+Oldest due / FIFO suggestion
+Due-date based suggestion
+Credit-note auto-application policy
+Tolerance-based small difference suggestion
+Batch/payment import matching
+User approval before posting when confidence is below threshold
+19. Manual Matching Workspace
+┌──────────────────────────────────────────────────────────────┐
+│ PARTY: ABC MEDICAL STORE                       BALANCE ₹75K │
+├──────────────────────────────────────────────────────────────┤
+│ DEBITS / AMOUNTS DUE            CREDITS / AVAILABLE         │
+│ INV-001  ₹20,000  [ ]          RCP-101  ₹15,000 [ ]         │
+│ INV-002  ₹30,000  [ ]          CN-004   ₹ 5,000 [ ]         │
+│ DN-003   ₹10,000  [ ]          RCP-102  ₹10,000 [ ]         │
+│ INV-003  ₹15,000  [ ]                                      │
+├──────────────────────────────────────────────────────────────┤
+│ Selected debits: ₹50,000   Selected credits: ₹30,000       │
+│ Difference: ₹20,000                                         │
+│ [Auto Match] [Apply] [Keep Open] [Write-off] [Cancel]       │
+└──────────────────────────────────────────────────────────────┘
+20. Outstanding Engine
+Outstanding is a derived view from posted open items and settlement allocations.
+OUTSTANDING = Σ OPEN DEBITS − Σ OPEN CREDITS
+
+For bill-by-bill view:
+Each source document displays its own remaining amount and status.
+
+21. Customer / Supplier Statement
+Date | Document | Debit | Credit | Allocated | Balance | Status
+The statement should allow toggles: All transactions / Open items only / Settled items / Credits available / Payments on account / Overdue only.
+22. Payment Terms & Due Dates
+
+23. Discounts, Write-Offs & Small Differences
+The settlement engine should distinguish legitimate commercial discounts from accounting write-offs.
+
+
+24. Advance / Deposit Handling
+Customer advance can remain available credit until allocated.
+Advance can be applied to one or many future invoices.
+Unused balance appears separately on customer statement.
+Refund of unused advance is a controlled transaction.
+Supplier advances follow the equivalent payable-side model.
+25. Multi-Currency & FX
+Store document currency, company currency and exchange rate.
+Settlement may occur at a different rate.
+Calculate realized FX difference according to configured rules.
+Do not lose original document amount when applying payment.
+26. Accounting Dimensions & Cost Centres
+Branch
+Warehouse
+Principal
+Department
+Sales team
+Route
+Project
+Consignment
+Other configured management dimensions
+Settlement allocations should preserve the dimensions required by accounting and reporting, subject to the chosen accounting policy.
+27. C&F-Specific Accounting Mappings
+
+
+28. Posting Engine Integration
+SOURCE DOCUMENT
+   ↓
+VALIDATE
+   ↓
+CALCULATE
+   ↓
+GENERATE JOURNAL
+   ↓
+CREATE OPEN ITEM(S)
+   ↓
+CREATE STOCK/TAX EFFECTS IF APPLICABLE
+   ↓
+COMMIT ATOMICALLY
+   ↓
+SETTLEMENT ENGINE MAY LINK OPEN ITEMS
+28.1 Idempotency
+Every posting request must have a unique source key so a retry cannot create the same accounting entry twice. This is especially important for the local-first/cloud-live architecture.
+29. Reversal / Correction Rules
+Posted invoice is not edited to erase history.
+Settlement can be unreconciled by creating controlled reversal/unallocation records.
+Credit note reverses/reduces the appropriate invoice effect; it does not mutate the old invoice.
+Reversal should restore the correct open-item balances.
+Every reversal must retain a link to the original transaction and reason.
+30. Period & Fiscal Controls
+Financial year per company
+Open/closed posting periods
+Backdated posting permission
+Lock after finalization
+Admin override with audit
+Settlement date cannot silently rewrite posting date
+Period closing report and control
+31. Reconciliation
+
+32. Permissions & Segregation of Duties
+
+33. Audit Trail
+
+34. Small vs Large Business Configuration
+
+The accounting engine remains the same; complexity is exposed progressively through configuration and permissions.
+35. Data Model
+
+35.1 Open-item model
+open_item
+ ├─ company_id
+ ├─ party_id
+ ├─ source_document_id
+ ├─ item_type (invoice/payment/CN/DN/advance)
+ ├─ direction (debit/credit)
+ ├─ original_amount
+ ├─ allocated_amount
+ ├─ remaining_amount
+ ├─ currency
+ ├─ due_date
+ └─ status
+36. UI / Keyboard Workflows
+36.1 Invoice screen
+INVOICE
+ [Ctrl+Shift+A] Adjust
+      ↓
+Available credits / payments
+      ↓
+Search by document no. / amount / date
+      ↓
+Enter allocation amount
+      ↓
+[Enter] Add allocation
+      ↓
+[Ctrl+S] Save draft
+      ↓
+[Ctrl+P] Preview
+      ↓
+[Ctrl+Enter] Post (permission required)
+36.2 Receipt screen
+RECEIPT
+ Customer → Amount → Payment Mode
+      ↓
+[Alt+A] Auto Match
+      ↓
+Suggested invoices
+      ↓
+User can tick/untick any bill
+      ↓
+Remaining unallocated becomes On-Account
+      ↓
+Post
+36.3 Settlement workspace
+Search party first
+Show debits and credits side by side
+Allow keyboard selection
+Live selected totals
+Live difference
+Preview resulting balances before posting
+Show warning if user is creating an unusual net-off
+37. API / Service Contracts
+
+38. Failure & Edge Cases
+Payment arrives without invoice reference → on-account credit.
+Payment amount exceeds selected invoices → remaining amount stays on-account unless user chooses approved refund/write-off.
+Credit note exceeds one invoice → allocate across multiple invoices.
+Credit note exceeds all current invoices → remaining credit stays available.
+Payment + CN both applied to the same invoice → supported through multiple allocation lines.
+User attempts to apply more than remaining balance → block or auto-cap with explicit confirmation.
+Two users try to allocate the same credit simultaneously → concurrency check prevents double allocation.
+Network retry repeats a settlement request → idempotency prevents duplicate allocation.
+Invoice is cancelled after being partially settled → settlement must be reversed/reallocated before final cancellation as policy requires.
+A party has a net credit balance → outstanding report must distinguish credit available from amount due.
+39. Testing / Acceptance Criteria
+
+40. Reference ERP Patterns Used
+The architecture uses established patterns as design references while keeping the C&F ERP's own rules primary.
+Microsoft Dynamics 365 Business Central — Review and apply payments / payments matching: Supports matching payments against journal items, partial payments, automatic reconciliation and group payments.
+Microsoft Dynamics 365 Finance — Settlement configuration: Documents settlement behavior and the relationship between adjustment/settlement and ledger dimensions.
+Microsoft Dynamics 365 Finance — References to original invoices in credit/debit notes: Shows source-document references for credit and debit corrections.
+Odoo 19 — Payments: Documents payments linked to invoices, stand-alone/on-account payments, payment matching, partial payments, multi-invoice payments and automatic reconciliation.
+Odoo 19 — Credit notes and refunds: Documents creating credit/debit notes from invoices and reconciling credit notes with the related invoice.
+Odoo 19 — Bank reconciliation: Documents matching multiple existing items, partial reconciliation and netting workflows.
+SAP ERP / SAP Help — Sales document categories: Documents invoice, reversal and credit memo categories and their accounting direction.
+
+Appendix A. Settlement Matrix
+
+Appendix B. Example Scenarios
+B.1 Party A — 4 bills, payment for one bill
+INV-001 ₹10K OPEN
+INV-002 ₹15K OPEN
+INV-003 ₹20K OPEN
+INV-004 ₹12K OPEN
+
+Receipt ₹15K
+→ Select INV-002
+→ Allocate ₹15K
+
+OUTSTANDING VIEW
+INV-001 ₹10K
+INV-003 ₹20K
+INV-004 ₹12K
+
+INV-002 is omitted from “Open Invoices” because remaining = 0.
+B.2 Payment + Credit Note on one invoice
+Invoice ₹50K
+Payment ₹20K
+Credit Note ₹5K
+
+Remaining = ₹25K
+B.3 Credit note larger than one invoice
+CN ₹12K
+→ Invoice A ₹5K
+→ Invoice B ₹4K
+→ Invoice C ₹3K
+CN remaining = ₹0
+B.4 Excess receipt
+Receipt ₹30K
+Invoice A ₹20K
+→ Apply ₹20K
+Remaining ₹10K → On-account credit
+Appendix C. Recommended Default Rules
+1. Every customer/supplier financial document creates an open-item record when posted, except documents that are inherently non-open-item.
+2. Open items are immutable facts; settlement allocations are separate records.
+3. Invoice screens show eligible credits/payments without requiring the user to leave the invoice.
+4. Payment screens default to bill-by-bill allocation but permit on-account posting.
+5. Credit notes can be allocated from the credit-note screen or invoice screen.
+6. Debit notes are treated as debit-side items and may be linked/referenced, never silently treated as credits.
+7. All settlement amounts must be capped by both source and target remaining balances.
+8. Unapply/reversal must restore exact open amounts.
+9. Outstanding report defaults to open debits but can show available credits separately.
+10. Auto-match should be suggestions first unless a company explicitly enables trusted auto-post rules.
+11. Write-off requires reason and permission.
+12. Every settlement allocation receives a unique ID and audit trail.
+13. Cloud/local retries must be idempotent.
+Appendix D. Implementation Dependencies
+DOC-07 ACCOUNTING & SETTLEMENT ENGINE
+        │
+        ├── DOC-08/09+ Master Data → Parties, UOM, Tax, etc.
+        ├── Sales Billing → Invoice open items
+        ├── Purchase → Vendor bill open items
+        ├── Receipts → Payment open items
+        ├── Payments → Supplier open items
+        ├── Credit/Debit Notes → Adjustment open items
+        ├── Inventory → Stock/value postings
+        ├── GST → Tax postings
+        ├── Reports → Outstanding/GL/P&L/BS
+        └── Sync Engine → replicated accounting events
+
+
+Completeness Addendum — Universal Settlement & Adjustment Model
+The core requirement of this ERP is that bill-by-bill settlement must be a universal capability, not a separate feature duplicated inside Payment, Invoice, Credit Note, Debit Note and Outstanding screens. One settlement engine must maintain the open-item state for every party and every eligible financial document.
+INVOICE / BILL ↕ PAYMENT / RECEIPT ↕ CREDIT NOTE ↕ DEBIT NOTE ↕ ADVANCE / ON-ACCOUNT ↕ WRITE-OFF / ADJUSTMENT
+Matching existing posted documents changes allocation/open status. It must not create artificial sales, purchases, cash, tax or stock movements. A genuine accounting change remains a separate controlled document.
+A. Allowed Settlement Relationships
+
+B. Exact Bill-by-Bill Example
+Party A has four invoices. The customer pays specifically for the second invoice. The operator must be able to choose that invoice directly.
+INV-001  ₹10,000  OPEN
+INV-002  ₹15,000  OPEN
+INV-003  ₹20,000  OPEN
+INV-004  ₹12,000  OPEN
+
+Receipt RC-0098 = ₹15,000
+→ Party A
+→ Allocation Workspace
+→ Select INV-002
+→ Allocate ₹15,000
+→ Save
+OPEN OUTSTANDING AFTER ALLOCATION
+INV-001  ₹10,000  OPEN
+INV-002  ₹0       CLOSED
+INV-003  ₹20,000  OPEN
+INV-004  ₹12,000  OPEN
+TOTAL OPEN = ₹42,000
+The Outstanding Report must therefore show the open items. A fully settled invoice remains available in history and customer statement but should not appear in the normal open-outstanding list.
+C. Universal “Adjust / Allocate / Settle” Action
+Invoice, Receipt/Payment, Credit Note, Debit Note and Party Outstanding screens should expose the same core settlement workspace. The current document becomes the selected source automatically.
+OPEN INVOICE → Adjust → available receipts + credits + eligible notes → enter allocations → preview → save
+OPEN RECEIPT → Adjust → open invoices + eligible notes → select target bills → preview → save
+OPEN CREDIT NOTE → Adjust → open invoices + eligible debit notes → select targets → preview → save
+OPEN OUTSTANDING → Settle → select source document → choose targets → preview net open balance → save
+D. Invoice-Level Floating Adjustment Panel
+Every posted invoice should have a settlement panel so a user can see every available credit/payment and every remaining open amount without leaving the invoice.
+
+E. Floating / On-Account Payments
+Allow payment entry even when the exact invoice is not yet known.
+Store the unallocated amount against the correct party as On-Account / Advance.
+Show the available on-account balance on the party dashboard and settlement workspace.
+Allow later allocation to one or many invoices.
+Allow partial allocation while retaining the remaining amount as floating.
+Prevent allocation above available source amount or target outstanding.
+Show clear source and target balances before saving.
+F. Credit Note ↔ Invoice Adjustment
+A credit note can be created against an invoice and can also remain unallocated for future eligible invoices when business rules allow. Allocation should reduce the selected invoice outstanding without rewriting the original invoice.
+Credit Note ₹5,000 → Apply to INV-002 ₹15,000 → INV-002 remaining ₹10,000
+A single credit note may be split across multiple invoices where permitted. A single invoice may receive multiple credit notes. Every allocation is separately stored.
+G. Debit Note Rules
+Debit notes must keep their accounting direction. For a customer, a debit note generally increases the amount receivable; for a supplier, a debit note generally increases the amount recoverable from the supplier or reduces the payable depending on the transaction type. The settlement engine may use eligible debit notes for netting/offsetting, but must not treat them as cash.
+H. Payment + Credit Note on the Same Invoice
+Invoice ₹50,000
+Payment allocated ₹20,000
+Credit Note allocated ₹5,000
+Remaining Invoice Open = ₹25,000
+The invoice view should show a settlement breakdown so the user can see how the remaining balance was formed.
+I. Partial and Multi-Document Settlement
+One payment → one invoice.
+One payment → many invoices.
+Many payments → one invoice.
+Many payments → many invoices.
+One credit note → many invoices.
+Many credit notes → one invoice.
+Invoice → payment + credit note + eligible adjustment.
+Floating advance → future invoice(s).
+Partial settlement with remaining source and target balances.
+J. Net Settlement / Netting Workspace
+Where multiple eligible open items exist, the user may preview a net settlement before committing it. The system must never hide or merge the underlying documents.
+Invoice ₹50,000
+Credit Note ₹5,000
+Payment ₹20,000
+Debit Note ₹2,000
+--------------------------------
+Net open amount = ₹27,000
+K. Automatic Matching Suggestions
+The ERP should suggest likely allocations using configurable rules. Suggestions are not the same as authorization. The user should confirm them unless the company explicitly enables automatic reconciliation for a safe transaction type.
+Invoice-number match
+Exact-amount match
+Party reference match
+Bank narration match
+Due-date proximity
+Oldest-due/FIFO
+Customer preference
+Original-invoice link on credit note
+L. Unapply / Reapply
+Authorized users should be able to unapply a settlement allocation without cancelling the original posted payment, invoice or note. The system restores the appropriate available/open amounts, records the unapply reason and audit event, and permits corrected reallocation.
+Existing allocation → UNAPPLY → open balances restored → AUDIT → REAPPLY
+M. Outstanding Engine
+The open-outstanding view should be generated from posted open items and settlement allocations. It should not rely on a separate manually maintained balance field.
+OPEN ITEM = POSTED DOCUMENT AMOUNT − VALIDATED ALLOCATIONS − OTHER AUTHORIZED CLEARING
+
+N. Dispute / Hold
+Allow dispute flag and reason without changing the accounting amount.
+Optionally prevent auto-match for disputed items.
+Show dispute owner and follow-up date.
+Keep dispute status separate from accounting settlement status.
+O. Write-Offs and Small Differences
+Small residuals created by approved rounding, charges or commercial differences should use a dedicated write-off/adjustment workflow with permissions, approval thresholds and an account mapping. The original invoice/payment must remain traceable.
+P. Settlement UI — Recommended Layout
+┌─────────────────────────────────────────────────────────────────┐
+│ SETTLEMENT WORKSPACE                              PARTY A       │
+├─────────────────────────────────────────────────────────────────┤
+│ Source: Receipt RC-0098                 Available ₹15,000       │
+├──────┬──────────┬──────────┬──────────┬──────────┬─────────────┤
+│ Type │ Doc No.  │ Date     │ Open     │ Apply    │ Remaining   │
+├──────┼──────────┼──────────┼──────────┼──────────┼─────────────┤
+│ Bill │ INV-001  │ 01/09    │ 10,000   │ 0        │ 10,000      │
+│ Bill │ INV-002  │ 05/09    │ 15,000   │ 15,000   │ 0           │
+│ Bill │ INV-003  │ 08/09    │ 20,000   │ 0        │ 20,000      │
+│ Bill │ INV-004  │ 10/09    │ 12,000   │ 0        │ 12,000      │
+├─────────────────────────────────────────────────────────────────┤
+│ Allocated ₹15,000 | Unallocated ₹0 | Target Open ₹42,000       │
+├─────────────────────────────────────────────────────────────────┤
+│ Auto Match | FIFO | Clear | Preview | Save | Unapply           │
+└─────────────────────────────────────────────────────────────────┘
+Q. Accounting Integrity
+Allocation links existing posted documents. It must not create artificial revenue, expense, cash, inventory or tax. If the business event itself requires a new accounting adjustment, the adjustment is posted separately and then may become eligible for settlement.
+R. Reconciliation Controls
+Allocated amount cannot exceed source available amount.
+Allocated amount cannot exceed target open amount.
+Company and party must match unless explicitly allowed.
+Currency must match unless an approved FX process is used.
+Closed/reversed documents are not eligible for new allocation.
+Every allocation has source document ID + target document ID + amount + timestamp + user.
+Concurrent allocation attempts must be protected against over-allocation.
+S. API / Data Concepts
+
+T. Reference Patterns
+Established ERP/accounting systems commonly expose an allocation/reconciliation workflow where open invoices and unapplied payments or credits are presented together, exact amounts are allocated, and the allocation reduces the open balance without generating a second payment or sale. ERPNext documents reconciliation between invoices, payments and credit notes; Oracle documents allocation of payments against open items; SAP documents clearing/payment allocation patterns. These are reference patterns, not copied implementations.
+U. Final Acceptance Criteria — Settlement
+1. User can select exactly which invoice a payment settles.
+2. Fully settled invoices disappear from normal open outstanding but remain in history.
+3. Partial payment reduces only the selected invoice by the allocated amount.
+4. One payment can settle multiple invoices.
+5. Multiple payments can settle one invoice.
+6. Credit notes can be allocated to invoices and remain traceable.
+7. Debit notes retain the correct accounting direction.
+8. Payment, invoice, credit note and debit note can open the same settlement workspace.
+9. Floating/on-account balances remain available until allocation.
+10. Unapply/reapply restores balances correctly and records an audit event.
+11. Outstanding is calculated from authoritative posted open items and allocation state.
+12. No settlement can cross company boundaries or invalid parties/currencies.
+13. Allocation is safe under concurrent users and retry/replay.
+14. Every allocation is traceable from source to target and back.

@@ -1,0 +1,406 @@
+DOC-01
+PLATFORM ARCHITECTURE & COMPANY ISOLATION
+Implementation Specification • Phase 1
+Important: this document deliberately does not fully implement accounting, billing, inventory or other business modules. It establishes the environment in which those modules must operate.
+Document Map
+1. Executive Summary
+2. Design Intent & Problem Statement
+3. Platform-Level Principles
+4. Business Scale Strategy
+5. Logical Platform Model
+6. Platform Admin & Client Company Model
+7. Company Isolation & Data Sovereignty
+8. Organization Hierarchy Inside a Client Company
+9. Company Creation & Onboarding
+10. Company Lifecycle
+11. Main Login & Access Modes
+12. Platform Admin Access to Client Companies
+13. Company Admin Model
+14. User-to-Company Membership
+15. Shared vs Company-Specific Data
+16. Company Context & Security Enforcement
+17. Numbering, Fiscal & Statutory Boundary
+18. Cross-Company Transactions
+19. Branch & Warehouse Architecture
+20. Platform Services
+21. Small-Business Mode
+22. Large-Business Mode
+23. Scalability & Capacity Principles
+24. Backup, Export, Archive & Recovery
+25. Platform Monitoring & Company Health
+26. Audit Requirements
+27. Failure & Recovery Scenarios
+28. Non-Negotiable Rules
+29. Security Decisions
+30. Implementation Dependencies
+31. Acceptance Criteria
+32. Decision Register
+Appendix A. Reference ERP Patterns
+Appendix B. Future Documents
+1. Executive Summary
+The ERP is to be built as a platform capable of hosting many independent client companies. The platform has a central administrative layer, while each client company behaves as an independent ERP environment with its own users, roles, masters, transactions, accounting, inventory, documents, reports and settings.
+                         ERP PLATFORM
+                              │
+                      PLATFORM ADMIN
+                              │
+          ┌───────────────────┼───────────────────┐
+          ↓                   ↓                   ↓
+       CLIENT A            CLIENT B            CLIENT C
+          │                   │                   │
+      Own ERP             Own ERP             Own ERP
+      Own Users           Own Users           Own Users
+      Own Data            Own Data            Own Data
+      Own Accounts        Own Accounts        Own Accounts
+This architecture must serve a small C&F business with a handful of users as well as a larger organization with multiple branches, warehouses, principals, departments, accounting users, field users and high transaction volumes. The user experience may scale down or up, but the foundational data model should remain consistent.
+2. Design Intent & Problem Statement
+2.1 Problems this architecture solves
+Multiple client companies on one product without mixing data.
+Independent company accounting and statutory identity.
+Direct company login for normal users.
+Central administration without requiring client passwords for authorized platform operations.
+Company-specific permissions and user access.
+Support for local-first/LAN transaction processing while keeping the platform globally accessible.
+Safe addition of new modules without breaking tenant isolation.
+Simple deployment for small businesses and expandable structure for larger businesses.
+2.2 Design objective
+ONE PLATFORM
+    ↓
+MANY INDEPENDENT COMPANIES
+    ↓
+ONE CONSISTENT CORE ARCHITECTURE
+    ↓
+DIFFERENT SCALE / CONFIGURATION
+    ↓
+SAME FINANCIAL + SECURITY INTEGRITY
+3. Platform-Level Principles
+4. Business Scale Strategy
+The ERP is specifically intended to work for both small-scale and large-scale businesses. The design should therefore avoid forcing small companies to operate a complex enterprise interface while avoiding architectural limitations that would block growth.
+4.1 Scale principle
+5. Logical Platform Model
+PLATFORM
+│
+├── Platform Identity & Security
+├── Platform Configuration
+├── Platform Admin
+├── Company Provisioning
+├── Subscription / Status (future)
+├── Platform Audit
+├── Platform Monitoring
+└── Client Companies
+      │
+      ├── Company A
+      │    ├── Company Users
+      │    ├── Branches
+      │    ├── Warehouses
+      │    ├── Masters
+      │    ├── Operations
+      │    ├── Accounting
+      │    ├── Documents
+      │    └── Reports
+      │
+      └── Company B ...
+5.1 Control plane vs business plane
+6. Platform Admin & Client Company Model
+6.1 Platform Administrator
+Can create and manage client companies.
+Can provision or deactivate companies.
+Can assign company administrators.
+Can access a client company when explicitly authorized.
+Can view platform health and technical metadata without automatically receiving business-data visibility.
+Can perform audited administrative access when necessary.
+6.2 Client Company
+Own users and roles.
+Own customers, suppliers, principals, products, inventory and transactions.
+Own accounting books and reports.
+Own document numbering and statutory identity.
+Own branches and warehouses.
+Own company settings.
+6.3 Company Admin
+A Company Admin is the administrative owner within one client company. The Company Admin can manage company users, company roles, company masters and operational configuration according to permissions, but cannot manage other client companies.
+7. Company Isolation & Data Sovereignty
+Strict data isolation is the default. The application must not rely only on hiding another company in a dropdown. Security checks must exist at the server/service/data-access layer.
+USER REQUEST
+   ↓
+AUTHENTICATED IDENTITY
+   ↓
+ACTIVE COMPANY CONTEXT
+   ↓
+ROLE / PERMISSION CHECK
+   ↓
+COMPANY-SCOPED DATA ACCESS
+   ↓
+RECORD-LEVEL VALIDATION
+   ↓
+RESPONSE
+7.1 Data that belongs to a company
+Customers and customer balances
+Suppliers and supplier balances
+Principals
+Products where company-specific
+Price lists and schemes
+Warehouses and stock
+Invoices and purchase bills
+Cargo/consignments
+Expenses
+Receipts and payments
+Journal entries
+Chart of Accounts and opening balances
+GST/tax configuration
+Documents and attachments
+Reports and dashboards
+Company users, roles and settings
+7.2 Data leakage prevention
+Never trust company_id supplied by the client UI.
+Derive authorized company context from the authenticated session and permissions.
+Validate ownership of every referenced record.
+Reject mismatched company references.
+Do not allow APIs to infer company from arbitrary record IDs alone.
+Log denied cross-company attempts where appropriate.
+8. Organization Hierarchy Inside a Client Company
+CLIENT COMPANY
+   │
+   ├── Branch / C&F Location
+   │     ├── Warehouse
+   │     └── Departments / Teams
+   │
+   ├── Other Branch
+   │     └── Warehouse
+   │
+   └── Central Functions
+The exact accounting and managerial hierarchy will be specified in the accounting and organization documents. This document establishes the platform boundary and the company context that those hierarchies operate inside.
+9. Company Creation & Onboarding
+PLATFORM ADMIN
+   ↓
+CREATE COMPANY
+   ↓
+COMPANY PROFILE
+   ↓
+STATUTORY + FINANCIAL SETTINGS
+   ↓
+COMPANY ADMIN
+   ↓
+BRANCH / WAREHOUSE
+   ↓
+DEFAULT MASTERS / TEMPLATES
+   ↓
+NUMBERING + PERMISSIONS
+   ↓
+ACTIVATE COMPANY
+9.1 Company creation wizard
+Company identity: name, legal name, display name, contact information.
+Statutory profile: jurisdiction, GST/tax identifiers and applicable local configuration.
+Financial setup: financial year, accounting calendar, default currency/precision.
+Primary location: registered/operational addresses.
+First Company Admin: user identity, authentication and role.
+Operating structure: branches and initial warehouse(s).
+Document numbering: invoice, purchase, receipt, payment, journal, challan, credit/debit note series.
+Default masters: optional templates for common account groups, UOMs, tax categories and document settings.
+Access configuration: default role templates and approved company users.
+Activation check: validate required setup before company becomes Active.
+9.2 Seed vs shared
+10. Company Lifecycle
+For financial systems, permanent deletion of historical transactions should normally be avoided. The final deletion policy will be defined with retention, legal and accounting requirements in the data-governance document.
+11. Main Login & Access Modes
+                         MAIN LOGIN
+                              │
+                ┌─────────────┴─────────────┐
+                ↓                           ↓
+         PLATFORM ACCESS               CLIENT ACCESS
+                │                           │
+        Platform credentials       User + company context
+                │                           │
+                ↓                           ↓
+        Platform Dashboard          Client ERP Dashboard
+11.1 Direct client login
+A client user should be able to access the appropriate company directly from the main login experience. The system may identify the company by account, company code, domain, remembered company or an explicit company selection depending on the final authentication design.
+11.2 Multi-company user
+A user may be allowed to belong to more than one client company, but this is not the default. Each company membership must be explicit, and the active company context must always be visible. A user must not accidentally create a transaction in the wrong company.
+12. Platform Admin Access to Client Companies
+The Platform Admin must be able to enter an authorized client company without knowing or using a client employee password. This should be implemented as a distinct administrative session/context, not as a fake client login.
+PLATFORM ADMIN
+     ↓
+CLIENT DIRECTORY
+     ↓
+SELECT COMPANY
+     ↓
+ACCESS COMPANY
+     ↓
+ADMIN SESSION CONTEXT
+     ↓
+CLIENT ERP
+     ↓
+EXIT COMPANY
+     ↓
+RETURN TO PLATFORM
+12.1 Recommended access modes
+12.2 Administrative access banner
+When a Platform Admin is operating inside a client company, the interface should show a persistent, unmistakable indicator such as: “PLATFORM ADMIN ACCESS • Company ABC • Administrative Session”.
+12.3 Audit event
+13. Company Admin Model
+14. User-to-Company Membership
+The platform should support three useful models without making daily users think about technical tenant concepts.
+14.1 Active company rule
+15. Shared vs Company-Specific Data
+Mature ERP products support combinations of shared and company-specific records; for example, Odoo allows shared records as well as company-specific records, while Microsoft Dynamics and Oracle emphasize legal-entity/company boundaries for secured financial data. cite patterns included in Appendix A
+16. Company Context & Security Enforcement
+AUTH TOKEN / SESSION
+        ↓
+IDENTITY
+        ↓
+AUTHORIZED COMPANY SET
+        ↓
+ACTIVE COMPANY
+        ↓
+ROLE / PERMISSION
+        ↓
+DATA ACCESS POLICY
+        ↓
+DATABASE QUERY / SERVICE
+        ↓
+RECORD OWNERSHIP CHECK
+16.1 Required security layers
+UI layer: do not present unauthorized company choices.
+Application layer: reject unauthorized company operations.
+Service layer: every business service receives/derives company context.
+Data-access layer: queries are company-scoped.
+Database layer: use constraints/policies/partitioning strategy appropriate to the chosen technology.
+Audit layer: record sensitive cross-boundary attempts and administrative sessions.
+17. Numbering, Fiscal & Statutory Boundary
+Each client company must have its own financial and statutory configuration. These values must never be inferred from another company merely because the companies share the platform.
+18. Cross-Company Transactions
+Cross-company transactions should not be an accidental consequence of multi-company hosting. They are an explicit advanced capability and should be specified later as a separate module.
+COMPANY A
+  ↓ explicit inter-company transaction
+COMPANY B
+  ↓
+COUNTERPART DOCUMENTS
+  ↓
+SEPARATE LEDGERS / STOCK / TAX CONTEXTS
+No cross-company transaction by selecting another company as a normal customer unless the inter-company feature explicitly permits it.
+Each company maintains its own accounting consequence.
+Inventory and tax effects must be generated separately for each company.
+Inter-company automation must be fully auditable.
+19. Branch & Warehouse Architecture
+COMPANY
+ ├── BRANCH A
+ │    ├── Warehouse A1
+ │    └── Warehouse A2
+ ├── BRANCH B
+ │    └── Warehouse B1
+ └── Central Office
+19.1 Permission examples
+20. Platform Services
+The platform layer should provide shared technical services while keeping client business data isolated.
+21. Small-Business Mode
+Small businesses should not feel like they are using an enterprise control room. The platform should simplify the visible experience while retaining enterprise-grade foundations underneath.
+SMALL COMPANY
+Company
+ └── One Branch
+      └── One Warehouse
+           └── 3–10 Users
+                └── Simple roles
+                     └── Direct daily operations
+Simple setup wizard.
+Fewer visible configuration pages.
+Default role templates.
+Simple dashboard.
+Single-company user accounts by default.
+Local-first/LAN remains available where needed.
+Advanced controls hidden behind Admin/Advanced settings.
+22. Large-Business Mode
+LARGE COMPANY
+ ├── Multiple Branches
+ ├── Multiple Warehouses
+ ├── Departments
+ ├── Principals
+ ├── Finance / Shared Services
+ ├── Field Teams
+ ├── Advanced Permissions
+ ├── Approval Workflows
+ └── High-Volume Transactions
+Delegated company/branch administration.
+Role templates plus granular permissions.
+Cost/margin visibility control.
+Branch/warehouse data scopes.
+High-volume imports and batch operations.
+Advanced reporting dimensions.
+Scalable local/LAN topology.
+Central monitoring without compromising company data isolation.
+23. Scalability & Capacity Principles
+24. Backup, Export, Archive & Recovery
+25. Platform Monitoring & Company Health
+PLATFORM DASHBOARD
+ ├── Companies Active / Suspended
+ ├── Sync Health
+ ├── Last Backup
+ ├── Storage
+ ├── Error Rate
+ ├── Active Users
+ └── Service Health
+Platform health screens should expose technical status without automatically exposing sensitive client business information. Business-level dashboards remain inside the client company context.
+26. Audit Requirements
+27. Failure & Recovery Scenarios
+28. Non-Negotiable Rules
+1. Every client business record has an unambiguous company owner/context.
+2. No client company can access another client company by normal company-user permissions.
+3. Platform Admin access is a separate administrative context and is auditable.
+4. Client passwords are never requested from Platform Admin for administrative entry.
+5. No API trusts a company identifier supplied solely by the client UI.
+6. Company context is resolved before company-scoped data access.
+7. Financial configuration belongs to the company.
+8. Company deletion must not silently remove historical financial information.
+9. One core architecture serves small and large businesses.
+10. Advanced enterprise features are activated by configuration, not by creating a second product.
+11. Future modules must inherit platform isolation and permission services.
+12. Cross-company business is an explicit future capability, not a default side effect.
+13. Every elevated administrative action is traceable to a real identity.
+29. Security Decisions — Baseline
+30. Implementation Dependencies
+DOC-00 Master Principles
+        ↓
+DOC-01 Platform Architecture ← CURRENT
+        ↓
+DOC-02 Authentication
+        ↓
+DOC-03 Users / Roles / Permissions
+        ↓
+DOC-04 Local-First / LAN
+        ↓
+DOC-05 Sync Architecture
+        ↓
+DOC-06 Keyboard-First UX
+        ↓
+Master Data
+        ↓
+Accounting / Inventory / Billing / Cargo / etc.
+The exact document numbering may be adjusted as the project library evolves, but the dependency order should remain intact.
+31. Acceptance Criteria
+Platform Admin can create a new client company without creating any data in an existing company.
+New company receives its own company context and required setup state.
+Company Admin can manage only their authorized company.
+A direct client login opens the correct company context.
+A user without company access cannot retrieve company records through UI or API.
+A multi-company user must explicitly switch company context before transacting in another company.
+Platform Admin can enter a client company without client credentials when authorized.
+Administrative access displays a persistent elevated-session indicator.
+Administrative actions are attributed to the Platform Admin, not the client user.
+Suspending a company blocks configured operations without destroying historical data.
+Branches and warehouses are subordinate to the correct company.
+Company-specific financial settings cannot leak into another company.
+An attempted cross-company reference is rejected.
+The architecture works with one company and can expand to many without changing the core module semantics.
+32. Decision Register
+Appendix A. Reference ERP Patterns Used for Design Analysis
+The design decisions in this document are informed by documented patterns in established ERP systems. These references are not copied designs; they are used to validate concepts such as legal/company boundaries, business units, company-scoped access, shared vs company-specific data and organizational hierarchies.
+Appendix B. Future Documents Triggered by DOC-01
+Final Direction for DOC-01
+The platform architecture is the foundation of the entire ERP. The correct implementation should make it difficult—not merely unlikely—for one company to access another company’s data. At the same time, it should make authorized platform administration practical, auditable and efficient.
+This document is considered the baseline architecture only after business approval. All later module documents must reference its company context, tenant isolation, permission and lifecycle rules rather than redefining them independently.
+APPENDIX: ACTUAL IMPLEMENTED SOFTWARE FEATURES (AS OF LATEST BUILD)
+The following specifications represent the exact features, UI components, and database models that have been actively coded and deployed in the current erp2 software build. This section reconciles the theoretical architecture with the live working software, ensuring no details are lost.
+1. Multi-Tenant SaaS Engine (Admin & Client Management)
+The software currently features a hard-isolated SaaS layer. The root organization is designated as 'AM-0001' (System Admin). Users belonging to AM-0001 have access to a dedicated 'Client Management' dashboard (/clients route).
+2. Client Creation UI
+The UI features a full 'Client Management' interface where the Admin can click '+ Add Client' to provision new tenant companies. Fields include: Company Name, Subdomain/Org ID, Admin Email, Initial Password, and Database Schema routing. The system automatically provisions a unique UUID for the organization and seeds a default 'admin' user for that tenant.
+3. Database Isolation Mechanism
+In models.py, every single operational table (User, Ledger, Voucher, Product, Party) requires an 'organization_id' Foreign Key. All API queries explicitly filter by 'current_user.organization_id' ensuring strict data boundaries.

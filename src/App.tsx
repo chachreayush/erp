@@ -44,9 +44,16 @@ import SalesReturnBill from './pages/returns/SalesReturnBill'
 import PurchaseReturnBill from './pages/returns/PurchaseReturnBill'
 import BrkReceiveBill from './pages/brk/BrkReceiveBill'
 import BrkIssueBill from './pages/brk/BrkIssueBill'
+import PartyMaster from './pages/master/PartyMaster'
 import MasterPage from './pages/master/MasterPage'
 import ErrorEntries from './pages/master/ErrorEntries'
 import LedgerGroupMaster from './pages/master/LedgerGroupMaster'
+import PrincipalMaster from './pages/master/PrincipalMaster'
+import WarehouseMaster from './pages/master/WarehouseMaster'
+import TransportMaster from './pages/master/TransportMaster'
+import SchemeMaster from './pages/master/SchemeMaster'
+import PricingMaster from './pages/master/PricingMaster'
+import SchemeClaims from './pages/finance/SchemeClaims'
 import VoucherEntry from './pages/finance/VoucherEntry'
 import VoucherList from './pages/finance/VoucherList'
 import DayBook from './pages/finance/DayBook'
@@ -54,8 +61,11 @@ import LedgerStatement from './pages/finance/LedgerStatement'
 import TrialBalance from './pages/finance/TrialBalance'
 import ProfitAndLoss from './pages/finance/ProfitAndLoss'
 import BalanceSheet from './pages/finance/BalanceSheet'
+import FinanceReports from './pages/finance/FinanceReports'
 
 import CurrentStockPage from './pages/stock/CurrentStock'
+
+import GstReports from './pages/gst/GstReports'
 
 // ── PROTECTED ROUTE WRAPPER ───────────────────────────────────
 // This component wraps any page that requires authentication.
@@ -112,9 +122,16 @@ function App() {
         <Route path="dashboard" element={<DashboardPage />} />
 
         {/* ERP Module routes */}
+        <Route path="master/parties" element={<PartyMaster />} />
         <Route path="master"           element={<MasterPage />} />
         <Route path="master/error-entries" element={<ErrorEntries />} />
         <Route path="master/ledger-groups" element={<LedgerGroupMaster />} />
+        <Route path="master/principals" element={<PrincipalMaster />} />
+        <Route path="master/warehouses" element={<WarehouseMaster />} />
+        <Route path="master/transport" element={<TransportMaster />} />
+        <Route path="master/schemes" element={<SchemeMaster />} />
+        <Route path="master/pricing" element={<PricingMaster />} />
+        <Route path="finance/claims" element={<SchemeClaims />} />
         <Route path="finance/voucher/:type" element={<VoucherEntry />} />
         <Route path="finance/voucher/:type/:id" element={<VoucherEntry />} />
         <Route path="finance/vouchers" element={<VoucherList />} />
@@ -132,7 +149,9 @@ function App() {
         <Route path="inventory"        element={<ProductsPage />} />
         
         <Route path="finance"          element={<FinancePage />} />
+        <Route path="finance-reports"  element={<FinanceReports />} />
         <Route path="bulletin"         element={<BulletinBoard />} />
+        <Route path="gst"              element={<GstReports />} />
         <Route path="sales"            element={<SalesBill />} />
         <Route path="purchase"         element={<PurchaseBill />} />
         <Route path="sales-return"     element={<SalesReturnBill />} />

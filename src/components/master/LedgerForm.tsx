@@ -111,7 +111,7 @@ export function LedgerForm({ formData, setFormData, errors, modalMode, firstInpu
         <div>
             <label style={MODAL_LABEL}>Account Group *</label>
             <select disabled={modalMode === 'view'} value={formData.group_id || ''} onChange={e => setFormData({ ...formData, group_id: e.target.value })} style={MODAL_FIELD}>
-              <option value="">Select Ledger Group</option>
+              <option value="">Select Account Head</option>
               {ledgerGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
           </div>

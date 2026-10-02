@@ -1,0 +1,423 @@
+DOC-05
+KEYBOARD-FIRST UX & COMMAND SYSTEM
+Implementation Specification for a fast, accessible, low-mouse ERP experience
+
+
+
+Table of Contents
+1. Purpose and Scope
+2. Keyboard-First Product Philosophy
+3. Design Principles
+4. Keyboard Architecture
+5. Focus Management
+6. Global Navigation & Command Palette
+7. Shortcut System
+8. Universal Form Behavior
+9. Search & Selection Controls
+10. Grid / Table / Line-Entry Behavior
+11. Sales Billing Keyboard Workflow
+12. Purchase & Inventory Keyboard Workflow
+13. Accounting Keyboard Workflow
+14. Cargo & Dispatch Keyboard Workflow
+15. Dialogs, Menus & Popovers
+16. Alerts, Validation & Error Recovery
+17. Mouse/Touch Coexistence
+18. Accessibility & Assistive Technology
+19. Customizable Shortcuts & User Profiles
+20. Role-Aware Commands
+21. Offline / LAN / Remote Keyboard Behavior
+22. Crash Recovery & Draft Resume
+23. Performance Requirements
+24. Shortcut Conflict Management
+25. Developer Implementation Rules
+26. Testing & Acceptance Criteria
+27. Recommended Default Shortcut Map
+28. Small vs Large Business Modes
+29. Non-Negotiable Rules
+Appendix A. Screen-Level Focus Order
+Appendix B. Billing Shortcut Sequence
+Appendix C. Implementation Checklist
+
+1. Purpose and Scope
+This document defines how keyboard operation becomes a platform-level behavior rather than a feature added independently to each module. Every future module document must follow these rules unless an explicit exception is documented.
+USER → KEYBOARD → COMMAND / FOCUS ENGINE → UI COMPONENT → BUSINESS ACTION → FEEDBACK
+2. Keyboard-First Product Philosophy
+The ERP is intended for high-volume business work. Users should not repeatedly move between keyboard and mouse for ordinary operations such as customer selection, product entry, quantity changes, saving, posting, opening ledgers or switching between transactions.
+2.1 What keyboard-first means
+Every important function has a discoverable keyboard path.
+Tab/Shift+Tab move between major interactive regions in a predictable order.
+Arrow keys operate inside grids, lists and other composite controls where appropriate.
+Enter performs the primary action appropriate to the current context.
+Escape closes or cancels the current transient interaction without destroying saved work.
+Ctrl/Alt shortcuts trigger common application actions without relying on hidden mouse gestures.
+A command palette provides a universal alternative when users do not know a shortcut.
+Keyboard operation must remain consistent across Sales, Purchase, Inventory, Accounting, Cargo, Reports and Administration.
+
+3. Master Keyboard UX Principles
+
+4. Keyboard Architecture
+KEYBOARD EVENT
+    ↓
+Shortcut Resolver
+    ├─ Is system/browser reserved?
+    ├─ Is global shortcut enabled?
+    ├─ Is context-specific shortcut defined?
+    └─ Is command permitted?
+            ↓
+       COMMAND ROUTER
+            ↓
+     UI ACTION / NAVIGATION
+            ↓
+       BUSINESS SERVICE
+            ↓
+       USER FEEDBACK
+4.1 Command categories
+
+5. Focus Management
+Focus is a first-class application state. The ERP must know where the keyboard is currently operating and preserve that state through navigation, validation and dialog interactions.
+5.1 Focus rules
+Every interactive screen has a defined initial focus target.
+Focus is visible with a strong, consistent indicator.
+Tab moves between major components; arrow keys handle internal movement within grids/listboxes where appropriate.
+When a dialog opens, focus moves to its first meaningful control or the contextually selected control.
+When a dialog closes, focus returns to the control that opened it unless the action logically moves to another target.
+After saving a row or document, focus moves to the next logical task location.
+Validation should move focus to the first blocking error while preserving user-entered values.
+Focus must not jump unexpectedly because a background sync, refresh or notification occurred.
+5.2 Focus zones
+SCREEN
+ ├─ Global Header
+ ├─ Primary Navigation
+ ├─ Page Header / Actions
+ ├─ Main Work Area
+ ├─ Secondary Panel / Summary
+ └─ Footer Actions
+Users should be able to move between large zones without traversing every child element. Use logical group navigation patterns for dense screens. SAP Fiori guidance explicitly recommends logical task structure, initial focus and fast navigation between logical groups; those principles are adopted here. (SAP Fiori accessibility guidance)
+6. Global Navigation & Command Palette
+6.1 Command palette
+CTRL + K  →  COMMAND PALETTE
+---------------------------------
+> New Invoice
+> New Customer
+> New Receipt
+> Open Customer Ledger
+> Open Stock Ledger
+> Search Invoice
+> Search Product
+> Go to Accounting
+> Open Approvals
+> Open Reports
+> Keyboard Shortcuts
+> Switch Company (if permitted)
+Search commands by name, synonym or module.
+Show the shortcut beside each command when one exists.
+Show only actions permitted for the current user/context.
+Rank recently used and contextually relevant commands higher.
+Allow natural aliases such as “bill”, “invoice”, “receipt”, “customer ledger”.
+Never execute a destructive/financial command merely because the text matched; require Enter/explicit confirmation as appropriate.
+6.2 Global navigation
+A user should be able to reach any permitted module without opening nested menus with a mouse. The command palette is the universal fallback; direct shortcuts can then optimize high-frequency actions.
+7. Shortcut System
+The ERP should use a layered shortcut model: universal shortcuts, module shortcuts, screen shortcuts and grid shortcuts. Browser/OS conflicts must be avoided or clearly handled.
+
+
+8. Universal Form Behavior
+8.1 Form contract
+FOCUS FIELD
+  ↓
+TYPE / SELECT
+  ↓
+TAB → NEXT LOGICAL FIELD
+  ↓
+VALIDATE
+  ↓
+AUTO-FILL / CALCULATE
+  ↓
+TAB / ENTER → NEXT TASK
+
+8.2 Never force unnecessary Tab travel
+Dense forms should have logical jumps between sections. The user should be able to reach high-value controls without tabbing through every decorative element or read-only value.
+9. Search & Selection Controls
+9.1 Universal selector behavior
+FOCUS CUSTOMER FIELD
+    ↓
+TYPE "ABC"
+    ↓
+SEARCH RESULTS
+    ↓
+↑/↓ SELECT
+    ↓
+ENTER CONFIRM
+    ↓
+AUTO-FILL DEPENDENT FIELDS
+Incremental search where appropriate.
+Keyboard arrow navigation through results.
+Enter selects.
+Escape closes without changing the previous selection.
+Optional shortcut to open a full selector dialog when the quick list is insufficient.
+Fuzzy matching and alternate identifiers such as code, phone, GSTIN, barcode, invoice number.
+Show enough context in results to distinguish similarly named records.
+9.2 Search must respect company/security scope
+A user should never receive keyboard-search results from a company, branch, warehouse or dataset outside their permissions merely because the search string matches.
+10. Grid / Table / Line-Entry Behavior
+Billing, purchase, stock adjustments and journal entry lines depend heavily on grids. The grid interaction model must therefore be standardized across the ERP.
+GRID
+  ├─ ↑/↓  Row navigation
+  ├─ ←/→  Cell navigation where appropriate
+  ├─ Enter  Edit/commit current cell
+  ├─ Tab  Next cell / row
+  ├─ Shift+Tab  Previous cell
+  ├─ Ctrl+Enter  Commit row (where enabled)
+  ├─ Insert / configured key  Add row
+  └─ Delete  Delete row after permission/confirmation
+10.1 Product-line entry principles
+After selecting a product, focus should move to the next highest-value field such as batch or quantity according to module configuration.
+Calculated cells should be skipped unless the user explicitly enters edit mode.
+Free quantity, discount, rate and tax behavior should be predictable.
+Grid totals should update without stealing focus.
+Adding a new row should preserve the user’s last logical position.
+Validation errors should remain near the field and move focus only when the error blocks continuation.
+11. Sales Billing Keyboard Workflow
+F2 / MODULE SHORTCUT → NEW INVOICE
+        ↓
+CUSTOMER
+        ↓
+WAREHOUSE
+        ↓
+SALES PERSON / TERMS
+        ↓
+PRODUCT GRID
+        ↓
+BATCH → QTY → FREE → RATE → DISCOUNT
+        ↓
+CARGO / FREIGHT (when applicable)
+        ↓
+TOTALS REVIEW
+        ↓
+SAVE DRAFT / APPROVE / POST
+        ↓
+PRINT / SEND / NEW
+11.1 Example fast-entry sequence
+Ctrl+K → "New Invoice" → Enter
+Customer search → Enter
+Tab → Warehouse → Enter
+Tab → Product search → Enter
+Batch selection → Enter
+Qty → type → Enter
+Tab → next product
+Ctrl+S → Save Draft
+Review totals
+Ctrl+Enter / configured Post shortcut → Confirm & Post
+11.2 Billing safety
+Posting must never occur because the user accidentally pressed Enter while selecting a product.
+Destructive actions such as cancel/delete require explicit confirmation unless a special high-speed mode is deliberately configured and permissioned.
+If approval is required, the shortcut routes to “Submit for Approval” instead of “Post”.
+Credit limit or stock exceptions must be announced without losing the user’s position.
+12. Purchase & Inventory Keyboard Workflow
+12.1 Purchase
+New Purchase → Supplier → PO (optional) → Inward → Product Grid → Batch → Qty → Rate → Tax → Save/Post
+12.2 Warehouse
+Barcode / Product → Batch → Qty → Bin/Warehouse → Confirm Movement → Next Item
+Barcode scanning should behave like keyboard input where scanner devices operate as keyboard wedges.
+Fast stock-count mode should support repeated product/batch/quantity cycles.
+Stock warnings must remain visible without forcing mouse interaction.
+13. Accounting Keyboard Workflow
+13.1 Journal entry
+New Journal → Date → Voucher Type → Debit Account → Amount → Credit Account → Amount → Narration → Validate → Save/Post
+13.2 Ledger exploration
+Search Account → Enter → ↑/↓ Transactions → Enter Open → Esc Back → Shortcut for Source Document
+Users should be able to drill from Trial Balance/P&L/Balance Sheet to ledger and source document without mouse use.
+Bill-by-bill allocation should support keyboard selection, allocation amount and confirmation.
+14. Cargo & Dispatch Keyboard Workflow
+New Consignment → Customer/Principal → Transporter → Vehicle → LR/GR → Packages → Weight → Freight Basis → Rate → Expense Grid → Recovery → Save
+Freight basis should be selectable by keyboard.
+Chargeable weight should auto-calculate when configured.
+Expense grids use the same keyboard rules as invoice grids.
+Recovery and actual cost should remain visible as separate values.
+15. Dialogs, Menus & Popovers
+
+WAI-ARIA guidance recommends consistent keyboard conventions for composite widgets such as menus, grids, listboxes and trees, with focus managed inside the composite rather than forcing Tab through every internal element. (W3C WAI-ARIA Authoring Practices)
+16. Alerts, Validation & Error Recovery
+16.1 Validation behavior
+ACTION
+  ↓
+VALIDATE
+  ├─ PASS → Continue
+  └─ FAIL
+       ↓
+  Focus first blocking issue
+       ↓
+  Explain exact correction
+       ↓
+  Preserve user-entered data
+Errors must be understandable without a mouse tooltip.
+Do not show only a red border; include text and accessible announcement where needed.
+If multiple errors exist, allow keyboard traversal through all errors.
+Validation must not clear good data unless explicitly required.
+16.2 Undo / recovery
+Undo within draft editing where practical.
+Reversal/credit note for posted financial events.
+Crash recovery must restore the user to the last autosaved logical focus where possible.
+17. Mouse/Touch Coexistence
+Keyboard-first does not mean mouse-hostile. Mouse and keyboard should operate the same command model so switching input methods never creates a different business behavior.
+Clicking a field sets the same focus state as keyboard navigation.
+Opening a record by mouse should place keyboard focus predictably.
+Right-click/context menus should not be required for critical functions.
+Every mouse-only action must have an equivalent accessible command when it is part of the core workflow.
+18. Accessibility & Assistive Technology
+Use semantic/native controls where possible before custom ARIA widgets.
+Provide visible focus indicators.
+Use logical landmarks and names for major regions.
+Keep keyboard behavior predictable and consistent.
+Ensure tables/grids expose headers and current row/column context.
+Avoid shortcut combinations that conflict with common assistive technology or operating-system commands.
+Provide a way to discover all application shortcuts.
+Do not rely on color alone for status, errors or selection.
+
+19. Customizable Shortcuts & User Profiles
+
+Financial posting, deletion, permission administration and security-sensitive actions should not become unsafe merely because a user remapped a shortcut.
+20. Role-Aware Commands
+KEY PRESSED
+   ↓
+COMMAND FOUND
+   ↓
+USER + COMPANY + ROLE + CONTEXT CHECK
+   ↓
+PERMISSION?
+ ├─ YES → Execute / validate
+ └─ NO → Not available / explain
+Do not expose unavailable destructive or administrative commands as active actions.
+Command palette results must filter by permission.
+Shortcut help should show only available commands or clearly mark restricted ones.
+Platform Admin commands must never appear inside client-company roles.
+21. Local / LAN / Remote Keyboard Behavior
+Keyboard behavior must be identical whether the transaction is being handled on the local server, a LAN client or a remote client. What changes is data latency and transaction authority, not the command vocabulary.
+
+22. Crash Recovery & Draft Resume
+USER TYPES
+   ↓
+AUTOSAVE DRAFT
+   ↓
+LOCAL / CLOUD RECOVERY RECORD
+   ↓
+CRASH / POWER LOSS
+   ↓
+REOPEN ERP
+   ↓
+RECOVER DRAFT
+   ↓
+RESTORE FOCUS + INPUT STATE
+   ↓
+USER CONTINUES
+Autosave should happen frequently but without disrupting typing.
+Drafts must have version/time metadata.
+A posted document must never be reconstructed from an unsafely ambiguous draft.
+Recovery UI should list incomplete drafts and last-saved time.
+23. Performance Requirements
+
+The local-first architecture should absorb as much high-frequency interaction as possible locally, while the remote transactional tier must provide clear status for actions whose final commit depends on cloud availability.
+24. Shortcut Conflict Management
+24.1 Reserved/unsafe combinations
+Never override browser refresh/navigation in ways that trap the user.
+Avoid OS-level security combinations.
+Avoid screen-reader or assistive-tech conflicts where possible.
+Avoid browser find/save/open commands unless the application has an explicit supported replacement path.
+24.2 Shortcut registry
+
+25. Developer Implementation Rules
+Implement one command/action model used by mouse, keyboard and command palette where practical.
+Do not write module-specific keyboard code that bypasses the central shortcut/focus framework.
+Use semantic/native controls whenever possible.
+Centralize shortcut registration and conflict detection.
+Create automated tests for focus order and shortcut behavior on critical screens.
+Every new interactive component must document keyboard behavior before implementation.
+Every grid must define row/cell/selection/commit behavior.
+Destructive actions must have explicit command semantics and permission checks.
+Keyboard actions must call the same backend business service as mouse/touch actions.
+Never use keyboard shortcuts as an authorization mechanism; server-side permissions remain authoritative.
+26. Testing & Acceptance Criteria
+
+26.1 Golden keyboard test
+Start at Dashboard
+→ open New Invoice
+→ select customer
+→ select warehouse
+→ add 3 products
+→ select batches
+→ enter quantity/free quantity
+→ apply discount
+→ enter cargo
+→ calculate freight
+→ review total
+→ save draft
+→ reopen
+→ approve/post
+→ open ledger
+→ print/preview
+→ return dashboard
+ALL WITHOUT MOUSE
+27. Recommended Default Shortcut Map
+
+
+28. Small vs Large Business Modes
+
+The same keyboard architecture should serve both sizes. Complexity should be unlocked by configuration, not by building a second interface.
+29. Non-Negotiable Rules
+1. Every core business workflow must be completable by keyboard.
+2. Keyboard shortcuts must not bypass authorization.
+3. Focus must always be visible and predictable.
+4. Enter/Escape behavior must be consistent and context-aware.
+5. Every custom grid must define its keyboard interaction model.
+6. No critical action should exist only behind a mouse-only gesture.
+7. Command palette must respect company, role and data scope.
+8. Local, LAN and remote clients must use the same command vocabulary.
+9. Background sync must never steal keyboard focus.
+10. Autosave and recovery must preserve user work during failures.
+11. Destructive/financial actions require safe confirmation and permission.
+12. Accessibility behavior must be tested, not assumed.
+Appendix A. Screen-Level Focus Order
+
+Appendix B. Billing Shortcut Sequence
+1. Ctrl+K → New Invoice
+2. Customer → Enter
+3. Warehouse → Enter
+4. Product → Enter
+5. Batch → Enter
+6. Qty → Enter
+7. Repeat product rows
+8. Cargo → Enter
+9. Freight basis → Enter
+10. Review totals
+11. Ctrl+S → Save Draft
+12. Approval / Ctrl+Enter if allowed
+13. Preview/Print
+14. Ctrl+K → Customer Ledger / Outstanding
+This sequence is illustrative. The final bindings must be validated against the chosen technology stack and the detailed Billing specification (future document).
+Appendix C. Implementation Checklist
+Create keyboard event manager / shortcut registry.
+Create focus manager.
+Create command palette.
+Create global help overlay.
+Create standardized searchable selector.
+Create standardized grid component.
+Create keyboard-friendly modal/dialog component.
+Create permission-aware command resolver.
+Create shortcut conflict checker.
+Create user shortcut settings.
+Add analytics/telemetry only where appropriate and privacy-safe.
+Build keyboard tests for every core screen.
+Document shortcuts in each future module specification.
+Appendix D. Design References
+The following public guidance informed the interaction model:
+W3C WAI-ARIA Authoring Practices — keyboard interface and focus management. (W3C WAI-ARIA Authoring Practices)
+SAP Fiori accessibility guidance — initial focus, logical grouping and fast keyboard navigation. (SAP Fiori accessibility guidance)
+Microsoft Dynamics 365 Finance & Operations — contextual enterprise keyboard shortcuts. (Microsoft Dynamics 365 Finance & Operations shortcut guidance)
+Final Specification
+Keyboard operation is a platform behavior, not a collection of shortcuts. The ERP should feel consistent because the same focus, command, grid, search, validation and permission models are reused everywhere. This is especially important for high-volume C&F operations where billing, warehouse, accounting and cargo users perform repetitive transactions throughout the day.
+
+
+
+
+
+Also add tutorial and mention them as many they are available or able to use the button on the invidual screens

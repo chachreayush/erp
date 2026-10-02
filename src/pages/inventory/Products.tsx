@@ -364,6 +364,20 @@ export default function ProductsPage() {
               <Input variant="dense" label="Product Name *" error={formErrors.name} required value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} />
               <Input variant="dense" label="Packing" placeholder="10x10" value={newProduct.packing} onChange={e => setNewProduct({...newProduct, packing: e.target.value})} />
               <Input variant="dense" label="Unit" placeholder="Tabs" value={newProduct.unit} onChange={e => setNewProduct({...newProduct, unit: e.target.value})} />
+              
+              <div style={{ marginTop: '16px', marginBottom: '8px', paddingBottom: '4px', borderBottom: '1px solid var(--color-border)' }}>
+                <h3 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>UOM & Batch Traceability Config (DOC-11)</h3>
+              </div>
+              
+              <Input variant="dense" label="Base UOM" placeholder="EACH" value={newProduct.base_uom || ''} onChange={e => setNewProduct({...newProduct, base_uom: e.target.value})} />
+              <Input variant="dense" label="Purchase UOM" placeholder="BOX" value={newProduct.purchase_uom || ''} onChange={e => setNewProduct({...newProduct, purchase_uom: e.target.value})} />
+              <Input variant="dense" label="Sales UOM" placeholder="STRIP" value={newProduct.sales_uom || ''} onChange={e => setNewProduct({...newProduct, sales_uom: e.target.value})} />
+              <Input variant="dense" label="Pack Size" placeholder="10 STRIPS" value={newProduct.pack_size || ''} onChange={e => setNewProduct({...newProduct, pack_size: e.target.value})} />
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '128px', marginTop: '4px', marginBottom: '8px' }}>
+                <input type="checkbox" id="track_batch" checked={newProduct.track_batch !== false} onChange={e => setNewProduct({...newProduct, track_batch: e.target.checked})} />
+                <label htmlFor="track_batch" style={{ fontSize: '12px', fontWeight: 500, color: 'var(--color-text-secondary)', cursor: 'pointer' }}>Enable Strict Batch/Expiry Tracking</label>
+              </div>
               <Input variant="dense" label="Colour Type" as="select" value={newProduct.colour_type} onChange={handleSelect('colour_type')}>
                 <option value="normal">Normal</option>
                 <option value="red">Red</option>

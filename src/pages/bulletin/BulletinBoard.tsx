@@ -3,8 +3,8 @@ import { useAuthStore } from '../../store/authStore'
 import { api } from '../../lib/api'
 import { AlertCircle, Megaphone, Plus } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card'
 import BulletinModal from '../../components/ui/BulletinModal'
+import { useReturnNavigation } from '../../hooks/useReturnNavigation'
 
 export interface Bulletin {
   id: string
@@ -24,6 +24,8 @@ export default function BulletinBoard() {
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingBulletin, setEditingBulletin] = useState<Bulletin | null>(null)
+
+  useReturnNavigation(isModalOpen);
 
   const canEdit = user?.role === 'am_admin' || user?.role === 'cm_admin'
 
@@ -56,22 +58,36 @@ export default function BulletinBoard() {
   const importantBulletins = bulletins.filter(b => b.priority === 'important')
   const generalBulletins = bulletins.filter(b => b.priority === 'general')
 
+  // Common card style generator
+  const getCardStyle = (isImportant: boolean) => ({
+    backgroundColor: '#0f172a',
+    border: `1px solid ${isImportant ? 'rgba(239,68,68,0.3)' : '#1e293b'}`,
+    borderRadius: '12px',
+    padding: '20px',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '12px',
+    transition: 'all 0.25s ease',
+    cursor: canEdit ? 'pointer' : 'default',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+  })
+
   return (
-    <div style={{ maxWidth: '1200px', animation: 'fadeIn 0.3s ease-in-out' }}>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', animation: 'fadeIn 0.3s ease-in-out' }}>
       
       {/* ── PAGE HEADER ─────────────────────────────────────── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
         <div>
-          <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 800, marginBottom: '6px', color: 'var(--color-text)' }}>
+          <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 800, marginBottom: '6px', color: '#e2e8f0' }}>
             Bulletin Board
           </h1>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '15px', fontWeight: 500 }}>
+          <p style={{ color: '#94a3b8', fontSize: '15px', fontWeight: 500, margin: 0 }}>
             Company-wide announcements and important notices.
           </p>
         </div>
         
         {canEdit && (
-          <Button onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Button variant="primary" onClick={handleCreate} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Plus size={18} />
             Post New Bulletin
           </Button>
@@ -79,36 +95,60 @@ export default function BulletinBoard() {
       </div>
 
       {loading ? (
-        <p>Loading bulletins...</p>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px', color: '#94a3b8' }}>
+          Loading bulletins...
+        </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
           
           {/* ── IMPORTANT SECTION ───────────────────────────── */}
           <section>
-            <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-danger)' }}>
-              <AlertCircle size={20} />
+            <h2 style={{ 
+              fontSize: '18px', fontWeight: 700, marginBottom: '20px', 
+              display: 'flex', alignItems: 'center', gap: '10px', color: '#ef4444',
+              borderBottom: '1px solid #1e293b', paddingBottom: '12px'
+            }}>
+              <AlertCircle size={22} />
               Important Announcements
             </h2>
             
             {importantBulletins.length === 0 ? (
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '14px' }}>No important announcements right now.</p>
+              <p style={{ color: '#64748b', fontSize: '14px', fontStyle: 'italic' }}>No important announcements right now.</p>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px' }}>
                 {importantBulletins.map(b => (
-                  <Card key={b.id} style={{ borderLeft: '4px solid var(--color-danger)' }}>
-                    <CardHeader style={{ paddingBottom: '12px' }}>
-                      <CardTitle style={{ fontSize: '16px', lineHeight: 1.4 }}>{b.title}</CardTitle>
-                      <CardDescription>By {b.author_name} • {new Date(b.created_at).toLocaleDateString()}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', whiteSpace: 'pre-wrap' }}>{b.content}</p>
+                  <div 
+                    key={b.id} 
+                    style={getCardStyle(true)}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 12px 20px -8px rgba(239,68,68,0.2)';
+                      e.currentTarget.style.borderColor = 'rgba(239,68,68,0.5)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+                      e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)';
+                    }}
+                    onClick={() => canEdit && handleEdit(b)}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#f87171', lineHeight: 1.4 }}>
+                        {b.title}
+                      </h3>
                       {canEdit && (
-                        <div style={{ marginTop: '16px', textAlign: 'right' }}>
-                          <Button variant="secondary" onClick={() => handleEdit(b)} size="sm">Edit</Button>
+                        <div style={{ fontSize: '11px', fontWeight: 600, color: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', padding: '2px 8px', borderRadius: '4px' }}>
+                          Edit
                         </div>
                       )}
-                    </CardContent>
-                  </Card>
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+                      By {b.author_name} • {new Date(b.created_at).toLocaleDateString()}
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#cbd5e1', whiteSpace: 'pre-wrap', marginTop: '4px', lineHeight: 1.6 }}>
+                      {b.content}
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
@@ -116,30 +156,52 @@ export default function BulletinBoard() {
 
           {/* ── GENERAL SECTION ────────────────────────────── */}
           <section>
-            <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-primary)' }}>
-              <Megaphone size={20} />
+            <h2 style={{ 
+              fontSize: '18px', fontWeight: 700, marginBottom: '20px', 
+              display: 'flex', alignItems: 'center', gap: '10px', color: '#3b82f6',
+              borderBottom: '1px solid #1e293b', paddingBottom: '12px'
+            }}>
+              <Megaphone size={22} />
               General Notices
             </h2>
             
             {generalBulletins.length === 0 ? (
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '14px' }}>No general notices.</p>
+              <p style={{ color: '#64748b', fontSize: '14px', fontStyle: 'italic' }}>No general notices.</p>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px' }}>
                 {generalBulletins.map(b => (
-                  <Card key={b.id}>
-                    <CardHeader style={{ paddingBottom: '12px' }}>
-                      <CardTitle style={{ fontSize: '16px', lineHeight: 1.4 }}>{b.title}</CardTitle>
-                      <CardDescription>By {b.author_name} • {new Date(b.created_at).toLocaleDateString()}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', whiteSpace: 'pre-wrap' }}>{b.content}</p>
+                  <div 
+                    key={b.id} 
+                    style={getCardStyle(false)}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 12px 20px -8px rgba(59,130,246,0.15)';
+                      e.currentTarget.style.borderColor = '#3b82f6';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+                      e.currentTarget.style.borderColor = '#1e293b';
+                    }}
+                    onClick={() => canEdit && handleEdit(b)}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#e2e8f0', lineHeight: 1.4 }}>
+                        {b.title}
+                      </h3>
                       {canEdit && (
-                        <div style={{ marginTop: '16px', textAlign: 'right' }}>
-                          <Button variant="secondary" onClick={() => handleEdit(b)} size="sm">Edit</Button>
+                        <div style={{ fontSize: '11px', fontWeight: 600, color: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', padding: '2px 8px', borderRadius: '4px' }}>
+                          Edit
                         </div>
                       )}
-                    </CardContent>
-                  </Card>
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+                      By {b.author_name} • {new Date(b.created_at).toLocaleDateString()}
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#94a3b8', whiteSpace: 'pre-wrap', marginTop: '4px', lineHeight: 1.6 }}>
+                      {b.content}
+                    </div>
+                  </div>
                 ))}
               </div>
             )}

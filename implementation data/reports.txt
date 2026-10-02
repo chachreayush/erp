@@ -1,0 +1,32 @@
+# Reports & GST Module Specification
+
+Claude, your task is to implement the Reports engine and GST module based on our dark enterprise aesthetic and high-speed grid requirements.
+
+## 1. Backend: Create `backend/api/reports.py`
+Create a new FastAPI router for reports. Implement the following endpoints (ensure they filter by `organization_id` using `get_current_user`):
+- `GET /api/reports/party-ledger/{ledger_id}`: Returns all vouchers and invoices for a specific ledger, ordered by date, calculating a running balance.
+- `GET /api/reports/trial-balance`: Calculates the closing balance of all active ledgers (grouped by Ledger Group).
+- `GET /api/reports/outstanding-ageing`: Calculates unpaid invoices grouped by age (0-30, 31-60, 60+ days).
+
+**Don't forget to mount this router in `backend/main.py`.**
+
+## 2. Frontend: Export Utilities
+Create a helper file `src/lib/exportUtils.ts`.
+- Write functions to export JSON data to CSV, Excel, and PDF.
+- Please provide the `npm install jspdf jspdf-autotable xlsx` command in your instructions, and write the code using them.
+
+## 3. Frontend: Update Finance UI for Reports
+- Create `src/pages/finance/FinanceReports.tsx` or update the existing finance pages to include the Finance Reports UI.
+- Build the **Party Ledger Report UI**:
+  - A dark-themed high-speed grid.
+  - Dropdown to select a Ledger.
+  - Date pickers for From/To.
+  - A data table showing Date, Particulars, Vch Type, Vch No, Debit, Credit, Balance.
+  - **Export Buttons**: Three sleek buttons for [CSV] [Excel] [PDF] using your export utilities.
+
+## 4. Frontend: GST Module Top Menu
+- Update `src/components/Layout/Header.tsx` to include a new main navigation item for **GST & Compliance**.
+- It should use a nested dropdown style (similar to Sales & Purchase).
+- Menu items should be: GSTR-1, GSTR-2, GSTR-3B.
+- Create a placeholder page `src/pages/gst/GstReports.tsx` with a dark enterprise theme and a tabbed layout for GSTR-1, GSTR-2, and GSTR-3B.
+- Inside the GST pages, also include the [CSV] [Excel] [PDF] export buttons.
