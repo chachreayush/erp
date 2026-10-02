@@ -73,6 +73,7 @@ export default function ProductRegister({ productId, onClose, stockType = 'main'
     else if (type.startsWith('brk-issue-challan')) route = '/brk-issue?type=modify-challan';
     else if (type.startsWith('stock-receive')) route = '/stock-receive?type=modify-bill';
     else if (type.startsWith('stock-issue')) route = '/stock-issue?type=modify-bill';
+    else if (type.startsWith('stock-shift')) route = '/stock-shift';
     
     if (route) {
       route += `&invoice=${entry.invoice_number}`;

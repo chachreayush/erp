@@ -138,9 +138,8 @@ const inventorySubItemsMap: Record<string, { label: string; path: string }[]> = 
     { label: 'Modify', path: '/inventory?action=modify' }
   ],
   'claims': [
-    { label: 'Customer Intake', path: '/inventory/customer-claims' },
-    { label: 'Vendor Claims', path: '/inventory/vendor-claims' },
-    { label: 'Reorder Engine', path: '/inventory/replenishment' }
+    { label: 'Reorder Engine', path: '/inventory/replenishment' },
+    { label: 'Internal Expiry Shift', path: '/stock-shift' }
   ],
   'current-stock': [
     { label: 'View Stock', path: '/stock' },

@@ -67,9 +67,10 @@ import CurrentStockPage from './pages/stock/CurrentStock'
 
 import GstReports from './pages/gst/GstReports'
 import InventoryDashboard from './pages/inventory/InventoryDashboard';
-import CustomerClaims from './pages/inventory/CustomerClaims';
-import VendorClaims from './pages/inventory/VendorClaims';
+
+
 import Replenishment from './pages/inventory/Replenishment';
+import StockShiftVoucher from './pages/stock/StockShiftVoucher';
 
 // ── PROTECTED ROUTE WRAPPER ───────────────────────────────────
 // This component wraps any page that requires authentication.
@@ -178,9 +179,8 @@ function App() {
           The ProtectedRoute will then redirect to /login if needed.
       ─────────────────────────────────────────────────────── */}
                 <Route path="/inventory" element={<ProtectedRoute><InventoryDashboard /></ProtectedRoute>} />
-          <Route path="/inventory/customer-claims" element={<ProtectedRoute><CustomerClaims /></ProtectedRoute>} />
-          <Route path="/inventory/vendor-claims" element={<ProtectedRoute><VendorClaims /></ProtectedRoute>} />
-          <Route path="/inventory/replenishment" element={<ProtectedRoute><Replenishment /></ProtectedRoute>} />
+                              <Route path="/inventory/replenishment" element={<ProtectedRoute><Replenishment /></ProtectedRoute>} />
+          <Route path="/stock-shift" element={<ProtectedRoute><StockShiftVoucher /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </ThemeProvider>
