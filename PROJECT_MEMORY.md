@@ -104,8 +104,10 @@ robocopy C:\Users\DELL\OneDrive\Desktop\erp2\backend C:\Users\DELL\OneDrive\Desk
 - **Finance & Accounting API Rebuild**: Architected inance_v2.py as a new ACID-compliant double-entry accounting engine replacing legacy finance API. Features automatic voucher sequence numbering (e.g. \JRN/2026-27/0129\), native multi-leg (1-to-many, many-to-many) voucher capabilities, integrated Indian Default Chart of Accounts seeding, and active fiscal year enforcement.
 - **Retroactive Voucher Migration**: Engineered a direct DB migration to convert 188 legacy standard invoices (which were lacking ledger ties) into compliant Journal/Sales vouchers under the new inance_v2 schema. All prior sales/purchases now properly hit ledger statements.
 - **Auto-Posting Hook Refactor**: Re-wrote the _auto_post_accounting logic in pi/sales.py to seamlessly build compliant VoucherEntry dicts that pass Pydantic VoucherCreate models, completely removing legacy crashes on invoice generation.
-- **UI Ledger Sync**: Fixed fatal schema drift bugs in LedgerStatement.tsx and DayBook.tsx. The frontend now dynamically reads the correctly typed backend fields (cr_amount, dr_amount, oucher_number, unning_balance), preventing silent React crashes where the UI was stuck permanently on 'Loading...'.
-- **Postgres Schema Sync**: Executed an ALTER TABLE vouchers direct migration to add critical missing schema columns (iscal_year_id, status, cancelled_by, ef_invoice_id) preventing 500 internal crashes without requiring full DB drop.
+- **UI Ledger Sync**: Fixed fatal schema drift bugs in LedgerStatement.tsx and DayBook.tsx. The frontend now dynamically reads the correctly typed backend fields (cr_amount, dr_amount, oucher_number, 
+unning_balance), preventing silent React crashes where the UI was stuck permanently on 'Loading...'.
+- **Postgres Schema Sync**: Executed an ALTER TABLE vouchers direct migration to add critical missing schema columns (iscal_year_id, status, cancelled_by, 
+ef_invoice_id) preventing 500 internal crashes without requiring full DB drop.
 
 
 ## Update 2026-09-08
@@ -120,6 +122,9 @@ robocopy C:\Users\DELL\OneDrive\Desktop\erp2\backend C:\Users\DELL\OneDrive\Desk
 - **Deep Architecture Validation:** Successfully completed a comprehensive code and visual audit of the Multi-Tenant (AM/CM) structure, CQRS Append-Only Ledgers, and Bill-by-Bill allocations.
 - **Claude UI Handoff:** Formally assigned the UI/UX implementation of the Receipt Modal, Challan-to-Invoice Conversion Screen, CRM Permissions Grid, and ERP Finance & Billing Master to Claude (via `Frontend_UI_UX_Spec_For_Claude.docx`).
 - **Sync & Deployment:** Synced the `erp2` repository back to the original `erp` folder, committed to Git, and aligned with Vercel for continuous deployment.
+
+## [Update - DOC-16 Integration]
+Implemented Inventory Expiry & Breakage Cockpit (DOC-16). Replaced legacy claim UI with native Internal Stock Shift vouchers. Integrated bulk Auto-Shift filters for Expiry and Company criteria.
 
 ## [Update - DOC-14 & DOC-15 Integration]
 Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Scheme Settlement (DOC-14) in Purchase/Sales flows. Purchase Bill Layout restructured and fixed.
