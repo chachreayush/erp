@@ -39,6 +39,9 @@ import HomeScreen from './pages/HomeScreen'
 import BulletinBoard from './pages/bulletin/BulletinBoard'
 import BillingPage from './pages/sales/Billing'
 import SalesBill from './pages/sales/SalesBill'
+import PurchaseOrderMaster from './pages/procurement/PurchaseOrderMaster'
+import GoodsReceipt from './pages/procurement/GoodsReceipt'
+import VendorComplaints from './pages/procurement/VendorComplaints'
 import PurchaseBill from './pages/purchase/PurchaseBill'
 import SalesReturnBill from './pages/returns/SalesReturnBill'
 import PurchaseReturnBill from './pages/returns/PurchaseReturnBill'
@@ -159,6 +162,10 @@ function App() {
         <Route path="gst"              element={<GstReports />} />
         <Route path="sales"            element={<SalesBill />} />
         <Route path="purchase"         element={<PurchaseBill />} />
+        <Route path="po" element={<PurchaseOrderMaster />} />
+        <Route path="grn" element={<GoodsReceipt />} />
+        <Route path="vendor-complaints" element={<VendorComplaints />} />
+
         <Route path="sales-return"     element={<SalesReturnBill />} />
         <Route path="purchase-return"  element={<PurchaseReturnBill />} />
         <Route path="brk-receive"      element={<BrkReceiveBill />} />

@@ -125,3 +125,8 @@ When building dashboard widgets:
 
 ## [Update - DOC-14 & DOC-15 Integration]
 Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Scheme Settlement (DOC-14) in Purchase/Sales flows. Purchase Bill Layout restructured and fixed.
+
+## [Update - DOC-17 Procurement & GRN Integration]
+- **Unified Stock Ledger**: Goods Receipt Notes (GRNs) use the unified `Invoice` model with `invoice_type="grn"`. The `main_inward_types` array in `api/stock.py` has been updated to include `"grn"`, meaning physical inventory increments seamlessly without duplicating stock calculation logic.
+- **New Tables**: `PurchaseOrder`, `VendorSupplyRule`, and `VendorComplaint` have been added to `models.py`.
+- **UI Menu Map**: Procurement features are placed in the `Sales & Purchase` dropdown (`Purchase` sub-menu).

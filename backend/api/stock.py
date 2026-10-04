@@ -216,7 +216,7 @@ def get_product_register(
     total_inward = 0
     total_outward = 0
 
-    main_inward_types = ["purchase-bill", "purchase-challan", "sales-return-credit", "sales-return-challan", "sales-return-bill", "stock-receive-entry"]
+    main_inward_types = ["grn", "purchase-bill", "purchase-challan", "sales-return-credit", "sales-return-challan", "sales-return-bill", "stock-receive-entry"]
     main_outward_types = ["sales-bill", "sales-challan", "purchase-return-debit", "purchase-return-challan", "purchase-return-bill", "stock-issue-entry", "stock-shift"]
 
     brk_inward_types = ["brk-receive-bill", "brk-receive-challan", "stock-shift"]

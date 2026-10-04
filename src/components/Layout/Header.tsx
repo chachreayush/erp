@@ -55,6 +55,9 @@ const subItemsMap: Record<string, { label: string; path: string }[]> = {
     { label: 'Modify Challan', path: '/sales?type=modify-challan' }
   ],
   'purchase': [
+    { label: 'Purchase Order', path: '/po' },
+    { label: 'Goods Receipt Note (GRN)', path: '/grn' },
+    { label: 'Vendor Complaints', path: '/vendor-complaints' },
     { label: 'Purchase Bill', path: '/purchase?type=bill' },
     { label: 'Purchase Challan', path: '/purchase?type=challan' },
     { label: 'Modify Purchase', path: '/purchase?type=modify-bill' },

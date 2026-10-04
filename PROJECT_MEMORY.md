@@ -123,6 +123,10 @@ ef_invoice_id) preventing 500 internal crashes without requiring full DB drop.
 - **Claude UI Handoff:** Formally assigned the UI/UX implementation of the Receipt Modal, Challan-to-Invoice Conversion Screen, CRM Permissions Grid, and ERP Finance & Billing Master to Claude (via `Frontend_UI_UX_Spec_For_Claude.docx`).
 - **Sync & Deployment:** Synced the `erp2` repository back to the original `erp` folder, committed to Git, and aligned with Vercel for continuous deployment.
 
+
+## [Update - DOC-17 Procurement Engine]
+Implemented the Purchase Order, Goods Receipt Note (GRN), and Vendor Complaints engines. Added `grn` to main_inward_types in `stock.py` so physical inventory strictly updates on receipt. Created UI routing under Sales & Purchase -> Purchase dropdowns.
+
 ## [Update - DOC-16 Integration]
 Implemented Inventory Expiry & Breakage Cockpit (DOC-16). Replaced legacy claim UI with native Internal Stock Shift vouchers. Integrated bulk Auto-Shift filters for Expiry and Company criteria.
 

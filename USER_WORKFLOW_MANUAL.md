@@ -104,3 +104,8 @@ The new Admin Dashboard features a highly visual, data-first approach:
 
 ## [Update - DOC-14 & DOC-15 Integration]
 Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Scheme Settlement (DOC-14) in Purchase/Sales flows. Purchase Bill Layout restructured and fixed.
+
+## [Update - DOC-17 Procurement Execution]
+- **Purchase Orders**: Create POs under `Sales & Purchase > Purchase > Purchase Order` to specify exact quantities, vendors, and delivery expectations.
+- **Goods Receipt Notes (GRN)**: Instead of direct Purchase Bills, you can record physical receipt of goods via the GRN screen (`Sales & Purchase > Purchase > Goods Receipt Note`). Loading a PO automatically populates the items. Saving a GRN updates stock levels immediately.
+- **Vendor Complaints**: Track shortages, damage, and quality issues centrally under `Sales & Purchase > Purchase > Vendor Complaints`.

@@ -1,0 +1,221 @@
+DOC-17
+PURCHASE, INWARD, VENDOR SUPPLY & ISSUE/COMPLAINT ENGINE
+Developer-ready functional and architectural specification for purchase demand, authorized/fixed vendor rules, purchase orders, inward receipts, batch/expiry intake, vendor disputes, quality issues, claims, alerts, holds and integration with inventory, pricing, settlement and accounting.
+Version: 2.0 - Revised purchase/inward specification with Vendor Supply Rules and Vendor Issue/Complaint Engine.
+
+
+1. Executive Summary
+DOC-17 is the procurement execution layer of the ERP. It converts approved demand/replenishment signals into controlled purchasing and turns supplier deliveries into traceable stock, claims and financial follow-up. The engine must support a small business buying directly from a vendor and a large C&F operation with multiple principals, branches, warehouses, fixed vendors, restricted supply, approvals and detailed quality controls.
+The purchase lifecycle is document-driven. A purchase recommendation, request or order does not create stock. Stock is created only through an authorized inward/receipt movement after the receiving rules are satisfied. Vendor bills create or confirm financial obligations according to the accounting design in DOC-08/09; settlement of those obligations remains in DOC-07.
+DEMAND / REORDER SIGNAL
+        ↓
+PURCHASE REQUISITION / BUY PLAN
+        ↓
+VENDOR ELIGIBILITY + SUPPLY RULE CHECK
+        ↓
+PURCHASE ORDER
+        ↓
+ASN / EXPECTED RECEIPT (optional)
+        ↓
+INWARD / GRN
+        ↓
+INSPECTION / BATCH / EXPIRY / MRP / QTY CHECK
+        ↓
+ACCEPTED / QUARANTINED / REJECTED
+        ↓
+DOC-16 STOCK MOVEMENT
+        ↓
+PURCHASE BILL / AP OBLIGATION
+        ↓
+DOC-07 SETTLEMENT / CLAIM / CN-DN / PAYMENT
+2. Non-Negotiable Procurement Principles
+Purchase transactions must preserve company, branch, warehouse, principal/owner, product, batch, UOM and supply classification context.
+No vendor can be selected merely because it exists in the vendor master when a product/principal has an active fixed or restricted supply rule.
+Fixed/authorized vendor rules must be configurable by product, principal, territory, customer/supply channel and effective date.
+Special/restricted/undercutting supply is a configurable business classification, not an automatic legal conclusion. The ERP must retain the classification and its reason while allowing the company to apply its own compliance policy.
+Special/non-reorder quantities received under an authorized supply rule must flow into DOC-16 with the correct stock/supply classification so they do not inflate normal reorder calculations.
+Every inward quantity must resolve to an acceptance state: sellable, quarantine, rejected, damaged, expiry-risk or another approved status.
+Batch/expiry information must be captured at receipt where required; missing batch/expiry data should be a configurable hard stop or controlled exception.
+Vendor complaints and disputes must be first-class records linked to documents, products, batches and amounts; they must not live only as free-text notes.
+Vendor alerts and holds must be policy-driven, severity-aware and auditable.
+Purchase-side CN/DN/payment allocation must use the existing universal settlement engine (DOC-07), not create a second allocation system.
+Changes to an approved PO, received quantity, accepted/rejected quantity or vendor classification must preserve audit history and approval provenance.
+3. Domain Model & Core Entities
+
+4. Fixed / Authorized Vendor & Supply Rule Engine
+Some products or principal-owned lines require a specific vendor or a restricted source. The ERP therefore needs a rule engine instead of a simple "preferred vendor" field. A rule can require one vendor, permit a group of vendors, block a vendor, or require approval before a non-authorized source can be used.
+
+4.1 Vendor Supply Rule data fields
+
+4.2 Vendor selection decision sequence
+1. IDENTIFY DEMAND
+2. RESOLVE PRODUCT + PRINCIPAL + DESTINATION
+3. LOAD ACTIVE SUPPLY RULES
+4. REMOVE BLOCKED VENDORS
+5. APPLY FIXED/REQUIRED VENDOR RULES
+6. APPLY AUTHORIZED LIST / PREFERRED ORDER
+7. CHECK VENDOR HOLDS + OPEN ISSUE POLICY
+8. APPLY PRICE / LEAD-TIME / MOQ / PACK RULES
+9. PRESENT ELIGIBLE OPTIONS
+10. APPROVE / AUTO-SELECT ACCORDING TO POLICY
+11. CREATE PO WITH RULE SNAPSHOT
+
+5. Special / Restricted / Undercutting Supply Classification
+The ERP must support the user-defined business case where certain fixed vendors provide goods to a restricted or unregistered supply channel at nominal pricing or transport-only economics, and those quantities should not be counted as normal reorder stock. Because terminology varies by market and policy, the system should treat "Undercutting / Special Supply" as a configurable internal classification, not a universal legal definition.
+
+At PO and receipt time, the user should see a clear notation such as "Special Supply - Non-Reorder" or the organization-defined label. The classification must be carried to the receipt and stock movement so later users can understand why the quantity is excluded from normal replenishment.
+6. Purchase Demand & Procurement Planning
+DOC-17 consumes procurement demand from multiple sources and consolidates it without double counting. The same requirement must not be purchased twice simply because it appears in multiple demand feeds.
+
+6.1 Procurement consolidation controls
+Demand lines need a unique source reference and a status: proposed, approved, converted, partially converted, fulfilled, cancelled, expired.
+Open PO quantities must reduce the outstanding requirement before a new PO is proposed unless the user explicitly authorizes duplicate/backup procurement.
+Special/non-reorder demand remains separately identified from routine replenishment demand.
+Unit-of-measure conversion, pack-size rounding, MOQ and vendor lead time are applied before the final order quantity is suggested.
+Procurement suggestions should explain their math and source documents.
+7. Purchase Requisition / Buy Plan
+The requisition/buy-plan layer provides internal control between a demand signal and vendor commitment. Small businesses may bypass it through a configurable direct-purchase mode; large businesses can require it for specific products, amounts, principals or users.
+
+8. Purchase Order Engine
+8.1 PO header requirements
+
+8.2 PO line requirements
+Product/SKU, UOM and conversion ratio.
+Requested/order quantity, free quantity and promotional quantity where applicable.
+Vendor item code / pack, batch instruction and minimum remaining shelf-life requirement.
+Purchase rate, taxes, discount and expected landed-cost components.
+Principal/owner and supply classification.
+Expected receipt date, partial delivery rule and backorder policy.
+Quality/inspection instruction: accept, quarantine, certificate requirement, cold-chain note or other configurable requirement.
+Source demand reference and traceability requirement.
+9. Vendor Warning, Hold & Issue Awareness
+Before a PO is approved or a purchase bill is created, the ERP should check active vendor issues, claims and restrictions. This check is factual: it surfaces recorded issues and the configured business rule; it does not independently judge the vendor.
+
+9.1 Alert content
+
+10. Inward / Goods Receipt (GRN) Engine
+The inward/GRN is the authoritative physical receiving event. It must support receipts against PO, ASN, direct purchase and approved returns where applicable. A receipt can be partially accepted, quarantined or rejected line-by-line.
+PO / ASN
+   ↓
+ARRIVAL REGISTER
+   ↓
+COUNT + DOCUMENT CHECK
+   ↓
+BATCH / EXPIRY / MRP / RATE CAPTURE
+   ↓
+QUALITY / QUANTITY INSPECTION
+   ├── ACCEPTED → DOC-16 STOCK
+   ├── QUARANTINE → DOC-16 QUARANTINE
+   └── REJECTED / DAMAGE → RETURN / CLAIM WORKFLOW
+
+11. Quantity, Price, Expiry & Quality Variance
+
+12. Batch, Expiry & Shelf-Life Acceptance
+DOC-11 defines batch master structure; DOC-17 captures the actual batch received and validates it against procurement rules. DOC-16 owns ongoing stock state after receipt.
+
+13. Vendor Return & Purchase-Side Claims
+Vendor returns are controlled reversals or outward movements from received stock. They must preserve the link to the original receipt/batch wherever possible. If stock was supplied by multiple vendors, the system must use actual provenance rather than assuming the newest or nearest source.
+RECEIVED STOCK
+   ↓
+ISSUE / EXPIRY / BREAKAGE / WRONG SUPPLY
+   ↓
+CLAIM CASE
+   ↓
+VENDOR RESPONSE / APPROVAL
+   ↓
+RETURN DISPATCH
+   ↓
+VENDOR CN / REPLACEMENT / REFUND / PAYMENT / OTHER APPROVED REMEDY
+   ↓
+DOC-16 STOCK OUT + DOC-07 SETTLEMENT
+
+14. Vendor Issue & Complaint Engine
+Vendor issues are formal records with statuses, ownership, deadlines and evidence. A complaint may originate from purchase, inward, stock quality, return, pricing, CN/DN, payment or another vendor interaction.
+
+14.1 Complaint lifecycle
+NEW → OPEN → INVESTIGATION → PENDING VENDOR / PENDING INTERNAL →
+REMEDY IN PROGRESS → PARTIALLY RESOLVED → RESOLVED → CLOSED
+Rejected and Cancelled are terminal branches requiring a reason. Reopened issues retain prior closure history instead of being overwritten.
+15. Vendor Issue Categories & Examples
+
+16. Vendor Scorecard & Factual History
+The ERP should provide factual vendor-history dashboards without forcing a single overall vendor score. The purpose is to let authorized users inspect documented performance and open issues.
+
+17. Purchase Bill Readiness & Three-Way Matching
+The ERP should support three-way matching for larger operations while allowing a simple direct-bill workflow for smaller businesses. The match is between PO, receipt/GRN and vendor bill.
+PURCHASE ORDER
+      \
+       MATCH ENGINE → EXCEPTION / APPROVAL
+      /
+GRN / RECEIPT ← VENDOR BILL
+
+18. Vendor Complaint Alerts During Purchase / Billing
+When a user selects a vendor for a new PO or purchase bill, the system should surface relevant open issues before submission. The alert should identify the recorded fact, not silently make a procurement decision.
+
+19. Purchase Return, Replacement & Replenishment Loop
+Returns and replacement shipments must connect back to the original issue. A replacement receipt must not create a new unexplained demand or duplicate the original purchase requirement.
+ISSUE IDENTIFIED
+   ↓
+RETURN / CLAIM
+   ↓
+REPLACEMENT PROMISED
+   ↓
+REPLACEMENT PO / REPLACEMENT RECEIPT
+   ↓
+MATCH TO ORIGINAL CLAIM
+   ↓
+CLOSE CLAIM AFTER ACCEPTED REMEDY
+20. Data Model - Recommended Tables / Aggregates
+
+21. Event & State Model
+DEMAND CREATED
+→ DEMAND APPROVED
+→ PO CREATED
+→ PO APPROVED
+→ PO SENT
+→ PARTIALLY RECEIVED / FULLY RECEIVED
+→ INWARD ACCEPTED / QUARANTINED / REJECTED
+→ BILL MATCHED / EXCEPTION
+→ AP CREATED
+→ SETTLEMENT VIA DOC-07
+→ PO CLOSED
+Every state transition should be event/audit logged. A cancelled or superseded PO retains its history. If a receipt is reversed, use a controlled reversal/correction event rather than editing history.
+22. Integration with Other ERP Documents
+
+23. Keyboard-First Purchase Workflow
+Routine procurement and receiving must support the ERP-wide keyboard-first principle. Users should be able to create, search and complete PO/GRN/bill actions without continuous mouse use.
+
+24. Approval Matrix
+
+25. Reports & Operational Views
+
+26. Security, Audit & Data Isolation
+All records are tenant-scoped by organization/company ID.
+Principal-owned stock and vendor data must follow company-level permissions and principal scope rules.
+Vendor complaint evidence may contain sensitive commercial information and must honor role-based access.
+Only authorized roles may override a fixed vendor rule, vendor hold or receipt exception.
+Every override must record who, when, reason, previous state and approval reference.
+Deletion of posted purchase/receipt history is prohibited; use cancellation, reversal or correction events.
+Remote/cloud synchronization must use the platform-wide transactional/event architecture from DOC-04; documents need stable IDs and idempotent writes.
+27. Edge Cases & Required Handling
+
+28. Acceptance Criteria / Definition of Done
+User can configure a fixed vendor for a product/principal and the ERP enforces the rule during procurement.
+User can configure authorized vendor lists, blocked vendors and time-bounded exceptions.
+User can create a normal PO and a special/restricted/undercutting PO with explicit classification and reason.
+Special/non-reorder supply received through the PO appears correctly in DOC-16 and does not increase routine reorder eligibility unless configured.
+GRN supports partial receipt, batch/expiry capture, acceptance, quarantine and rejection.
+Quantity, price, expiry, breakage and documentation variances can be recorded and routed to approval/issue workflows.
+User can create a structured vendor complaint linked to vendor, product, batch and purchase documents.
+Complaint statuses, severity, owner, due date and resolution are auditable.
+Open vendor issues can trigger warning/approval/block behavior when a new PO or purchase bill is created.
+Vendor returns and claims can be linked to the original received stock and resolved through replacement/CN/DN/payment.
+Purchase bills can use PO/GRN matching and produce exceptions when tolerances are exceeded.
+CN/DN/payment allocation continues to use DOC-07; no duplicate vendor settlement engine exists in DOC-17.
+All purchase and issue records are tenant-isolated, role-controlled, keyboard-operable and crash/recovery friendly.
+Every material decision is explainable from source documents, rules, approvals and audit events.
+29. Recommended Implementation Order
+
+30. Architecture Boundary: What DOC-17 Owns vs What It Does Not Own
+
+31. Final Design Principle

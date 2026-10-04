@@ -181,10 +181,12 @@ from api.pricing import router as pricing_router
 from api.inventory import router as inventory_router
 from api.claims import router as claims_router
 from api.replenishment import router as replenishment_router
+from api.procurement import router as procurement_router
 app.include_router(pricing_router)
 app.include_router(inventory_router)
 app.include_router(claims_router)
 app.include_router(replenishment_router)
+app.include_router(procurement_router, prefix="/api/procurement")
 
 # Future routers will be added here as modules are built:
 # app.include_router(hr_router)
