@@ -177,8 +177,14 @@ from api.schemes import router as schemes_router
 app.include_router(schemes_router)
 
 # DOC-15: Pricing & Formula Engine
-from api.pricing import router as pricing_router\nfrom api.inventory import router as inventory_router\nfrom api.claims import router as claims_router\nfrom api.replenishment import router as replenishment_router
-app.include_router(pricing_router)\napp.include_router(inventory_router)\napp.include_router(claims_router)\napp.include_router(replenishment_router)
+from api.pricing import router as pricing_router
+from api.inventory import router as inventory_router
+from api.claims import router as claims_router
+from api.replenishment import router as replenishment_router
+app.include_router(pricing_router)
+app.include_router(inventory_router)
+app.include_router(claims_router)
+app.include_router(replenishment_router)
 
 # Future routers will be added here as modules are built:
 # app.include_router(hr_router)

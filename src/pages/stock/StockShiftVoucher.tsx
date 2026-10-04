@@ -18,7 +18,7 @@ export default function StockShiftVoucher() {
   useEffect(() => {
     const fetchCompanies = async () => {
       try {
-        const res = await apiClient.get('/master/manufacturers');
+        const res = await apiClient.get('/api/master/manufacturers');
         setCompanies(res.data);
       } catch (err) {
         console.error('Failed to load companies', err);
@@ -71,7 +71,7 @@ export default function StockShiftVoucher() {
       if (filterExpiry) params.append('expiry_before', filterExpiry);
       if (filterCompany) params.append('company_id', filterCompany);
       
-      const res = await apiClient.get('/stock/auto-shift-candidates?' + params.toString());
+      const res = await apiClient.get('/api/stock/auto-shift-candidates?' + params.toString());
       if (res.data && res.data.candidates) {
         const newItems = res.data.candidates.map((c: any, index: number) => ({
           ...c,
