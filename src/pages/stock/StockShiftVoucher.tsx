@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Save, ArrowLeft, Trash2, Calendar, FileText } from 'lucide-react';
+import { Save, ArrowLeft, Trash2, Calendar, FileText, Filter, Download } from 'lucide-react';
+import apiClient from '../../lib/api';
 
 export default function StockShiftVoucher() {
   const navigate = useNavigate();
@@ -8,9 +9,23 @@ export default function StockShiftVoucher() {
   const [shiftNo, setShiftNo] = useState('SHF-001');
   const [remarks, setRemarks] = useState('');
   
-  const [items, setItems] = useState([
-    { id: 1, product: '', batch: '', qty: 0, rate: 0, value: 0 }
-  ]);
+  const [items, setItems] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [filterExpiry, setFilterExpiry] = useState('');
+  const [filterCompany, setFilterCompany] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const res = await apiClient.get('/master/manufacturers');
+        setCompanies(res.data);
+      } catch (err) {
+        console.error('Failed to load companies', err);
+      }
+    };
+    fetchCompanies();
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -23,7 +38,7 @@ export default function StockShiftVoucher() {
   }, [navigate]);
 
   const addRow = () => {
-    setItems([...items, { id: Date.now(), product: '', batch: '', qty: 0, rate: 0, value: 0 }]);
+    setItems([...items, { id: Date.now(), product_name: '', batch_number: '', qty: 0, rate: 0, value: 0 }]);
   };
 
   const updateItem = (id: number, field: string, value: any) => {
@@ -40,8 +55,38 @@ export default function StockShiftVoucher() {
   };
 
   const removeRow = (id: number) => {
-    if (items.length > 1) {
-      setItems(items.filter(item => item.id !== id));
+    setItems(items.filter(item => item.id !== id));
+  };
+
+  const clearGrid = () => {
+    if (window.confirm('Clear all items from the grid?')) {
+      setItems([]);
+    }
+  };
+
+  const handleAutoFill = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (filterExpiry) params.append('expiry_before', filterExpiry);
+      if (filterCompany) params.append('company_id', filterCompany);
+      
+      const res = await apiClient.get('/stock/auto-shift-candidates?' + params.toString());
+      if (res.data && res.data.candidates) {
+        const newItems = res.data.candidates.map((c: any, index: number) => ({
+          ...c,
+          id: Date.now() + index, // unique id
+        }));
+        setItems(newItems);
+        if (newItems.length === 0) {
+          alert('No stock matched the selected filters.');
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load candidates', err);
+      alert('Failed to load candidates.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -49,8 +94,12 @@ export default function StockShiftVoucher() {
   const totalValue = items.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
 
   const handleSave = () => {
+    if (items.length === 0) {
+      alert('Cannot save an empty shift voucher.');
+      return;
+    }
     alert('Stock Shift Voucher Saved Successfully! Product Register updated.');
-    navigate('/dashboard');
+    navigate('/inventory-dashboard');
   };
 
   return (
@@ -63,7 +112,7 @@ export default function StockShiftVoucher() {
           </button>
           <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0, color: 'var(--color-text)' }}>Internal Stock Shift (Main -&gt; Brk/Exp)</h1>
         </div>
-        <button onClick={handleSave} style={{ backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', padding: '8px 16px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <button onClick={handleSave} style={{ backgroundColor: 'var(--color-success)', color: 'white', border: 'none', borderRadius: '4px', padding: '8px 16px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Save size={16} /> Save Shift Voucher
         </button>
       </div>
@@ -90,15 +139,51 @@ export default function StockShiftVoucher() {
         </div>
       </div>
 
+      {/* Auto Fill Filters */}
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', alignItems: 'flex-end', backgroundColor: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '16px' }}>
+        <div style={{ flex: 1 }}>
+          <label style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '4px' }}>Filter: Expired Before (MM/YY)</label>
+          <input 
+            type="text" 
+            placeholder="e.g. 12/26" 
+            value={filterExpiry} 
+            onChange={(e) => setFilterExpiry(e.target.value)} 
+            style={{ backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-text)', padding: '8px', fontSize: '13px', width: '100%', outline: 'none', boxSizing: 'border-box' }} 
+          />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '4px' }}>Filter: Company</label>
+          <select 
+            value={filterCompany} 
+            onChange={(e) => setFilterCompany(e.target.value)}
+            style={{ backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '4px', color: 'var(--color-text)', padding: '8px', fontSize: '13px', width: '100%', outline: 'none', boxSizing: 'border-box' }}
+          >
+            <option value="">-- All Companies --</option>
+            {companies.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={handleAutoFill} disabled={loading} style={{ backgroundColor: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '4px', padding: '8px 16px', fontSize: '13px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Download size={16} /> {loading ? 'Loading...' : 'Auto-Load Candidates'}
+          </button>
+          <button onClick={clearGrid} style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-danger)', border: '1px solid var(--color-danger)', borderRadius: '4px', padding: '8px 16px', fontSize: '13px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            Clear Grid
+          </button>
+        </div>
+      </div>
+
       {/* Grid */}
       <div style={{ flex: 1, backgroundColor: 'var(--color-bg-subtle)', border: '1px solid var(--color-border)', borderRadius: '8px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ flex: 1, overflowY: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead style={{ backgroundColor: 'var(--color-table-header)', position: 'sticky', top: 0 }}>
+            <thead style={{ backgroundColor: 'var(--color-table-header)', position: 'sticky', top: 0, zIndex: 10 }}>
               <tr>
                 <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--color-text)', fontWeight: '500', width: '40px', borderBottom: '1px solid var(--color-border)' }}>#</th>
                 <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--color-text)', fontWeight: '500', borderBottom: '1px solid var(--color-border)' }}>Product (Main Stock)</th>
                 <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--color-text)', fontWeight: '500', borderBottom: '1px solid var(--color-border)' }}>Batch</th>
+                <th style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--color-text)', fontWeight: '500', borderBottom: '1px solid var(--color-border)', width: '100px' }}>Expiry</th>
                 <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--color-text)', fontWeight: '500', width: '120px', borderBottom: '1px solid var(--color-border)' }}>Qty</th>
                 <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--color-text)', fontWeight: '500', width: '120px', borderBottom: '1px solid var(--color-border)' }}>Rate</th>
                 <th style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--color-text)', fontWeight: '500', width: '120px', borderBottom: '1px solid var(--color-border)' }}>Value</th>
@@ -106,14 +191,23 @@ export default function StockShiftVoucher() {
               </tr>
             </thead>
             <tbody>
-              {items.map((item, index) => (
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                    No items added. Use "Auto-Load Candidates" to fetch expired stock, or add rows manually.
+                  </td>
+                </tr>
+              ) : items.map((item, index) => (
                 <tr key={item.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
                   <td style={{ padding: '8px 16px', color: 'var(--color-text-muted)' }}>{index + 1}</td>
                   <td style={{ padding: '8px 16px' }}>
-                    <input type="text" placeholder="Select Product" value={item.product} onChange={(e) => updateItem(item.id, 'product', e.target.value)} style={{ backgroundColor: 'transparent', border: 'none', color: 'var(--color-text)', width: '100%', outline: 'none' }} />
+                    <input type="text" placeholder="Select Product" value={item.product_name || ''} onChange={(e) => updateItem(item.id, 'product_name', e.target.value)} style={{ backgroundColor: 'transparent', border: 'none', color: 'var(--color-text)', width: '100%', outline: 'none' }} />
                   </td>
                   <td style={{ padding: '8px 16px' }}>
-                    <input type="text" placeholder="Batch No" value={item.batch} onChange={(e) => updateItem(item.id, 'batch', e.target.value)} style={{ backgroundColor: 'transparent', border: 'none', color: 'var(--color-text)', width: '100%', outline: 'none' }} />
+                    <input type="text" placeholder="Batch No" value={item.batch_number || ''} onChange={(e) => updateItem(item.id, 'batch_number', e.target.value)} style={{ backgroundColor: 'transparent', border: 'none', color: 'var(--color-text)', width: '100%', outline: 'none' }} />
+                  </td>
+                  <td style={{ padding: '8px 16px', color: 'var(--color-danger)' }}>
+                    {item.expiry || '-'}
                   </td>
                   <td style={{ padding: '8px 16px' }}>
                     <input type="number" value={item.qty || ''} onChange={(e) => updateItem(item.id, 'qty', e.target.value)} style={{ backgroundColor: 'transparent', border: 'none', color: 'var(--color-text)', width: '100%', outline: 'none', textAlign: 'right' }} />
@@ -122,7 +216,7 @@ export default function StockShiftVoucher() {
                     <input type="number" value={item.rate || ''} onChange={(e) => updateItem(item.id, 'rate', e.target.value)} style={{ backgroundColor: 'transparent', border: 'none', color: 'var(--color-text)', width: '100%', outline: 'none', textAlign: 'right' }} />
                   </td>
                   <td style={{ padding: '8px 16px', textAlign: 'right', color: 'var(--color-text)', fontWeight: '500' }}>
-                    {item.value.toFixed(2)}
+                    {(item.value || 0).toFixed(2)}
                   </td>
                   <td style={{ padding: '8px 16px', textAlign: 'center' }}>
                     <button onClick={() => removeRow(item.id)} style={{ background: 'transparent', border: 'none', color: 'var(--color-danger)', cursor: 'pointer' }}>
@@ -138,7 +232,7 @@ export default function StockShiftVoucher() {
         {/* Footer Summary */}
         <div style={{ backgroundColor: 'var(--color-bg)', borderTop: '1px solid var(--color-border)', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button onClick={addRow} style={{ backgroundColor: 'var(--color-bg-subtle)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: '4px', padding: '6px 12px', fontSize: '12px', cursor: 'pointer' }}>
-            + Add Row
+            + Add Manual Row
           </button>
           
           <div style={{ display: 'flex', gap: '32px' }}>
