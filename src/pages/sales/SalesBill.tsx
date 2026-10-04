@@ -1,6 +1,7 @@
 import { apiSaveDraft, apiCreateInvoice, apiGetInvoice, InvoiceCreatePayload } from '../../lib/api';
 import React, { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useAuthStore } from '../../store/authStore'
 import { apiGetProducts } from '../../lib/api'
 import type { Product as _Product } from '../../lib/api'
 import SalesList from './SalesList'
@@ -242,6 +243,23 @@ const lookupRegisteredBatch = (product: string, batchNumber: string, currentGrid
 
 
 export default function SalesBill() {
+
+  const user = useAuthStore(state => state.user)
+  // Default to true for backward compatibility. Admin or true allows direct billing.
+  const canDirectBill = user?.role === 'am_admin' || user?.role === 'cm_admin' || user?.allowDirectBilling !== false;
+
+  if (!canDirectBill) {
+    return (
+      <div className="flex items-center justify-center h-full p-8 text-center text-[var(--color-text-dim)]">
+        <div>
+          <div className="text-4xl mb-4">~T</div>
+          <h2 className="text-2xl font-bold mb-2">Direct Billing Disabled</h2>
+          <p>Your account is configured for strict Sales Orders only. Please create a Sales Order and request approval.</p>
+        </div>
+      </div>
+    )
+  }
+
 
   // Auto-save logic will be moved below state definitions
 

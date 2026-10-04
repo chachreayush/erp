@@ -49,6 +49,8 @@ const parentMenuItems: MenuItem[] = [
 
 const subItemsMap: Record<string, { label: string; path: string }[]> = {
   'sale': [
+    { label: 'Sales Order', path: '/sales-order-master' },
+    { label: 'Order Approvals', path: '/order-approvals' },
     { label: 'Bill', path: '/sales?type=bill' },
     { label: 'Challan', path: '/sales?type=challan' },
     { label: 'Modify Bill', path: '/sales?type=modify-bill' },

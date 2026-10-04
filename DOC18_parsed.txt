@@ -1,0 +1,241 @@
+DOC-18
+SALES ORDER & ORDER MANAGEMENT ENGINE
+Developer-ready functional and architectural specification for customer demand capture, order validation, pricing and scheme resolution, supply classification, stock commitment, allocation, fulfilment orchestration, holds, approvals, backorders and downstream invoicing/challan integration.
+Version: 1.0 - New module specification; aligned with DOC-07 through DOC-17 and the revised Inventory/Purchase architecture.
+Scope: Customer-side demand and order execution; the Sales Order itself does not post accounting entries.
+Primary dependencies: DOC-10 Customer & Supplier Business Partner, DOC-11 Product/SKU & Batch, DOC-12 Principal, DOC-13 Warehouse/Transporter/Vehicle, DOC-14 Scheme & Reimbursement, DOC-15 Pricing, DOC-16 Inventory/Reorder, DOC-17 Purchase/Vendor Supply, DOC-07/08/09 accounting and settlement architecture.
+
+CUSTOMER DEMAND
+   ↓
+SALES ORDER / ORDER REQUEST
+   ↓
+CUSTOMER + CREDIT + SUPPLY RULE CHECK
+   ↓
+PRICE + SCHEME + SPECIAL-SUPPLY RESOLUTION
+   ↓
+STOCK AVAILABILITY + RESERVATION / ALLOCATION
+   ↓
+APPROVAL / HOLD / CONFIRMED ORDER
+   ↓
+CHALLAN / PICK / PACK / DISPATCH
+   ↓
+INVOICE / DOWNSTREAM ACCOUNTING
+
+1. Executive Summary
+DOC-18 is the commercial order-management layer between a customer demand signal and downstream fulfilment. It must capture what the customer requested, under which customer/principal/supply terms, at which price, against which stock pool, and with what exceptions or approvals. The order must remain traceable even when fulfilment is split across warehouses, batches, challans or invoices.
+The design deliberately separates four concepts that are often mixed in weaker ERP systems: demand, commercial commitment, physical stock and accounting. A sales order can create demand and reservation; a dispatch creates physical movement; an invoice creates the billing/accounting event; payment or adjustment is handled by the universal settlement engine.
+Core design rule: a Sales Order is not an inventory balance and is not an accounting entry. It is a controlled commitment that may reserve eligible stock and may feed future demand calculations.
+2. Non-Negotiable Order Management Principles
+Every order must belong to one client company/tenant and inherit company, branch, user, customer, territory and permission controls.
+Order quantities must preserve Product/SKU, UOM, batch policy, principal/owner, warehouse/source and supply classification where applicable.
+Pricing must come from DOC-15; the order stores the resolved price snapshot and the rule/version used to derive it.
+Official schemes and extra principal allowances must come from DOC-14 and remain distinct from one another.
+Physical stock availability must be read from DOC-16 stock positions/reservations; the Sales Order must not directly edit stock balance.
+Special/restricted/undercutting/non-reorder supply must be explicitly classified and must never silently become normal reorder demand.
+Customer credit status, overdue exposure and order holds are facts/controls, not hidden overrides; every override requires reason, permission and audit trail.
+An order may be partially fulfilled, split across warehouses or invoices, backordered or cancelled without losing the original history.
+Every material amendment after confirmation must create a version/audit trail and recalculate affected price, scheme, stock and credit checks where required.
+All downstream financial documents must reference the originating order line(s) so that traceability remains bidirectional.
+All routine order-entry actions should be executable from the keyboard; mouse-only workflows are not acceptable for high-volume use.
+3. Domain Model & Core Entities
+
+4. Order Types & Demand Classification
+The ERP should support a configurable Order Type master rather than hard-coding one workflow. Order types control defaults, approval requirements, pricing applicability, supply classification and fulfilment behavior.
+
+5. Order Lifecycle & State Machine
+DRAFT → VALIDATING → HOLD / PENDING APPROVAL → CONFIRMED → PARTIALLY ALLOCATED / ALLOCATED → PARTIALLY FULFILLED → FULFILLED → CLOSED
+                         ↘ REJECTED / CANCELLED
+Confirmed orders may also move to BACKORDERED for remaining quantity without cancelling the original commitment.
+
+
+6. Sales Order Header Design
+
+7. Sales Order Line Design
+
+8. Customer & Commercial Validation
+Before an order becomes Confirmed, the ERP runs a validation pipeline. Individual checks may result in Pass, Warning, Hold or Approval Required.
+
+Important: credit, pricing and compliance checks are evaluated using snapshots and auditable rule IDs. The order must never silently change because a master changed later; a new recalculation/version is required.
+9. Pricing, Rate & Price-Override Integration
+DOC-18 consumes DOC-15 as the single pricing authority. The order must not implement an independent pricing hierarchy. It asks DOC-15 for the resolved rate and stores the resulting commercial snapshot so historical documents remain reproducible.
+
+10. Scheme & Free-Goods Integration
+Official schemes and extra principal allowances are separate concepts. DOC-18 displays both in order entry and carries their references downstream.
+
+11. Supply Classification & Special Supply Handling
+Supply classification is a business control dimension that travels with the order line and downstream fulfilment. It allows the ERP to distinguish normal trade from restricted/special supply without changing the underlying Product master.
+
+The ERP should display a visible “Supply Class” badge on each affected line and on downstream documents. The term “undercutting” remains an internal configurable classification and must not be hard-coded as a universal legal conclusion.
+
+12. Stock Availability, Reservation & Allocation
+DOC-18 consumes DOC-16 stock positions. Physical stock is never edited by the Sales Order. The order can reserve eligible stock so that competing orders do not consume the same quantity.
+ORDER LINE
+   ↓
+ELIGIBLE STOCK QUERY
+   ├─ Sellable status
+   ├─ Correct principal/owner
+   ├─ Correct supply class
+   ├─ Shelf-life rule
+   ├─ Warehouse/location
+   └─ Reserved/available quantity
+   ↓
+RESERVATION
+   ↓
+ALLOCATION
+   ↓
+PICK / PACK / DISPATCH
+
+13. Reservation Policy
+Reservation should be configurable by company, customer class, order type and supply class. Common policies include reserve at confirmation, reserve only after approval, reserve on planned dispatch date, or never reserve until pick wave.
+
+14. Batch, Expiry & FEFO Fulfilment
+Batch handling comes from DOC-11/DOC-16. The order can express batch preferences and shelf-life constraints; it does not invent separate batch logic.
+
+15. Multi-Warehouse & Fulfilment Sourcing
+The same customer order may be fulfilled by one or multiple warehouses. The source decision can be rule-based, manually selected, or hybrid.
+
+16. Shortage, Backorder & Replenishment Interaction
+A shortage must not automatically convert into a purchase order without passing through the established replenishment architecture. DOC-18 reports unmet demand; DOC-16 decides whether that demand qualifies for reorder and DOC-17 executes purchase under vendor/supply rules.
+SALES ORDER SHORTAGE
+      ↓
+UNFULFILLED QTY / BACKORDER
+      ├────────→ customer promise / expected date
+      └────────→ demand signal to DOC-16
+                         ↓
+                REORDER FORMULA + ELIGIBLE DEMAND
+                         ↓
+                PURCHASE RECOMMENDATION
+                         ↓
+                DOC-17 VENDOR ELIGIBILITY / PO
+Special/restricted/undercutting demand must carry its classification into the demand signal. DOC-16 must decide whether that quantity participates in normal replenishment according to configured demand rules; it must not be assumed to be normal reorder demand.
+17. Backorder Management
+
+18. Credit Check, Holds & Approvals
+Credit control is integrated into order entry but does not create a second accounts-receivable ledger. Exposure and outstanding information are consumed from DOC-09/DOC-07.
+
+19. Hold Engine
+Holds must be first-class records rather than hidden flags. A single order may carry multiple simultaneous holds.
+
+20. Approval Workflow
+
+Approval is an explicit workflow object. Approver identity, decision, reason, timestamp and applicable rule version are stored. A rejected approval must leave the order in a deterministic state and must not silently revert to editable Draft without audit.
+21. Order Confirmation & Customer Promise
+Confirmation establishes the commercial commitment. A customer promised date must be distinguishable from a requested date. The system should never present an internally generated estimate as a guaranteed promise unless the configured policy supports that status.
+
+22. Fulfilment Planning
+CONFIRMED ORDER
+  ↓
+FULFILMENT WAVE / TASK
+  ↓
+ALLOCATED BATCH + LOCATION
+  ↓
+PICK
+  ↓
+PACK / CHECK
+  ↓
+CHALLAN / DISPATCH
+  ↓
+INVOICE (if applicable)
+  ↓
+SETTLEMENT / OUTSTANDING
+DOC-18 defines the hand-off contract to downstream fulfilment modules. Picking/packing/transport details may be implemented in later documents but must reference order, line, allocation and batch identifiers.
+23. Challan, Invoice & Downstream Document Integration
+
+One order → many challans → many invoices is supported. Many orders → one invoice is supported only when business/tax rules permit and the invoice preserves all source references. No document may obscure the originating order quantities.
+24. Partial Invoicing, Splitting & Consolidation
+Allow partial invoice by quantity, line, batch, warehouse or fulfilment event.
+Prevent invoicing more than the legally/commercially fulfillable quantity unless explicit authorized exception exists.
+Keep remaining quantity open or backordered according to order status.
+Support multiple invoices against one order while retaining cumulative fulfilled/invoiced quantities.
+Where one invoice combines multiple orders, each invoice line must retain order and order-line references.
+Changing a confirmed order after partial fulfilment must create a version and revalidate only the remaining unfulfilled portion where possible.
+25. Order Amendment, Cancellation & Revision Management
+
+26. Customer Product Substitution
+Product substitution can be valuable in fast-moving distribution, but it must never silently change what the customer requested. Substitution must be explicit and configurable.
+
+27. Order Import, API & Bulk Entry
+High-volume C&F operations may receive orders from mobile sales users, spreadsheets, email import, customer portals, API feeds or direct ERP entry. All sources must converge into the same validation/order model.
+
+28. Duplicate Order Detection
+The ERP should reduce accidental duplicate order creation without preventing legitimate repeated orders.
+
+29. Keyboard-First Sales Order UI
+Order entry should be optimized for rapid repeated use in a C&F environment. The UI is a workstation, not a form that forces users to tab through irrelevant fields.
+
+30. Search & Customer Context Panel
+While entering an order, the user should be able to see relevant customer context without leaving the order screen.
+
+31. Audit, Security & Segregation of Duties
+Creating an order, changing customer, changing price, approving exception, releasing hold, allocating stock and cancelling order are independently auditable actions.
+Users may have separate permissions for Draft, Confirm, Approve, Allocate, Dispatch and Cancel actions.
+No user should be able to self-approve an exception when segregation-of-duties rules disallow it.
+Admin/Platform access to client-company orders is audited as privileged administrative access.
+Order history must retain previous values for material commercial fields: customer, product, quantity, price, supply class, scheme, warehouse, promised date and status.
+32. Data Model - Recommended Core Tables / Objects
+
+33. Integration Contracts
+
+34. Events & Integration Messages
+
+
+35. Reports & Operational Views
+
+36. Exception & Edge-Case Rules
+Customer requests more quantity after partial dispatch: create an additional line or amendment rather than mutating dispatched quantity.
+Stock arrives after order creation: eligible backorders are re-evaluated according to priority and reservation rules.
+Same product supplied by multiple principals: allocation must respect owner/principal rules and customer eligibility.
+Customer asks for a restricted/special supply that is not authorized for that customer: hold and require configured approval; never silently fall back to normal stock.
+Price master changes while an order is waiting for approval: use snapshot/version rules; revalidation may be required, but historical approved price must remain traceable.
+Scheme changes after draft creation: order must retain the selected scheme version or be revalidated before confirmation.
+Warehouse stock is physically available but not reorder-eligible: order fulfilment can still use it when the supply class permits; reorder logic remains a separate DOC-16 decision.
+A batch is sellable at creation but becomes blocked before dispatch: allocation must revalidate and prevent dispatch from that batch.
+An import message is retried: idempotency key must prevent duplicate order creation.
+An order is cancelled after reservation: reservation must be released through DOC-16 movement/reservation mechanics and the event logged.
+37. Performance & Scalability Requirements
+Order search should support indexed filters for customer, order number, external reference, product, status, date, warehouse and salesperson.
+Price/stock/credit checks should use cached/read-optimized projections where necessary, while maintaining authoritative source references.
+Large order imports must process asynchronously but provide row-level result status.
+Order lists must paginate/server-filter rather than load the entire tenant dataset into the client.
+High-volume order entry must not freeze the workstation while remote/cloud synchronization occurs; local-first operation remains available.
+38. Local-First, LAN & Cloud Behavior
+DOC-18 follows the platform architecture in DOC-04. In the office, orders can be entered and processed against the local transactional source. Remote users consume live cloud-synchronized transactional state. Conflict handling must use document/version IDs, optimistic concurrency and idempotent events rather than simultaneous direct editing of the same file/database object.
+
+39. Security & Permission Matrix - Minimum
+
+40. Acceptance Criteria - DOC-18
+User can create a customer order quickly using keyboard-only navigation.
+Customer, product and UOM validations execute before confirmation.
+Price is resolved through DOC-15 and the rule/version is captured.
+Official scheme and extra principal allowance remain separate and traceable.
+Supply classification is stored at line level and visible in the order UI.
+Normal vs special/restricted/non-reorder demand is preserved for downstream demand planning.
+Available stock is calculated from DOC-16; order can reserve/allocate without editing physical stock directly.
+Batch/expiry/shelf-life rules are enforced before allocation.
+Multi-warehouse allocation is supported.
+Shortages create backorders and demand signals rather than automatic uncontrolled purchasing.
+Credit/price/supply/compliance holds are first-class auditable objects.
+Approval workflow is configurable and segregated from self-approval where required.
+One order can produce multiple fulfilment and billing documents while preserving source-line traceability.
+Partial fulfilment, cancellation and amendment preserve historical versions.
+Duplicate imports are prevented with idempotency controls.
+Order events and audit history are available for every material status change.
+Local-first and remote synchronization follow DOC-04 rules.
+No Sales Order posts accounting entries directly; billing/posting/settlement use the established downstream architecture.
+41. Recommended Implementation Sequence
+Create Order Type, Supply Classification and Order Status masters.
+Implement Sales Order header/line data model and versioning.
+Connect customer/master validation and customer search.
+Integrate DOC-15 price resolution and snapshotting.
+Integrate DOC-14 schemes/free-goods/extra principal allowance.
+Integrate DOC-16 stock query, reservation and allocation contract.
+Implement hold/approval engine and segregation-of-duties rules.
+Implement backorder and shortage demand signals to DOC-16.
+Implement fulfilment/challan/invoice hand-off APIs/events.
+Implement keyboard-first workstation UI and crash recovery.
+Implement reports, audit timeline and operational dashboards.
+Stress-test partial fulfilment, multi-warehouse, amendments, sync conflicts and duplicate imports.
+42. Boundary Map to the Next Modules
+
+43. Final Architecture Position
+DOC-18 is the durable commercial commitment between customer demand and fulfilment. It resolves commercial rules, manages exceptions, reserves eligible inventory and hands clean references to downstream documents while remaining suitable for both small and large multi-branch C&F operations. Authoritative rule for future modules: where a commercial transaction originated from an order, downstream documents must retain the Sales Order and Sales Order Line references rather than recreate a second order ledger.

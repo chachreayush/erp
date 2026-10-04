@@ -130,3 +130,7 @@ Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Schem
 - **Unified Stock Ledger**: Goods Receipt Notes (GRNs) use the unified `Invoice` model with `invoice_type="grn"`. The `main_inward_types` array in `api/stock.py` has been updated to include `"grn"`, meaning physical inventory increments seamlessly without duplicating stock calculation logic.
 - **New Tables**: `PurchaseOrder`, `VendorSupplyRule`, and `VendorComplaint` have been added to `models.py`.
 - **UI Menu Map**: Procurement features are placed in the `Sales & Purchase` dropdown (`Purchase` sub-menu).
+
+## [Update - DOC-18 Sales Order & Order Management Engine]
+- **Hold Engine**: Orders exceeding credit limits or pricing margins are put on `HOLD`. Admins/Managers must explicitly review these in the `OrderApprovalDashboard` (accessible via Sales & Purchase > Sale > Order Approvals).
+- **Direct Billing Bypass (Permissions)**: To prevent the Hold engine from slowing down fast billing, the `User` account has an `allow_direct_billing` permission flag. Admin/Manager roles or users with this flag enabled can bypass the strict Sales Order flow and use the fast-path direct `SalesBill` / `PurchaseBill` invoicing. Users without this flag are hard-blocked from accessing direct billing and must go through the Sales Order approval flow.

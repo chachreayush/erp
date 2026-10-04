@@ -83,6 +83,7 @@ export interface AuthUser {
   companyName: string          // Human-readable company name (e.g., "Mumbai Traders")
   isAmUser:    boolean         // true = belongs to AM company, false = belongs to a CM
   permissions: UserPermissions // Exact module-level permissions for this user
+  allowDirectBilling?: boolean // If false, user must go through Sales Orders and cannot do direct invoicing
   avatarUrl?:  string          // Optional profile picture URL
 }
 

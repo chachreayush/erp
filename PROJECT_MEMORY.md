@@ -124,6 +124,12 @@ ef_invoice_id) preventing 500 internal crashes without requiring full DB drop.
 - **Sync & Deployment:** Synced the `erp2` repository back to the original `erp` folder, committed to Git, and aligned with Vercel for continuous deployment.
 
 
+
+## [Update - DOC-18 Sales Order & Order Management Engine]
+Implemented `SalesOrder`, `SalesOrderItem`, and `SalesOrderHold` models.
+Introduced an explicit **Hold Engine** where orders exceeding credit limits or pricing margins are put on `HOLD`. Admins/Managers must explicitly review these in the `OrderApprovalDashboard`.
+**Crucial Permission Note**: To prevent the Hold engine from slowing down fast billing, the `User` model now has a `allow_direct_billing` flag. Admin/Manager roles or users with this flag enabled can bypass the strict SO flow and use the fast-path direct `SalesBill` / `PurchaseBill` invoicing. Users without this flag are hard-blocked from accessing direct billing and must go through the Sales Order approval flow.
+
 ## [Update - DOC-17 Procurement Engine]
 Implemented the Purchase Order, Goods Receipt Note (GRN), and Vendor Complaints engines. Added `grn` to main_inward_types in `stock.py` so physical inventory strictly updates on receipt. Created UI routing under Sales & Purchase -> Purchase dropdowns.
 

@@ -109,3 +109,7 @@ Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Schem
 - **Purchase Orders**: Create POs under `Sales & Purchase > Purchase > Purchase Order` to specify exact quantities, vendors, and delivery expectations.
 - **Goods Receipt Notes (GRN)**: Instead of direct Purchase Bills, you can record physical receipt of goods via the GRN screen (`Sales & Purchase > Purchase > Goods Receipt Note`). Loading a PO automatically populates the items. Saving a GRN updates stock levels immediately.
 - **Vendor Complaints**: Track shortages, damage, and quality issues centrally under `Sales & Purchase > Purchase > Vendor Complaints`.
+
+## [Update - DOC-18 Sales Order & Order Management Engine]
+- **Hold Engine**: Orders exceeding credit limits or pricing margins are put on `HOLD`. Admins/Managers must explicitly review these in the `OrderApprovalDashboard` (accessible via Sales & Purchase > Sale > Order Approvals).
+- **Direct Billing Bypass (Permissions)**: To prevent the Hold engine from slowing down fast billing, the `User` account has an `allow_direct_billing` permission flag. Admin/Manager roles or users with this flag enabled can bypass the strict Sales Order flow and use the fast-path direct `SalesBill` / `PurchaseBill` invoicing. Users without this flag are hard-blocked from accessing direct billing and must go through the Sales Order approval flow.

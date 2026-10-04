@@ -1442,3 +1442,54 @@ class VendorComplaintResponse(VendorComplaintBase):
     resolved_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
+
+
+# =====================================================================
+# DOC-18: Sales Order Management Schemas
+# =====================================================================
+
+class SalesOrderItemBase(BaseModel):
+    product_id: Optional[UUID4] = None
+    product_name: str
+    quantity: int
+    allocated_qty: int = 0
+    rate: Decimal
+    line_total: Decimal
+
+class SalesOrderBase(BaseModel):
+    order_number: str
+    date: datetime
+    party_id: UUID4
+    status: str = "DRAFT"
+    total_amount: Decimal = Decimal('0.00')
+
+class SalesOrderCreate(SalesOrderBase):
+    items: List[SalesOrderItemBase]
+
+class SalesOrderHoldBase(BaseModel):
+    hold_reason: str
+    status: str = "ACTIVE"
+
+class SalesOrderHoldResponse(SalesOrderHoldBase):
+    id: UUID4
+    order_id: UUID4
+    organization_id: UUID4
+    created_at: datetime
+    cleared_at: Optional[datetime] = None
+    cleared_by_user_id: Optional[UUID4] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class SalesOrderItemResponse(SalesOrderItemBase):
+    id: UUID4
+    order_id: UUID4
+    model_config = ConfigDict(from_attributes=True)
+
+class SalesOrderResponse(SalesOrderBase):
+    id: UUID4
+    organization_id: UUID4
+    created_by_user_id: Optional[UUID4] = None
+    created_at: datetime
+    items: List[SalesOrderItemResponse] = []
+    holds: List[SalesOrderHoldResponse] = [] # Optional, maybe fetched separately or joined
+    model_config = ConfigDict(from_attributes=True)
+

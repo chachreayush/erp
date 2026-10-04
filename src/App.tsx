@@ -38,6 +38,8 @@ import ClientManagementPage from './pages/admin/ClientManagement'
 import HomeScreen from './pages/HomeScreen'
 import BulletinBoard from './pages/bulletin/BulletinBoard'
 import BillingPage from './pages/sales/Billing'
+import SalesOrderMaster from './pages/sales/SalesOrderMaster'
+import OrderApprovalDashboard from './pages/sales/OrderApprovalDashboard'
 import SalesBill from './pages/sales/SalesBill'
 import PurchaseOrderMaster from './pages/procurement/PurchaseOrderMaster'
 import GoodsReceipt from './pages/procurement/GoodsReceipt'
@@ -161,6 +163,10 @@ function App() {
         <Route path="bulletin"         element={<BulletinBoard />} />
         <Route path="gst"              element={<GstReports />} />
         <Route path="sales"            element={<SalesBill />} />
+        {/* Sales Order Routes */}
+        <Route path="sales-order-master" element={<SalesOrderMaster />} />
+        <Route path="order-approvals" element={<OrderApprovalDashboard />} />
+
         <Route path="purchase"         element={<PurchaseBill />} />
         <Route path="po" element={<PurchaseOrderMaster />} />
         <Route path="grn" element={<GoodsReceipt />} />
