@@ -265,11 +265,31 @@ def create_invoice(
     if existing_invoice:
         return update_invoice(existing_invoice.id, invoice_data, db, current_user)
     
+
+    # --- DOC-20 Document Series Numbering ---
+    final_invoice_number = invoice_data.invoice_number
+    if invoice_data.series_id:
+        # Lock the row for atomic increment
+        series = db.query(models.DocumentSeries).with_for_update().filter(
+            models.DocumentSeries.id == invoice_data.series_id,
+            models.DocumentSeries.organization_id == org_id
+        ).first()
+        if series:
+            prefix = series.prefix or ""
+            suffix = series.suffix or ""
+            # Generate number e.g., W-1004
+            final_invoice_number = f"{prefix}{series.next_number}{suffix}"
+            series.next_number += 1
+            db.add(series)
+    # ----------------------------------------
+    
     # 1. Create the parent Invoice record with ALL fields
     new_invoice = models.Invoice(
         organization_id=org_id,
         invoice_type=invoice_data.invoice_type,
-        invoice_number=invoice_data.invoice_number,
+        invoice_number=final_invoice_number,
+        series_id=invoice_data.series_id,
+
         date=datetime.utcnow(),  # Set current timestamp
         customer_name=invoice_data.customer_name,
         

@@ -119,7 +119,7 @@ export default function LedgerGroupMaster() {
           return (
             <div key={group.id} style={{ marginBottom: '4px' }}>
               <div 
-                className="tree-node"
+                className="tree-node group"
                 style={{ 
                   display: 'flex', 
                   alignItems: 'center', 
@@ -128,7 +128,7 @@ export default function LedgerGroupMaster() {
                   borderRadius: '6px',
                   cursor: hasChildren ? 'pointer' : 'default',
                   transition: 'background-color 0.2s',
-                  group: 'hover' // For generic hover state
+                  
                 }}
                 onClick={(e) => hasChildren ? toggleNode(group.id, e) : undefined}
                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(56, 189, 248, 0.1)'}

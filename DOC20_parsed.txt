@@ -1,0 +1,322 @@
+DOC-20
+SALES INVOICE, BILLING & DOCUMENT SERIES MANAGEMENT ENGINE
+Developer-ready functional and architectural specification for sales invoicing, challan consolidation, billing calculation, document numbering, tax/commercial detail, cash and credit billing, reversals, auditability and downstream accounting integration.
+Version: 1.0 - New module specification; aligned with DOC-07 through DOC-19 and the revised inventory, pricing, scheme, purchase, sales-order and dispatch architecture.
+Scope: Convert eligible operational/dispatch documents into authoritative sales invoices, using controlled user-selected document series, while preserving complete order -> challan -> invoice -> accounting traceability.
+Primary dependencies: DOC-07 Universal Settlement, DOC-08 Posting Engine, DOC-09 AR/AP/Open Items, DOC-10 Business Partner, DOC-11 Product/Batch, DOC-12 Principal, DOC-13 Warehouse/Transport, DOC-14 Scheme/Reimbursement, DOC-15 Pricing, DOC-16 Inventory, DOC-17 Purchase/Vendor, DOC-18 Sales Order, DOC-19 Dispatch & Challan. Primary downstream: DOC-07/08/09; reporting and tax/export layers as applicable.
+
+SALES ORDER / DIRECT SALE / DELIVERY CHALLAN(S)
+                 ↓
+BILLING ELIGIBILITY & COMPATIBILITY CHECK
+                 ↓
+SELECT INVOICE TYPE + USER-SELECTED SERIES
+                 ↓
+PRICE / DISCOUNT / SCHEME / CHARGE / TAX CALCULATION
+                 ↓
+FINAL VALIDATION + NUMBER ALLOCATION
+                 ↓
+SALES INVOICE
+                 ↓
+ACCOUNTING POSTING / AR OPEN ITEM
+                 ↓
+BILL-BY-BILL SETTLEMENT (DOC-07)
+Core separation rule
+DOC-20 is the authoritative sales invoice and billing engine. It owns invoice formation, numbering, invoice calculations, source linkage, tax/commercial snapshots, cancellation/reissue control and billing status. Accounting posting is delegated to DOC-08, open items to DOC-09, and payment/allocation to DOC-07. DOC-20 must not create a second settlement engine.
+1. Executive Summary
+DOC-20 converts eligible commercial and operational demand into a controlled, authoritative Sales Invoice. Its central responsibility is to answer: what was commercially billed, to whom, under which invoice series, from which source documents, at which historical prices and rules, with which quantities, charges, taxes and adjustments?
+The module is explicitly designed for the C&F pattern where many Delivery Challans are generated during the day and later consolidated into one invoice. The system must also support immediate billing, direct invoices, cash bills and other configured invoice types without creating duplicate billing logic.
+Every invoice must retain traceability down to source challan, order, product, batch and dispatch context. Every source challan line must have an auditable billed quantity so the ERP can support full billing, partial billing, re-billing of remaining balance and duplicate-billing prevention.
+2. Non-Negotiable Design Principles
+DOC-20 is the single authoritative Sales Invoice engine for the company/tenant.
+An invoice number is not manually typed during normal operation. The user selects an authorized invoice series; the system allocates the next number from that series at finalization.
+The series architecture is configurable. W, I and C are examples, not hard-coded legal definitions. Users may create additional series subject to permissions and company rules.
+A draft invoice may use a temporary internal identifier; a permanent invoice number is consumed only at controlled finalization/posting according to the configured numbering policy.
+Multiple challans may be consolidated into one invoice only when billing compatibility rules pass.
+Partial billing is supported. A source challan line may contribute to multiple invoices only for the still-unbilled quantity and only when the policy permits.
+All historical commercial inputs used to calculate an invoice are snapshotted or version-referenced so later master changes do not silently rewrite old invoices.
+Batch, expiry and stock classifications remain attached to billed quantities where required by DOC-11/DOC-16/DOC-19.
+Official schemes and extra principal allowances remain distinguishable. DOC-14 remains the authority for scheme/allowance lifecycle and reimbursement logic.
+Accounting, open items and settlement use DOC-08, DOC-09 and DOC-07 respectively. No duplicate payment/allocation engine is permitted inside DOC-20.
+Cancellation, credit/debit notes, amendments and reissues must preserve the audit history; posted invoices are never silently overwritten.
+Routine billing is keyboard-first and supports barcode/search/quick selection workflows.
+3. Billing Domain Model & Core Entities
+
+4. Supported Invoice Sources
+
+Source integrity
+A user must never have to type source quantities manually when an invoice is created from an existing challan/order. The billing engine should bring eligible balances from the source and require an explicit exception workflow for any deviation.
+5. Invoice Types
+Invoice Type is a business classification. Invoice Series is a numbering configuration. They are separate but can be linked by default/eligibility rules.
+
+W/I/C are recommended starter examples only. The final ERP must allow an authorized administrator to create, edit, activate, deactivate and scope series according to the company's operating policy and applicable statutory controls.
+6. Billing Eligibility Engine
+Before an invoice can be created, the system constructs a Billable Balance for each selected source line. This is the core duplicate-prevention mechanism.
+
+SOURCE QTY → ELIGIBLE QTY → EXCLUSIONS → PREVIOUSLY BILLED → CURRENT BILL QTY → REMAINING BALANCE
+Billable balance must be calculated from authoritative source events, not from a manually editable “billed” checkbox.
+After final posting, billed quantity is committed atomically against the source line.
+Concurrent users must not be able to finalize two invoices against the same remaining quantity.
+Partial billing is allowed when the source policy permits it; complete billing closes the source line for invoicing.
+Unbilled balance remains visible in both the source document and the Billing Consolidation Workbench.
+7. Billing Compatibility & Challan Consolidation Engine
+This is the central workflow for your day-to-day C&F billing pattern. The user can select multiple challans and the system determines whether they can become one invoice.
+CHALLAN A + CHALLAN B + CHALLAN C + CHALLAN D
+                    ↓
+CONSOLIDATION WORKBENCH
+                    ↓
+COMPATIBILITY CHECK
+                    ↓
+SELECT INVOICE TYPE
+                    ↓
+SELECT AUTHORIZED INVOICE SERIES
+                    ↓
+ONE CONSOLIDATED INVOICE
+
+Do not over-restrict by default
+The ERP should provide configurable compatibility rules rather than assuming every C&F business must use the same consolidation criteria. A user with permission should see exactly why a challan cannot be combined, not a generic “cannot consolidate” message.
+8. Billing Consolidation Workbench
+
+9. Document Series Engine
+The Document Series Engine controls invoice numbering and must be reusable for other document types while exposing invoice-specific settings in DOC-20.
+
+10. Series Selection Workflow
+CREATE BILL / CONSOLIDATE CHALLANS
+        ↓
+SYSTEM SUGGESTS ELIGIBLE SERIES
+        ↓
+USER SELECTS AUTHORIZED SERIES (MANDATORY)
+        ↓
+SYSTEM VALIDATES SERIES + SCOPE + PERIOD
+        ↓
+FINALIZE
+        ↓
+ALLOCATE NEXT NUMBER ATOMICALLY
+        ↓
+POST INVOICE
+The user must explicitly select the invoice series before finalization, unless a company configuration intentionally enables an auto-selected default rule; even then the chosen series must be visible and reviewable.
+The system should recommend a series based on invoice source/type, branch, customer, cash/credit mode and other configured rules.
+A user cannot select an inactive, unauthorized, expired or wrong-scope series.
+The series code is not the invoice type itself. The same invoice type may have multiple authorized series for branch, business unit or operational reasons.
+The final invoice displays both the human-readable series/number and its internal immutable invoice ID.
+11. Number Allocation, Concurrency & Gap Control
+Number generation is a critical control because multiple LAN users and remote users may finalize documents at the same time.
+Allocate a permanent invoice number only at controlled finalization; drafts use a non-numbered internal ID unless the company explicitly requires numbered drafts.
+Number allocation must be atomic and serialized per series/scope.
+Two concurrent users must never receive the same invoice number.
+If finalization fails after number allocation, the system must use a controlled void/reservation/rollback policy rather than silently reusing a number.
+Cancelled or void numbers should remain auditable where required by the configured numbering policy.
+Numbering must be resilient to LAN/cloud retry so a duplicate network request cannot create duplicate invoices or consume multiple numbers.
+Every allocation event stores series, allocated number, user/session, timestamp, source transaction ID and final status.
+
+12. Invoice Creation Modes
+
+13. Invoice Header
+
+14. Invoice Lines & Batch Detail
+Invoice lines must retain resolved historical values rather than recalculating old invoices from current masters.
+
+15. Pricing Snapshot & Rate Resolution
+DOC-15 remains the authority for pricing resolution. DOC-20 consumes the resolved rate and stores the actual commercial values used on the invoice.
+Capture price list/rate source, customer-specific override and applicable formula/version identifier.
+Snapshot Purchase/Standard/MRP/Selling/Customer/Contract/Promotional rates as required by the line context.
+Preserve the effective date/version of the pricing rule used.
+Provide “Why this price?” traceability in the billing UI without requiring the user to inspect technical tables.
+Allow authorized manual overrides only with permission, reason and audit trail.
+Prevent later master price changes from altering historical invoice amounts.
+16. Discount, Scheme & Free-Goods Integration
+The invoice engine must distinguish commercial discounts from official schemes and from extra principal allowances.
+
+No scheme confusion
+An official scheme such as 10+2 must never be silently merged with an extra principal allowance such as “buy C 10, receive A 3 free to sell and claim later.” The invoice should show enough identity and quantity information to preserve the difference.
+17. Charges, Freight, Consignment & Additional Billing Details
+DOC-20 incorporates the earlier requirement that billing should contain operational cargo/consignment details and calculate charges inside the billing flow.
+
+18. Tax & Statutory Calculation Framework
+The tax engine must be configuration-driven and versioned. This document intentionally does not hard-code current rates because rates, exemptions and reporting requirements can change and may differ by transaction context.
+Use the appropriate tax determination context from customer, product, place of supply, supply type, invoice entity and applicable rules.
+Store tax rule/version references and resolved component amounts on the invoice.
+Support multiple tax components where applicable rather than a single generic “tax” field.
+Support tax-exempt, zero-rated, non-taxable and special-treatment cases as configured.
+Ensure tax calculation is deterministic: the same saved invoice data and rule version must reproduce the posted amounts.
+Validate tax-related mandatory fields before final numbering/posting.
+Provide tax summary information suitable for downstream reporting/export layers.
+19. Invoice Calculation Sequence
+BASE QTY / UOM
+↓
+RESOLVED RATE
+↓
+GROSS VALUE
+↓
+LINE DISCOUNTS / COMMERCIAL ADJUSTMENTS
+↓
+SCHEME / FREE-GOODS TREATMENT
+↓
+TAXABLE VALUE
+↓
+TAX COMPONENTS
+↓
+FREIGHT / CHARGES / ADJUSTMENTS
+↓
+ROUNDING
+↓
+FINAL INVOICE VALUE
+The implementation must make the calculation sequence explicit and deterministic. Each intermediate value should be persistable or reproducible for audit and display.
+20. Cash Billing & Immediate Settlement Context
+Cash billing is a billing mode, not a separate accounting system. The cash invoice can use the configured cash series and create the appropriate accounting/settlement event through the existing engines.
+
+21. Credit Terms & Due Date
+Use customer credit terms and approved overrides to calculate invoice due date.
+Capture payment terms snapshot on the invoice.
+Honor credit holds and approval rules from DOC-18/DOC-09 where configured.
+Allow immediate, credit, partial and floating/on-account settlement without embedding settlement logic in DOC-20.
+Expose outstanding status after posting through DOC-09.
+22. Invoice Lifecycle & Status
+DRAFT → VALIDATING → SERIES SELECTED → NUMBERED → POSTED → OPEN / PARTIALLY SETTLED / SETTLED → CLOSED
+
+23. Cancellation, Reversal, Amendment & Reissue
+A posted invoice must never be deleted. The module needs explicit controlled correction flows.
+
+24. Credit Note / Debit Note Relationship
+DOC-20 should define the commercial document relationship, while DOC-07 remains the universal allocation authority.
+ORIGINAL INVOICE
+↓
+CN / DN / ADJUSTMENT DOCUMENT
+↓
+POSTING (DOC-08)
+↓
+OPEN ITEM UPDATE (DOC-09)
+↓
+APPLY / ALLOCATE (DOC-07)
+Credit/debit notes may be linked to a full invoice, specific invoice lines, price differences, quantity differences, returns, schemes, freight or other configured reasons. The system should support bill-specific and floating adjustments without creating a second settlement mechanism.
+25. Accounting Integration
+
+26. Invoice-to-Source Traceability
+The ERP must support two-way navigation: invoice -> source documents and source document -> invoice(s).
+
+27. Billing Screen UX - Keyboard First
+The billing UI must work efficiently without a mouse for routine operations.
+Global shortcut to open Billing / Consolidation Workbench.
+Fast search by customer, challan no, order no, invoice no, product, batch or reference.
+Tab/Enter-driven line entry and grid navigation.
+F-key or configurable command actions for save, preview, series selection, finalize, print, hold and cancel.
+Visible balance panel showing selected source quantity, current bill quantity and remaining quantity.
+Inline explanation when a source cannot be billed or consolidated.
+Quick access to “Why this price?”, “Why not eligible?”, “What challans are included?” and “Which series was used?”
+Automatic draft recovery after crash or session interruption.
+28. Permissions & Approval Controls
+
+29. Audit Trail
+Invoice creation user/session/device context.
+Source challans/orders selected and quantities consumed.
+Series selected, number allocated and finalization timestamp.
+Price, discount, scheme and tax rule versions used.
+Manual overrides and reasons.
+Approval events.
+Cancellation, reversal, CN/DN and reissue relationships.
+Print/export/share events where configured.
+Cloud/LAN synchronization state and retry/idempotency identifiers.
+30. Local-First, LAN & Cloud Transactional Architecture
+DOC-20 follows the platform architecture established in DOC-04. Billing transactions may be executed locally over the LAN, while the transactional cloud layer synchronizes durable business state for authorized remote users. The design must not depend on multiple computers opening the same raw SQLite/file from a synced folder.
+Invoice finalization must be transactional locally and create a synchronization event.
+Series number allocation must be globally unique within the configured series scope even when local and remote users operate concurrently.
+Use immutable transaction IDs and idempotency keys for invoice creation requests.
+Conflict resolution must prefer the committed transaction record rather than duplicating a bill.
+Billing documents should contain compact transactional payloads suitable for the live cloud layer.
+Attachments/PDFs may be separate from transactional invoice state while remaining linked to the invoice.
+31. Data Model - Core Tables / Aggregates
+
+32. Key Business Rules
+
+33. Example - Daily C&F Consolidated Billing
+Example operational day: a customer receives several dispatches throughout the day.
+
+The user opens Billing Consolidation Workbench, selects DC-1001 through DC-1004, the system validates compatibility, and the user selects series W. One invoice is generated from the selected billable quantities. The invoice stores all four challan links and the source-level billed quantities. DC-1005 remains excluded because its billable balance is zero.
+DC-1001 + DC-1002 + DC-1003 + DC-1004
+            ↓
+COMPATIBILITY PASS
+            ↓
+SERIES = W
+            ↓
+INVOICE W0001 (example)
+            ↓
+SOURCE BILLED BALANCES UPDATED
+34. Example - Normal and Cash Billing
+A company may create a direct normal invoice and a separate cash invoice on the same day. The user selects the relevant series each time.
+
+The prefixes and sequences are configurable. These examples illustrate architecture, not fixed mandatory numbering.
+35. Reports & Operational Views
+
+36. Notifications & Warnings
+Challan fully billed.
+Challan partially billed; remaining balance available.
+Selected challans are incompatible for one invoice.
+No authorized invoice series is available.
+Selected series is inactive or outside its validity period.
+Price override requires approval.
+Customer credit hold blocks posting.
+Tax/mandatory invoice data is missing.
+Invoice period is locked.
+Invoice numbering conflict or synchronization retry detected.
+37. Implementation Sequence
+1. Build invoice-series master and atomic number allocator.
+2. Build billing eligibility service against DOC-19 source lines.
+3. Build consolidation compatibility engine and workbench.
+4. Build invoice calculation engine and commercial snapshot.
+5. Integrate DOC-15 pricing and DOC-14 scheme/allowance data.
+6. Integrate batch/classification data from DOC-16/19.
+7. Build invoice lifecycle, posting handoff and open-item integration.
+8. Build CN/DN/reversal/reissue relationships.
+9. Add print/template engine and invoice source-trace view.
+10. Add audit, permissions, concurrency/idempotency and cloud sync behavior.
+11. Run acceptance tests for multi-user, partial billing and daily consolidated C&F billing.
+38. Acceptance Criteria
+User can create a configurable invoice series and restrict it by company/branch/type/user where required.
+When finalizing an invoice, the user must select an authorized series and the system generates the next number automatically.
+W/I/C-style series can coexist without hard-coded assumptions.
+Multiple daily challans can be selected and converted into one invoice when compatibility checks pass.
+Incompatible challans are clearly excluded with an explanation.
+Partial billing works without duplicate billing.
+Invoice source drill-down shows every contributing challan/order/batch reference.
+Pricing, scheme, tax and charge values used on the posted invoice are historically stable.
+Posted invoices cannot be silently edited or deleted.
+CN/DN/reversal/reissue flows preserve links and audit history.
+Accounting posting is handed to DOC-08; AR/open items to DOC-09; allocation/settlement to DOC-07.
+Two concurrent users cannot receive the same invoice number from the same series scope.
+Retried network requests do not create duplicate invoices.
+Keyboard-first billing operations work without routine mouse dependence.
+Crash recovery preserves draft work and finalization remains atomic.
+All major invoice actions are audited.
+39. Integration Map
+
+40. Final Architecture Decision
+Authoritative responsibilities
+DOC-18 answers WHAT THE CUSTOMER ORDERED. DOC-19 answers WHAT PHYSICALLY LEFT / WAS DELIVERED. DOC-20 answers WHAT WAS COMMERCIALLY BILLED. DOC-08 answers HOW IT POSTED TO THE LEDGER. DOC-09 answers WHAT REMAINS OPEN. DOC-07 answers HOW DOCUMENTS AND PAYMENTS ARE SETTLED.
+DOC-18 SALES ORDER
+        ↓
+DOC-19 CHALLAN / DISPATCH / DELIVERY
+        ↓
+DOC-20 SALES INVOICE + SERIES
+        ↓
+DOC-08 ACCOUNTING POSTING
+        ↓
+DOC-09 AR / OPEN ITEM
+        ↘
+          DOC-07 UNIVERSAL SETTLEMENT
+This separation is the governing architecture for the sales-to-cash chain. Later billing-related modules should integrate with DOC-20 rather than creating competing invoice, series, tax, or source-consolidation logic.
+
+ADDENDUM: EXTRA SCHEME SETTLEMENT (AUTO-ADDED)
+EXTRA SCHEME SETTLEMENT VIA BILLING SCREENS (CLARIFICATION)
+
+When 'Extra Scheme' is entered in the Purchase Bill:
+- The extra scheme quantity (e.g., 40 qty) is registered as a GRANTED entitlement for that product from the supplier/principal.
+- This creates an available extra scheme balance.
+
+When 'Extra Scheme' is entered in the Sales Bill:
+- The extra scheme quantity (e.g., 30 qty) is registered as CONSUMED/SOLD.
+- This automatically settles and adjusts against the granted extra scheme quantity from purchases.
+
+Reporting & Settlement Balance:
+- The pending extra scheme report will show the net difference.
+- Example: If Purchase registered Extra Scheme = 40, and Sales registered Extra Scheme = 30, the report will show +10 qty as pending (available).
+- If Sales exceeds Purchase Extra Scheme (e.g., Sales 40, Purchase 30), it will show -10 pending.
+- This directly integrates the DOC-14 Scheme Settlement Engine with the standard Sales and Purchase invoice item grids.

@@ -113,3 +113,17 @@ Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Schem
 ## [Update - DOC-18 Sales Order & Order Management Engine]
 - **Hold Engine**: Orders exceeding credit limits or pricing margins are put on `HOLD`. Admins/Managers must explicitly review these in the `OrderApprovalDashboard` (accessible via Sales & Purchase > Sale > Order Approvals).
 - **Direct Billing Bypass (Permissions)**: To prevent the Hold engine from slowing down fast billing, the `User` account has an `allow_direct_billing` permission flag. Admin/Manager roles or users with this flag enabled can bypass the strict Sales Order flow and use the fast-path direct `SalesBill` / `PurchaseBill` invoicing. Users without this flag are hard-blocked from accessing direct billing and must go through the Sales Order approval flow.
+
+
+## New Financial & Billing Workflows (DOC-20, 21, 24)
+1. **Managing Document Numbering:** 
+   - Go to **Master > Masters > Document Series** to create custom prefix series (e.g., `C-` for Cash Sales, `B-` for Bank Receipts).
+   - In any billing/voucher screen, select the series and the system automatically fills the next available number. You can manually edit the number if you are copying from a physical receipt book.
+2. **Processing Sales Returns (Credit Notes):**
+   - Go to **Sales & Purchase > Sale > Sales Return**.
+   - Press **F8** and type the original Sales Invoice Number.
+   - The system loads the items and verifies exactly how many items you are allowed to return (preventing duplicates).
+   - Stock is automatically added back to the ERP.
+3. **Payment & Receipt Vouchers:**
+   - Go to **Finance & Accounts > Vouchers, P&L > Payment / Receipt**.
+   - Select your document series, fill the amounts, and save. This directly posts the accounting double-entry safely to the ledger.

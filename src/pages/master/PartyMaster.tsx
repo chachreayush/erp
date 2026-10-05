@@ -137,7 +137,7 @@ export default function PartyMaster() {
 
       <div style={{ marginBottom: '16px' }}>
         <Input 
-          icon={<Search size={16} />}
+          leftIcon={<Search size={16} />}
           placeholder="Search by legal name, trade name, GST, or PAN..." 
           value={search} 
           onChange={e => setSearch(e.target.value)} 

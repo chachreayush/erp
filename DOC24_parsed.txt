@@ -1,0 +1,230 @@
+DOC-24
+Payment, Receipt &
+Cash/Bank Transaction Management Engine
+Implementation Specification v1.0
+Purpose: define the controlled recording, approval, numbering, allocation, reversal and reconciliation of customer receipts, vendor payments, cash movements and bank transactions while using DOC-07 as the single settlement/application authority and DOC-08/09 as the accounting/open-item authorities.
+Document status
+Authoritative architecture specification for money-movement transactions. DOC-24 records the financial event and payment instrument; DOC-07 controls bill-by-bill application and adjustment; DOC-08 posts approved entries; DOC-09 manages AR/AP and open items.
+
+
+1. Business Purpose and Scope
+DOC-24 is the operational engine for recording movement of money between the business and customers, vendors, employees, banks and internal cash locations. It does not decide which open item should be settled; that responsibility remains in DOC-07.
+1.1 Core principles
+Every money transaction must identify company, branch, transaction date, amount, currency and financial account.
+Cash and bank movements are immutable business events after posting; corrections use controlled reversal/adjustment flows.
+Allocation to invoices, bills, credit notes and debit notes is performed only through DOC-07.
+A receipt/payment may be fully applied, partially applied or left on-account when policy permits.
+Instrument and evidence details must be retained for auditability.
+The same engine must support small businesses with simple cash/bank entry and large businesses with approvals, instruments, branches, reconciliation and maker-checker controls.
+1.2 In scope
+Customer receipts
+Vendor payments
+Cash receipt/payment
+Bank receipt/payment
+UPI, NEFT, RTGS, IMPS and other configured electronic modes
+Cheque and other instrument tracking
+Advance and on-account money
+Payment/receipt series
+Approval and maker-checker
+Bill-by-bill allocation handoff to DOC-07
+Bank/cash reconciliation
+Reversal, bounce, return and correction flows
+Audit, reports and exception management
+1.3 Out of scope
+Settlement allocation rules — DOC-07
+Double-entry posting engine — DOC-08
+AR/AP and open-item ledger — DOC-09
+Customer/vendor master ownership — DOC-10
+Tax computation for source invoices — DOC-20/23 and configured tax services
+2. Transaction Model
+The base money-movement document is a Payment/Receipt Transaction. A unified model should support inbound and outbound directions, multiple instruments and multiple allocation states.
+
+2.1 Receipt vs payment
+The UI should use business language: Receipt means money received by the company; Payment means money paid by the company. Transfer means movement between company-controlled cash/bank accounts and should not create AR/AP settlement by itself.
+2.2 Internal transfer
+Bank to bank
+Bank to cash
+Cash to bank
+Cash location to cash location when supported
+Inter-branch transfer where configured
+Internal transfers require two-sided controlled entries and should be treated as transfer events, not customer/vendor settlement transactions.
+3. Supported Payment & Receipt Modes
+
+3.1 Instrument tracking
+Cheque received → deposited → cleared or bounced
+Cheque issued → presented → cleared or returned
+Electronic receipt/payment → pending/confirmed based on bank evidence
+Bounced/returned instrument must preserve original transaction and create corrective workflow, not erase history
+4. Bill-by-Bill Allocation Integration
+DOC-24 hands a posted money transaction to DOC-07 for application. DOC-24 must show the allocation result but must not implement duplicate allocation algorithms.
+
+4.1 Allocation handoff
+Validate party and currency compatibility before sending to DOC-07.
+Pass eligible source document identifiers, amount, date and transaction context.
+Receive applied/unapplied result and display it on the transaction.
+Store settlement reference IDs for audit and drill-down.
+Unapply/reapply requests go back through DOC-07.
+5. Advance, On-Account & Unapplied Money
+Not every payment or receipt is immediately tied to a bill. The system must support money that is valid but not yet allocated.
+
+5.1 Auto-match suggestions
+Exact invoice amount + same party
+Reference/UTR/remittance text match
+Invoice number in bank narration
+Customer/vendor reference mapping
+Amount/date proximity
+Batch allocation of one bank receipt to several invoices
+Suggestions must be explainable, non-destructive and require configured confidence/approval before auto-application.
+6. Numbering & Document Series
+Payment and receipt documents need controlled numbering, especially in a multi-user LAN/cloud environment. The series engine should be configurable rather than hard-coded.
+
+Series may be scoped by company, branch, financial year and transaction type.
+Next number is generated atomically; two users cannot receive the same number.
+Manual override is disabled by default and requires explicit permission if enabled.
+Cancelled numbers are never silently reused; gaps are auditable.
+Series configuration changes are audited with old/new values.
+7. Approval, Control & Security
+
+Maker-checker for payment creation and approval.
+Segregation of duties between creator, approver, posting operator and bank reconciliation reviewer for large deployments.
+Role/permission checks inherited from DOC-03 and company isolation from DOC-01/02.
+Sensitive bank/payment evidence is access-controlled and fully audited.
+8. Bank & Cash Reconciliation
+DOC-24 should include a reconciliation workbench that compares ERP transactions with external bank/cash evidence. Reconciliation is a matching process, not a second ledger.
+
+8.1 Cash reconciliation
+Opening cash
+Recorded cash receipts
+Recorded cash payments
+Transfers
+Expected closing cash
+Physical cash count
+Variance with reason and approval
+Cash variance must not be fixed by directly editing a balance; use an approved cash adjustment transaction with reason and audit.
+9. Reversal, Bounce, Return & Correction
+
+9.1 Immutable transaction history
+Original transaction remains visible.
+Correction references original transaction.
+Reason and user are recorded.
+Posting and settlement references are preserved.
+Reports distinguish original, reversed and effective amounts.
+10. Data Model & Integration Contracts
+
+10.1 Integration map
+
+11. Operational Screens & Keyboard-First UX
+11.1 Payment entry
+Suggested focus order: Party → Payment/Account → Amount → Mode → Instrument/Reference → Narration → Allocation → Evidence → Save/Approve.
+11.2 Receipt entry
+Suggested focus order: Customer → Receipt account → Amount → Mode → Reference → Allocation → Advance/on-account handling → Evidence → Save/Approve.
+F4/new transaction shortcut
+Ctrl+F search party/reference
+Enter to open allocation workbench
+Keyboard grid for selecting invoices
+Quick UPI/UTR reference capture
+Scanner/reader support where instrument identifiers are used
+Autosave draft and crash recovery
+11.3 Allocation view
+The user should see eligible bills, outstanding amount, selected amount, unapplied amount and resulting balance before posting the allocation request.
+12. Reporting & Management Information
+Customer receipts register
+Vendor payments register
+Cash book
+Bank book
+Payment/receipt mode analysis
+Unapplied receipts/payments
+Advance balances
+Instrument pending/clearing/bounce report
+Bank reconciliation statement
+Cash variance report
+Party-wise receipt/payment history
+Outstanding before/after settlement
+Cancelled/reversed transaction register
+Approval pending queue
+Audit trail and exception report
+13. Small vs Large Business Configuration
+
+14. Acceptance Criteria
+A user can create a receipt/payment with controlled series and unique number.
+Cash, bank, electronic and cheque transactions store required mode-specific details.
+A transaction can be sent to DOC-07 and show exact applied/unapplied amounts.
+One payment can settle many bills and one bill can be settled by many transactions through DOC-07.
+Advance/on-account amounts remain visible until applied or otherwise resolved.
+Cheque/bank returns preserve the original transaction and can reopen settlement correctly.
+Bank/cash reconciliation supports matching and controlled exceptions without editing source ledger balances.
+Approval and segregation-of-duties rules are enforced according to configuration.
+Concurrent users cannot generate duplicate payment/receipt numbers.
+Every correction, reversal, allocation and reconciliation action is fully auditable.
+15. Final Architecture Rule
+DOC-24 is the single operational authority for recording money movement and reconciliation evidence. DOC-07 remains the single authority for applying money to open items; DOC-08 remains the accounting posting authority; DOC-09 remains the AR/AP and open-item authority. No later billing, return, claims or payment module may create a parallel payment or settlement engine.
+Implementation Depth Upgrade
+This 2.0 revision raises DOC-24 to the project standard established by DOC-01. It retains the prior approved baseline and adds explicit data ownership, UI behavior, state transitions, edge-case handling, integration contracts, permissions, synchronization, reporting and acceptance requirements. The module remains code-free but implementation-ready in design intent.
+A. Authoritative Boundary & Non-Goals
+Owns monetary transaction capture and instrument lifecycle. Settlement allocation is centralized in DOC-07; accounting is DOC-08/09; reconciliation is DOC-28.
+B. Lifecycle / State Machine
+C. Relational Data Model — Implementation Blueprint
+Logical schema below is the minimum domain model; physical names, partitions and engine-specific constraints will be finalized in the database architecture document.
+money_transaction
+payment_instrument
+settlement_intent
+D. Detailed UI / Screen Specification
+Receipt/Payment Entry
+Purpose: Capture money quickly
+Keyboard path: F4 party; F5 account; F6 mode; F7 allocation; Ctrl+Enter post.
+Save/post rule: Draft has no accounting effect; post via DOC-08.
+Cash Control
+Purpose: Count and close cash
+Keyboard path: Alt+C close count.
+Save/post rule: Count never overwrites book balance.
+Instrument Register
+Purpose: Track non-cash states
+Keyboard path: F4 search; F8 status.
+Save/post rule: Status changes are auditable and downstream-controlled.
+E. Integration Contract Matrix
+F. Security, Permissions & Data Scope
+G. Offline / LAN / Cloud Synchronization
+Transaction IDs and UTR/reference IDs are stable.
+Payment posting is idempotent.
+Allocation is separate from money capture.
+Offline posting can continue locally and reconcile later under company policy.
+H. Reporting & Dashboard Feed
+Money register by mode/account/party.
+Advance and on-account ageing.
+Cheque/UTR bounce and clearance.
+Cash differences.
+Unallocated money backlog.
+I. Expanded Edge-Case Handling
+The following cases must have deterministic outcomes. This is intentionally broader than the happy path so that implementation does not leave operational gaps.
+J. Implementation Acceptance Criteria
+Posted money transactions cannot be edited destructively.
+Settlement always uses DOC-07.
+Advances/on-account remain distinct.
+Duplicate instrument/reference controls work.
+Cash differences never overwrite book balance.
+Bounced instruments follow controlled corrective flow.
+K. Small / Medium / Large Business Modes
+L. Version / Amendment Decision
+v2.0 deepens financial transaction schema, instrument states, UI, recovery and concurrency.
+Final architectural rule
+Money movement is captured once, settled once and posted once; every correction is traceable.
+Deep Domain Architecture Expansion
+DOC-24 is a financial transaction engine. It must distinguish the fact that money moved from how the money is applied, and it must preserve instrument, bank/cash, source-document, settlement and accounting relationships without duplicating DOC-07/08/09 authorities.
+A. Detailed Business Rules
+B. Additional Relational Model
+money_transactions
+payment_instruments
+allocation_snapshots
+C. Detailed Transaction Scenarios
+D. Expanded Edge-Case & Failure Handling
+Edge cases are first-class requirements. Every case must produce a deterministic outcome, preserve original evidence and avoid duplicate accounting or settlement effects.
+E. Reconciliation & Control Totals
+F. Implementation Readiness Gate
+Every payment/receipt can be traced to account, party, mode and source.
+Allocation is delegated to DOC-07.
+Posting is delegated to DOC-08.
+Reversals preserve original history.
+Instrument status is independent from entry existence.
+Multi-currency and backdated controls are explicit.
+G. Final Domain Rule
+Money movement is an operational financial fact; settlement application and accounting posting remain centralized authorities.

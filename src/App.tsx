@@ -39,6 +39,8 @@ import HomeScreen from './pages/HomeScreen'
 import BulletinBoard from './pages/bulletin/BulletinBoard'
 import BillingPage from './pages/sales/Billing'
 import SalesOrderMaster from './pages/sales/SalesOrderMaster'
+import BillingConsolidation from './pages/sales/BillingConsolidation'
+import DispatchManager from './pages/sales/DispatchManager'
 import OrderApprovalDashboard from './pages/sales/OrderApprovalDashboard'
 import SalesBill from './pages/sales/SalesBill'
 import PurchaseOrderMaster from './pages/procurement/PurchaseOrderMaster'
@@ -55,6 +57,7 @@ import ErrorEntries from './pages/master/ErrorEntries'
 import LedgerGroupMaster from './pages/master/LedgerGroupMaster'
 import PrincipalMaster from './pages/master/PrincipalMaster'
 import WarehouseMaster from './pages/master/WarehouseMaster'
+import DocumentSeriesMaster from './pages/master/DocumentSeriesMaster'
 import TransportMaster from './pages/master/TransportMaster'
 import SchemeMaster from './pages/master/SchemeMaster'
 import PricingMaster from './pages/master/PricingMaster'
@@ -139,6 +142,7 @@ function App() {
         <Route path="master/principals" element={<PrincipalMaster />} />
         <Route path="master/warehouses" element={<WarehouseMaster />} />
         <Route path="master/transport" element={<TransportMaster />} />
+        <Route path="series-master" element={<DocumentSeriesMaster />} />
         <Route path="master/schemes" element={<SchemeMaster />} />
         <Route path="master/pricing" element={<PricingMaster />} />
         <Route path="finance/claims" element={<SchemeClaims />} />
@@ -166,6 +170,12 @@ function App() {
         {/* Sales Order Routes */}
         <Route path="sales-order-master" element={<SalesOrderMaster />} />
         <Route path="order-approvals" element={<OrderApprovalDashboard />} />
+        {/* Dispatch Routes */}
+        <Route path="dispatch-manager" element={<DispatchManager />} />
+        {/* Billing Consolidation Routes */}
+        <Route path="billing-consolidation" element={<BillingConsolidation />} />
+
+
 
         <Route path="purchase"         element={<PurchaseBill />} />
         <Route path="po" element={<PurchaseOrderMaster />} />

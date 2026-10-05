@@ -1,0 +1,223 @@
+DOC-23
+Credit Note, Debit Note &
+Commercial Adjustment Engine
+Implementation Specification v1.0
+Purpose: define a single controlled engine for customer/vendor credit notes, debit notes, price and quantity adjustments, scheme/rebate adjustments, freight corrections, return-related adjustments and other approved commercial corrections — without creating a second settlement or accounting system.
+Document status
+Authoritative architecture specification. DOC-23 consumes source transactions from Sales, Purchase, Returns and Claims modules and hands the resulting financial document to DOC-07, DOC-08 and DOC-09 for settlement, posting and open-item behavior.
+
+
+1. Business Purpose and Scope
+DOC-23 governs commercial adjustment documents that change the financial or billable value of an already-created transaction. It covers both customer-facing and vendor-facing adjustments, while keeping the physical return process in DOC-21/DOC-22 and the financial application in DOC-07.
+1.1 Core principles
+Every CN/DN must have a documented business reason and a clear source or justification.
+A commercial adjustment is a controlled document, not a manual ledger edit.
+The adjustment amount, quantity, tax basis and reason must be reproducible from stored snapshots and calculation rules.
+A credit or debit note may be linked to one invoice, many invoices, a return, a claim, a pricing dispute or another approved source, depending on configured eligibility.
+An adjustment can be floating/on-account when business rules permit, but application to bills is performed only by DOC-07.
+Reversal and cancellation must never silently rewrite a posted note; corrective documents and audit events must preserve history.
+The module must work for small businesses with a simple flow and large businesses with approval matrices, branches, reason codes and advanced controls.
+1.2 In scope
+Sales Credit Note and Sales Debit Note
+Purchase Credit Note and Purchase Debit Note
+Rate/price correction, quantity correction and commercial rebate adjustment
+Scheme, rebate, discount, freight and other approved charge adjustments
+Return-related financial adjustment
+Shortage, damage, expiry, breakage and quality-related commercial adjustment
+Tax/charge correction as permitted by configuration and source-document rules
+Approval, numbering, posting handoff, settlement linkage, cancellation/reversal and audit
+1.3 Out of scope
+Physical customer return receipt and inspection — DOC-21
+Physical vendor return and supplier claim handling — DOC-22
+Inventory balance editing — DOC-16
+New payment/receipt allocation engine — DOC-07
+Core accounting posting engine — DOC-08
+2. Adjustment Document Model
+DOC-23 uses a unified document model with direction, party, source and adjustment type. The same engine should support customer and vendor flows while exposing only the combinations authorized by configuration.
+
+2.1 Commercial direction rules
+The UI must present the financial effect in plain language. For example, a customer credit note reduces the customer receivable; a customer debit note increases the customer receivable; a vendor credit note reduces the amount payable to the vendor; a vendor debit note increases the amount payable to the vendor. The exact accounting accounts and tax treatment are determined by configured posting rules, not by hard-coded account names.
+2.2 Source-link strength
+
+3. Supported Adjustment Scenarios
+
+3.1 Reason-code master
+Reason codes must be configurable and grouped. A reason code determines allowed sources, direction, default tax behavior, approval level, whether inventory linkage is required and whether direct settlement is permitted.
+PRICE_DIFF
+QTY_SHORT
+RETURN
+SCHEME
+REBATE
+FREIGHT_DIFF
+DAMAGE
+EXPIRY
+BREAKAGE
+CLAIM
+TAX_CORRECTION
+ROUNDING
+OTHER_APPROVED
+4. Adjustment Lifecycle and Approval
+Canonical lifecycle:
+Draft → Validation → Pending Approval → Approved → Numbered → Posted → Partially Applied / Applied → Closed
+4.1 Validation gate
+Party and company are valid and active.
+Source document exists or standalone authorization is present.
+Adjustment reason is permitted for the source.
+Amount and quantity do not exceed configurable limits.
+Tax basis and calculation are internally consistent.
+No duplicate adjustment exists for the same source/line/reason unless explicitly permitted.
+Required evidence and references are present.
+Required approval chain is available before posting.
+4.2 Approval matrix
+
+4.3 Segregation of duties
+Creator cannot approve own adjustment when maker-checker is enabled.
+Posting permission may be separate from approval permission.
+Series administration must be separate from routine billing access for large deployments.
+5. Calculation and Commercial Adjustment Engine
+The calculation engine must calculate from source snapshots and explicit adjustment lines. Users should see both the calculated amount and the reason for the result.
+
+5.1 Snapshot rule
+A posted CN/DN must store resolved values: source rate, quantity, discount basis, scheme reference/version, tax components, freight/charge components, rounding and final amount. Later master changes must not alter a historical adjustment document.
+5.2 “Why this amount?” view
+For each adjustment line, the user can open an explanation showing source document, source line, old value, new value, quantity basis, discount/scheme effects, tax effects and final calculated value. This is critical for auditability and operator trust.
+6. Settlement and Open-Item Integration
+DOC-23 must not implement a second settlement allocation mechanism. Every applicable CN/DN becomes an eligible open financial item and is then applied through DOC-07.
+
+6.1 Bill-by-bill control
+The settlement screen must show the selected bill, original amount, previous adjustments, payments, current open amount, proposed CN/DN application and resulting balance. The same bill-by-bill discipline already defined in DOC-07 remains authoritative.
+7. Accounting Posting Integration
+When an adjustment is approved and posted, DOC-23 emits a posting event to DOC-08. DOC-08 determines the actual debit/credit entries from the configured account-mapping rules.
+7.1 Posting payload minimum
+Adjustment ID and document number
+Company/branch/cost center context
+Party ledger reference
+Source invoice/bill reference
+Reason code
+Tax components
+Gross/net/base amount
+Currency and exchange rate where applicable
+Posting date and document date
+Prepared/approved/by-user audit identifiers
+7.2 No direct ledger edits
+Operators must never correct an invoice by editing posted ledger balances. All commercial corrections must use an authorized source document, CN/DN or reversal process.
+8. Document Numbering and Series
+DOC-23 should use a configurable note-series framework aligned with the document-series philosophy introduced in DOC-20, but separate numbering can be configured for CN and DN to simplify identification and audit.
+
+User can create authorized series with prefix, start number, length, suffix, financial-year reset, branch scope and active dates.
+Series selection must be explicit before final numbering unless an approved automatic default rule is configured.
+Numbers must be allocated atomically so concurrent users cannot receive duplicates.
+Cancelled numbers remain visible in audit history; numbering must not silently reuse a posted document number.
+9. Returns, Claims and Commercial Adjustment Integration
+DOC-21 and DOC-22 may create eligible adjustment requests, but they do not bypass DOC-23 for the financial document itself.
+
+9.1 Partial acceptance
+If only part of a return or claim is accepted, DOC-23 must create the financial adjustment only for the accepted portion. The rejected or pending portion remains linked to the upstream case and does not disappear from outstanding workflow.
+10. Reversal, Cancellation and Amendment
+Posted financial documents are immutable except through controlled reversal/correction processes.
+Draft: editable or cancellable according to permissions.
+Approved but not posted: cancellation requires configured approval.
+Posted but unapplied: cancellation/reversal may be permitted under policy.
+Posted and applied: the application must first be reversed through DOC-07 before the document can be reversed, unless a dedicated reversal workflow is configured.
+Historical source reference must remain visible after reversal.
+A corrected document should reference the original document instead of overwriting it.
+11. User Experience and Keyboard-First Workflow
+The operator should be able to create a commercial adjustment without leaving the keyboard for routine work.
+Global shortcut opens CN/DN entry.
+Type party and source invoice/bill; system proposes eligible adjustments.
+Fuzzy search for customer/vendor, bill number, product and reason.
+Grid entry supports quantity/rate/amount adjustments and quick line duplication.
+Immediate validation highlights over-adjustment, duplicate adjustment and unsupported source.
+Approval status is visible without opening another screen.
+Fast “Apply through settlement” action opens DOC-07 with the note preselected.
+11.1 Sample adjustment screen
+
+12. Data Model and Audit Requirements
+Core records should be separated so that the note header, lines, source links, calculations, approvals, posting event and settlement allocations remain independently auditable.
+
+12.1 Audit events
+Created
+Edited
+Submitted
+Approved/Rejected
+Numbered
+Posted
+Applied/Unapplied
+Cancelled
+Reversed
+Reissued
+13. Reports and Monitoring
+
+14. Integrations and Event Flow
+Canonical event flow:
+DOC-20 / DOC-21 / DOC-22 / DOC-14 / approved case → DOC-23 validation → CN/DN numbered → DOC-08 posting → DOC-09 open item → DOC-07 settlement/application → reports/audit
+
+15. Error Handling and Safety Controls
+Duplicate prevention by source + reason + eligible quantity/amount + active document status.
+Idempotent posting events so retries cannot create duplicate ledger entries.
+Clear error state when posting or settlement integration fails; source document remains recoverable.
+No silent fallback from failed posting to “completed” status.
+Over-adjustment must be blocked or explicitly approved according to rule.
+Concurrent users must not be allowed to reserve the same remaining source quantity/amount for conflicting adjustments.
+Financial-period locks must be respected; backdated corrections follow configured approval policy.
+16. Small vs Large Business Configuration
+
+17. Acceptance Criteria
+User can create both customer and vendor CN/DN from authorized sources.
+System prevents adjustment beyond eligible source quantity/amount unless explicit override policy exists.
+Each posted note has an immutable calculation snapshot and source traceability.
+Series selection and atomic numbering work under concurrent users.
+Approved notes generate one idempotent posting event to DOC-08.
+DOC-07 can apply a note to one or many bills, leave it on-account, unapply and reapply as authorized.
+Invoice/bill outstanding balances shown by DOC-09 reflect applied adjustments correctly.
+Return/claim-linked adjustments retain upstream provenance and accepted quantities.
+Posted notes cannot be silently edited; reversal/correction retains the full audit trail.
+All normal operator actions can be completed through the keyboard-first workflow.
+18. Module Boundary Summary
+
+Design Principle
+DOC-23 is the controlled bridge between operational events and financial correction. It should make every commercial adjustment explainable, traceable and reversible while keeping accounting, inventory and settlement responsibilities in their existing authoritative modules.
+Implementation Depth Upgrade
+This 2.0 revision raises DOC-23 to the project standard established by DOC-01. It retains the prior approved baseline and adds explicit data ownership, UI behavior, state transitions, edge-case handling, integration contracts, permissions, synchronization, reporting and acceptance requirements. The module remains code-free but implementation-ready in design intent.
+A. Authoritative Boundary & Non-Goals
+Owns commercial adjustment documents, reasons, calculation snapshots and linkage to source transactions. It does not own posting or open-item allocation.
+B. Lifecycle / State Machine
+C. Relational Data Model — Implementation Blueprint
+Logical schema below is the minimum domain model; physical names, partitions and engine-specific constraints will be finalized in the database architecture document.
+adjustment_document
+adjustment_line
+adjustment_settlement_link
+D. Detailed UI / Screen Specification
+Adjustment Workbench
+Purpose: Create and explain an adjustment
+Keyboard path: Ctrl+N; F4 party; F5 source; F8 reason; Ctrl+Enter validate.
+Save/post rule: Posting via DOC-08 only.
+Adjustment Application
+Purpose: Apply to bills
+Keyboard path: Space select; F6 amount; Alt+A apply; Alt+U unapply.
+Save/post rule: Uses DOC-07 settlement links.
+E. Integration Contract Matrix
+F. Security, Permissions & Data Scope
+G. Offline / LAN / Cloud Synchronization
+Adjustment IDs and series assignment are idempotent.
+Posting confirmation is required before final Posted state.
+Settlement links sync independently and cannot double-apply.
+H. Reporting & Dashboard Feed
+CN/DN by reason, party, product, branch, source, tax.
+Adjustment ratio and ageing.
+Unapplied/partial adjustments.
+Reason-code anomaly analysis.
+I. Expanded Edge-Case Handling
+The following cases must have deterministic outcomes. This is intentionally broader than the happy path so that implementation does not leave operational gaps.
+J. Implementation Acceptance Criteria
+All posted CN/DN have a valid source or approved reason.
+Calculation snapshot explains final amount.
+Posting uses DOC-08 and settlement DOC-07.
+Series numbering is unique.
+Reversal preserves original history.
+Partial settlement is fully supported.
+K. Small / Medium / Large Business Modes
+L. Version / Amendment Decision
+v2.0 adds explicit source, tax, settlement, numbering, schema, UI and failure architecture.
+Final architectural rule
+Commercial adjustments are first-class documents with source traceability; no ledger balance is repaired by direct edits.

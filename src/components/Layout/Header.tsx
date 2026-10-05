@@ -51,8 +51,11 @@ const subItemsMap: Record<string, { label: string; path: string }[]> = {
   'sale': [
     { label: 'Sales Order', path: '/sales-order-master' },
     { label: 'Order Approvals', path: '/order-approvals' },
+    { label: 'Dispatch & POD', path: '/dispatch-manager' },
+    { label: 'Billing Consolidation', path: '/billing-consolidation' },
     { label: 'Bill', path: '/sales?type=bill' },
     { label: 'Challan', path: '/sales?type=challan' },
+    { label: 'Sales Return', path: '/sales?type=credit_note' },
     { label: 'Modify Bill', path: '/sales?type=modify-bill' },
     { label: 'Modify Challan', path: '/sales?type=modify-challan' }
   ],
@@ -174,6 +177,7 @@ const masterSubItemsMap: Record<string, { label: string; path: string }[]> = {
     { label: 'Principal Master', path: '/master/principals' },
     { label: 'Warehouse Master', path: '/master/warehouses' },
     { label: 'Transport Master', path: '/master/transport' },
+      { label: 'Document Series', path: '/series-master' },
     { label: 'Scheme Master', path: '/master/schemes' },
     { label: 'Pricing & Formulas', path: '/master/pricing' },
     { label: 'Crash Recovery', path: '/master/error-entries' }

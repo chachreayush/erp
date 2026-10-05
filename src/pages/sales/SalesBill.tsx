@@ -324,12 +324,88 @@ export default function SalesBill() {
   
   // Header State
   const [dateStr, setDateStr] = useState(getTodayFormatted())
-  const defaultBillNo = baseType === 'challan' ? 'SC0001' : 'S0001';
-  const billNoKey = baseType === 'challan' ? 'lastSalesChallanNo' : 'lastSalesBillNo';
-  const [billNo, setBillNo] = useState(() => localStorage.getItem(billNoKey) || defaultBillNo);
+  
+
+  // --- DOC-20 Document Series Engine ---
+  const [availableSeries, setAvailableSeries] = useState<any[]>([]);
+  const [selectedSeriesId, setSelectedSeriesId] = useState<string>('');
+  const [billNo, setBillNo] = useState(''); 
+  const [billNoError, setBillNoError] = useState('');
+  
+  useEffect(() => {
+    const fetchSeries = async () => {
+      try {
+        const { data } = await apiClient.get(`/api/billing/series`);
+        let targetType = "sales_invoice";
+        if (type.includes('challan')) targetType = "sales_challan";
+        if (type.includes('credit')) targetType = "credit_note";
+        
+        const filtered = data.filter((s: any) => s.invoice_type === targetType);
+        setAvailableSeries(filtered);
+        
+        if (filtered.length > 0) {
+          const lastSeries = localStorage.getItem(`lastSeriesId_${targetType}`);
+          let activeSeries = filtered.find((s:any) => s.id === lastSeries) || filtered[0];
+          setSelectedSeriesId(activeSeries.id);
+          
+          // Auto-fill the billNo input with the projected series number
+          if (!billNo || billNo === 'Auto') {
+             const projected = `${activeSeries.prefix || ''}${activeSeries.next_number}${activeSeries.suffix || ''}`;
+             setBillNo(projected);
+          }
+        }
+      } catch(e) {}
+    };
+    fetchSeries();
+  }, [type]);
+
+  // When user manually changes the series dropdown, update the projected billNo
+  const handleSeriesChange = (newSeriesId: string) => {
+    setSelectedSeriesId(newSeriesId);
+    let targetType = "sales_invoice";
+    if (type.includes('challan')) targetType = "sales_challan";
+        if (type.includes('credit')) targetType = "credit_note";
+    localStorage.setItem(`lastSeriesId_${targetType}`, newSeriesId);
+    
+    const activeSeries = availableSeries.find(s => s.id === newSeriesId);
+    if (activeSeries) {
+      const projected = `${activeSeries.prefix || ''}${activeSeries.next_number}${activeSeries.suffix || ''}`;
+      setBillNo(projected);
+      setBillNoError('');
+    }
+  };
+
+
+  // --- DOC-20 Consolidation Workbench Data Loader ---
+  useEffect(() => {
+    const isConsolidation = searchParams.get('from_consolidation');
+    if (isConsolidation) {
+      const dataStr = sessionStorage.getItem('consolidation_data');
+      if (dataStr) {
+        try {
+          const data = JSON.parse(dataStr);
+          if (data.party) setPartyName(data.party);
+          if (data.items && Array.isArray(data.items)) {
+            const newRows = [...data.items];
+            while (newRows.length < 8) {
+              newRows.push({
+                id: Math.random().toString(36).substring(7),
+                product: '', batch: '', expiry: '', qty: '', free: '', mrp: '', rate: '', dis: ''
+              });
+            }
+            setGridRows(newRows);
+          }
+          // Clear it so it doesn't leak
+          sessionStorage.removeItem('consolidation_data');
+        } catch (e) {}
+      }
+    }
+  }, [searchParams]);
+
+  
+  
   const [partyName, setPartyName] = useState('')
-  const [billNoError, setBillNoError] = useState('')
-  const [invDateStr, setInvDateStr] = useState(getTodayFormatted())
+    const [invDateStr, setInvDateStr] = useState(getTodayFormatted())
   const [taxType, setTaxType] = useState('Tax')
   // Post-tax adjustments (TDS, Cash in Hand, Freight, etc.) & Bill Discount
   const [billDiscount, setBillDiscount] = useState('00.00')
@@ -433,6 +509,63 @@ export default function SalesBill() {
   const [showBatchModal, setShowBatchModal] = useState(false)
   const [showF3BatchModal, setShowF3BatchModal] = useState(false)
   const [f3SelectedIndex, setF3SelectedIndex] = useState(0)
+
+  // --- F9 Sales Order Load State ---
+    // --- DOC-21 Sales Return Engine (F8 Load Invoice) ---
+  const [showF8Modal, setShowF8Modal] = useState(false);
+  const [f8InvoiceNumber, setF8InvoiceNumber] = useState('');
+  
+  const fetchOriginalInvoice = async () => {
+    if (!f8InvoiceNumber.trim()) return;
+    try {
+      const res = await apiClient.get(`/api/sales/invoice/by-number/${f8InvoiceNumber}`);
+      const inv = res.data;
+      if (inv) {
+        setPartyName(inv.customer_name);
+        
+        // Populate items with remaining returnable quantity
+        const newRows = inv.items
+          .filter((item: any) => item.quantity - (item.returned_qty || 0) > 0)
+          .map((item: any) => ({
+             id: Math.random().toString(36).substring(7),
+             product: item.product_name,
+             batch: item.batch || '',
+             expiry: item.expiry || '',
+             qty: String(item.quantity - (item.returned_qty || 0)),
+             free: '',
+             mrp: String(item.mrp || 0),
+             rate: String(item.rate || 0),
+             dis: String(item.discount_percent || 0),
+             source_invoice_item_id: item.id
+          }));
+          
+        while (newRows.length < 8) {
+          newRows.push({
+            id: Math.random().toString(36).substring(7),
+            product: '', batch: '', expiry: '', qty: '', free: '', mrp: '', rate: '', dis: ''
+          });
+        }
+        setGridRows(newRows);
+        setShowF8Modal(false);
+      }
+    } catch (e: any) {
+      alert("Invoice not found or no returnable items left.");
+    }
+  };
+
+  const [showSOModal, setShowSOModal] = useState(false);
+  const [pendingSOs, setPendingSOs] = useState<any[]>([]);
+  const [soSelectedIndex, setSoSelectedIndex] = useState(0);
+  const [sourceOrderId, setSourceOrderId] = useState<string | null>(null);
+
+  const fetchPendingSOs = async () => {
+    try {
+      const { data } = await apiClient.get('/api/orders');
+      setPendingSOs(data.filter((o: any) => o.status === 'APPROVED'));
+    } catch (e) {}
+  };
+  // -----------------------------------
+
   const [showZeroQtyBatches, setShowZeroQtyBatches] = useState(false)
 
   // AUTO SAVE HOOK
@@ -890,6 +1023,7 @@ export default function SalesBill() {
       invoice_type: `sales-${baseType}`,
       customer_name: partyName || 'Cash',
       invoice_number: billNo.trim(),
+      series_id: selectedSeriesId,
       party_inv_no: '',
       party_inv_date: (typeof invDateStr !== 'undefined' ? invDateStr : ''),
       due_date: (typeof dateStr !== 'undefined' ? dateStr : ''),
@@ -937,9 +1071,7 @@ export default function SalesBill() {
       setSaveSuccessMessage('')
       // Local storage removed
 
-      const nextBillNo = incrementSeries(billNo)
-      setBillNo(nextBillNo)
-      localStorage.setItem(billNoKey, nextBillNo)
+      
       setPartyName('')
       setBillDiscount('00.00')
       setLedger1Name('')
@@ -962,7 +1094,11 @@ export default function SalesBill() {
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'End') {
+            if (e.key === 'F9') {
+        e.preventDefault();
+        fetchPendingSOs();
+        setShowSOModal(true);
+      } else if (e.key === 'End') {
         e.preventDefault()
         document.getElementById('bill-discount-input')?.focus()
       } else if (e.ctrlKey && (e.key === 's' || e.key === 'S')) {
@@ -1002,7 +1138,7 @@ export default function SalesBill() {
           </div>
           <div>
             <h1 style={{ fontSize: '16px', fontWeight: '700', margin: 0, color: '#f8fafc', letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {type === 'challan' ? 'Sales Challan' : 'Sales Bill'}
+              {(type === 'credit_note' || type === 'credit') ? 'Sales Return' : type === 'challan' ? 'Sales Challan' : 'Sales Bill'}
               <span style={{ fontSize: '10px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '2px 6px', borderRadius: '10px' }}>
                 Voucher Entry
               </span>
@@ -1043,8 +1179,35 @@ export default function SalesBill() {
           </div>
         </div>
 
-        {/* Entry No */}
+        {/* Series Dropdown */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '95px', flexShrink: 0 }}>
+          <label style={{ fontSize: '10px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Series
+          </label>
+          <select 
+            value={selectedSeriesId}
+            onChange={e => handleSeriesChange(e.target.value)}
+            style={{ 
+              width: '100%', 
+              backgroundColor: '#0f172a', 
+              border: '1px solid #334155', 
+              borderRadius: '6px', 
+              padding: '6px 10px', 
+              fontSize: '13px', 
+              height: '34px', 
+              color: '#38bdf8', 
+              fontWeight: '700', 
+              outline: 'none',
+              transition: 'border-color 0.2s',
+              boxSizing: 'border-box'
+            }}
+          >
+            {availableSeries.length === 0 ? <option value="">None</option> : availableSeries.map((s: any) => <option key={s.id} value={s.id}>{s.series_code}</option>)}
+          </select>
+        </div>
+
+        {/* Entry No */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '105px', flexShrink: 0 }}>
           <label style={{ fontSize: '10px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Entry No.
             {billNoError && <span style={{ color: '#ef4444', marginLeft: '4px', textTransform: 'none' }}>({billNoError})</span>}
@@ -1070,16 +1233,7 @@ export default function SalesBill() {
               boxSizing: 'border-box'
             }}
             onFocus={e => { e.target.style.borderColor = billNoError ? '#ef4444' : '#3b82f6'; e.target.select(); }}
-            onBlur={e => {
-              const savedBills = JSON.parse(localStorage.getItem('savedSalesBills') || '[]')
-              if (savedBills.some((b: any) => (b.recordType || 'bill') === baseType && b.entryNo.toLowerCase() === e.target.value.trim().toLowerCase())) {
-                setBillNoError('Exists')
-                e.target.style.borderColor = '#ef4444'
-              } else {
-                setBillNoError('')
-                e.target.style.borderColor = '#334155'
-              }
-            }}
+            onBlur={e => { e.target.style.borderColor = '#334155' }}
           />
         </div>
 
@@ -1808,6 +1962,7 @@ export default function SalesBill() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                 <button style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', fontSize: '10px', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}>F2 - Sale</button>
                 <button style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', fontSize: '10px', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}>F3 - Batch</button>
+                  <button onClick={(e) => { e.preventDefault(); fetchPendingSOs(); setShowSOModal(true); }} style={{ backgroundColor: '#1e293b', border: '1px solid #10b981', color: '#10b981', fontSize: '10px', padding: '4px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>F9 - Load SO</button>
               </div>
           </div>
 

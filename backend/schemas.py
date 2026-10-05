@@ -198,6 +198,26 @@ class BulletinResponse(BulletinBase):
 
 # ── SALES (INVOICE) SCHEMAS ───────────────────────────────
 
+
+class DocumentSeriesBase(BaseModel):
+    series_code: str
+    invoice_type: str
+    prefix: Optional[str] = None
+    suffix: Optional[str] = None
+    next_number: int = 1
+    is_active: bool = True
+
+class DocumentSeriesCreate(DocumentSeriesBase):
+    pass
+
+class DocumentSeriesResponse(DocumentSeriesBase):
+    id: UUID
+    organization_id: UUID
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 class InvoiceItemBase(BaseModel):
     product_id: Optional[UUID4] = None
     product_name: str
@@ -239,7 +259,8 @@ class InvoiceBase(BaseModel):
     remarks: Optional[str] = None
     dispatch_through: Optional[str] = None
     destination: Optional[str] = None
-    bill_discount: Optional[float] = 0.0
+    bill_discount: Optional[float] = 0
+    series_id: Optional[UUID] = None
     
     ledger1_name: Optional[str] = None
     ledger1_amt: Optional[float] = None
@@ -1493,3 +1514,26 @@ class SalesOrderResponse(SalesOrderBase):
     holds: List[SalesOrderHoldResponse] = [] # Optional, maybe fetched separately or joined
     model_config = ConfigDict(from_attributes=True)
 
+
+# =====================================================================
+# DOC-19: Dispatch and Delivery Schemas
+# =====================================================================
+
+class DispatchRecordBase(BaseModel):
+    vehicle_number: Optional[str] = None
+    driver_name: Optional[str] = None
+    transport_agency: Optional[str] = None
+    status: str = "READY"
+    pod_captured: bool = False
+    pod_remarks: Optional[str] = None
+    pod_date: Optional[datetime] = None
+
+class DispatchRecordCreate(DispatchRecordBase):
+    challan_id: UUID4
+
+class DispatchRecordResponse(DispatchRecordBase):
+    id: UUID4
+    organization_id: UUID4
+    challan_id: UUID4
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)

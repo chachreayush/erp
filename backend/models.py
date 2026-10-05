@@ -21,6 +21,7 @@
 
 # Column types and relationships from SQLAlchemy
 from sqlalchemy import (
+    UniqueConstraint,
     Column,          # Defines a table column
     String,          # Text column (variable length)
     Boolean,         # True/False column
@@ -272,7 +273,7 @@ class Bulletin(Base):
 
 
 # ── TABLE 5: Product (Inventory) ──────────────────────────────
-from sqlalchemy import Numeric, Integer, Date
+from sqlalchemy import UniqueConstraint, Numeric, Integer, Date
 
 class Product(Base):
     """
@@ -305,6 +306,11 @@ class Product(Base):
     sgst_percent = Column(Numeric(5, 2), nullable=False, default=0)
     cgst_percent = Column(Numeric(5, 2), nullable=False, default=0)
     igst_percent = Column(Numeric(5, 2), nullable=False, default=0)
+    source_order_item_id = Column(UUID(as_uuid=True), ForeignKey("sales_order_items.id", ondelete="SET NULL"), nullable=True)
+    source_challan_item_id = Column(UUID(as_uuid=True), ForeignKey("invoice_items.id", ondelete="SET NULL"), nullable=True)
+    billed_qty = Column(Integer, nullable=False, default=0)
+    source_invoice_item_id = Column(UUID(as_uuid=True), ForeignKey("invoice_items.id", ondelete="SET NULL"), nullable=True)
+    returned_qty = Column(Integer, nullable=False, default=0)
     
     # ── Pricing ──
     mrp = Column(Numeric(10, 2), nullable=False, default=0)
@@ -394,6 +400,25 @@ class Batch(Base):
         return f"<Batch {self.batch_number} - {self.product_id}>"
 
 # -- TABLE 6: Invoice (Sales/Purchase) ------------------------
+
+class DocumentSeries(Base):
+    __tablename__ = "document_series"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    series_code = Column(String(50), nullable=False)  # e.g., 'W', 'I', 'C'
+    invoice_type = Column(String(50), nullable=False) # e.g., 'sales_challan', 'sales_invoice', 'cash_bill'
+    prefix = Column(String(20), nullable=True)        # e.g., 'W-'
+    suffix = Column(String(20), nullable=True)        # e.g., '-25'
+    next_number = Column(Integer, nullable=False, default=1)
+    is_active = Column(Boolean, default=True, nullable=False)
+    
+    __table_args__ = (
+        UniqueConstraint('organization_id', 'series_code', name='uix_org_series_code'),
+    )
+
 class Invoice(Base):
     __tablename__ = "invoices"
 
@@ -411,10 +436,12 @@ class Invoice(Base):
     party_inv_no = Column(String(100), nullable=True, index=True)
     party_inv_date = Column(String(50), nullable=True)
     due_date = Column(String(50), nullable=True)
+    series_id = Column(UUID(as_uuid=True), ForeignKey("document_series.id", ondelete="SET NULL"), nullable=True)
     remarks = Column(String(500), nullable=True)
     dispatch_through = Column(String(100), nullable=True)
     destination = Column(String(100), nullable=True)
     bill_discount = Column(Numeric(12, 2), nullable=True, default=0)
+    source_order_id = Column(UUID(as_uuid=True), ForeignKey("sales_orders.id", ondelete="SET NULL"), nullable=True)
     
     ledger1_name = Column(String(100), nullable=True)
     ledger1_amt = Column(Numeric(12, 2), nullable=True)
@@ -457,6 +484,11 @@ class InvoiceItem(Base):
     
     # Taxes applied at time of sale
     igst_percent = Column(Numeric(5, 2), nullable=False, default=0)
+    source_order_item_id = Column(UUID(as_uuid=True), ForeignKey("sales_order_items.id", ondelete="SET NULL"), nullable=True)
+    source_challan_item_id = Column(UUID(as_uuid=True), ForeignKey("invoice_items.id", ondelete="SET NULL"), nullable=True)
+    billed_qty = Column(Integer, nullable=False, default=0)
+    source_invoice_item_id = Column(UUID(as_uuid=True), ForeignKey("invoice_items.id", ondelete="SET NULL"), nullable=True)
+    returned_qty = Column(Integer, nullable=False, default=0)
     
     line_total = Column(Numeric(12, 2), nullable=False)
 
@@ -1498,4 +1530,23 @@ class SalesOrderHold(Base):
     
     cleared_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     cleared_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class DispatchRecord(Base):
+    __tablename__ = "dispatch_records"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    challan_id = Column(UUID(as_uuid=True), ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    vehicle_number = Column(String(50), nullable=True)
+    driver_name = Column(String(100), nullable=True)
+    transport_agency = Column(String(100), nullable=True)
+    
+    status = Column(String(50), nullable=False, default="READY") # READY, IN_TRANSIT, DELIVERED, FAILED
+    
+    pod_captured = Column(Boolean, default=False)
+    pod_date = Column(DateTime, nullable=True)
+    pod_remarks = Column(String(500), nullable=True)
+    
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -1,0 +1,222 @@
+DOC-19
+DELIVERY CHALLAN, PICKING, PACKING, DISPATCH & DELIVERY MANAGEMENT ENGINE
+Developer-ready functional and architectural specification for warehouse fulfilment, delivery challans, package control, dispatch execution, proof of delivery and challan-to-billing consolidation.
+Version: 1.0 - New module specification; aligned with DOC-13 through DOC-18 and the revised inventory, purchase and sales-order architecture.
+Scope: Convert confirmed customer demand into controlled physical fulfilment and dispatch, while preserving a complete source chain for downstream consolidated billing.
+Primary dependencies: DOC-13 Warehouse/Location/Transporter/Vehicle, DOC-14 Scheme & Reimbursement, DOC-15 Pricing, DOC-16 Inventory, DOC-17 Purchase/Vendor Supply, DOC-18 Sales Order. Primary downstream dependency: DOC-20 Sales Invoice & Billing.
+
+CONFIRMED SALES ORDER
+   ↓
+STOCK RESERVATION / ALLOCATION
+   ↓
+PICKING
+   ↓
+PACKING / VERIFICATION
+   ↓
+DELIVERY CHALLAN
+   ↓
+DISPATCH
+   ↓
+IN TRANSIT
+   ↓
+DELIVERY / POD
+   ↓
+BILLING ELIGIBILITY / CHALLAN CONSOLIDATION
+   ↓
+SALES INVOICE (DOC-20)
+
+1. Executive Summary
+DOC-19 is the physical execution layer between a confirmed Sales Order and the final customer-facing financial document. It converts commercial demand into reservations, allocation, picking, packing, delivery challans, transport dispatches and delivery evidence.
+The design must support high-volume C&F operations in which many challans are created throughout the day for different customers, principals or supply classifications and later become one consolidated invoice when the billing context permits. Every invoice created from challans must retain a complete, auditable link to the source challans and source order lines.
+The module must support small businesses using a simple Order -> Challan -> Invoice flow and large businesses using Order -> Allocation -> Pick -> Pack -> Multi-Challan -> Dispatch -> POD -> Consolidated Billing.
+2. Non-Negotiable Design Principles
+Every physical stock movement must be traceable to a source document, user, warehouse, location, product, batch and quantity.
+DOC-16 remains the authority for stock balances, reservation, availability, batch status, FEFO/FIFO and inventory movement rules. DOC-19 must not create a second stock-balance system.
+A Delivery Challan is an operational movement document. It is not a replacement for Sales Invoice accounting.
+One Sales Order may create many challans; one challan may contain lines from one or more orders when the business rules permit; one invoice may consolidate many challans when billing compatibility rules permit.
+Challan quantities must have explicit billed and unbilled quantities so that partial billing is possible without duplicate billing.
+Supply classifications such as NORMAL, EXPORT, PROMOTIONAL, OFFICIAL_SCHEME, EXTRA_PRINCIPAL_ALLOWANCE, RESTRICTED_SPECIAL_SUPPLY and UNDERCUTTING_SPECIAL_SUPPLY must travel with the physical movement.
+Batch and expiry information must remain attached to each movement line where the product requires batch tracking.
+Any quantity shortage, substitution, damaged delivery or customer rejection must become a controlled exception, not a silent edit.
+All changes after dispatch must be auditable. Dispatched quantity and historical documents must not be overwritten.
+Routine warehouse and dispatch actions must be keyboard-first and barcode-friendly.
+3. Domain Model & Core Entities
+
+4. Fulfilment Scope and Order Sources
+DOC-19 normally starts from DOC-18 confirmed orders, but controlled non-order delivery flows may be required for samples, approved promotional issues, replacement goods, principal instructions, customer returns or other configured operational movements. Every non-order flow must have an explicit reason and authorization.
+
+5. Fulfilment Release & Pre-Dispatch Validation
+Before picking is released, the ERP runs a consolidated validation. This is a control checkpoint, not a duplicate business-rule engine.
+
+VALIDATED ORDER
+   ↓
+FULFILMENT RELEASE
+   ↓
+ALLOCATE ELIGIBLE STOCK
+   ↓
+CREATE PICK TASKS
+6. Stock Allocation and Reservation Integration
+DOC-19 consumes allocation decisions from DOC-16 and may request an allocation plan, but it must not directly manipulate the authoritative stock ledger. Allocation can be warehouse-level, location-level and batch-level.
+
+7. Picking Engine
+Picking converts an approved allocation into a controlled warehouse task. The design must support both simple single-order picking and high-volume wave/batch picking.
+
+Picker must see product, SKU, UOM, batch, expiry, location/bin, requested quantity and allowed substitution flag.
+Barcode scan should validate the product and batch before quantity confirmation.
+Picking more than allocated quantity requires permission or a new allocation decision.
+Short pick must record actual quantity and a reason; the order must not be silently reduced.
+Wrong-batch or blocked-batch scan must stop or warn according to batch policy.
+Picking completion must create an auditable movement event consumed by DOC-16.
+8. Packing Engine
+Packing converts picked quantities into physical handling units. The same order can produce many packages; one package can contain multiple lines where allowed.
+
+9. Delivery Challan Engine
+The Delivery Challan is the primary operational document for a physical customer dispatch when goods move before or outside immediate invoice generation. It must be a first-class entity, not only a print template.
+
+10. Multiple Challans During Daily Operations
+The ERP must explicitly support the C&F pattern in which many challans are created throughout the day, often for multiple customers, principals, vendors or supply classifications. Each challan remains a separate operational event and must never be merged physically merely because billing will later be consolidated.
+CHALLAN W001
+CHALLAN W002
+CHALLAN W003
+CHALLAN W004
+        ↓
+BILLING ELIGIBILITY QUEUE
+        ↓
+SELECT COMPATIBLE CHALLANS
+        ↓
+ONE CONSOLIDATED SALES INVOICE
+
+11. Challan Consolidation & Billing Eligibility
+The system must maintain a Billing Eligibility Record for every challan line. This record separates delivered/unbilled quantity from billed quantity and prevents duplicate billing.
+
+One challan can be partially billed and later contribute its remaining quantity to another invoice if policy permits.
+Once fully billed, a challan line must disappear from normal billable selection.
+Reversal or cancellation of an invoice must restore the appropriate billable balance through a controlled DOC-20 process; users must not edit the challan quantity.
+Every invoice line generated from a challan must retain source challan number, challan line ID and source batch information.
+12. Consolidating Multiple Challans Into One Bill
+The billing workbench will allow the authorized user to select multiple eligible challans and convert them into one Sales Invoice. DOC-19 owns the physical-source relationship; DOC-20 owns invoice creation and accounting.
+
+13. Invoice Series Selection Requirement
+The user specifically requires separate invoice number series, for example W0001 for challan-converted bills, I0001 for other invoices and C0001 for cash bills. The architecture therefore requires a configurable Document Series Engine in DOC-20, while DOC-19 must pass the conversion context into that engine.
+
+
+14. Dispatch Planning
+
+15. Transport & Delivery Execution
+The dispatch engine must separate document preparation from the physical transport event. A challan can be ready before a vehicle is assigned; a dispatch can be created only after required verification.
+READY
+  ↓
+VEHICLE / TRANSPORT ASSIGNED
+  ↓
+DISPATCH VERIFIED
+  ↓
+DISPATCHED
+  ↓
+IN TRANSIT
+  ↓
+DELIVERED / PARTIAL / FAILED
+  ↓
+POD CAPTURED
+
+16. Proof of Delivery (POD)
+POD is evidence of customer receipt and does not itself post payment or close receivables. It can be digital or manually recorded depending on the operation.
+Receiver name and optional designation.
+Delivery date/time.
+Delivered, short, rejected and damaged quantities.
+Digital signature where available.
+Photo and supporting document attachments where configured.
+Customer remarks and delivery exceptions.
+POD verification status and verifier identity.
+17. Delivery Exception & Recovery Engine
+
+Exceptions may link to DOC-17 vendor issues where source/provenance indicates vendor responsibility, and to DOC-14 claims/reimbursements where a principal or scheme relationship exists.
+18. Supply Classification on Challan and Dispatch
+The dispatch document must preserve the classification selected upstream. It must not reinterpret a special supply as normal stock.
+
+19. Multi-Warehouse & Multi-Dispatch
+A single Sales Order may be fulfilled from multiple warehouses or locations. DOC-19 therefore must not assume one order equals one challan or one dispatch.
+
+20. Cancellation, Amendment & Reversal Rules
+
+21. Keyboard-First & Barcode UX
+Global search by order, challan, customer, batch, package, vehicle or invoice reference.
+Function-key shortcuts for release, pick, pack, challan, dispatch and POD actions.
+Barcode-first product/batch/package verification.
+Quick quantity entry with UOM-aware validation.
+Fast multi-select grid for end-of-day challan-to-bill consolidation.
+Hotkeys for open details, view source order, view source challan and view generated invoice.
+Visible error/hold banner that states the reason and required action.
+22. Data Model - Core Records
+
+23. Integration Contract
+
+24. Events & Audit Trail
+
+25. Reports & Operational Dashboards
+
+26. Security, Permissions & Segregation of Duties
+
+Client-company administrators may configure roles within their permitted ceiling. Platform Admin access remains separate from client-company permission management under DOC-01 through DOC-03.
+27. Local-First, LAN & Cloud Sync Rules
+Picking, packing and dispatch operations must remain usable on LAN when cloud connectivity is unavailable, subject to local authorization and configured offline limits.
+Every movement event receives a unique ID so that local/cloud synchronization is idempotent.
+Cloud synchronization must exchange compact event/transaction payloads rather than large document copies wherever possible.
+If a dispatch action conflicts with a later remote change, the system must retain both event histories and apply deterministic conflict rules; it must not silently overwrite a physical movement.
+Invoice creation is a financial event and must pass through DOC-20 transaction and numbering controls before final posting.
+28. End-to-End Reference Flows
+STANDARD FLOW
+SALES ORDER → ALLOCATION → PICK → PACK → CHALLAN → DISPATCH → DELIVERY → BILLING ELIGIBILITY → INVOICE
+DAILY C&F CONSOLIDATION FLOW
+ORDER A → CHALLAN A
+ORDER B → CHALLAN B
+ORDER C → CHALLAN C
+ORDER D → CHALLAN D
+          ↓
+END-OF-DAY BILLING QUEUE
+          ↓
+SELECT COMPATIBLE CHALLANS
+          ↓
+SELECT INVOICE SERIES (e.g. W)
+          ↓
+ONE INVOICE + SOURCE LINKS
+PARTIAL BILLING FLOW
+CHALLAN 100 UNITS → DELIVERED 100
+BILL 60 → BILLABLE BALANCE 40
+LATER BILL 40 → BILLABLE BALANCE 0
+CHALLAN STATUS → FULLY BILLED
+MULTI-PRINCIPAL FLOW
+PRINCIPAL A CHALLAN + PRINCIPAL B CHALLAN
+          ↓
+COMPATIBILITY CHECK
+          ↓
+IF SAME LEGAL BILLING CONTEXT → MAY CONSOLIDATE
+IF INCOMPATIBLE → SYSTEM REQUIRES SEPARATE INVOICE(S)
+29. Acceptance Criteria
+The system can create multiple delivery challans throughout the day without losing order, batch or principal traceability.
+A single Sales Order can be split across multiple challans, warehouses and dispatches.
+Multiple compatible challans can be selected and converted into one invoice through DOC-20.
+The invoice stores the exact challan and challan-line sources used to create it.
+Partially billed challans preserve an accurate remaining billable quantity.
+Fully billed challans cannot be accidentally selected for another normal invoice.
+The user must select an authorized invoice series during bill creation unless an explicitly enabled automatic-series rule applies.
+Example series W/I/C and custom series can coexist without code changes to invoice numbering logic.
+Special supply classifications remain visible through picking, challan, dispatch and billing source mapping.
+POD, short delivery, rejection and damage are auditable and linked to the affected quantities.
+Batch traceability remains complete from order to dispatch to invoice and, where applicable, to claim/return.
+No DOC-19 function directly edits the authoritative stock balance maintained by DOC-16.
+All sensitive overrides, reversals and reopens require permission and audit information.
+The same architecture supports small and large C&F businesses without a separate codebase or separate business logic path.
+30. Boundary With DOC-20
+
+31. Future-Proof Extensions
+Route optimization and delivery planning.
+GPS-based transport status where supported.
+Customer self-service delivery tracking.
+Electronic proof of delivery workflows.
+Automatic end-of-day billing runs.
+Rules-based invoice consolidation suggestions.
+Advanced wave picking and warehouse handheld support.
+Carrier API integrations and shipping label generation.
+32. Document Authority & Dependencies
+
+END OF DOC-19

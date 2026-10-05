@@ -134,3 +134,15 @@ Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Schem
 ## [Update - DOC-18 Sales Order & Order Management Engine]
 - **Hold Engine**: Orders exceeding credit limits or pricing margins are put on `HOLD`. Admins/Managers must explicitly review these in the `OrderApprovalDashboard` (accessible via Sales & Purchase > Sale > Order Approvals).
 - **Direct Billing Bypass (Permissions)**: To prevent the Hold engine from slowing down fast billing, the `User` account has an `allow_direct_billing` permission flag. Admin/Manager roles or users with this flag enabled can bypass the strict Sales Order flow and use the fast-path direct `SalesBill` / `PurchaseBill` invoicing. Users without this flag are hard-blocked from accessing direct billing and must go through the Sales Order approval flow.
+
+
+## Recent Core Architecture Implementations
+### Document Series Engine (DOC-20/24)
+- **Database:** Added `DocumentSeries` table to handle prefixes, suffixes, and `next_number` for *all* transaction types.
+- **Concurrency:** Uses `SELECT ... FOR UPDATE` exclusively in `create_invoice` and `create_voucher` to guarantee atomic numbering.
+- **Frontend Integration:** Instead of hardcoded read-only sequences, the UI offers a dropdown of active series, allowing manual override if needed.
+
+### Returns & Stock Mapping (DOC-21)
+- **Database:** Added `returned_qty` and `source_invoice_item_id` to `InvoiceItem`.
+- **API:** When `invoice_type="credit_note"`, the API adds stock *back* to inventory instead of deducting it, and increments the `returned_qty` of the original source item.
+- **UI:** `SalesBill.tsx` uses `F8` to query `GET /api/sales/invoice/by-number/` and filters out items with `quantity - returned_qty <= 0`.

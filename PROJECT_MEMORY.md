@@ -138,3 +138,10 @@ Implemented Inventory Expiry & Breakage Cockpit (DOC-16). Replaced legacy claim 
 
 ## [Update - DOC-14 & DOC-15 Integration]
 Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Scheme Settlement (DOC-14) in Purchase/Sales flows. Purchase Bill Layout restructured and fixed.
+
+
+## Session Updates (DOC-19, DOC-20, DOC-21, DOC-24)
+- **DOC-19 Delivery Challan:** Built DispatchManager.tsx and backend dispatch routing for vehicle/POD tracking.
+- **DOC-20 Document Series Engine:** Replaced rigid auto-increment with flexible DocumentSeries master. Implemented dynamic prefix/next_number allocation with concurrency locks (`FOR UPDATE`). Added editable voucher numbers.
+- **DOC-21 Sales Return Engine:** Integrated Credit Notes seamlessly into SalesBill.tsx. Added `F8 - Load Inv` hook to fetch original sales, validate remaining returnable quantity, and add back stock.
+- **DOC-24 Payment & Receipt Vouchers:** Upgraded existing VoucherEntry.tsx to use the new DocumentSeries engine and removed old hard-coded VoucherSequence table.

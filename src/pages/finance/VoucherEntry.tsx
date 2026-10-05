@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useReturnNavigation } from '../../hooks/useReturnNavigation';
+import apiClient from '../../lib/api';
 import { apiGetLedgers, apiCreateVoucher, apiGetNextVoucherNumber, Ledger } from '../../lib/api';
 import { Trash, Plus, Save, ArrowLeft } from 'lucide-react';
 import ReceiptAllocationModal from './ReceiptAllocationModal';
@@ -20,6 +21,47 @@ export default function VoucherEntry() {
   useReturnNavigation(isDirty);
 
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
+  // --- DOC-24 Document Series Integration ---
+  const [availableSeries, setAvailableSeries] = useState<any[]>([]);
+  const [selectedSeriesId, setSelectedSeriesId] = useState<string>('');
+  const [voucherNoError, setVoucherNoError] = useState('');
+  
+  useEffect(() => {
+    const fetchSeries = async () => {
+      try {
+        const { data } = await apiClient.get(`/api/billing/series`);
+        const targetType = type ? type.toLowerCase() : 'payment';
+        const filtered = data.filter((s: any) => s.invoice_type === targetType);
+        setAvailableSeries(filtered);
+        
+        if (filtered.length > 0) {
+          const lastSeries = localStorage.getItem(`lastVoucherSeriesId_${targetType}`);
+          let activeSeries = filtered.find((s:any) => s.id === lastSeries) || filtered[0];
+          setSelectedSeriesId(activeSeries.id);
+          
+          if (!voucherNumber || voucherNumber === '') {
+             const projected = `${activeSeries.prefix || ''}${activeSeries.next_number}${activeSeries.suffix || ''}`;
+             setVoucherNumber(projected);
+          }
+        }
+      } catch(e) {}
+    };
+    fetchSeries();
+  }, [type]);
+
+  const handleSeriesChange = (newSeriesId: string) => {
+    setSelectedSeriesId(newSeriesId);
+    const targetType = type ? type.toLowerCase() : 'payment';
+    localStorage.setItem(`lastVoucherSeriesId_${targetType}`, newSeriesId);
+    
+    const activeSeries = availableSeries.find((s: any) => s.id === newSeriesId);
+    if (activeSeries) {
+      const projected = `${activeSeries.prefix || ''}${activeSeries.next_number}${activeSeries.suffix || ''}`;
+      setVoucherNumber(projected);
+      setVoucherNoError('');
+    }
+  };
+
   const [voucherNumber, setVoucherNumber] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [narration, setNarration] = useState('');
@@ -36,7 +78,7 @@ export default function VoucherEntry() {
 
   useEffect(() => {
     apiGetLedgers().then(setLedgers).catch(console.error);
-    fetchNextVoucherNo();
+    // fetchNextVoucherNo();
     setEntries([
       { id: Date.now(), ledgerId: '', isDr: type !== 'payment', amount: '' },
       { id: Date.now() + 1, ledgerId: '', isDr: type === 'payment', amount: '' }
@@ -80,7 +122,7 @@ export default function VoucherEntry() {
       { id: Date.now() + 1, ledgerId: '', isDr: type === 'payment', amount: '' }
     ]);
     setNarration('');
-    fetchNextVoucherNo();
+    // fetchNextVoucherNo();
   };
 
   const handleSave = async () => {
@@ -89,6 +131,7 @@ export default function VoucherEntry() {
       const res = await apiCreateVoucher({
         voucher_type: type || 'Payment',
         voucher_number: voucherNumber,
+          series_id: selectedSeriesId,
         date,
         narration,
         total_amount: totalDr,

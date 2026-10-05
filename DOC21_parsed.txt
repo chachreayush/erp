@@ -1,0 +1,216 @@
+DOC-21
+Sales Return, Customer Return & Return-to-Stock Management Engine
+Implementation Architecture Specification
+Version 1.0 • C&F / Distribution ERP
+This document is intended to be used by product, UX, database and implementation teams. It defines what the system must do; implementation technology may vary as long as the behavior and audit controls are preserved.
+
+1. Purpose and Scope
+DOC-21 is the authoritative design for customer-side return processing after a sale or delivery. It covers return requests, return authorization where required, physical receipt, inspection, batch/expiry validation, disposition, stock movement, replacement, credit/debit consequences, claim linkage and auditability.
+The module must support both small-business simplicity and large C&F/distribution complexity. Small deployments can use a single-step return entry, while larger deployments can activate return authorization, multi-stage inspection, quarantine, approvals, evidence capture and claim workflows.
+DOC-21 does not replace DOC-16 inventory, DOC-20 billing, DOC-07 settlement, or DOC-08 posting. It orchestrates the return event and hands each responsibility to the authoritative engine.
+2. Position in the ERP Architecture
+The return architecture is deliberately split into physical and financial responsibilities:
+
+3. End-to-End Return Lifecycle
+The default lifecycle is:
+Return Request / Direct Return → Validation → Authorization (if required) → Return Receipt → Inspection → Disposition → Stock Movement → Financial Adjustment → Settlement → Closure
+
+4. Return Entry Modes
+Invoice-based return: user searches the original invoice and selects returnable lines/quantities.
+Challan-based return: user starts from the original delivery challan where billing is pending or policy requires dispatch-level traceability.
+Order-linked return: used when an order remains the business reference but invoice/challan is not the only source.
+Customer-initiated unreferenced return: system allows a “market/unknown-source return” only when policy permits; it must enter quarantine and cannot silently become sellable stock.
+Bulk/route return entry: authorized users can capture multiple customer returns during route reconciliation.
+Unreferenced or customer-claimed returns must never be assumed to be sold by the company. Provenance status must remain explicit until verified.
+5. Return Request / RMA Layer
+For businesses that require pre-approval, DOC-21 provides a Return Authorization / RMA record before physical receipt.
+
+6. Customer Return Reasons
+Expired / near-expiry
+Breakage / damaged packaging
+Wrong product
+Wrong batch
+Short supply / quantity discrepancy
+Quality complaint
+Transit damage
+Customer rejection
+Excess / overstock return where policy permits
+Price / commercial dispute
+Product recall / withdrawal
+Wrong customer / wrong dispatch
+Scheme/free-goods return
+Principal / vendor claim-related return
+Unknown or unverified source return
+Reason codes must be configurable. Each reason can carry default inspection rules, documentation requirements, approval level, stock disposition defaults and financial treatment suggestions.
+7. Return Receipt and Intake
+Physical receipt creates a return-receipt event before stock is made available. Received quantity is recorded separately from authorized/requested quantity.
+
+8. Inspection and Disposition Engine
+Inspection is the control point where returned physical goods become classified. No returned quantity should become ordinary available stock merely because it was scanned as received.
+
+9. Batch, Expiry and Provenance Validation
+Exact batch capture should be the default in batch-managed products.
+If batch is missing, the system may accept the physical receipt into quarantine only where policy permits.
+Where an invoice/challan source exists, the system should compare returned batch/quantity against the original sold/dispatched history.
+The system should show prior sales of the same product/batch to that customer when investigating a return.
+For expiry/breakage claims, DOC-21 should expose enough history to determine whether the company actually supplied the returned batch.
+If the same product is sourced from multiple vendors/principals, source provenance must remain independent from product identity.
+No user should be able to convert an unverified return directly into normal sellable stock without an authorized disposition decision.
+10. Customer Return Against Sales History
+The return screen should provide a “Verify Sale” workspace that searches by invoice, challan, customer, product, batch and date range.
+
+11. Return Quantity & Duplicate Prevention
+The ERP must calculate returnable quantity rather than rely on free-form entry.
+Example: Invoice line quantity 100 → previously returned 15 → currently open/eligible return quantity 85. A new return for 90 must be blocked or routed for authorized exception.
+Allow configurable tolerance for short/over returns.
+Prevent the same physical dispatch quantity from being returned twice.
+Show “previously returned” and “currently pending return” quantities.
+Partial returns may remain open until the allowed return window or business closure condition is reached.
+Any override must capture reason, user, timestamp and approval.
+12. Credit Note and Financial Adjustment
+DOC-21 recommends the financial result; DOC-20 remains the authoritative billing document engine for creation of the approved Credit Note or other commercial document.
+Typical flow: Accepted Return → Approved Financial Amount → Credit Note/Adjustment → DOC-08 Posting → DOC-07 Application → DOC-09 Outstanding Update.
+
+13. Replacement Goods
+Create replacement request linked to the return.
+Support same-product or authorized substitute product.
+Link replacement order/challan to the originating return.
+Keep returned and replacement quantities separate in stock and audit history.
+Allow replacement before final CN when policy permits, but retain a financial placeholder until commercial resolution.
+Use DOC-18/19/20 for downstream order/dispatch/billing where required.
+14. Expiry, Breakage and Principal/Vendor Claims
+For a C&F operation, many customer returns are upstream claim events. DOC-21 must preserve the chain: Customer Return → Batch → Original Sale/Dispatch → Original Purchase/Principal Ownership → Claim.
+Where the returned goods are expired or broken, the system should offer a “Create Claim” action that passes controlled data into the relevant claim workflow already defined in DOC-14/16/17.
+Customer expiry receipt can identify the sold batch and previous customer sales.
+Breakage can identify original dispatch and transport/handling context.
+If the company did not originally sell the item, the return remains a market/unverified return and does not automatically create a vendor claim.
+Multiple vendors/principals supplying the same SKU must not cause ambiguous claim attribution.
+Claimable quantity and value must respect ownership, scheme, batch and commercial rules.
+15. Financial vs Physical Separation
+The module must explicitly separate these states:
+
+This separation prevents a returned box from being treated as a credit note, and prevents a credit note from being interpreted as proof that goods physically returned.
+16. Return Screen / UX
+The screen should be keyboard-first and optimized for fast C&F return entry.
+
+The grid must allow rapid keyboard navigation, barcode entry, F4/F6-style context actions or configurable shortcuts, and minimal mouse dependence.
+17. Authorization and Segregation of Duties
+Return entry may be separate from return approval.
+Physical receipt may be performed by warehouse staff.
+Inspection/disposition may require quality or supervisor approval.
+CN approval may be restricted to authorized commercial/accounts roles.
+Write-off and claim rejection should require higher approval where configured.
+Users cannot approve their own high-risk override unless an explicit policy allows it.
+18. Alerts, Exceptions and Holds
+
+19. Reports and MIS
+Customer returns register
+Invoice-wise returns
+Batch-wise returns
+Expiry return report
+Breakage return report
+Unverified/market return report
+Return acceptance/rejection report
+Return aging report
+Credit note pending report
+Credit note issued but unapplied report
+Replacement pending report
+Claimable return report
+Customer-wise return frequency and value
+Product/batch return rate
+Warehouse-wise return handling
+Reason-wise return analysis
+Return-to-saleable quantity report
+Write-off report
+Full return trace: Invoice → Challan → Batch → Return → CN → Settlement
+20. Data Model — Core Entities
+
+21. Key Business Rules
+1. Returned goods are not automatically sellable stock.
+2. Every batch-managed return must retain batch identity or be quarantined when identity is unknown.
+3. Return quantity must be checked against historical sold/dispatched quantity whenever provenance is available.
+4. CN creation and stock posting are separate controlled actions.
+5. Unverified returns can be physically received without being treated as proof of a sale.
+6. Existing CN, payment and settlement logic must be reused; DOC-21 must not create a second settlement engine.
+7. All overrides require reason and audit data.
+8. Historical invoices and original dispatch records are immutable; return events are linked additions, not edits to the original transaction.
+9. All return movements must be traceable by company, branch, warehouse, product, batch, principal/ownership and document source as applicable.
+22. Integration Flow
+Recommended implementation flow:
+DOC-20 Invoice / DOC-19 Challan → DOC-21 Return Request → Return Receipt → Inspection → DOC-16 Stock Disposition → DOC-20 Credit Note (when approved) → DOC-08 Posting → DOC-07 Settlement → DOC-09 AR/Open Item → Claim/Replacement where applicable
+23. Acceptance Criteria
+1. User can create a return against an invoice and see previously returned quantities.
+2. User can record exact batch and expiry details on return.
+3. Received returned stock is segregated from sellable stock until disposition.
+4. Partial returns work without changing the original invoice.
+5. Credit Note is linked to the accepted return and original invoice.
+6. One return can trigger a replacement flow without losing audit traceability.
+7. Unverified customer returns can be held in quarantine and cannot silently enter normal stock.
+8. Expiry/breakage returns can be traced to prior company sales and upstream claim candidates.
+9. Customer return credit can be applied through DOC-07 to the correct bill(s).
+10. All lifecycle changes are auditable and reversible only through controlled reversal transactions.
+24. Future Extensions / Reserved Capability
+Portal/mobile customer return request
+Barcode/QR-based return verification
+AI-assisted return anomaly detection using historical return patterns (assistive only; human approval remains required)
+Route-level driver collection workflow
+Photo-based package condition evidence
+Automated principal claim packet generation
+Customer-specific return policies with effective dates
+Advanced quality inspection templates and defect codes
+25. Architecture Summary
+DOC-21 establishes the return event as a controlled business process rather than a simple negative quantity entry. The system records what was requested, what physically came back, what was verified, what inventory state resulted, and what financial adjustment was authorized. This separation protects stock accuracy, billing accuracy, customer balances and claim traceability while preserving the fast, keyboard-first workflow required by the C&F business.
+
+Document at a Glance
+
+Implementation Depth Upgrade
+This 2.0 revision raises DOC-21 to the project standard established by DOC-01. It retains the prior approved baseline and adds explicit data ownership, UI behavior, state transitions, edge-case handling, integration contracts, permissions, synchronization, reporting and acceptance requirements. The module remains code-free but implementation-ready in design intent.
+A. Authoritative Boundary & Non-Goals
+Owns customer-return request, receipt, inspection, provenance and physical disposition. It does not own inventory balances, commercial CN/DN or settlement; those remain with DOC-16, DOC-23 and DOC-07.
+B. Lifecycle / State Machine
+C. Relational Data Model — Implementation Blueprint
+Logical schema below is the minimum domain model; physical names, partitions and engine-specific constraints will be finalized in the database architecture document.
+return_request
+return_line
+return_inspection
+D. Detailed UI / Screen Specification
+Return Workbench
+Purpose: Create/search return and prove source
+Keyboard path: Ctrl+N; F4 customer; F5 source; Enter line; Ctrl+Enter validate.
+Save/post rule: Draft only until receive/inspection.
+Inspection & Disposition
+Purpose: Inspect received goods
+Keyboard path: F4 batch; F8 disposition; Alt+S sellable; Alt+Q quarantine.
+Save/post rule: Inventory movement goes only through DOC-16.
+Return Resolution
+Purpose: Resolve credit/replacement
+Keyboard path: Alt+C credit; Alt+R replacement; Alt+X close.
+Save/post rule: No duplicate resolution for the same eligible quantity.
+E. Integration Contract Matrix
+F. Security, Permissions & Data Scope
+G. Offline / LAN / Cloud Synchronization
+Return IDs and source links are immutable event identifiers.
+Offline receipt is permitted where local authority is active; final financial resolution remains idempotent.
+Duplicate sync must not create another stock movement or CN/DN.
+Conflicting quantity/disposition edits use controlled resolution, not last-write-wins.
+H. Reporting & Dashboard Feed
+Return rate by customer/product/batch.
+Accepted/rejected/disposition quantities.
+Expiry/breakage returns awaiting principal/vendor claim.
+Credits pending/posted/on-account.
+Return ageing and exception queue.
+I. Expanded Edge-Case Handling
+The following cases must have deterministic outcomes. This is intentionally broader than the happy path so that implementation does not leave operational gaps.
+J. Implementation Acceptance Criteria
+Source-linked returns cannot exceed remaining eligible quantity without explicit exception.
+Batch/expiry is mandatory for batch-controlled products.
+No sellable stock movement occurs before valid disposition.
+CN/DN is created only through DOC-23.
+Every physical and financial step is auditable.
+Partial returns remain traceable to source lines and batches.
+Offline retries do not duplicate inventory or financial effects.
+K. Small / Medium / Large Business Modes
+L. Version / Amendment Decision
+v2.0 materially expands the earlier v1.0 with explicit schema, state, UI, integration and edge-case architecture.
+Final architectural rule
+Physical receipt, disposition and financial credit are distinct controlled events; no user action may bypass DOC-16, DOC-23, DOC-07, DOC-08 or DOC-33.

@@ -237,6 +237,11 @@ export interface Product {
   name: string
   packing: string
   unit: string
+  base_uom?: string
+  purchase_uom?: string
+  sales_uom?: string
+  pack_size?: number | string
+  track_batch?: boolean
   colour_type: 'normal' | 'red' | 'blue' | 'green'
   item_type: 'normal' | 'cold storage' | 'costly'
   company_name: string
