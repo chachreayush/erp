@@ -1537,3 +1537,36 @@ class DispatchRecordResponse(DispatchRecordBase):
     challan_id: UUID4
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+# -- DOC-28: Bank Reconciliation Schemas ---------------------------------
+class BankStatementProfileBase(BaseModel):
+    name: str
+    column_mapping: dict
+
+class BankStatementProfileCreate(BankStatementProfileBase):
+    pass
+
+class BankStatementProfileResponse(BankStatementProfileBase):
+    id: UUID
+    organization_id: UUID
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class BankStatementRowResponse(BaseModel):
+    id: UUID
+    transaction_date: date
+    description: str
+    reference_no: Optional[str] = None
+    withdrawal: Decimal
+    deposit: Decimal
+    balance: Optional[Decimal] = None
+    is_reconciled: bool
+    matched_voucher_id: Optional[UUID] = None
+    class Config:
+        from_attributes = True
+
+class BankReconciliationMatchRequest(BaseModel):
+    statement_row_id: UUID
+    voucher_id: UUID

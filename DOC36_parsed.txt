@@ -1,0 +1,332 @@
+DOC-36
+PRINCIPAL & C&F OPERATIONS MANAGEMENT ENGINE
+Detailed Implementation Specification — Phase 1 / C&F Commercial & Operational Management
+
+Implementation boundary: DOC-36 orchestrates Principal/C&F operations and exposes a complete operational position. It does not create duplicate engines for master data, accounting posting, settlement, scheme calculation, inventory movement, tax, freight, reporting, workflow or audit.
+
+Document Map
+Executive Summary
+Purpose, Scope & Non-Goals
+Architecture Position & System Boundaries
+Principal Operational Model
+Principal Agreement & Operating Terms
+Principal Product, Territory & Customer Mapping
+Principal Stock Ownership & Operational Custody
+Principal Inward, Outward & Movement Control
+Principal Schemes, Free Goods & Allowances Integration
+Principal Claims, Recoveries & Reimbursements
+Principal Expenses, Freight & Cost Attribution
+Principal Commission / Service Revenue Integration
+Principal Reconciliation Engine
+Principal Statement & Balance Architecture
+Principal MIS, Profitability & Management Views
+Principal Operational Control Centre / UI
+Workflow, Approvals & Exceptions
+Accounting & Settlement Integration
+Tax & Compliance Integration
+Inventory, Batch, Expiry & Returns Integration
+Billing, Challan, Cargo & Freight Integration
+Detailed Data Model & Relational Blueprint
+Lifecycle & State Machines
+Permissions, Security & Data Scope
+Local-First / LAN / Cloud Synchronization
+Error, Edge-Case & Recovery Handling
+Audit, Evidence & Data Governance
+Reports & Dashboard Feeds
+Small / Medium / Large Business Modes
+Performance, Scalability & Data Retention
+Implementation Dependencies & Service Contracts
+Acceptance Criteria & Test Matrix
+Non-Negotiable Design Rules
+Decision Register & Open Configuration Points
+Appendix A — End-to-End Principal Example
+Appendix B — Principal Operational Screen Wireframes
+Appendix C — Future Extensions
+
+1. Executive Summary
+DOC-36 defines the operational engine that turns the Principal relationship from a collection of master records into a continuously traceable operating position. The system must answer, for every Principal: what agreement applies, which products and customers are authorized, what stock is owned by the Principal, what stock is physically held by the C&F, what has moved, which commercial benefits are due, which claims and recoveries are pending, which costs belong to the Principal, what service revenue is earned, and whether the Principal statement reconciles to the source transactions.
+
+1.1 Core outcomes
+Principal is a first-class operating dimension across stock, batch, purchase/inward, sales, returns, schemes, claims, freight, commission and reporting.
+Principal ownership is separate from physical location. The ERP can hold Principal-owned stock without treating the C&F as owner.
+Historical transactions retain the agreement/version/product mapping/ownership rule that was actually used at posting time.
+The principal statement is reconstructed from source transactions; it is not maintained by manual balance editing.
+Claims, schemes, commissions and cost recoveries remain linked to their authoritative engines instead of being duplicated inside the principal module.
+A Principal can share the same product with another Principal without cross-owner stock contamination.
+The system supports both simple small-business C&F operation and high-volume multi-branch/multi-Principal operation using the same underlying architecture.
+2. Purpose, Scope & Non-Goals
+2.1 In scope
+Principal operating agreements and effective-dated terms.
+Principal product, territory, customer, warehouse and service-location mapping.
+Ownership/custody policies for Principal stock.
+Principal-wise stock movement and operational reconciliation.
+Principal-linked schemes, free goods and extra allowances through DOC-14.
+Principal claims, recoveries and reimbursement tracking.
+Principal cost and freight attribution using DOC-35.
+Principal commission/service revenue consumption from DOC-37.
+Principal statement, stock statement, claim statement and profitability views.
+Approvals, disputes, evidence, audit, permissions and sync behavior.
+2.2 Not owned by DOC-36
+Creating or editing the base Principal master identity — DOC-12.
+Calculating official schemes and extra allowance entitlement — DOC-14.
+Maintaining the stock movement ledger — DOC-16.
+Creating double-entry accounting postings — DOC-08.
+Bill-by-bill settlement allocation — DOC-07.
+Final GST/e-invoice/e-way bill calculation — DOC-29.
+Final freight rate calculation — DOC-35.
+Final reporting engine or dashboard renderer — DOC-30/31.
+3. Architecture Position & System Boundaries
+
+Boundary rule: a Principal-related screen may display combined information from several engines, but each fact must retain its source and authority. A Principal dashboard is therefore an orchestration view, not a second ledger.
+4. Principal Operational Model
+4.1 Principal relationship layers
+
+4.2 Principal relationship example
+
+5. Principal Agreement & Operating Terms
+A Principal can have multiple agreement versions. Only one compatible agreement/version may be active for a transaction context unless the company explicitly permits multiple concurrent agreements by product/territory/channel.
+
+5.1 Version resolution rule
+Use transaction date/time and product/customer/territory scope to resolve the agreement version.
+If no applicable version exists, block financial posting when the term is mandatory; otherwise allow a clearly marked “manual/exception” path requiring authorization.
+A later amendment must not rewrite a prior posted transaction.
+Overlapping equal-priority versions with incompatible terms create a configuration conflict and must not be auto-selected.
+6. Principal Product, Territory & Customer Mapping
+6.1 Product mapping
+
+6.2 Validation examples
+Do not allow a Principal product to be dispatched from a warehouse not authorized for that Principal unless an approved exception policy exists.
+Do not silently switch stock owner because two Principals sell the same SKU.
+If a customer is mapped to Principal A but the stock selected belongs to Principal B, the system must require explicit owner/business-rule resolution.
+A product can be operationally common while ownership remains Principal-specific at batch or stock-lot level.
+7. Principal Stock Ownership & Operational Custody
+DOC-36 provides the Principal-facing ownership and custody interpretation of the DOC-16 stock ledger. Physical presence in a C&F warehouse does not, by itself, transfer ownership to the C&F company.
+
+7.1 Stock statement formula
+
+The formula is a reporting reconstruction from DOC-16 movement events. It must never be maintained by a separate editable “Principal balance quantity”.
+8. Principal Inward, Outward & Movement Control
+
+8.1 Operational event ledger
+DOC-36 should create an append-only Principal operational event record for high-value or commercially material events. This is not a replacement for DOC-16 inventory movements; it is a Principal attribution/event index used to reconstruct the relationship timeline.
+
+9. Principal Schemes, Free Goods & Allowances Integration
+DOC-14 is the sole authority for scheme entitlement, official free goods and extra Principal allowances. DOC-36 provides Principal context and operational visibility.
+Display official scheme and extra Principal allowance separately.
+Show entitlement, consumed quantity, pending reimbursement and settlement status in the Principal cockpit.
+Never convert a Principal allowance into a generic company discount.
+Link each reimbursement candidate to its source entitlement movement.
+Allow Principal-wise pending benefit aging and settlement reporting.
+9.1 Principal allowance example
+
+10. Principal Claims, Recoveries & Reimbursements
+
+10.1 Claim lifecycle
+
+Claim approval does not itself create financial settlement. The approved economic intent is passed to DOC-07/DOC-08 and the source claim remains linked until fully settled.
+11. Principal Expenses, Freight & Cost Attribution
+Principal economics require separation of gross cost, recoverable cost, absorbed cost and commission/service income. DOC-35 provides freight/logistics calculations; DOC-36 attributes those results to the relevant Principal relationship.
+
+11.1 Cost bearer resolution
+Resolve cost bearer from the active Principal agreement and applicable operational policy.
+Allow transaction-specific approved override only when authorized.
+Never infer Principal responsibility solely from physical stock ownership.
+Preserve the original cost bearer at transaction finalization.
+If Platform Admin bears a client cargo cost, use the DOC-35 Admin-borne architecture rather than silently transferring the expense to the client company.
+12. Principal Commission / Service Revenue Integration
+DOC-36 provides the Principal context needed by the future DOC-37 Commission & Recovery engine. It does not duplicate commission calculation logic.
+
+13. Principal Reconciliation Engine
+Reconciliation is the core control function of DOC-36. It compares source-derived Principal position against physical statements, Principal-issued statements or independently supplied figures.
+13.1 Reconciliation layers
+
+13.2 Reconciliation workspace
+Period selector + Principal + branch + warehouse + product/batch filters.
+Opening, additions, deductions and closing columns.
+Matched / unmatched / partially matched lines.
+Tolerance rules for quantity/value/date differences.
+Variance reason codes and owner assignment.
+Attach external statement/evidence reference.
+Create follow-up claim or adjustment from a variance.
+Approve and freeze a completed reconciliation period.
+13.3 Reconciliation invariants
+Every reported closing balance must be reproducible from source movements.
+A reconciliation cannot alter history by directly changing a balance.
+Corrections are made through source transactions or approved adjustment documents.
+A completed reconciliation stores the report version, filters, source snapshot/version references and approver.
+14. Principal Statement & Balance Architecture
+The Principal statement is a structured business statement assembled from operational and financial sources. It must distinguish quantity, commercial value, claims, recoveries and settlement state.
+
+14.1 Statement traceability
+Every material line can drill to the originating transaction/document.
+Every amount can show accounting status: not posted / posted / reversed / pending settlement.
+Every quantity can show stock status and batch where relevant.
+Every claim/reimbursement can show its current workflow state and settlement state separately.
+15. Principal MIS, Profitability & Management Views
+
+“Profitability” is a management view and must clearly identify whether the calculation is contribution, gross service margin, or another configured analytical definition. It must not silently replace statutory accounting profit from DOC-41/DOC-08.
+16. Principal Operational Control Centre / UI
+16.1 Principal control centre
+
+16.2 Principal statement screen
+Header: Principal, agreement, branch, warehouse scope, period, currency.
+Tabs: Stock | Sales | Returns | Claims | Schemes | Costs | Commission | Settlement | Audit.
+Grid: date, source document, product/batch, qty, value, status, owner, reference.
+Side panel: current balance, unresolved exceptions, approval status, settlement status.
+Drill-down: every line opens the source record without losing filters.
+Keyboard controls: arrows/tab/enter, search-first lookup, F4 reconciliation, Ctrl+Enter approve where allowed.
+16.3 Claim workspace
+Claim source, Principal, product, batch, quantity, value, reason, evidence, previous related transactions.
+Eligibility result and policy explanation.
+Approval chain and current responsible user.
+Resolution selection: CN/DN/payment/replacement/adjustment.
+Settlement link to DOC-07 and posting status from DOC-08.
+17. Workflow, Approvals & Exceptions
+17.1 Approval triggers
+
+17.2 Exception queue
+No active agreement for transaction.
+Product not mapped to Principal.
+Warehouse not authorized.
+Stock owner mismatch.
+Batch provenance incomplete.
+Claim exceeds eligible quantity/value.
+Duplicate claim detected.
+Principal statement variance outside tolerance.
+Unsettled approved recovery beyond due date.
+Remote/cloud conflict on agreement or reconciliation version.
+18. Accounting & Settlement Integration
+DOC-36 prepares Principal accounting and settlement intents. DOC-08 performs the final posting. DOC-07 performs bill-by-bill/open-item allocation.
+
+18.1 Settlement rule
+No Principal module screen may create its own allocation table that competes with DOC-07. A Principal claim or recovery can have a settlement target, but the applied payment/CN/DN status comes from DOC-07.
+19. Tax & Compliance Integration
+Principal tax identity, GST registration and legal attributes are sourced from authorized company/Principal master data.
+Tax calculation and e-invoicing remain in DOC-29.
+Principal context must be retained on tax-sensitive transactions for audit and reporting.
+Cross-state/inter-state implications are resolved using transaction location/place-of-supply rules from DOC-29, not inferred from Principal location alone.
+The Principal module must store tax rule/version references for explanatory drill-down where a transaction depends on a tax calculation.
+20. Inventory, Batch, Expiry & Returns Integration
+Principal operations are batch-aware because the same SKU may be supplied by multiple Principals and expiry/breakage claims require provenance.
+
+21. Billing, Challan, Cargo & Freight Integration
+
+21.1 Multi-challan / consolidated billing
+When several challans for the same Principal are consolidated into one invoice, DOC-36 must preserve the source-challan-to-line-to-batch relationship so that Principal statements remain traceable at original dispatch level.
+22. Detailed Data Model & Relational Blueprint
+The following is the implementation blueprint. Physical table names may be adapted during DOC-45 database design, but the business entities and integrity rules are mandatory.
+
+22.1 Relationship model
+
+22.2 Integrity constraints
+All entities are company-scoped unless explicitly part of Platform Admin configuration.
+principal_id is mandatory for Principal-owned/Principal-operated records.
+Historical transaction rows store resolved agreement_version_id/rule IDs where those rules affected the transaction.
+Unique business keys are company-scoped; global uniqueness is used only where required by platform architecture.
+Soft deletion is used for master/rule records; posted event history is never deleted.
+Statement snapshots are reproducible and invalidated/rebuilt when source versions change.
+23. Lifecycle & State Machines
+23.1 Principal operational context
+
+23.2 Reconciliation
+
+23.3 Claim
+
+24. Permissions, Security & Data Scope
+
+Permissions must be split by action (view/create/edit/approve/reconcile/export/override) and by data scope (company/branch/warehouse/Principal). Principal users cannot cross the client-company or Platform Admin security boundary.
+25. Local-First / LAN / Cloud Synchronization
+DOC-36 follows the ERP-wide local-first architecture. Local/LAN processing remains the primary operational execution environment; the transactional cloud layer is used for remote synchronization, recovery and authorized remote work. The ERP must not have multiple computers directly open the same SQLite/file database on Drive/OneDrive.
+25.1 Principal sync requirements
+All Principal event records have globally unique IDs and idempotency keys.
+Agreement and reconciliation versions use optimistic concurrency/version checks.
+Claim creation, approval and settlement intents are replay-safe.
+Stock/statement caches are rebuildable from source facts.
+Sync retries use exponential backoff and preserve local pending state.
+Conflicts are presented to the user when semantic merging is unsafe; the system must not silently choose a Principal agreement or ownership value.
+Audit events are retained across offline/online transitions.
+25.2 Sync example
+
+26. Error, Edge-Case & Recovery Handling
+
+26.1 Recovery principle
+Every recoverable failure must identify the last durable state, the pending operation, the safe retry key and the user-visible next action. Recovery must never require direct database editing by an end user.
+27. Audit, Evidence & Data Governance
+Log Principal master context, agreement version usage, ownership overrides, claim decisions, reconciliation approvals and exports.
+Store before/after values for material rule changes.
+Record actor, role, company, branch, device/session, timestamp and correlation ID.
+Link evidence documents using DOC-42/43 when available; retain document hashes for integrity.
+Record why a manual override was used, not only what value was entered.
+Principal statements store the source-version set used to generate them.
+Sensitive Principal exports and cross-client administrative access are audited under DOC-33.
+27.1 Data retention
+Retention follows the ERP-wide legal/compliance policy and the configured company jurisdiction. Posted financial and operational evidence is not destructively deleted; archival policies must preserve reconstructability.
+28. Reports & Dashboard Feeds
+
+Dashboard policies from DOC-31 may exclude/snooze particular parties, ledgers or outstanding items for selected operational KPIs without deleting or altering the accounting/Principal source truth.
+29. Small / Medium / Large Business Modes
+
+All three modes use the same data model. UI complexity is reduced by feature/configuration flags, not by maintaining a separate simplified architecture.
+30. Performance, Scalability & Data Retention
+Index Principal ID, company ID, agreement date range, product ID, batch ID, warehouse ID, event time, source document and status.
+Precompute Principal statement snapshots for frequent periods while retaining source references.
+Use incremental event processing for dashboards rather than recalculating all history on every screen load.
+Partition large event/audit datasets by company/period when DOC-45 warrants it.
+Keep claim/reconciliation workflows responsive even when a Principal has millions of movement lines.
+Never sacrifice source-level traceability for aggregation performance; summary tables are caches/derived facts.
+31. Implementation Dependencies & Service Contracts
+
+31.1 API/event examples
+
+32. Acceptance Criteria & Test Matrix
+
+32.1 Definition of done
+All mandatory Principal operational flows are implemented and linked to authoritative engines.
+No duplicate accounting, settlement, inventory, scheme or freight engine exists inside DOC-36.
+Principal stock and claims are traceable to source transactions.
+Reconciliation cannot mutate historical balances directly.
+Keyboard-first screens support the routine workflows.
+Offline/LAN/cloud behavior is tested for duplicate, retry and conflict cases.
+Small, medium and large business modes use one logical architecture.
+Audit evidence is queryable for every material Principal decision.
+33. Non-Negotiable Design Rules
+Principal is a first-class operating dimension, never a free-text invoice field.
+Principal ownership is separate from physical warehouse location.
+Historical transactions retain the agreement/rule version actually used.
+The Principal statement is reconstructed from source records.
+DOC-14 remains the authority for schemes and Principal allowances.
+DOC-16 remains the authority for stock movements and stock status.
+DOC-07 remains the authority for financial settlement allocation.
+DOC-08 remains the authority for accounting postings.
+DOC-35 remains the authority for freight cost/recovery calculations.
+Every material Principal balance/status is traceable to source records.
+No silent ownership change, write-off, claim settlement or agreement override.
+Client Companies cannot cross Principal or Platform Admin permission boundaries.
+34. Decision Register & Open Configuration Points
+
+34.1 Open implementation choices for DOC-45/46
+Exact physical database partitioning/index strategy.
+Event transport technology and cloud provider adapters.
+External Principal statement file/API formats.
+Optional electronic data interchange connectors.
+Currency precision and multi-currency revaluation rules for Principal contracts.
+
+Appendix A — End-to-End Principal Example
+Example business flow using the project rules:
+
+A.1 Resulting Principal position
+
+Appendix B — Principal Operational Screen Wireframes
+B.1 Principal List / Search
+
+B.2 Reconciliation grid
+
+B.3 Principal statement
+
+Appendix C — Future Extensions
+Principal self-service portal with controlled statement/claim access.
+Automated Principal statement import and matching adapters.
+Principal forecast of stock demand and working-capital requirements.
+Advanced contract simulation: “What changes if commission/freight term changes?”
+Principal SLA monitoring and service scorecards using factual operational metrics.
+Principal-specific AI assistance for document matching, claim evidence extraction and anomaly surfacing, subject to DOC-51 governance.

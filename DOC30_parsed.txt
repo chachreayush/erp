@@ -1,0 +1,213 @@
+DOC-30
+Financial, Statutory & Management Reporting Engine
+v3.0 — Predefined Reports + Configurable Report Tweaks + Advanced Report Designer + Dashboard Data Governance
+
+Purpose: make reporting as flexible as a specialist ERP report system while keeping one authoritative accounting/reporting data layer.
+
+
+1. Executive Architecture
+DOC-30 is the single reporting layer that converts authoritative ERP facts into financial statements, statutory reports, operational reports, MIS, dashboards and user-designed reports. It must never create a second accounting truth. Every amount shown in a report must be traceable to a ledger posting, inventory movement, tax record, asset record or other approved source transaction.
+
+2. Reporting Modes
+
+3. Predefined Report Library
+The ERP should ship with a large categorized report library and allow the library to grow by module. Reports should be keyboard searchable, tagged by role, and searchable by natural report purpose rather than only menu names.
+
+
+4. Tweakable Predefined Reports — “Marg-like” Flexibility
+
+4.1 Allowed report tweaks
+Change date range, financial period, comparison period and relative periods such as Today, This Week, Month-to-Date, Quarter-to-Date and Year-to-Date.
+Apply party, product, category, principal, branch, warehouse, salesperson, transporter, tax code, series, status, user and custom master filters.
+Show/hide available columns without changing source data.
+Reorder columns by drag/drop or keyboard controls.
+Rename display headings without altering the underlying field name.
+Switch Detail / Summary / Value / Pivot / Trend views where the report supports them.
+Group and subtotal by one or more dimensions.
+Sort ascending/descending and define secondary/tertiary sort order.
+Change number, currency, quantity, percentage and date formats.
+Add/remove grand totals and selected subtotals.
+Compare two periods, two branches, two customers, two products, or other supported comparison dimensions.
+Save the complete selection as a named report format and reopen it later.
+Export to Excel/CSV/PDF and print with the saved presentation rules.
+Open a row and drill down to supporting documents when the source report permits it.
+4.2 Saved report variants
+
+5. Advanced Custom Report Designer
+This is the major upgrade beyond a normal ERP report-format editor. A user with permission should be able to create a report from a governed semantic data model without writing SQL or code. The designer works as a visual composition system: choose a data subject, add fields, define filters, add variables/calculations, group, format, preview, validate, save and publish.
+5.1 Report designer stages
+Select Report Subject — e.g., Sales Invoice, Purchase Bill, Stock, Ledger, Payment, Principal Stock or a certified cross-module subject.
+Choose available dimensions and measures from the subject catalogue.
+Add filters and user parameters.
+Build calculated fields and variables using the approved formula builder.
+Define grouping, sorting, subtotal and total rules.
+Define layout: columns, sections, headers, footers, page breaks, grouping bands and repeating headers.
+Add conditional formatting, indicators and exception highlighting.
+Add charts/pivot/crosstab elements where applicable.
+Preview with sample or controlled live data.
+Run validation for data availability, formula safety, aggregation correctness and permission scope.
+Save as draft, test, then publish a version with owner, permissions and change history.
+5.2 Multiple variables and calculations
+Variables can be parameters supplied at runtime: date_from, date_to, branch, warehouse, customer, product, principal, ageing_days, tax_rate, target and comparison_period.
+Calculated fields can combine multiple source fields and other calculated fields.
+Supported calculation classes: arithmetic, percentage, margin, quantity conversion, date difference, ageing, conditional logic, classification, running totals, ratios, variance and period comparison.
+Aggregation functions: SUM, COUNT, COUNT DISTINCT where supported, MIN, MAX, AVERAGE and weighted measures.
+Business calculations can reference approved ERP measures such as Net Sales, Gross Margin, Outstanding, Available Stock, Reorder Stock and Claimable Value rather than duplicating raw accounting logic.
+Formula dependencies must be visible so the user can understand “how this number was calculated”.
+Circular calculation dependencies must be detected and blocked.
+5.3 Example custom report
+“Customer Profitability + Outstanding Risk” could combine Customer, Sales, Returns, Gross Margin, Receivables, Ageing and Payment history. Variables: Date From/To, Branch, Principal, Customer Group and Ageing Threshold. Calculations: Net Sales = Sales − Returns; Gross Margin % = Gross Margin / Net Sales; Collection Ratio = Receipts / Due Amount; Risk Flag = configurable rule based on overdue days and exposure. The report designer should show every calculated measure in a formula explanation panel.
+
+6. Report Format / Layout Designer
+The layout designer should be separate from data selection so a finance user can reuse the same data definition with different print/export layouts. This is particularly useful for C&F statements, customer statements, principal MIS and statutory schedules.
+6.1 Layout capabilities
+Free-form report sections: title, subtitle, parameter summary, body, subtotal bands, notes, signature/footer areas.
+Column widths, alignment, font size, number formats, decimal precision, currency symbols and negative-number display.
+Conditional highlighting for overdue, negative stock, high variance, claimable, exception or status conditions.
+Page headers/footers, page numbers, report date/time, user/company/branch information and legal/tax registration fields where required.
+Logo/branding placeholders and company-specific templates.
+Repeating group headers and repeating column headers for long reports.
+Page-break rules: each customer, branch, principal, invoice, day or group as configurable.
+Summary boxes and KPI cards at top or bottom of a report.
+Print-area, paper-size, orientation and margin profiles.
+Export-aware layouts so Excel remains analytical while PDF remains print-ready.
+7. Pivot, Cross-tab & Analytical Views
+Reports should support pivot-style analysis without requiring the user to build a separate spreadsheet.
+
+8. Drill-down & Traceability
+Every report must have an explicit source lineage. A financial statement line should be drillable to account/group, ledger, journal/posting, source transaction and underlying operational document wherever permissions allow.
+For operational reports, the drill chain should preserve business relationships such as Invoice → Challan → Order → Batch → Dispatch, or Purchase Bill → GRN → Vendor → Batch → Claim. This is consistent with the project principle that reports explain transactions rather than becoming a separate data store.
+9. Dashboards & Management Analytics
+Role-specific dashboards: Owner, Finance, CA, Purchase, Sales, Warehouse, Principal/C&F, Operations.
+KPI cards with target/actual/variance, period comparison and drill-down.
+Charts: trend, column/bar, line, stacked, pie/donut where useful, waterfall for bridge analysis and ageing bands.
+Exception panels: overdue, negative stock, near expiry, pending claims, unreconciled bank entries, tax mismatch, portal errors, unbilled challans.
+Dashboard widgets can be linked to saved report views so there is one calculation definition instead of duplicated logic.
+Scheduled refresh with last-refresh timestamp and data freshness indicator.
+No KPI should be presented as “real time” unless its underlying source is confirmed current.
+
+10. Best-Out-of-the-Best Reporting Features
+
+11. Report Security & Data Scope
+Reporting must honor the same tenant/company/branch/warehouse/user permissions as transactional screens. A user cannot bypass RBAC by exporting a broader report. Central Platform Admin access remains governed by its own audit and impersonation controls.
+12. Reporting Data Architecture
+
+13. Governance for Custom Reports
+Users may create private drafts freely within their permitted semantic subjects.
+Publishing a shared/company report requires permission and validation.
+Core financial/statutory reports are protected from unauthorized formula changes.
+Every published report has a version number and change reason.
+Archived report versions remain reproducible for audit and historical comparisons.
+Report formulas cannot silently override accounting/tax authorities in DOC-08/09/29.
+Custom reports may calculate presentation metrics but cannot post transactions unless an explicit future workflow is designed and authorized.
+14. Performance Architecture
+Use indexed dimensions for dates, company, branch, warehouse, customer, supplier, product, principal and document identifiers.
+Prefer summarized/cached reporting structures for very high-volume transaction histories while retaining source traceability.
+Use incremental refresh where possible instead of rebuilding all historical summaries.
+Provide progress indicators for long-running reports and allow authorized cancellation.
+Permit users to save parameter presets to reduce repeated expensive filtering.
+Show a data freshness timestamp on dashboards and cached reports.
+15. Report Builder UI Workflow
+1. Open Reports → search or select a report subject.
+2. Choose Predefined, Tweak or Custom mode.
+3. Set runtime parameters and filters.
+4. For Custom mode, add fields and calculated measures from the semantic catalogue.
+5. Configure group, sort, subtotal, total and comparison rules.
+6. Choose table/pivot/chart and layout.
+7. Preview and inspect formula/source lineage.
+8. Validate data scope and report performance.
+9. Save as personal/shared report or publish according to permissions.
+10. Export/print/schedule and retain the report definition/version.
+16. Keyboard-first Reporting
+Global report launcher/search.
+Keyboard navigation between parameters, filters and grid columns.
+Quick-select All / None / Invert for multi-selects.
+Keyboard reorder/hide/show columns.
+Quick drill-down and back navigation.
+Save Format / Save Variant / Export / Print shortcuts.
+Command palette for report actions.
+17. Integration with Existing Documents
+
+
+18. Suggested Core Report Catalog
+
+19. Acceptance Criteria
+Every predefined report produces results from authoritative ERP facts only.
+Users can save a report variant without altering the base report.
+Authorized users can build a custom report without SQL/code.
+Custom reports support multiple runtime variables and calculated measures.
+Custom reports support configurable groups, totals, sorting and comparison.
+Layouts can be saved independently from data definitions.
+Reports drill to permitted source transactions.
+Financial reports reconcile to DOC-08/DOC-09 balances within defined rounding rules.
+Tax reports reconcile to DOC-29 tax records and compliance states.
+Exported outputs respect user permissions and data masking rules.
+Published report definitions are versioned and auditable.
+Large reports use controlled execution/caching so they do not degrade the transactional ERP.
+Dashboard KPIs show data freshness.
+All report actions remain keyboard-operable for routine use.
+20. Final Design Principle
+DOC-30 should feel simple for a normal user and extremely powerful for a finance/MIS expert. A new user should be able to open a predefined report, set filters and export it in seconds. A CA, accountant, owner or MIS analyst should be able to take the same report, modify its columns and calculations, build a new report with multiple variables, design its exact presentation, save it as a reusable format, and drill from any important figure back to its source transaction — without writing code.
+Appendix A — Functional Inspiration Boundary
+This architecture uses established ERP reporting concepts—such as saved report formats, detailed/summary views, configurable filters, column selection/reordering, period comparison and spreadsheet/PDF export—as functional inspiration. The custom report designer, data model, workflow and visual interface should be original to this ERP and should not reproduce another product’s proprietary code or screen design.
+v3.0 Revision — Reporting Scope vs Dashboard Visibility
+Purpose of this revision: separate the complete accounting/reporting truth from the subset of information that a management dashboard should prioritize and calculate. Users may suppress or deprioritize selected parties, ledgers, and outstanding items from dashboard calculations, while the underlying ERP records remain intact and available to authorized accounting, tax and audit users.
+1.1 Core rule: dashboard visibility is not accounting deletion
+A dashboard exclusion changes only dashboard inclusion, ranking, alerting and KPI calculation scope; it never deletes, alters, reverses or settles the underlying transaction.
+Statutory reports, financial statements, ledgers, tax reports, audit trails and source transactions continue to use the authoritative data according to their own reporting rules.
+Every exclusion must have a reason, creator, date, optional review/expiry date and audit history.
+Dashboard calculations must state their scope, for example: “Actionable Outstanding” rather than implying that excluded balances do not exist.
+1.2 Dashboard inclusion treatment master
+1.3 Party, ledger and outstanding-level controls
+Party-level exclusion: a user with permission may exclude a customer/supplier/principal from selected management dashboard widgets.
+Ledger-level exclusion: a permitted ledger can be excluded from dashboard KPI feeds such as operational expense or management variance widgets.
+Outstanding-item exclusion: individual bill/open-item balances can be marked non-actionable, snoozed or excluded from specified dashboard collections/ageing widgets.
+Category-level control: exclusions can be applied to a party group, ledger group, branch, warehouse or business segment where authorized.
+Scope-specific exclusion: an exclusion may apply only to collection dashboards, not sales, tax, profitability or other dashboards.
+Time-bound exclusion: users can set an end date so the item automatically returns to dashboard scope.
+Event-based resurfacing: a suppressed item can automatically return when a new payment, dispute change, overdue threshold, new invoice, CN/DN, claim event or configured trigger occurs.
+1.4 Visibility rule data model
+1.5 Dashboard calculation scope
+Every dashboard KPI must execute against an explicit scope definition containing: base subject + permitted data scope + inclusion rules + exclusion rules + date/period + aggregation method.
+Example: “Actionable Outstanding” = open receivables within user scope, excluding items classified EXCLUDE-FROM-DASHBOARD or SNOOZED and applying configured overdue rules.
+The dashboard should expose an information icon such as “Why this amount?” which explains filters, excluded categories and the calculation formula to authorized users.
+A dashboard may show “Excluded from operational view: 24 parties / ₹X” only when the viewer has permission; otherwise no sensitive detail is displayed.
+Excluded values must not silently remain in the numerator or denominator of ratios. KPI definitions must state whether exclusions affect numerator, denominator or both.
+1.6 Company dashboard provisioning
+A new client company receives a dashboard workspace automatically when the company is created; the Platform/Master Admin dashboard remains separate.
+Initial dashboard templates are selected during company onboarding based on business type, enabled modules and region.
+The company administrator can activate, deactivate and configure dashboard templates within the company permission ceiling.
+Templates may include Finance, Sales, Purchase, Inventory, C&F/Principal, Dispatch, Tax/Compliance, Expense, Branch and Management dashboards.
+The same underlying KPI/report definitions can be reused across companies without sharing company data.
+1.7 User setup and dashboard authorization
+During user creation, the setup page must include Dashboard & Reporting permissions as a first-class section.
+Permissions should include: allowed dashboards, allowed widgets, allowed data scopes, ability to change filters, ability to create/schedule reports, ability to create visibility rules, ability to approve visibility rules, and ability to view excluded items.
+User permissions can only stay within the role/company authorization ceiling established by DOC-03; company users cannot modify Platform/Master Admin permissions.
+A user may be able to view a KPI but not change its formula; view an excluded item but not exclude it; create a personal dashboard but not publish a company dashboard.
+Sensitive metrics can be masked or entirely unavailable based on role and data classification.
+1.8 Management dashboard views
+1.9 Governance and anti-concealment controls
+The dashboard feature must never provide a “delete from books” or “hide from financial statements” action.
+Exclusion reasons should be controlled by a company master and can include: disputed, management hold, collection not currently actionable, principal claim pending, legal matter, dormant, temporary operational hold, or other approved internal categories.
+High-impact exclusions can require maker-checker approval based on amount, duration or subject type.
+The system must log who changed dashboard treatment, old treatment, new treatment, reason, effective period and approval.
+Period-end and statutory reports may expose an “operational dashboard exclusions” audit report to authorized users so management knows where dashboard scope differs from accounting scope.
+1.10 Dashboard quality safeguards
+Display a data freshness timestamp on every live KPI.
+Display the KPI scope name, such as “Actionable Outstanding”, rather than a generic “Outstanding” when exclusions are active.
+Provide a “Show full accounting view” action where permitted.
+Automatically resurface items after review/expiry or configured trigger events.
+Prevent users from creating circular or contradictory visibility rules without a clear precedence policy.
+Use deterministic rule precedence: system/statutory scope > company policy > role scope > user preference, with stricter restriction winning where applicable.
+1.11 DOC-30 to DOC-31 handoff
+DOC-30 remains the reporting and semantic calculation authority. It defines report subjects, measures, formulas, saved variants, data scope and dashboard-feed eligibility. DOC-31 will provide the visual dashboard workspace, widget arrangement, alerts, KPI cards and action-from-insight UI. DOC-31 must call DOC-30 definitions instead of creating duplicate KPI formulas.
+1.12 Revised acceptance criteria
+A permitted user can classify a party, ledger or outstanding item for dashboard treatment without changing its accounting record.
+Excluded items do not contribute to configured dashboard KPIs or priority lists for the specified dashboard scope.
+The same item remains available to authorized accounting, statutory and audit reports unless those reports have their own documented scope rules.
+A dashboard exclusion is auditable and optionally time-bound.
+Dashboards are provisioned per client company and isolated by tenant.
+User dashboard content and data are restricted by role/company permissions established during user setup.
+Dashboard KPIs expose scope and freshness information.
+Visibility-rule changes can be reviewed historically.
+DOC-31 can render the dashboard without creating an independent calculation engine.

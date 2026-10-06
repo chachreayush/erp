@@ -146,3 +146,9 @@ Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Schem
 - **Database:** Added `returned_qty` and `source_invoice_item_id` to `InvoiceItem`.
 - **API:** When `invoice_type="credit_note"`, the API adds stock *back* to inventory instead of deducting it, and increments the `returned_qty` of the original source item.
 - **UI:** `SalesBill.tsx` uses `F8` to query `GET /api/sales/invoice/by-number/` and filters out items with `quantity - returned_qty <= 0`.
+
+## DOC-28: Bank Reconciliation Engine (2026-10-06)
+**Architecture Notes**:
+- Reconciliations are managed outside standard Vouchers. A new set of tables (`BankStatementRow` & `BankReconciliationMatch`) act as a bridge between imported CSV rows and `VoucherEntry`.
+- **Dynamic CSV Parsing**: Instead of hardcoding formats, `BankStatementProfile` stores JSON mappings (e.g., `{"date": "Value Date", "withdrawal": "Debit"}`). The `upload` endpoint dynamically uses these mappings to interpret bank-specific CSVs.
+- **Concurrency**: `with_for_update()` is used on `BankStatementRow` during matching to prevent duplicate reconciliations in a multi-user environment.

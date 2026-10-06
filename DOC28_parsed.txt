@@ -1,0 +1,107 @@
+DOC-28 Bank Reconciliation, Cash Control & Financial Reconciliation Engine
+v1.0 FINAL
+Reconciliation between ERP books, statements, instruments and verified cash positions
+
+Document Map
+01. Purpose & scope
+02. Reconciliation architecture
+03. Statement ingestion & normalization
+04. Matching engine
+05. Exception handling
+06. Cash control & physical verification
+07. Bank account master and controls
+08. Schema blueprint
+09. Workflows and UI
+10. Audit, security and approvals
+11. Reports, integrations and acceptance criteria
+1. Purpose & Scope
+DOC-28 is the control layer that proves whether recorded cash/bank transactions agree with external bank statements and physical cash. It does not replace DOC-24 transaction entry, DOC-07 settlement, DOC-08 posting, or DOC-09 ledger/open-item architecture.
+
+2. Reconciliation Architecture
+3. Statement Ingestion & Normalization
+• Support CSV/Excel and structured bank files; provider-specific columns are mapped through a versioned import profile.
+• Capture statement account, statement period, opening balance, closing balance, transaction date/value date, debit/credit, amount, bank reference, cheque/instrument reference and narration.
+• Normalize signs, currency, date formats and reference strings before matching; retain the original imported row for audit.
+• Hash each imported raw row using a stable source fingerprint to prevent duplicate imports.
+4. Matching Engine
+5. Exception Handling
+6. Cash Control
+• Maintain cashbook closing, physical cash count, denomination breakdown, counted amount, variance and approver.
+• Allow multiple cash locations/registers per branch; each register has custodian, opening float, permitted limits and close status.
+• Positive/negative variance requires reason code and, above configured threshold, approval.
+• Cash transfers between registers are separate controlled movements, not journal-only edits.
+7. Bank Account Master & Controls
+8. Relational Schema Blueprint
+9. Operational UI
+10. Audit, Security & Approvals
+• Never delete imported statement evidence; corrections are reversals/amendments.
+• Log import file hash, user, machine/session, timestamp, source period and mapping profile.
+• Role permissions distinguish view, auto-match approval, manual match, adjustment creation, cash close and period unlock.
+• Reconciliation lock is period-aware and cannot silently alter posted accounting.
+11. Reports, Integrations & Acceptance Criteria
+• Reports: bank reconciliation statement, outstanding bank items, cheque aging, unknown receipts/payments, bank charges, cash variance, daily cash position, unreconciled aging.
+• Integrations: DOC-24 transactions; DOC-07 allocation; DOC-08 posting; DOC-09 GL/open items; DOC-25 journals; DOC-26 expenses.
+• Acceptance: duplicate imports blocked; exact matches auto-link; manual matches auditable; period balances reconcile; cash variance cannot be hidden; reversal preserves original history.
+Implementation Depth Upgrade
+This 2.0 revision raises DOC-28 to the project standard established by DOC-01. It retains the prior approved baseline and adds explicit data ownership, UI behavior, state transitions, edge-case handling, integration contracts, permissions, synchronization, reporting and acceptance requirements. The module remains code-free but implementation-ready in design intent.
+A. Authoritative Boundary & Non-Goals
+Owns external statement ingestion, normalization, matching, reconciliation sessions and physical cash verification. It never forces ledger balances to match by editing books.
+B. Lifecycle / State Machine
+C. Relational Data Model — Implementation Blueprint
+Logical schema below is the minimum domain model; physical names, partitions and engine-specific constraints will be finalized in the database architecture document.
+bank_account
+statement_session
+reconciliation_link
+D. Detailed UI / Screen Specification
+Statement Import
+Purpose: Load and normalize statements
+Keyboard path: F4 account; Ctrl+I import; F6 duplicate check.
+Save/post rule: Source file immutable.
+Reconciliation Workbench
+Purpose: Match bank lines to ERP
+Keyboard path: Space select; Enter match; Alt+U unmatch; Ctrl+E exception.
+Save/post rule: Match links are separate records.
+E. Integration Contract Matrix
+F. Security, Permissions & Data Scope
+G. Offline / LAN / Cloud Synchronization
+Statement source hash prevents duplicate imports.
+Match links are idempotent.
+Final closure may require authoritative node confirmation.
+H. Reporting & Dashboard Feed
+Unmatched bank lines/ageing.
+Bank charges/interest found.
+Cash over/short.
+Reconciliation session status.
+I. Expanded Edge-Case Handling
+The following cases must have deterministic outcomes. This is intentionally broader than the happy path so that implementation does not leave operational gaps.
+J. Implementation Acceptance Criteria
+Source statement is preserved and duplicate-checked.
+Match amounts reconcile.
+Unmatched items are explicit.
+Cash counts do not overwrite books.
+Session close creates immutable evidence.
+K. Small / Medium / Large Business Modes
+L. Version / Amendment Decision
+v2.0 adds physical schema, session lifecycle, matching rules, UI and recovery cases.
+Final architectural rule
+Reconciliation proves agreement; it never manufactures agreement by hiding differences.
+Deep Domain Architecture Expansion
+DOC-28 is the reconciliation control layer that compares ERP-recorded cash/bank movements with external statements and physical cash, without rewriting source transactions. Reconciliation state is distinct from accounting state.
+A. Detailed Business Rules
+B. Additional Relational Model
+bank_statements
+bank_statement_lines
+reconciliation_sessions
+C. Detailed Transaction Scenarios
+D. Expanded Edge-Case & Failure Handling
+Edge cases are first-class requirements. Every case must produce a deterministic outcome, preserve original evidence and avoid duplicate accounting or settlement effects.
+E. Reconciliation & Control Totals
+F. Implementation Readiness Gate
+Statement imports are idempotent and fingerprinted.
+Matching is confidence-driven and auditable.
+Unknown items become exceptions, not hidden entries.
+Reconciliation never edits source payment/receipt records.
+Bank/cash differences can be explained and carried forward.
+Closed reconciliations have controlled reopen behavior.
+G. Final Domain Rule
+DOC-28 establishes reconciliation truth between ERP records and external financial evidence; it does not replace source transaction or accounting authorities.

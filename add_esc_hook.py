@@ -1,44 +1,26 @@
 import os
 
-files = [
-    'src/pages/procurement/PurchaseOrderMaster.tsx',
-    'src/pages/procurement/GoodsReceipt.tsx',
-    'src/pages/procurement/VendorComplaints.tsx'
-]
-
-for path in files:
+def add_hook(path):
+    if not os.path.exists(path):
+        return
     with open(path, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    # Add import
-    if "useReturnNavigation" not in content:
-        content = content.replace("import apiClient from '../../lib/api';", "import apiClient from '../../lib/api';\nimport { useReturnNavigation } from '../../hooks/useReturnNavigation';")
-        
-        # Add hook call
-        # find the start of the component function
-        if 'export default function PurchaseOrderMaster() {' in content:
-            content = content.replace(
-                'export default function PurchaseOrderMaster() {',
-                'export default function PurchaseOrderMaster() {\n  useReturnNavigation();'
-            )
-        elif 'export default function GoodsReceipt() {' in content:
-            content = content.replace(
-                'export default function GoodsReceipt() {',
-                'export default function GoodsReceipt() {\n  useReturnNavigation();'
-            )
-        elif 'export default function VendorComplaints() {' in content:
-            # VendorComplaints has a showForm state which acts like a modal
-            content = content.replace(
-                'export default function VendorComplaints() {',
-                'export default function VendorComplaints() {\n'
-            )
-            content = content.replace(
-                "const [description, setDescription] = useState('');",
-                "const [description, setDescription] = useState('');\n\n  useReturnNavigation(showForm);"
-            )
+    if 'useReturnNavigation' in content:
+        print(f"Hook already in {path}")
+        return
 
-        with open(path, 'w', encoding='utf-8') as f:
-            f.write(content)
-        print(f"Added useReturnNavigation to {path}")
-    else:
-        print(f"useReturnNavigation already in {path}")
+    content = content.replace("import React", "import { useReturnNavigation } from '../../hooks/useReturnNavigation';\nimport React")
+
+    lines = content.split('\n')
+    for i, line in enumerate(lines):
+        if line.startswith('export default function '):
+            lines.insert(i + 1, '  useReturnNavigation();')
+            break
+            
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(lines))
+    print(f'Added hook to {path}')
+
+add_hook('src/pages/finance/SchemeClaims.tsx')
+add_hook('src/pages/stock/StockShiftVoucher.tsx')

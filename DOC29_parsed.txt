@@ -1,0 +1,305 @@
+DOC-29 GST, Tax, E-Invoicing, E-Way Bill & Global Statutory Compliance Engine
+v2.0 FINAL
+India-first tax architecture with zero recurring middleware/GSP-cost offline bulk interoperability and global localization
+
+Document Map
+01. Design objective & zero-cost strategy
+02. Jurisdiction onboarding
+03. Global tax rule architecture
+04. India GST tax calculation layer
+05. Native e-invoicing architecture
+06. Native e-way bill architecture
+07. Local pre-validation matrix
+08. Relational data model
+09. Bulk export/import lifecycle
+10. Dual/tri-queue operations dashboard
+11. Error translation & correction loop
+12. Signed artifacts, QR and audit evidence
+13. E-invoice/e-way bill cancellation and amendment controls
+14. India compliance adapters
+15. Global localization framework
+16. CA/User in-product guide
+17. Security, resilience and cost controls
+18. Implementation acceptance criteria
+19. Official references
+1. Design Objective & Zero-Cost Strategy
+The ERP should provide a zero-recurring-software-cost route for Indian e-invoicing and e-way bill operations by using the government/IRP portal bulk-upload and response-download capabilities, instead of requiring a paid middleware, ASP/GSP, aggregator or token-credit service. The zero-cost claim is about recurring software/middleware fees: internet connectivity, tax-registration obligations, human portal operation and any optional paid services remain outside this module.
+
+2. Jurisdiction Onboarding
+During company creation, the ERP asks for jurisdiction context once and activates the relevant tax/compliance rule packs. The core accounting and transaction schemas remain global.
+3. Global Tax Rule Architecture
+No transaction should read an uncontrolled live rule and silently change historical results. Each posted invoice stores the rule-pack/version identifiers used at calculation time.
+4. India GST Tax Calculation Layer
+• Model supplier GSTIN, recipient GSTIN, place of supply, ship-to/dispatch-from, supply type, taxability, HSN/SAC, tax rate and tax component lines.
+• Support CGST+SGST/UTGST and IGST determination based on the configured legal-tax rules and place-of-supply engine; never rely solely on state-prefix comparison.
+• Track ITC eligibility separately from tax charged; support recoverable, blocked, apportioned and capital-goods tax categories.
+• Support effective-dated rates and validations. The e-invoice ecosystem is actively updated; the IRIS IRP production notes show schema/rule updates, including the 40% GST rate and a Feb 2026 validation relaxation for specified RSP-based calculations. [Sources: IRIS IRP Excel Utility; IRIS IRP Pricing/Release Notes]
+5. Native E-Invoicing Architecture
+The zero-cost baseline uses an offline/bulk interchange loop: ERP validates locally → exports an official-schema-compatible JSON package → user uploads through the authorized IRP bulk interface → ERP imports the signed success/error response → internal IDs are reconciled → signed artifacts are stored.
+5.1 Required e-invoice states
+5.2 Government artifact storage
+• IRN: exact government value with uniqueness constraint per GSTIN/document context.
+• Acknowledgement number and acknowledgement timestamp.
+• Signed invoice/response payload and signed QR code payload retained as immutable evidence.
+• Source export batch, response batch and portal timestamps.
+6. Native E-Way Bill Architecture
+The same ERP engine should create e-way bill bulk payloads from eligible invoices/challans. The government E-Way Bill system explicitly supports bulk generation via JSON prepared by an automated system or through its Excel-based bulk preparation tool, and bulk operations include generation, Part-B update, transporter update and consolidated e-way bill generation. [Sources: E-Way Bill System FAQ]
+• Store EWB number, generation time, validity start/end, transporter, vehicle/transport document and movement context.
+• Calculate an internal projected expiry using the current official rules but always retain the portal-issued validity as authoritative.
+• Support Part-B update, transporter update and consolidated EWB workflows where allowed by the active government schema/rules.
+• EWB cancellation is controlled and time-sensitive; the official FAQ states an EWB can be cancelled by the generator within 24 hours, subject to verification restrictions. [Sources: E-Way Bill System FAQ; E-Way Bill Cancel API]
+7. Pre-Validation Filter Matrix
+Regex examples are validation baselines, not eternal law. The active government schema/rule version is the final validator authority and must be versioned.
+8. Relational Data Model
+9. Bulk Export / Import Lifecycle
+10. Operations Dashboard
+11. Error Translation & Correction Loop
+• Store raw portal error payload unchanged for audit.
+• Map technical error codes to versioned human messages and remediation steps.
+• Provide deep-link to the exact source field or line item when the response identifies a path.
+• After correction, create a new payload snapshot rather than silently mutating the prior export.
+• Maintain attempt history so users can see first failure, correction, re-export and final success.
+12. Signed Artifacts, QR & Immutable Evidence
+• Store signed QR payload and signed invoice response in immutable compliance storage.
+• Render QR visually from the stored signed payload for the invoice PDF/print layout; never regenerate a new QR after signing.
+• Keep portal response filename/hash, import user, timestamp and internal transaction mapping.
+13. Cancellation & Post-Portal Corrections
+Official E-Way Bill guidance states that generated EWBs are not edited in place; Part-B can be updated, and incorrect EWBs may need cancellation and regeneration within the permitted window. [Source: E-Way Bill System FAQ]
+14. India Compliance Adapters
+• GSTIN, HSN/SAC, tax rates, place-of-supply, document types, supply types and state codes are all master-driven and effective-dated.
+• E-invoice module must support bulk JSON workflow, success/error response download and IRN/signed QR capture. The current IRIS IRP documentation exposes bulk JSON upload, success/error downloads and signed QR/IRN data. [Source: IRIS IRP Bulk Generation & Cancellation]
+• EWB module must support bulk JSON generation and the active EWB JSON schema/version. The government EWB portal publishes JSON schemas, attributes, preparation tools and validation information. [Source: E-Way Bill Bulk Generation Attributes & Tools]
+• Keep an update monitor for government schema/rule versions; do not embed a fixed one-time schema into the entire ERP.
+15. Global Localization Framework
+16. CA/User In-Product Guide
+The finished ERP should ship with an embedded, versioned compliance/help library. It is part of the product, not an external paid manual.
+• Modes: Normal User, Accountant/Finance, CA/Compliance.
+• For every tax field: What it means, why it is required, how to enter it, common errors, tax impact and examples.
+• Contextual help on HSN/SAC, GSTIN, place of supply, tax components, IRN, EWB and portal error messages.
+• Display source/rule version and effective date for jurisdiction-specific guidance.
+• Allow the company CA/admin to attach internal policy notes without changing official guidance.
+17. Security, Resilience & Cost Controls
+• No government credentials or OTP secrets are stored in exported files or compliance logs; use the portal authentication boundary.
+• Encrypt compliance artifacts at rest; restrict signed payload access by role.
+• Hash exports/responses to prove file integrity.
+• Never overwrite a prior government response; append new attempts.
+• Support offline preparation and validation so high-volume users can work without portal latency until upload time.
+• Keep the direct-API adapter optional and isolated. The zero-recurring-cost workflow must remain viable without paid middleware.
+18. Implementation Acceptance Criteria
+19. Official References
+GSTN/IRIS IRP: Bulk Generation & Cancellation – bulk JSON upload, response files, IRN, signed QR and error downloads. https://einvoice6.gst.gov.in/content/kb/bulk-generation-cancellation/
+E-Way Bill System FAQ – bulk JSON/Excel generation and response workflow. https://docs.ewaybillgst.gov.in/html/faq.html
+E-Way Bill Bulk Generation Attributes & Tools – schemas, sample JSON and validation references. https://docs.ewaybillgst.gov.in/html/formatdownload.html
+E-Way Bill FAQ / Q&A – cancellation within 24 hours, Part-B updates and consolidated movement handling. https://docs.ewaybillgst.gov.in/html/ewb_qna.html
+IRIS IRP Excel Utility – offline Excel-based e-invoice utility and pre-validation workflow. https://einvoice6.gst.gov.in/content/excel-utility/
+Implementation Depth Upgrade
+This 3.0 revision raises DOC-29 to the project standard established by DOC-01. It retains the prior approved baseline and adds explicit data ownership, UI behavior, state transitions, edge-case handling, integration contracts, permissions, synchronization, reporting and acceptance requirements. The module remains code-free but implementation-ready in design intent.
+A. Authoritative Boundary & Non-Goals
+Owns jurisdiction-aware tax rules, tax determination, compliance states, Indian GST e-invoice/E-Way Bill orchestration, offline/bulk interchange, response ingestion, evidence retention and statutory reconciliation. It does not own accounting posting, stock movement or payment settlement.
+B. Lifecycle / State Machine
+C. Relational Data Model — Implementation Blueprint
+Logical schema below is the minimum domain model; physical names, partitions and engine-specific constraints will be finalized in the database architecture document.
+tax_profiles
+tax_transaction_lines
+einvoice_eway_logs
+D. Detailed UI / Screen Specification
+Compliance Workbench
+Purpose: Single queue for validation, export, response import and signed evidence.
+Keyboard path: F6 validate -> F7 export -> F8 import response; arrow keys/grid selection.
+Save/post rule: Posting or compliance finalization requires required validation state.
+Validation Detail
+Purpose: Explains every local tax/compliance failure and correction location.
+Keyboard path: Enter opens source field; Ctrl+R revalidate.
+Save/post rule: No export while blocking validation exists.
+Signed Ledger
+Purpose: Read-only evidence view for completed compliance documents.
+Keyboard path: Enter opens evidence; Ctrl+P prints permitted copy.
+Save/post rule: Completed evidence is append-only; changes create a new controlled lifecycle.
+E. Integration Contract Matrix
+F. Security, Permissions & Data Scope
+G. Offline / LAN / Cloud Synchronization
+Compliance queue records must be idempotent across local/cloud sync.
+Offline mode may prepare and validate data but must not falsely mark a government acknowledgement as completed without verified response evidence.
+Response import is correlation-based using internal transaction id plus request/evidence hashes.
+Duplicate portal response must be harmless and produce no second compliance completion.
+Clock drift must not cause invented EWB validity; use authoritative response timestamp where available.
+Sync conflicts on compliance state are resolved by verified event ordering and audit evidence, not last-write-wins.
+H. Reporting & Dashboard Feed
+Pending local validation; ready for export; portal errors; signed-completed; IRN/EWB expiry; cancellation and reconciliation status.
+User-configurable compliance aging and failure dashboards, filtered by company, branch, registration, customer and period.
+CA guide/explanation link for every important validation rule and calculated tax component.
+Export batches show counts of success, error, pending and duplicate/replayed responses.
+I. Expanded Edge-Case Handling
+The following cases must have deterministic outcomes. This is intentionally broader than the happy path so that implementation does not leave operational gaps.
+J. Implementation Acceptance Criteria
+Company-specific tax profile drives applicable rules.
+Blocking validation errors prevent export.
+Bulk export preserves row-level correlation and partial-success handling.
+IRN/ACK/QR/EWB evidence is stored without silent overwrite.
+Portal errors are translated into user-readable remediation steps.
+Response import is idempotent and tenant-safe.
+EWB validity is recalculated from authoritative response evidence.
+Tax posting remains centralized in DOC-08.
+Compliance activity is fully auditable.
+Country/region rule changes are effective-dated and versioned.
+K. Small / Medium / Large Business Modes
+L. Version / Amendment Decision
+DOC-29 v3.0 materially deepens the prior v2.0 specification for implementation-grade tax data ownership, lifecycle, UI, response evidence, edge cases and reconciliation. The zero-recurring-cost offline/bulk architecture remains the base path.
+Final architectural rule
+Tax logic, compliance evidence and statutory state must remain jurisdiction-aware, effective-dated, auditable and separate from core accounting/stock authorities. No user interface may fabricate government acknowledgement or treat an unverified response as completed.
+
+20. TDS/TCS Compliance Engine — Indian Income Tax Act
+This section implements TDS (Tax Deducted at Source) and TCS (Tax Collected at Source) compliance as per the current Indian Income Tax Act, 1961, including all amendments up to Finance Act 2025-26.
+20.1 Design Objective
+Provide automated TDS/TCS computation, deduction tracking, deposit management, return filing support, and certificate generation within the ERP. The system must monitor cumulative party-wise transaction thresholds and trigger real-time notifications when statutory limits are breached.
+20.2 Current Indian Government TDS Rules (As of FY 2025-26)
+20.2.1 Key TDS Sections Applicable
+20.2.2 Key TCS Sections Applicable
+20.2.3 PAN Verification & Higher Rate Rules
+Section 206AA: If deductee does not furnish PAN → TDS at higher of: prescribed rate, 20%, or rate in force.
+Section 206AB: Non-filer of ITR for 2 preceding years AND aggregate TDS/TCS > ₹50,000 each year → TDS at higher of: twice the prescribed rate, 5%, or rate in force.
+Section 206CCA: Same concept for TCS — higher rate for non-filers.
+ERP must integrate with TRACES 'Compliance Check' API or maintain manual flag for 206AB/206CCA applicability per party.
+20.3 Automated Threshold Monitoring & Trigger System
+CRITICAL FEATURE: The ERP must continuously monitor cumulative transaction values per party per financial year and trigger real-time notifications when statutory thresholds are approaching or breached.
+20.3.1 Section 194Q / 206C(1H) — ₹50 Lakhs Trigger (Purchase/Sale of Goods)
+This is the PRIMARY trigger for C&F/Distribution businesses:
+Trigger Logic:
+The system continuously calculates cumulative purchase value from each SUNDRY CREDITOR (supplier) during the financial year (April 1 to March 31).
+The system continuously calculates cumulative sales value to each SUNDRY DEBTOR (customer) during the financial year.
+When cumulative value to/from ANY single party crosses ₹50,00,000 (Fifty Lakhs):
+  → IMMEDIATE in-app notification to the billing user
+  → Dashboard alert in DOC-31 Management Control Centre
+  → Notification to the Accounts/Finance team
+  → The notification must clearly state:
+     • Party Name, Party Code, GSTIN, PAN
+     • Cumulative transaction value this FY
+     • Amount exceeding the ₹50 Lakh threshold
+     • Applicable section (194Q for purchases / 206C(1H) for sales)
+     • TDS/TCS rate applicable (0.1% or higher rate if 206AB/CCA applies)
+20.3.2 User Decision Prompt
+When the ₹50 Lakh threshold is crossed, the system MUST present the user with a decision dialog:
+OPTION A — AUTOMATIC MODE: 'Enable automatic TDS/TCS deduction on all future bills to this party for the remainder of this financial year. The software will automatically calculate and deduct TDS/TCS on every subsequent invoice.'
+OPTION B — MANUAL MODE: 'I will handle TDS/TCS deduction manually. The software will continue to show reminders on each bill but will NOT auto-deduct. User must manually enter TDS/TCS amount on each voucher.'
+OPTION C — DEFER: 'Remind me later (snooze for X hours/days). I need to consult my CA/accountant.'
+The user's choice is stored per party per financial year and can be changed at any time by an authorized user.
+20.3.3 Automatic TDS/TCS Deduction Behavior
+When AUTOMATIC MODE is selected:
+Every subsequent purchase bill from that supplier: System auto-calculates TDS u/s 194Q at 0.1% on the amount exceeding ₹50 Lakhs and deducts it from the payable amount.
+Every subsequent sales invoice to that customer: System auto-calculates TCS u/s 206C(1H) at 0.1% on the amount exceeding ₹50 Lakhs and adds it to the receivable amount.
+The deduction/collection line is clearly shown on the bill with section reference.
+A separate TDS/TCS payable/receivable ledger entry is created automatically via DOC-08 Posting Engine.
+The user can override the auto-calculated amount with proper reason and approval (DOC-32 workflow).
+20.3.4 Pre-Threshold Warning Notifications
+At 80% of threshold (₹40 Lakhs): INFO notification — 'Cumulative transactions with [Party] have reached ₹40,00,000. TDS/TCS applicability at ₹50 Lakhs.'
+At 90% of threshold (₹45 Lakhs): WARNING notification — 'Approaching TDS/TCS threshold. ₹5,00,000 remaining.'
+At 100% (₹50 Lakhs): CRITICAL notification with decision prompt (see 20.3.2).
+Notifications route through DOC-32 Workflow/Alert engine for delivery to configured channels (in-app, email, SMS, WhatsApp where enabled).
+20.4 TDS/TCS Data Model
+20.4.2 tds_tcs_transactions Table
+20.5 TDS/TCS Return Filing Support
+Form 26Q: TDS on payments other than salary — Quarterly filing.
+Form 27Q: TDS on payments to non-residents — Quarterly filing.
+Form 27EQ: TCS collection statement — Quarterly filing.
+Due dates: Q1 (Jul 31), Q2 (Oct 31), Q3 (Jan 31), Q4 (May 31).
+The ERP generates return data in the format required by TRACES/NSDL RPU utility.
+Pre-filing validation: PAN format, amount totals, section-rate consistency, challan mapping.
+Dashboard alerts 15 days before each quarterly filing deadline.
+20.6 TDS/TCS Certificate Generation
+Form 16A: TDS certificate for deductees — generated quarterly after return filing.
+Form 27D: TCS certificate for collectees — generated quarterly.
+Certificates reference challan details, PAN, amounts deducted/collected, and section.
+Bulk certificate generation and email dispatch supported.
+Certificate data is stored in DOC-42 Evidence Repository as immutable evidence.
+20.7 Integration Contracts
+20.8 Acceptance Criteria for TDS/TCS Module
+Cumulative party-wise transaction tracking updates in real-time on every bill/invoice save.
+80%, 90%, 100% threshold notifications fire accurately with correct party details.
+User decision prompt (Auto/Manual/Defer) appears on threshold breach and persists per party per FY.
+Automatic mode correctly calculates TDS/TCS on amounts exceeding threshold on all subsequent bills.
+Manual mode shows reminders but does not auto-deduct.
+Higher rate (206AB/206CCA) applies correctly when party is flagged as non-filer.
+PAN verification status affects rate determination.
+TDS/TCS entries post correctly through DOC-08 with proper ledger mapping.
+Quarterly return data generates in TRACES-compatible format.
+Certificate generation (Form 16A/27D) produces correct party-wise certificates.
+All threshold breaches, mode selections, rate overrides, and deductions are audited (DOC-33).
+FY rollover resets cumulative tracking while preserving historical records.
+
+20. TDS/TCS Compliance Engine — Indian Income Tax Act
+This section implements TDS (Tax Deducted at Source) and TCS (Tax Collected at Source) compliance as per the current Indian Income Tax Act, 1961, including all amendments up to Finance Act 2025-26.
+20.1 Design Objective
+Provide automated TDS/TCS computation, deduction tracking, deposit management, return filing support, and certificate generation within the ERP. The system must monitor cumulative party-wise transaction thresholds and trigger real-time notifications when statutory limits are breached.
+20.2 Current Indian Government TDS Rules (As of FY 2025-26)
+20.2.1 Key TDS Sections Applicable
+20.2.2 Key TCS Sections Applicable
+20.2.3 PAN Verification & Higher Rate Rules
+Section 206AA: If deductee does not furnish PAN → TDS at higher of: prescribed rate, 20%, or rate in force.
+Section 206AB: Non-filer of ITR for 2 preceding years AND aggregate TDS/TCS > ₹50,000 each year → TDS at higher of: twice the prescribed rate, 5%, or rate in force.
+Section 206CCA: Same concept for TCS — higher rate for non-filers.
+ERP must integrate with TRACES 'Compliance Check' API or maintain manual flag for 206AB/206CCA applicability per party.
+20.3 Automated Threshold Monitoring & Trigger System
+CRITICAL FEATURE: The ERP must continuously monitor cumulative transaction values per party per financial year and trigger real-time notifications when statutory thresholds are approaching or breached.
+20.3.1 Section 194Q / 206C(1H) — ₹50 Lakhs Trigger (Purchase/Sale of Goods)
+This is the PRIMARY trigger for C&F/Distribution businesses:
+Trigger Logic:
+The system continuously calculates cumulative purchase value from each SUNDRY CREDITOR (supplier) during the financial year (April 1 to March 31).
+The system continuously calculates cumulative sales value to each SUNDRY DEBTOR (customer) during the financial year.
+When cumulative value to/from ANY single party crosses ₹50,00,000 (Fifty Lakhs):
+  → IMMEDIATE in-app notification to the billing user
+  → Dashboard alert in DOC-31 Management Control Centre
+  → Notification to the Accounts/Finance team
+  → The notification must clearly state:
+     • Party Name, Party Code, GSTIN, PAN
+     • Cumulative transaction value this FY
+     • Amount exceeding the ₹50 Lakh threshold
+     • Applicable section (194Q for purchases / 206C(1H) for sales)
+     • TDS/TCS rate applicable (0.1% or higher rate if 206AB/CCA applies)
+20.3.2 User Decision Prompt
+When the ₹50 Lakh threshold is crossed, the system MUST present the user with a decision dialog:
+OPTION A — AUTOMATIC MODE: 'Enable automatic TDS/TCS deduction on all future bills to this party for the remainder of this financial year. The software will automatically calculate and deduct TDS/TCS on every subsequent invoice.'
+OPTION B — MANUAL MODE: 'I will handle TDS/TCS deduction manually. The software will continue to show reminders on each bill but will NOT auto-deduct. User must manually enter TDS/TCS amount on each voucher.'
+OPTION C — DEFER: 'Remind me later (snooze for X hours/days). I need to consult my CA/accountant.'
+The user's choice is stored per party per financial year and can be changed at any time by an authorized user.
+20.3.3 Automatic TDS/TCS Deduction Behavior
+When AUTOMATIC MODE is selected:
+Every subsequent purchase bill from that supplier: System auto-calculates TDS u/s 194Q at 0.1% on the amount exceeding ₹50 Lakhs and deducts it from the payable amount.
+Every subsequent sales invoice to that customer: System auto-calculates TCS u/s 206C(1H) at 0.1% on the amount exceeding ₹50 Lakhs and adds it to the receivable amount.
+The deduction/collection line is clearly shown on the bill with section reference.
+A separate TDS/TCS payable/receivable ledger entry is created automatically via DOC-08 Posting Engine.
+The user can override the auto-calculated amount with proper reason and approval (DOC-32 workflow).
+20.3.4 Pre-Threshold Warning Notifications
+At 80% of threshold (₹40 Lakhs): INFO notification — 'Cumulative transactions with [Party] have reached ₹40,00,000. TDS/TCS applicability at ₹50 Lakhs.'
+At 90% of threshold (₹45 Lakhs): WARNING notification — 'Approaching TDS/TCS threshold. ₹5,00,000 remaining.'
+At 100% (₹50 Lakhs): CRITICAL notification with decision prompt (see 20.3.2).
+Notifications route through DOC-32 Workflow/Alert engine for delivery to configured channels (in-app, email, SMS, WhatsApp where enabled).
+20.4 TDS/TCS Data Model
+20.4.2 tds_tcs_transactions Table
+20.5 TDS/TCS Return Filing Support
+Form 26Q: TDS on payments other than salary — Quarterly filing.
+Form 27Q: TDS on payments to non-residents — Quarterly filing.
+Form 27EQ: TCS collection statement — Quarterly filing.
+Due dates: Q1 (Jul 31), Q2 (Oct 31), Q3 (Jan 31), Q4 (May 31).
+The ERP generates return data in the format required by TRACES/NSDL RPU utility.
+Pre-filing validation: PAN format, amount totals, section-rate consistency, challan mapping.
+Dashboard alerts 15 days before each quarterly filing deadline.
+20.6 TDS/TCS Certificate Generation
+Form 16A: TDS certificate for deductees — generated quarterly after return filing.
+Form 27D: TCS certificate for collectees — generated quarterly.
+Certificates reference challan details, PAN, amounts deducted/collected, and section.
+Bulk certificate generation and email dispatch supported.
+Certificate data is stored in DOC-42 Evidence Repository as immutable evidence.
+20.7 Integration Contracts
+20.8 Acceptance Criteria for TDS/TCS Module
+Cumulative party-wise transaction tracking updates in real-time on every bill/invoice save.
+80%, 90%, 100% threshold notifications fire accurately with correct party details.
+User decision prompt (Auto/Manual/Defer) appears on threshold breach and persists per party per FY.
+Automatic mode correctly calculates TDS/TCS on amounts exceeding threshold on all subsequent bills.
+Manual mode shows reminders but does not auto-deduct.
+Higher rate (206AB/206CCA) applies correctly when party is flagged as non-filer.
+PAN verification status affects rate determination.
+TDS/TCS entries post correctly through DOC-08 with proper ledger mapping.
+Quarterly return data generates in TRACES-compatible format.
+Certificate generation (Form 16A/27D) produces correct party-wise certificates.
+All threshold breaches, mode selections, rate overrides, and deductions are audited (DOC-33).
+FY rollover resets cumulative tracking while preserving historical records.

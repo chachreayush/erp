@@ -1,0 +1,154 @@
+DOC-26 — Expense, Petty Cash, Employee Reimbursement & Operational Expense Engine
+Controlled expense lifecycle with advances, claims, approvals and integration to payment/accounting
+Implementation Specification | v1.0 | September 2026
+C&F ERP • Small-business to enterprise scale • Keyboard-first • Local-first + live remote sync
+Authoritative module specification
+1. Purpose & Boundary
+DOC-26 manages operational expenses and employee reimbursement processes that are not necessarily vendor purchase transactions. It covers the business reason, evidence, approval and settlement workflow, while DOC-24 remains the authoritative money-movement engine and DOC-08/09 remain the accounting authorities.
+Support a simple small-business flow as well as multi-level corporate expense controls.
+Do not duplicate supplier purchase, payment, settlement or accounting posting engines.
+2. Expense Lifecycle
+Expense Request (optional) → Advance (optional) → Expense/Claim Entry → Evidence Check → Policy Validation → Approval → Reimbursement/Payable/Accrual → DOC-24 money movement → DOC-08 posting → DOC-09 reporting.
+
+3. Expense Categories
+Office/admin expenses
+Travel and lodging
+Local conveyance
+Fuel/vehicle expenses
+Telephone/internet
+Repairs and maintenance
+Professional/service costs
+Freight and operational charges
+Subscriptions and utilities
+Marketing/field expenses
+Petty cash expenses
+Employee reimbursement
+Other approved operational categories
+4. Employee Advance & Settlement
+Employee advances are tracked as an outstanding asset/open item until fully settled. Example: advance ₹10,000; supported expense ₹7,500; balance refundable ₹2,500. If supported expense exceeds the advance, the approved excess becomes a reimbursement payable.
+Multiple advances may remain open per employee subject to policy.
+Claims can be linked to one advance or multiple advances.
+Unsettled advance aging must be visible and can trigger holds on new advances.
+Refund of excess advance and additional reimbursement both flow through DOC-24 and DOC-07.
+5. Evidence & Policy Validation
+
+6. Petty Cash
+Petty cash must be treated as a controlled cash account, not free-form expense notes.
+Petty-cash opening balance, receipts, payments, transfers and closing count.
+Cash custody by location/user where required.
+Physical cash count and variance approval.
+Replenishment from bank/cash through DOC-24.
+Petty-cash denomination/count support can be added for operational users.
+7. Approval Engine
+Approval rules should be configurable by amount, expense category, employee, branch, department, cost centre and risk flags. The system should support sequential or parallel approval where appropriate.
+
+8. Reimbursement & Payable
+Approved employee claims can become a reimbursement payable. The user can pay immediately, schedule payment, or keep the approved amount outstanding according to company policy. Payment execution remains DOC-24.
+One payment can settle multiple employee claims.
+One claim can be settled by multiple payments when partial payment is allowed.
+On-account payments and reapplication remain under DOC-07.
+9. Accounting & Settlement Integration
+
+10. Expense Numbering & Attachments
+Expense claims, advances and petty-cash vouchers may each use configurable series. Series can be scoped by company/branch/financial year and must be concurrency-safe.
+Supporting files, invoices, receipts, approval notes and correspondence are attached to the expense record.
+Every attachment should be hashable/traceable for duplicate-detection and audit purposes.
+11. Data Model — Minimum Entities
+ExpenseClaim
+ExpenseLine
+ExpenseCategory
+ExpensePolicy
+EmployeeAdvance
+AdvanceSettlement
+PettyCashAccount
+PettyCashTransaction
+ExpenseApproval
+ExpenseAttachment
+ExpenseSeries
+ExpenseAuditEvent
+12. Keyboard-First UX
+Quick expense entry with employee/category/amount/date selection and keyboard navigation.
+One-key attach/open evidence, duplicate previous line, split amount and submit.
+Visible status, approval owner, available advance and reimbursement balance.
+13. Reports & MIS
+Expense by category, branch, department and cost centre
+Employee claim aging
+Employee advance aging and overdue balances
+Petty-cash register and variance
+Pending approvals
+Rejected/exception claims
+Monthly expense trend
+Cash vs bank-paid expense
+Tax/GST-related expense report where configured
+Policy-override report
+14. Acceptance Criteria
+Every approved expense has a clear owner, category, evidence status and accounting destination.
+Employee advances cannot disappear through manual editing; they settle through traceable transactions.
+Approved reimbursements use DOC-24 for actual payment.
+Settlement uses DOC-07 rather than a second allocation engine.
+Accounting posting uses DOC-08 and appears in DOC-09.
+Duplicate and policy exceptions are detectable and auditable.
+Petty cash supports controlled opening, movement, count and reconciliation.
+The same architecture works for simple small-business use and detailed enterprise approval flows.
+Implementation Depth Upgrade
+This 2.0 revision raises DOC-26 to the project standard established by DOC-01. It retains the prior approved baseline and adds explicit data ownership, UI behavior, state transitions, edge-case handling, integration contracts, permissions, synchronization, reporting and acceptance requirements. The module remains code-free but implementation-ready in design intent.
+A. Authoritative Boundary & Non-Goals
+Owns expense meaning, evidence, policy checks, advances, petty cash and reimbursement approval. Payment is DOC-24 and accounting DOC-08.
+B. Lifecycle / State Machine
+C. Relational Data Model — Implementation Blueprint
+Logical schema below is the minimum domain model; physical names, partitions and engine-specific constraints will be finalized in the database architecture document.
+expense_claim
+expense_line
+employee_advance
+D. Detailed UI / Screen Specification
+Expense Entry
+Purpose: Fast claim form
+Keyboard path: F4 category; F5 ledger; Ctrl+E evidence; Ctrl+Enter submit.
+Save/post rule: Submission locks policy-critical fields.
+Advance Settlement
+Purpose: Reconcile advance vs claim
+Keyboard path: Alt+A select advance; Alt+S settle.
+Save/post rule: Uses DOC-07; payment through DOC-24.
+E. Integration Contract Matrix
+F. Security, Permissions & Data Scope
+G. Offline / LAN / Cloud Synchronization
+Claim IDs stable offline.
+Evidence is synced with core claim references.
+Payment is separate and idempotent.
+H. Reporting & Dashboard Feed
+Expense by category/branch/employee/vendor.
+Advance ageing.
+Policy exception report.
+Petty cash use/replenishment.
+I. Expanded Edge-Case Handling
+The following cases must have deterministic outcomes. This is intentionally broader than the happy path so that implementation does not leave operational gaps.
+J. Implementation Acceptance Criteria
+Approved expense is the only source for reimbursement/payment proposal.
+Advances reconcile exactly.
+Evidence/policy controls work.
+Tax fields consume DOC-29.
+No direct ledger edit.
+K. Small / Medium / Large Business Modes
+L. Version / Amendment Decision
+v2.0 adds policy-driven data, advance lifecycle, UI, edge handling and synchronization detail.
+Final architectural rule
+Expense meaning, payment and accounting remain separate authorities connected by explicit references.
+Deep Domain Architecture Expansion
+DOC-26 manages business expenses and reimbursement processes. It separates the expense claim fact from the payment movement and accounting posting, so a claim can be approved before money is paid and an advance can be settled independently.
+A. Detailed Business Rules
+B. Additional Relational Model
+expense_claims
+expense_evidence
+employee_advances
+C. Detailed Transaction Scenarios
+D. Expanded Edge-Case & Failure Handling
+Edge cases are first-class requirements. Every case must produce a deterministic outcome, preserve original evidence and avoid duplicate accounting or settlement effects.
+E. Reconciliation & Control Totals
+F. Implementation Readiness Gate
+Approval does not equal payment.
+All employee advances remain traceable until settled.
+Policy exceptions are explicit and auditable.
+Expense accounting goes through DOC-08 and actual money through DOC-24.
+Evidence references remain available according to retention rules.
+G. Final Domain Rule
+DOC-26 governs expense intent, policy and reimbursement workflow. It does not replace payment or accounting authorities.

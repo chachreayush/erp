@@ -1,0 +1,216 @@
+DOC-25 — Journal Voucher, Accounting Adjustment & Accrual Management Engine
+Controlled non-subledger accounting adjustments without duplicating the central posting engine
+Implementation Specification | v1.0 | September 2026
+C&F ERP • Small-business to enterprise scale • Keyboard-first • Local-first + live remote sync
+Authoritative module specification
+1. Purpose & Boundary
+DOC-25 governs accounting entries that are not naturally created by sales, purchase, invoice, return, credit/debit note, payment, receipt or other operational modules. It provides a controlled journal-entry workspace while DOC-08 remains the single authoritative posting engine and DOC-09 remains the accounting data/open-item architecture.
+Use for journals, accruals, provisions, reclassifications, transfers, depreciation adjustments, opening-balance corrections, recurring entries and controlled reversals.
+Do not use this module to create a second payment, receipt, settlement, AR/AP or stock system.
+All final postings must pass DOC-08 validations and produce DOC-09 ledger/open-item effects where applicable.
+2. Core Transaction Types
+
+3. Journal Lifecycle
+Draft → Validate → Submit → Approval (where required) → Number/Lock → Post via DOC-08 → Posted/Effective → Optional Reversal/Auto-Reversal.
+Draft entries are editable only by authorized users and do not affect the ledger.
+Balanced debit/credit totals are mandatory before submission.
+Posting-date, accounting-period and company/branch permissions are enforced before DOC-08 accepts the voucher.
+Posted journals are never silently deleted; corrections use reversal/correction transactions.
+4. Accounting Dimensions
+The journal screen should support the same dimensions used by the accounting architecture so management reporting remains consistent across operational and manual postings.
+Company / tenant
+Branch
+Warehouse or operational unit where relevant
+Ledger
+Cost centre / department
+Principal / business segment where configured
+Project / job / reference
+Tax/GST classification where relevant
+Currency and exchange rate
+Source document and attachments
+5. Accrual & Provision Engine
+Accruals and provisions must be structured records rather than free-text journals. Each record should store the reason, basis, period, expected settlement, owner, supporting document and reversal policy.
+
+6. Recurring Journals & Auto-Reversal
+Schedule daily, weekly, monthly, quarterly or custom recurring journals.
+Freeze the approved template and version it; changing the template creates a new version.
+Generate a draft or auto-post only when the role has explicit permission and controls allow it.
+Auto-reversal must create a linked reversal transaction, never rewrite the original journal.
+7. Approval & Segregation of Duties
+Approval routing should consider amount, ledger group, branch, adjustment type, period, user role and risk flags. The platform must support maker-checker separation and configurable approval thresholds.
+
+8. Numbering & Audit
+Journal vouchers use a configurable document-series engine consistent with DOC-20/23/24. Series may be scoped by company, branch, financial year and journal type, with atomic numbering for concurrent users.
+Store created-by, approved-by, posted-by, timestamps, original values, revisions and reversal links.
+Support reason codes and mandatory notes for sensitive adjustments.
+9. Posting & Integration Rules
+
+10. Data Model — Minimum Entities
+JournalHeader
+JournalLine
+JournalSeries
+JournalTemplate
+AccrualProvision
+JournalApproval
+JournalReversalLink
+JournalAttachment
+JournalAuditEvent
+AccountingPeriodControl
+11. Keyboard-First UX
+New journal shortcut, ledger search, amount entry, debit/credit toggle and line duplication by keyboard.
+Auto-balance indicator, instant validation and visible posting-period status.
+Quick copy of recurring patterns without allowing users to bypass approval or evidence requirements.
+12. Reports & Controls
+Journal register, unposted drafts, approval queue, prior-period adjustments, recurring journals, accruals due for reversal, provisions by age and ledger impact.
+Audit report showing who created, changed, approved, posted, reversed or cancelled each journal.
+Exception report for unbalanced, period-blocked, duplicate-reference or policy-violating journals.
+13. Acceptance Criteria
+No unbalanced journal can be posted.
+No posted journal can be edited in place.
+Every reversal has a traceable link to its source.
+Accruals/provisions support explicit reversal policy and approval.
+The same posting engine is used for journal and operational transactions.
+Concurrent users cannot receive duplicate journal numbers.
+Sensitive adjustments are permission- and approval-controlled.
+All journals are fully traceable to company, user, period and supporting evidence.
+14. Document Control
+15. Executive Summary
+The Journal Voucher (JV) engine acts as the foundational mechanism for manual and semi-automated accounting adjustments, accruals, and direct ledger entries that bypass source module automation. In any robust ERP system, while 80-90% of accounting happens automatically via sub-ledgers (Invoices, Receipts, Payments), the remaining 10-20% relies on complex, multi-dimensional, and often highly sensitive manual journal entries.
+This document outlines the v2.0 authoritative design baseline for the Journal Voucher, Accounting Adjustment, and Accrual Management Engine. It defines the core transaction types, comprehensive lifecycle management, robust approval workflows, and a strictly controlled state machine. It is designed to accommodate complex period-end adjustments, multi-branch operations, and dynamic accrual/reversal logic.
+By standardizing how non-systematic entries are recorded, validated, and posted, DOC-25 ensures absolute integrity of the General Ledger. It mandates dual-control where necessary, enforces offline-first availability with eventual consistency, and safeguards against period manipulation, ensuring strict compliance with audit and governance frameworks.
+16. Architecture Position & System Boundaries
+DOC-25 operates as a bridge between user-initiated manual accounting processes and the systemic financial core. It does not hold final balances; it prepares, validates, and standardizes transactions for consumption.
+Position Relative to DOC-08 (Posting Engine) and DOC-09 (GL)
+DOC-25 is a feeder to DOC-08. Once a journal reaches the 'APPROVED' state, it is handed off to the Posting Engine (DOC-08). DOC-25 owns the drafting, validation, approval, and workflow logic. DOC-08 owns the final persistence into the GL (DOC-09). DOC-25 delegates double-entry validation (e.g., total debits = total credits) during draft, but DOC-08 re-validates before final commitment.
+Boundaries with DOC-24, DOC-26, DOC-27
+DOC-24 (Payments), DOC-26 (Expenses), and DOC-27 (Fixed Assets) generate systematic journals. DOC-25 does NOT replace these. Users must not use DOC-25 to record a vendor payment or depreciate an asset if DOC-24 or DOC-27 is available. DOC-25 is explicitly bounded to manual adjustments, accruals, prepayments, payroll accruals, opening balances, and specific exception corrections. The system restricts certain ledger accounts (e.g., 'Bank Account', 'Accounts Payable') from manual DOC-25 journals to enforce these boundaries.
+17. Expanded Data Model
+JournalHeader
+Primary table for storing journal metadata and control fields.
+- journal_id (UUID, PK): Unique identifier.
+- company_id (UUID, FK): Context company.
+- branch_id (UUID, FK): Context branch (if multi-branch).
+- journal_type (Enum): STANDARD, ACCRUAL, REVERSAL, OPENING_BALANCE, INTER_COMPANY.
+- series_id (UUID, FK): Numbering series.
+- journal_number (String): Final assigned number.
+- posting_date (Date): The date the transaction impacts the ledger.
+- accounting_period_id (UUID, FK): Links to closed/open period rules.
+- narration (Text): Overall description.
+- currency_code (String): e.g., INR, USD.
+- exchange_rate (Decimal): Base vs foreign currency rate.
+- total_debit (Decimal): Computed total.
+- total_credit (Decimal): Computed total.
+- status (Enum): DRAFT, SUBMITTED, PENDING_APPROVAL, APPROVED, NUMBERED, POSTED, REVERSED.
+- created_by (UUID, FK): User who drafted it.
+- approved_by (UUID, FK): User who approved it.
+- posted_by (UUID, FK): System or user who finalized it.
+- reversed_by (UUID, FK): User who initiated reversal.
+- source_module (String): For reference if generated elsewhere.
+- source_document_id (String): Ext ref.
+- reversal_of_journal_id (UUID, FK): Self-referential if this is a reversal.
+- is_recurring (Boolean): Flag for template-based generation.
+- template_id (UUID, FK): Link to recurring template.
+- attachment_count (Int): Evidence count.
+- created_at, updated_at (Timestamps).
+JournalLine
+- line_id (UUID, PK)
+- journal_id (UUID, FK)
+- line_number (Int)
+- ledger_id (UUID, FK)
+- debit_amount (Decimal)
+- credit_amount (Decimal)
+- narration (String): Line-specific remarks.
+- cost_centre_id (UUID, FK)
+- branch_id (UUID, FK): For cross-branch lines.
+- principal_id (UUID, FK): Partner/Customer/Vendor ref.
+- project_ref (UUID, FK)
+- party_id (UUID, FK)
+- bill_ref (String): For specific invoice adjustments.
+- tax_code (String): Optional tax classification.
+- dimension_json (JSON): Extended accounting dimensions (department, region).
+AccrualSchedule
+Manages auto-reversing accruals.
+- schedule_id (UUID, PK)
+- original_journal_id (UUID, FK)
+- reversal_date (Date)
+- status (Enum): PENDING, COMPLETED, FAILED
+- generated_reversal_id (UUID, FK)
+RecurringTemplate
+Configuration for scheduled journals.
+- template_id (UUID, PK)
+- name (String)
+- frequency (Cron/Enum)
+- next_run_date (Date)
+- is_active (Boolean)
+- template_json (JSON): Header/Line blueprint.
+18. Lifecycle & State Machine
+1. DRAFT: Initial state. User is actively editing. Balances are not enforced.
+2. SUBMITTED: User finishes editing. Validation runs (debits = credits, active ledgers). Moves to PENDING_APPROVAL if workflow required, else directly to APPROVED.
+3. PENDING_APPROVAL: Locked for editing. Awaiting managerial review. Can be REJECTED (back to DRAFT) or APPROVED.
+4. APPROVED: Ready for posting. Numbering sequence may be acquired here.
+5. NUMBERED: Journal gets its official sequence number (e.g., JV-2023-0001) right before posting to ensure gapless sequences.
+6. POSTED: Sent to DOC-08. Finalized. Read-only.
+7. REVERSED: A subsequent reversal journal has negated this entry.
+19. Detailed UI/UX Specification
+Layout & Views
+- Header Section: Top pane with Date, Type, Number, Currency, Overall Narration.
+- Line Grid: Central data table. Columns: Ledger, D/C Toggle, Debit Amount, Credit Amount, Line Narration, Dimensions (Cost Center, Branch).
+- Totals Bar: Pinned at the bottom. Shows Total Debit, Total Credit, and Difference (red if != 0, green if 0).
+- Attachment Panel: Sidebar for dragging and dropping supporting evidence (PDF, Excel).
+Keyboard-First Data Entry
+- Ctrl+J: Create new journal from anywhere.
+- F2: Edit current line / open ledger search popup.
+- Ctrl+D: Duplicate current line.
+- Ctrl+B: Auto-balance. Fills the difference in the current line to make Debits = Credits.
+- F8: Submit / Post.
+- Tab / Shift+Tab: Navigate rapidly between fields without mouse.
+Special Behaviors
+- Debit/Credit Toggle: Instead of two columns taking up space, a 'D/C' switch can be used in compact view, though standard accounting view prefers two distinct columns.
+- Ledger Search Popup: Type-ahead search filtering by Ledger Code, Name, or Group. Shows current balance as a hint.
+- Dimension Input: Hidden by default unless the selected ledger requires specific dimensions (e.g., Travel Expense requires Cost Center).
+- Batch Mode: A distraction-free, spreadsheet-like grid for rapid multi-line entry.
+20. Permissions, Roles & Confidentiality
+- Creators (Clerks/Accountants): Can create DRAFTs and move to SUBMITTED. Cannot Post directly.
+- Approvers (Finance Managers): Can move PENDING_APPROVAL to APPROVED. Can REJECT with comments.
+- Posters (System/Controller): Finalizes the entry. Often combined with Approver role.
+- Amount Thresholds: Journals > $10,000 require CFO approval. Journals < $1,000 auto-approve based on setup.
+- Period-Lock Enforcement: Strictly enforced. No one, not even Admin, can post into a hard-closed period. Soft-closed periods require 'Period Override' permission.
+- Sensitive Types: 'Opening Balance' or 'Inter-company' journals are restricted to top-level financial controllers.
+21. Offline-First, Sync, Conflict & Crash Recovery
+- Local-First Architecture: Users can draft journals offline in the browser/client via IndexedDB/CRDTs. Drafts auto-save locally.
+- Sync Behavior: When back online, DRAFTs sync to the server. If two users edit the SAME draft offline, CRDT rules merge lines by UUID. Conflicts on header (e.g., different dates) prompt the user.
+- Numbering Resolution: Official Journal Numbers are NEVER assigned offline. They are assigned server-side at the APPROVED/NUMBERED state to guarantee gapless sequences and prevent duplicates.
+- Crash Recovery: If the client crashes during drafting, the local store restores the session upon reload.
+- Crash During Posting: If the network drops after submitting to DOC-08 but before DOC-25 receives the ack, a background reconciliation worker verifies the posting status via Idempotency Keys (using journal_id).
+22. Edge Cases & Recovery Scenarios
+1. User submits unbalanced journal: System blocks at the UI level and API level. State remains DRAFT.
+2. Post-dated journal in a locked period: Rejected on submission. Prompt to change date or request period unlock.
+3. Reversing a journal with downstream settlement: If a JV is linked to a payment, reversal is blocked until the payment is unapplied.
+4. Duplicate journal detection: System checks for journals with identical amounts, ledgers, and dates within a 24-hour window and flags as potential duplicate.
+5. Currency conversion rounding: System auto-injects a configured 'Rounding Adjustment' line for differences <= 0.05.
+6. Accrual auto-reversal scheduled for a holiday: Reversal posts on the next valid business day based on the calendar config.
+7. Template references a deleted/inactive ledger: Recurring job fails, alerts admin, sets template to INACTIVE.
+8. Concurrent users exhaust number sequence: DB sequence generator uses row-level locking or atomic increments to ensure safe allocation.
+9. Inter-branch journal where one branch is locked: Transaction blocked. Both branches must be open for the period.
+10. Journal references merged party: Foreign keys mapped to the surviving party ID during validation.
+11. Crash after DOC-08 accepts, before DOC-25 updates: Background worker uses idempotency key to confirm and update status to POSTED.
+12. Bulk import exceeds limits: Processed via background queue in batches of 1,000 to prevent timeout.
+13. Approval chain user resigned: Workflow engine detects inactive user and escalates to their manager or fallback role.
+14. 500+ lines performance: UI virtualizes the grid rendering. API processes validation asynchronously.
+15. Period close attempted while pending approval: Close process warns user. Hard close forces pending journals to next period or rejects them.
+16. GST adjustment after return filing: Blocked if linked to a filed return. Must create a new adjustment for the current open period.
+17. Rate change between draft and posting: Uses the rate active on the posting_date, recalculates upon posting.
+18. Recurring template version conflict: Uses Snapshot-in-Time for generation to avoid mid-cycle alterations.
+19. Audit query by specific user: Specialized indexed views allow cross-company tracing of 'created_by' logs.
+20. Migration from legacy formats: Dedicated 'Migration Mode' disables strict period rules temporarily for bulk historical ingestion, requiring explicit Audit Log flagging.
+23. Notifications, Alerts & Scheduled Jobs
+- Pending Approvals: Daily digest email/in-app alert to managers with pending journals.
+- Overdue Reversals: Alert if a scheduled auto-reversal fails or is blocked.
+- Period-End Warnings: 3 days before period close, alert on DRAFT or SUBMITTED journals that need action.
+- Recurring Generation: Notification upon successful batch generation of recurring templates.
+- Scheduled Jobs: Nightly cron for Auto-Reversals, Recurring Template Evaluation, and Idempotency Reconciliation.
+24. Audit, Evidence & Data Governance
+- Change Tracking: Every field edit in PENDING_APPROVAL or later states is tracked in an AuditLog table (Before/After values, Timestamp, User ID).
+- Mandatory Reasons: Edits to sensitive fields (Amounts, Ledgers) post-submission require a mandatory text reason.
+- Evidence Retention: Attachments (PDFs, Excel calcs) are stored in WORM (Write Once Read Many) cloud storage linked to the journal_id.
+- Retention Policy: Financial journals retained for 7 years (or local statutory requirement). Soft deletes only for DRAFTs. POSTED journals can NEVER be deleted, only reversed.

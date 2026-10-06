@@ -1,9 +1,11 @@
+import { useReturnNavigation } from '../../hooks/useReturnNavigation';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Save, ArrowLeft, Trash2, Calendar, FileText, Filter, Download } from 'lucide-react';
 import apiClient from '../../lib/api';
 
 export default function StockShiftVoucher() {
+  useReturnNavigation();
   const navigate = useNavigate();
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [shiftNo, setShiftNo] = useState('SHF-001');

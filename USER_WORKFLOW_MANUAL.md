@@ -127,3 +127,15 @@ Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Schem
 3. **Payment & Receipt Vouchers:**
    - Go to **Finance & Accounts > Vouchers, P&L > Payment / Receipt**.
    - Select your document series, fill the amounts, and save. This directly posts the accounting double-entry safely to the ledger.
+
+## DOC-28: Bank Reconciliation Workflow (2026-10-06)
+
+### How to Reconcile Bank Statements
+1. Go to **Finance & Accounts > Bank Reconciliation**.
+2. Select your Bank Ledger from the dropdown at the top.
+3. Click **Import Statement**. 
+   - *First time?* Select "+ Create New Mapping Profile" and enter the column names exactly as they appear in your Bank's Excel/CSV file (e.g., Profile Name: "HDFC Format", Date Column: "Transaction Date", Withdrawal Column: "Debit").
+   - *Next time?* Just select your saved "HDFC Format" from the dropdown.
+4. Upload your CSV. The statement rows will populate on the **Left Pane** (Unreconciled Bank Statement).
+5. The **Right Pane** automatically shows all un-matched Payments and Receipts logged in the ERP for this ledger.
+6. Click one row on the left and one row on the right. The **Match Selected** button will turn blue. Click it to permanently reconcile the two records.

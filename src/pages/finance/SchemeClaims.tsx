@@ -1,9 +1,11 @@
+import { useReturnNavigation } from '../../hooks/useReturnNavigation';
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiClient } from '../../lib/api'
 import { Search, Plus, Shield, RefreshCw } from 'lucide-react'
 
 export default function SchemeClaims() {
+  useReturnNavigation();
   const navigate = useNavigate()
   const [claims, setClaims] = useState<any[]>([])
   

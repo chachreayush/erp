@@ -145,3 +145,9 @@ Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Schem
 - **DOC-20 Document Series Engine:** Replaced rigid auto-increment with flexible DocumentSeries master. Implemented dynamic prefix/next_number allocation with concurrency locks (`FOR UPDATE`). Added editable voucher numbers.
 - **DOC-21 Sales Return Engine:** Integrated Credit Notes seamlessly into SalesBill.tsx. Added `F8 - Load Inv` hook to fetch original sales, validate remaining returnable quantity, and add back stock.
 - **DOC-24 Payment & Receipt Vouchers:** Upgraded existing VoucherEntry.tsx to use the new DocumentSeries engine and removed old hard-coded VoucherSequence table.
+
+### [2026-10-06] DOC-28: Bank Reconciliation & Cash Control Engine
+- **Models**: Added `BankStatementProfile`, `BankStatementImport`, `BankStatementRow`, and `BankReconciliationMatch` to securely store raw statement records and immutable matching links.
+- **API**: Implemented `/api/finance/bank-statements/upload` to parse CSVs dynamically using saved column mapping profiles. Added matching endpoints with row-level locks.
+- **Frontend**: Created dual-pane `BankReconciliation.tsx` to view un-matched statement rows alongside un-matched ERP vouchers (Payments/Receipts). Added a profile creation wizard for standardizing bank CSV formats (HDFC, SBI, etc.).
+- **Fixes**: Cleaned up incorrect relationships in the `Product` model that were causing a 500 Internal Server Error during authentication. Added `[ESC]` key hook for quick navigation across new modules.

@@ -1,0 +1,162 @@
+DOC-27
+FIXED ASSETS, DEPRECIATION & ASSET LIFECYCLE MANAGEMENT ENGINE
+Version 2.0 • Revised with India + Global Tax Localization and Embedded Accounting Guidance
+Purpose: provide a single, auditable asset lifecycle that works for small and large businesses while keeping book accounting, tax accounting, indirect-tax treatment, and jurisdiction-specific compliance rules separate and configurable.
+Authoritative boundaries
+Implementation note: tax rules must never be hard-coded as permanent business logic. They must be stored as effective-dated jurisdiction rules so the ERP can support future tax-law changes without rewriting the asset engine.
+
+Contents
+Architecture & Core Principles
+Asset Master and Classification
+Asset Acquisition & Capitalisation
+Depreciation Engine
+India Tax & GST Localization
+Global Jurisdiction Framework
+Transfers, Revaluation, Impairment & Disposal
+Asset Maintenance, Components & Physical Verification
+Embedded CA/User Guide Architecture
+Workflows, Controls & Audit
+Data Model & Integration Contracts
+Reports, Dashboards & Acceptance Criteria
+
+1. Architecture & Core Principles
+DOC-27 manages the complete fixed-asset lifecycle but does not become a second accounting engine. Every financial effect is posted through DOC-08 and becomes visible in DOC-09. Operational source documents remain in their originating modules.
+Recommended books
+Primary book: financial/book accounting basis selected by the company (for example, Ind AS/AS/local GAAP/IFRS as applicable).
+Tax book(s): jurisdiction-specific depreciation and tax basis. India should support a separate Income-tax depreciation view and GST/tax-credit tracking rather than forcing tax treatment into book depreciation.
+Management book(s), optional: internal management lives or reporting classes without altering statutory books.
+2. Asset Master and Classification
+Asset master is the durable identity record. A single asset can have multiple tags, components, locations and lifecycle events.
+Parent/child assets: generator as parent, installed components as children; component replacement can retire one component without retiring the whole asset.
+Capital Work in Progress (CWIP) can accumulate eligible project costs before capitalization.
+Land and other non-depreciable classes can be configured as such; the engine must not assume that every asset depreciates.
+3. Asset Acquisition & Capitalisation
+Capitalisation begins from an approved source transaction and creates an auditable link to the purchase/inward system.
+Purchase / Inward → Verification → Capital-vs-Expense decision → CWIP (if required) → Capitalisation → Asset ID → Depreciation schedule → DOC-08 posting
+Capitalization wizard
+1. Select source document.
+2. Select asset class and jurisdiction.
+3. Review invoice value, recoverable/non-recoverable tax, freight and installation amounts.
+4. Choose new asset / component / CWIP / expense treatment.
+5. Enter capitalization date and put-to-use date.
+6. Preview book and tax treatment.
+7. Post capitalization and create depreciation schedules.
+4. Depreciation Engine
+The depreciation engine must support independent calculation books. Book depreciation is not automatically the same as tax depreciation.
+Depreciation example
+Cost ₹600,000  |  Residual ₹60,000  |  Book life 5 years  |  SLM
+Annual book depreciation = (600,000 - 60,000) ÷ 5 = ₹108,000
+Tax depreciation is calculated separately from the India tax-book rules / applicable tax block and put-to-use conditions.
+The application should display both schedules side-by-side and explain differences instead of trying to force one schedule to serve every purpose.
+5. India Tax & GST Localization
+India must be a first-class localization pack. The system should store tax rules by effective date and document the source/rule version used. The examples below describe architecture, not a substitute for current professional tax advice.
+India source notes
+Income-tax depreciation uses a tax-specific depreciation framework, including blocks of assets and WDV concepts; current notified rules/forms should drive the actual rate tables in production. Source: Income Tax Department, notified Income-tax Rules / depreciation forms (incometax.gov.in).
+GST rules distinguish credit eligibility and restrictions for capital goods, including business/non-business use and taxable/exempt supply attribution; the ERP must therefore calculate and store recoverable and non-recoverable components instead of assuming full ITC. Source: CBIC GST, Input Tax Credit Rules / CGST Act materials (cbic-gst.gov.in).
+MCA materials describe Schedule II as providing useful-life rules for depreciation/amortization with disclosure where a company uses a different useful life/residual value. The localization pack should therefore let the company select and document its applicable book framework. Source: Ministry of Corporate Affairs, Companies Act / Schedule II materials (mca.gov.in).
+6. Global Jurisdiction Framework
+The ERP should be region-aware from onboarding. Country selection does not merely change currency; it activates a jurisdiction profile that controls tax, accounting, document and reporting options.
+Initial setup wizard
+1. Country + state/province/emirate/territory.
+2. Legal entity type and tax registrations.
+3. Accounting framework and reporting basis.
+4. Fiscal year and period structure.
+5. Functional currency + optional secondary/reporting currencies.
+6. Indirect-tax regime and registration profile.
+7. Book depreciation policy and tax depreciation profile.
+8. Withholding/other tax modules to activate.
+9. Document compliance/local reporting modules.
+10. Default asset classes, thresholds, tax blocks/classes and rules.
+The setup wizard should create a region-specific default configuration but must not lock the company into a single tax policy. Authorized users can change settings; changes are effective-dated and audited.
+7. Transfers, Revaluation, Impairment & Disposal
+Disposal preview:
+Original cost → Accumulated depreciation → Carrying amount → Disposal proceeds → Direct disposal costs → Gain/Loss → Tax consequences (localized) → DOC-08 posting
+8. Asset Maintenance, Components & Physical Verification
+Maintenance history may link to DOC-26 operational expenses while keeping asset lifecycle events separate from expense claims.
+Warranty/AMC references, service dates and vendor history can be stored against the asset.
+Physical verification campaigns allow scan/list/count by branch, warehouse, room/site, custodian or asset class.
+Statuses: Found, Found-at-wrong-location, Missing, Damaged, Under-repair, Surplus, Tag-mismatch, Pending-investigation.
+Variance workflow creates approved adjustment/reclassification/write-off transactions rather than editing asset master values.
+9. Embedded CA/User Guide Architecture
+The final ERP must ship with an embedded, versioned guidance library for accountants, Chartered Accountants, finance users, administrators and ordinary operators. This is a product requirement, not an afterthought.
+Proposed user-facing guide content
+How to create an asset from a purchase bill.
+How to decide capital vs expense using configured company policy and approval thresholds.
+How to record GST/tax components and credit eligibility without overriding the statutory rule engine.
+How book depreciation differs from tax depreciation.
+How to transfer an asset between branches/custodians.
+How to dispose/scrap an asset and review gain/loss.
+How to correct an incorrect capitalization or depreciation schedule.
+How to review the complete audit trail and supporting documents.
+The guide should explicitly state when a rule is a system configuration, a company policy or a jurisdiction/statutory requirement so users do not mistake a configurable policy for law.
+10. Workflows, Controls & Audit
+Purchase → Capitalization Proposal → Review → Approval → Asset Created → Depreciation → Period Close → Review/Adjust → Disposal/Retirement
+11. Data Model & Integration Contracts
+Integration contracts
+DOC-17 sends eligible inward/vendor invoice data for capitalization review.
+DOC-24 supplies payment/cash/bank references when asset purchase or disposal proceeds involve actual money movement.
+DOC-25 handles authorized manual journal adjustments that are outside normal asset events.
+DOC-26 supplies operational expense context such as repairs/maintenance; it does not silently capitalize costs.
+DOC-08 is the only accounting posting authority.
+DOC-09 is the ledger/reporting authority for the resulting balances.
+12. Reports, Dashboards & Acceptance Criteria
+Minimum acceptance tests
+Create an asset from a vendor bill and preserve source traceability.
+Split one purchase into multiple assets/components with correct allocated cost.
+Run book depreciation and a separate tax depreciation schedule for the same asset.
+Apply an effective-dated rule change without rewriting prior posted periods.
+Handle transfer, impairment/revaluation (where configured), disposal and gain/loss.
+Prevent duplicate capitalization when the same invoice line is reopened or synchronized twice.
+India setup must support GST component capture/eligibility and separate Income-tax depreciation logic without hard-coded permanent rates, using versioned official rule sources.
+Change onboarding region and verify that the active tax/depreciation/documentation profile changes while the underlying asset engine stays the same.
+Open the in-ERP guide from an asset entry screen and show role-appropriate instructions plus the applicable rule version.
+Final architecture decision
+DOC-27 is the authoritative asset lifecycle module. It must be global by design and localized by configuration. At company creation/onboarding, the user selects the operating jurisdiction and accounting/tax profile; the ERP then loads the corresponding rule pack, forms, tax components, depreciation/tax books, document requirements and embedded guidance. Rules are effective-dated so future law changes can be introduced without redesigning the asset engine.
+Regulatory note: production tax rates, useful lives, credit eligibility, withholding rules and statutory filing requirements must be maintained from authoritative jurisdiction sources and reviewed by the company’s qualified tax/accounting professional before use. The ERP should provide the rule, source/version and effective date rather than presenting unverified values as permanent law.
+Implementation Depth Upgrade
+This 3.0 revision raises DOC-27 to the project standard established by DOC-01. It retains the prior approved baseline and adds explicit data ownership, UI behavior, state transitions, edge-case handling, integration contracts, permissions, synchronization, reporting and acceptance requirements. The module remains code-free but implementation-ready in design intent.
+A. Authoritative Boundary & Non-Goals
+Owns asset identity, capitalization, CWIP, componentization, book/tax depreciation, transfers, physical verification and disposal. Tax rules come from DOC-29; posting from DOC-08.
+B. Lifecycle / State Machine
+C. Relational Data Model — Implementation Blueprint
+Logical schema below is the minimum domain model; physical names, partitions and engine-specific constraints will be finalized in the database architecture document.
+asset_master
+asset_book
+asset_event
+D. Detailed UI / Screen Specification
+Asset Register
+Purpose: Physical + accounting view
+Keyboard path: F4 asset; F8 history; Enter open.
+Save/post rule: Accounting-impacting changes create asset events.
+Capitalization Wizard
+Purpose: Create asset from source
+Keyboard path: Tab steps; Ctrl+Enter capitalize.
+Save/post rule: Atomic asset event + posting request.
+Depreciation Workbench
+Purpose: Run depreciation
+Keyboard path: F6 period; F7 preview; Ctrl+Enter post.
+Save/post rule: Posted run immutable; corrections via reversal.
+E. Integration Contract Matrix
+F. Security, Permissions & Data Scope
+G. Offline / LAN / Cloud Synchronization
+Asset event IDs immutable.
+Depreciation run IDs idempotent.
+Physical verification is evidence/event, not direct NBV mutation.
+H. Reporting & Dashboard Feed
+Asset register/NBV.
+Book vs tax depreciation.
+CWIP/additions/disposals/transfers.
+Physical verification gaps.
+I. Expanded Edge-Case Handling
+The following cases must have deterministic outcomes. This is intentionally broader than the happy path so that implementation does not leave operational gaps.
+J. Implementation Acceptance Criteria
+Book and tax books are distinct.
+Depreciation is deterministic/idempotent.
+Disposal produces controlled gain/loss posting.
+Transfers preserve history.
+Rule versions are stored.
+K. Small / Medium / Large Business Modes
+L. Version / Amendment Decision
+v3.0 deepens the existing v2.0 localization with explicit schema, lifecycle, workflow, edge and implementation controls.
+Final architectural rule
+An asset has one physical identity but can have multiple accounting/tax books, all with traceable lifecycle events.
