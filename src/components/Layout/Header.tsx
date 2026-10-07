@@ -125,6 +125,7 @@ const financeMenuItems: MenuItem[] = [
   { label: 'Day Book', path: '/finance/daybook' },
   { isSeparator: true },
   { label: 'Bank Reconciliation', path: '/finance/bank-reconciliation' },
+    { label: 'Expense Management', path: '/finance/expenses' },
       { label: 'Ledger Statement', path: '/finance/ledger-statement' },
   { label: 'Trial Balance', path: '/finance/trial-balance' },
   { label: 'Profit & Loss', path: '/finance/profit-loss' },

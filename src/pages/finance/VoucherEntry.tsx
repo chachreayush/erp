@@ -131,7 +131,7 @@ export default function VoucherEntry() {
       const res = await apiCreateVoucher({
         voucher_type: type || 'Payment',
         voucher_number: voucherNumber,
-          series_id: selectedSeriesId,
+          series_id: selectedSeriesId || undefined,
         date,
         narration,
         total_amount: totalDr,
@@ -156,7 +156,7 @@ export default function VoucherEntry() {
       }
     } catch (err) {
       console.error(err);
-      alert('Error saving voucher');
+      alert('Error: ' + (err.response?.data?.detail || err.message || 'Unknown error'));
     }
   };
 

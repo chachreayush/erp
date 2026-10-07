@@ -1,82 +1,72 @@
-# -- DOC-10: Business Partner / Party Master ------------------------
-from typing import List
+with open("backend/schemas.py", "a", encoding="utf-8") as f:
+    f.write("""
+# -- EXPENSE MANAGEMENT SCHEMAS ---------------------------------
 
-class PartyAddressBase(BaseModel):
-    address_type: str
-    is_default: bool = False
-    line1: str
-    line2: Optional[str] = None
-    city: Optional[str] = None
-    state: Optional[str] = None
-    pincode: Optional[str] = None
-    country: str = "India"
+class ExpenseCategoryBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    ledger_id: UUID
+    is_active: bool = True
 
-class PartyAddressCreate(PartyAddressBase):
+class ExpenseCategoryCreate(ExpenseCategoryBase):
     pass
 
-class PartyAddressResponse(PartyAddressBase):
-    id: UUID
-    party_id: UUID
-
-    class Config:
-        orm_mode = True
-
-class CustomerProfileBase(BaseModel):
-    route_id: Optional[str] = None
-    credit_limit: float = 0
-    credit_days: int = 0
-    price_list: Optional[str] = None
-
-class SupplierProfileBase(BaseModel):
-    payment_terms: Optional[str] = None
-    lead_time_days: int = 0
-    supplier_rating: Optional[str] = None
-
-class CustomerProfileCreate(CustomerProfileBase):
-    pass
-
-class SupplierProfileCreate(SupplierProfileBase):
-    pass
-
-class CustomerProfileResponse(CustomerProfileBase):
-    party_id: UUID
-    ledger_id: Optional[UUID] = None
-
-    class Config:
-        orm_mode = True
-
-class SupplierProfileResponse(SupplierProfileBase):
-    party_id: UUID
-    ledger_id: Optional[UUID] = None
-
-    class Config:
-        orm_mode = True
-
-class PartyBase(BaseModel):
-    legal_name: str
-    trade_name: Optional[str] = None
-    pan: Optional[str] = None
-    gst: Optional[str] = None
-    status: str = 'active'
-
-class PartyCreate(PartyBase):
-    addresses: List[PartyAddressCreate] = []
-    customer_profile: Optional[CustomerProfileCreate] = None
-    supplier_profile: Optional[SupplierProfileCreate] = None
-    # If creating a ledger automatically:
-    create_ledger: bool = True
-    ledger_group_id: Optional[UUID] = None
-    opening_balance: float = 0
-    op_type: str = "Dr"
-
-class PartyResponse(PartyBase):
+class ExpenseCategoryResponse(ExpenseCategoryBase):
     id: UUID
     organization_id: UUID
-    created_at: datetime
-    updated_at: datetime
-    addresses: List[PartyAddressResponse] = []
-    customer_profile: Optional[CustomerProfileResponse] = None
-    supplier_profile: Optional[SupplierProfileResponse] = None
-
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+class EmployeeAdvanceBase(BaseModel):
+    employee_ledger_id: UUID
+    date: datetime
+    amount: Decimal
+    reason: Optional[str] = None
+
+class EmployeeAdvanceCreate(EmployeeAdvanceBase):
+    pass
+
+class EmployeeAdvanceResponse(EmployeeAdvanceBase):
+    id: UUID
+    organization_id: UUID
+    status: str
+    voucher_id: Optional[UUID] = None
+    class Config:
+        from_attributes = True
+
+class ExpenseLineBase(BaseModel):
+    category_id: UUID
+    amount: Decimal
+    bill_number: Optional[str] = None
+    bill_date: Optional[datetime] = None
+    note: Optional[str] = None
+
+class ExpenseLineCreate(ExpenseLineBase):
+    pass
+
+class ExpenseLineResponse(ExpenseLineBase):
+    id: UUID
+    claim_id: UUID
+    class Config:
+        from_attributes = True
+
+class ExpenseClaimBase(BaseModel):
+    claim_number: Optional[str] = None
+    employee_ledger_id: UUID
+    date: datetime
+    total_amount: Decimal
+    remarks: Optional[str] = None
+
+class ExpenseClaimCreate(ExpenseClaimBase):
+    lines: List[ExpenseLineCreate]
+
+class ExpenseClaimResponse(ExpenseClaimBase):
+    id: UUID
+    organization_id: UUID
+    status: str
+    approved_by: Optional[UUID] = None
+    payment_voucher_id: Optional[UUID] = None
+    lines: List[ExpenseLineResponse]
+    class Config:
+        from_attributes = True
+""")

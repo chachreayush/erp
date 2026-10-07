@@ -1,19 +1,11 @@
-import os
+with open("src/App.tsx", "r", encoding="utf-8") as f:
+    code = f.read()
 
-path = 'src/App.tsx'
-with open(path, 'r', encoding='utf-8') as f:
-    content = f.read()
+import_statement = "import BankReconciliation from './pages/finance/BankReconciliation'\nimport ExpenseManagement from './pages/finance/ExpenseManagement'"
+code = code.replace("import BankReconciliation from './pages/finance/BankReconciliation'", import_statement)
 
-target = '<Route path="master/transport" element={<TransportMaster />} />'
-replacement = '<Route path="master/transport" element={<TransportMaster />} />\n        <Route path="series-master" element={<DocumentSeriesMaster />} />'
+route_statement = "<Route path=\"finance/bank-reconciliation\" element={<BankReconciliation />} />\n          <Route path=\"finance/expenses\" element={<ExpenseManagement />} />"
+code = code.replace("<Route path=\"finance/bank-reconciliation\" element={<BankReconciliation />} />", route_statement)
 
-if target in content:
-    if '<Route path="series-master"' not in content:
-        content = content.replace(target, replacement)
-        with open(path, 'w', encoding='utf-8') as f:
-            f.write(content)
-        print("Fixed App.tsx routing")
-    else:
-        print("Route already exists in App.tsx")
-else:
-    print("Target not found in App.tsx")
+with open("src/App.tsx", "w", encoding="utf-8") as f:
+    f.write(code)

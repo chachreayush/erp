@@ -1209,13 +1209,13 @@ def get_pending_allocations(db: Session = Depends(get_db), current_user: models.
             models.InvoiceAllocation.target_invoice_id == inv.id
         ).scalar() or Decimal("0")
         
-        outstanding = Decimal(inv.net_amount) - allocs
+        outstanding = Decimal(inv.grand_total) - allocs
         if outstanding > 0:
             summaries.append({
                 "id": inv.id,
                 "invoice_number": inv.invoice_number,
-                "date": inv.invoice_date,
-                "total_amount": inv.net_amount,
+                "date": inv.date,
+                "total_amount": inv.grand_total,
                 "allocated_total": allocs,
                 "outstanding": outstanding,
                 "document_type": "Invoice"

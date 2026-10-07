@@ -1,68 +1,62 @@
-# -- DOC-10: Business Partner / Party Master ------------------------
-class Party(Base):
-    __tablename__ = "parties"
+with open("backend/models.py", "a", encoding="utf-8") as f:
+    f.write("""
+# -- TABLE 26: Expense Management ---------------------------------
+class ExpenseCategory(Base):
+    __tablename__ = "expense_categories"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    name = Column(String(100), nullable=False)
+    description = Column(String(255), nullable=True)
+    ledger_id = Column(UUID(as_uuid=True), ForeignKey("ledgers.id", ondelete="RESTRICT"), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
 
-    legal_name = Column(String(255), nullable=False, index=True)
-    trade_name = Column(String(255), nullable=True)
-    pan = Column(String(15), nullable=True)
-    gst = Column(String(20), nullable=True)
-    status = Column(String(20), nullable=False, default='active') # 'active', 'inactive'
-
-    # Relationships
     organization = relationship("Organization")
-    addresses = relationship("PartyAddress", back_populates="party", cascade="all, delete-orphan")
-    customer_profile = relationship("CustomerProfile", back_populates="party", uselist=False, cascade="all, delete-orphan")
-    supplier_profile = relationship("SupplierProfile", back_populates="party", uselist=False, cascade="all, delete-orphan")
+    ledger = relationship("Ledger")
 
-
-class PartyAddress(Base):
-    __tablename__ = "party_addresses"
+class EmployeeAdvance(Base):
+    __tablename__ = "employee_advances"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    party_id = Column(UUID(as_uuid=True), ForeignKey("parties.id", ondelete="CASCADE"), nullable=False, index=True)
-    
-    address_type = Column(String(50), nullable=False) # 'Billing', 'Shipping', 'Corporate'
-    is_default = Column(Boolean, default=False, nullable=False)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    employee_ledger_id = Column(UUID(as_uuid=True), ForeignKey("ledgers.id", ondelete="RESTRICT"), nullable=False)
+    date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    amount = Column(Numeric(15, 2), nullable=False)
+    reason = Column(String(255), nullable=True)
+    status = Column(String(50), nullable=False, default="Active") # Active, Settled
+    voucher_id = Column(UUID(as_uuid=True), ForeignKey("vouchers.id", ondelete="SET NULL"), nullable=True)
 
-    line1 = Column(String(255), nullable=False)
-    line2 = Column(String(255), nullable=True)
-    city = Column(String(100), nullable=True)
-    state = Column(String(100), nullable=True)
-    pincode = Column(String(20), nullable=True)
-    country = Column(String(100), default="India")
-    
-    party = relationship("Party", back_populates="addresses")
+    employee_ledger = relationship("Ledger")
+    voucher = relationship("Voucher")
 
+class ExpenseClaim(Base):
+    __tablename__ = "expense_claims"
 
-class CustomerProfile(Base):
-    __tablename__ = "customer_profiles"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    claim_number = Column(String(100), nullable=False, index=True)
+    employee_ledger_id = Column(UUID(as_uuid=True), ForeignKey("ledgers.id", ondelete="RESTRICT"), nullable=False)
+    date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    total_amount = Column(Numeric(15, 2), nullable=False, default=0)
+    status = Column(String(50), nullable=False, default="Draft") # Draft, Approved, Paid, Rejected
+    approved_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    payment_voucher_id = Column(UUID(as_uuid=True), ForeignKey("vouchers.id", ondelete="SET NULL"), nullable=True)
+    remarks = Column(Text, nullable=True)
 
-    party_id = Column(UUID(as_uuid=True), ForeignKey("parties.id", ondelete="CASCADE"), primary_key=True)
-    ledger_id = Column(UUID(as_uuid=True), ForeignKey("ledgers.id", ondelete="RESTRICT"), nullable=True) # Financial link
-    
-    route_id = Column(String(100), nullable=True) # String for now, can be FK to Routes later
-    credit_limit = Column(Numeric(15, 2), nullable=False, default=0)
-    credit_days = Column(Integer, nullable=False, default=0)
-    price_list = Column(String(50), nullable=True) # e.g. 'Retail', 'Wholesale'
-    
-    party = relationship("Party", back_populates="customer_profile")
-    ledger = relationship("Ledger")
+    employee_ledger = relationship("Ledger", foreign_keys=[employee_ledger_id])
+    lines = relationship("ExpenseLine", back_populates="claim", cascade="all, delete-orphan")
 
+class ExpenseLine(Base):
+    __tablename__ = "expense_lines"
 
-class SupplierProfile(Base):
-    __tablename__ = "supplier_profiles"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    claim_id = Column(UUID(as_uuid=True), ForeignKey("expense_claims.id", ondelete="CASCADE"), nullable=False)
+    category_id = Column(UUID(as_uuid=True), ForeignKey("expense_categories.id", ondelete="RESTRICT"), nullable=False)
+    amount = Column(Numeric(15, 2), nullable=False)
+    bill_number = Column(String(100), nullable=True)
+    bill_date = Column(DateTime, nullable=True)
+    note = Column(String(255), nullable=True)
 
-    party_id = Column(UUID(as_uuid=True), ForeignKey("parties.id", ondelete="CASCADE"), primary_key=True)
-    ledger_id = Column(UUID(as_uuid=True), ForeignKey("ledgers.id", ondelete="RESTRICT"), nullable=True) # Financial link
-    
-    payment_terms = Column(String(100), nullable=True)
-    lead_time_days = Column(Integer, nullable=False, default=0)
-    supplier_rating = Column(String(20), nullable=True)
-    
-    party = relationship("Party", back_populates="supplier_profile")
-    ledger = relationship("Ledger")
+    claim = relationship("ExpenseClaim", back_populates="lines")
+    category = relationship("ExpenseCategory")
+""")
