@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiGetLedgerStatement, apiGetLedgers, Ledger } from '../../lib/api';
 import { useReturnNavigation } from '../../hooks/useReturnNavigation';
 import { useParams } from 'react-router-dom';
 
 export default function LedgerStatement() {
+  const navigate = useNavigate();
   useReturnNavigation();
   const { ledgerId } = useParams<{ ledgerId: string }>();
 
@@ -102,7 +104,7 @@ export default function LedgerStatement() {
             )}
             
             {statement?.entries?.map((entry: any, i: number) => (
-              <tr key={i} style={{ borderBottom: '1px solid #1e293b' }}>
+              <tr key={i} onClick={() => navigate('/finance/voucher/' + entry.voucher_type.toLowerCase() + '/' + entry.voucher_id)} style={{ borderBottom: '1px solid #1e293b', cursor: 'pointer', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1e293b'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                 <td style={{ padding: '12px 16px', color: '#94a3b8' }}>{entry.date ? entry.date.split('T')[0] : ''}</td>
                 <td style={{ padding: '12px 16px' }}>{entry.voucher_number}</td>
                 <td style={{ padding: '12px 16px' }}>{entry.particulars}</td>

@@ -14,7 +14,8 @@ interface Entry {
 }
 
 export default function VoucherEntry() {
-  const { type } = useParams<{ type: string }>();
+  const { type, id } = useParams<{ type: string, id: string }>();
+  const [isEditMode, setIsEditMode] = useState(false);
   const navigate = useNavigate();
   
   const [isDirty, setIsDirty] = useState(false);
@@ -151,7 +152,6 @@ export default function VoucherEntry() {
         setAllocationModalOpen(true);
         setIsDirty(false);
       } else {
-        alert('Voucher saved successfully');
         resetForm();
       }
     } catch (err) {
@@ -252,7 +252,7 @@ export default function VoucherEntry() {
         </div>
 
         <button style={styles.saveBtn} disabled={!isValid} onClick={handleSave}>
-          <Save size={18} /> Save Voucher
+          <Save size={18} /> {isEditMode ? 'Update Voucher' : 'Save Voucher'}
         </button>
       </div>
 

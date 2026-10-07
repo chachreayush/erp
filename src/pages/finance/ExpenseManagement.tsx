@@ -10,20 +10,38 @@ interface ExpenseClaim {
   date: string;
   total_amount: number;
   status: string;
-  employee_ledger: { name: string };
+  employee_ledger_id: string;
+  employee_ledger?: { name: string };
   remarks?: string;
+  lines: any[];
 }
 
 export default function ExpenseManagement() {
   const [claims, setClaims] = useState<ExpenseClaim[]>([]);
+  const [ledgers, setLedgers] = useState<any>({});
+  const [categories, setCategories] = useState<any>({});
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const { handleReturn } = useReturnNavigation();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  useReturnNavigation(isModalOpen);
 
   const fetchClaims = async () => {
     try {
-      const res = await apiClient.get('/api/expenses/claims');
-      setClaims(res.data);
+      const [claimRes, ledgRes, catRes] = await Promise.all([
+        apiClient.get('/api/expenses/claims'),
+        apiClient.get('/api/master/ledgers'),
+        apiClient.get('/api/expenses/categories')
+      ]);
+      
+      const lMap: any = {};
+      ledgRes.data.forEach((l: any) => lMap[l.id] = l.name);
+      setLedgers(lMap);
+      
+      const cMap: any = {};
+      catRes.data.forEach((c: any) => cMap[c.id] = c.name);
+      setCategories(cMap);
+
+      setClaims(claimRes.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -33,13 +51,7 @@ export default function ExpenseManagement() {
 
   useEffect(() => {
     fetchClaims();
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        handleReturn();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+
   }, []);
 
   const handleApprove = async (id: string) => {
@@ -109,7 +121,8 @@ export default function ExpenseManagement() {
                   </tr>
                 ) : (
                   claims.map(claim => (
-                    <tr key={claim.id} className="hover:bg-slate-700/20 transition-colors group">
+                    <React.Fragment key={claim.id}>
+                    <tr onClick={() => setExpandedId(expandedId === claim.id ? null : claim.id)} className="hover:bg-slate-700/30 transition-colors group cursor-pointer">
                       <td className="px-6 py-4">
                         <div className="font-medium text-slate-200">{claim.claim_number}</div>
                         {claim.remarks && <div className="text-xs text-slate-400 truncate max-w-[200px]">{claim.remarks}</div>}
@@ -117,8 +130,8 @@ export default function ExpenseManagement() {
                       <td className="px-6 py-4 text-slate-300">
                         {new Date(claim.date).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 text-slate-300">
-                        {claim.employee_ledger?.name || 'Unknown'}
+                      <td className="px-6 py-4 text-slate-300 font-medium">
+                        {ledgers[claim.employee_ledger_id] || claim.employee_ledger?.name || 'Unknown'}
                       </td>
                       <td className="px-6 py-4 text-slate-100 text-right font-medium">
                         <div className="flex items-center justify-end gap-1">
@@ -138,7 +151,7 @@ export default function ExpenseManagement() {
                       <td className="px-6 py-4 text-right">
                         {claim.status === 'Draft' && (
                           <button 
-                            onClick={() => handleApprove(claim.id)}
+                            onClick={(e) => { e.stopPropagation(); handleApprove(claim.id); }}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 rounded text-sm transition-colors"
                           >
                             <Check className="w-4 h-4" />
@@ -147,6 +160,32 @@ export default function ExpenseManagement() {
                         )}
                       </td>
                     </tr>
+                    {expandedId === claim.id && (
+                      <tr className="bg-slate-900/50">
+                        <td colSpan={6} className="px-6 py-4 border-t border-slate-700/50">
+                          <div className="text-sm font-semibold text-slate-300 mb-2">Expense Details</div>
+                          <table className="w-full text-left max-w-3xl">
+                            <thead>
+                              <tr className="text-xs text-slate-500 uppercase">
+                                <th className="pb-2 w-1/3">Category</th>
+                                <th className="pb-2">Note</th>
+                                <th className="pb-2 text-right">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {claim.lines?.map((line: any, i: number) => (
+                                <tr key={i} className="border-t border-slate-800">
+                                  <td className="py-2 text-slate-300">{categories[line.category_id] || 'Unknown Category'}</td>
+                                  <td className="py-2 text-slate-400">{line.note || '-'}</td>
+                                  <td className="py-2 text-slate-300 text-right">? {line.amount}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                   ))
                 )}
               </tbody>
