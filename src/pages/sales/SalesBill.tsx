@@ -1,4 +1,4 @@
-import { apiSaveDraft, apiCreateInvoice, apiGetInvoice, InvoiceCreatePayload } from '../../lib/api';
+import apiClient, { apiSaveDraft, apiCreateInvoice, apiGetInvoice, InvoiceCreatePayload } from '../../lib/api';
 import React, { useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'

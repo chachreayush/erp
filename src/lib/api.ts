@@ -358,6 +358,7 @@ export interface Invoice {
   tax_total: number
   grand_total: number
   
+  series_id?: string
   items: InvoiceItem[]
 }
 
@@ -771,6 +772,7 @@ export interface Voucher {
   ref_invoice_id?: string;
   cancelled_at?: string;
   reversal_voucher_id?: string;
+  series_id?: string;
   entries: VoucherEntry[];
 }
 
