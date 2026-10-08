@@ -152,3 +152,15 @@ Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Schem
 - Reconciliations are managed outside standard Vouchers. A new set of tables (`BankStatementRow` & `BankReconciliationMatch`) act as a bridge between imported CSV rows and `VoucherEntry`.
 - **Dynamic CSV Parsing**: Instead of hardcoding formats, `BankStatementProfile` stores JSON mappings (e.g., `{"date": "Value Date", "withdrawal": "Debit"}`). The `upload` endpoint dynamically uses these mappings to interpret bank-specific CSVs.
 - **Concurrency**: `with_for_update()` is used on `BankStatementRow` during matching to prevent duplicate reconciliations in a multi-user environment.
+
+## DOC-29: GST, E-Invoicing, and Compliance Engine (2026-10-08)
+**Architecture Notes**:
+- **Zero-Cost Strategy**: We strictly avoid paid GSP APIs. Instead, the backend generates a precise JSON payload compliant with the government schema, which users upload manually. The response JSON is then parsed and reconciled.
+- **TDS/TCS Monitoring**: A new `tds_tcs_transactions` table tracks cumulative ledger values for a party across the FY. When an invoice pushes this past ₹50 Lakhs (Sec 194Q / 206C(1H)), an alert is triggered.
+- **Data Integrity**: Signed QR codes, IRN, and portal errors are preserved immutably in `einvoice_eway_logs`. We never overwrite government acknowledgements; corrections create new appended records.
+
+
+### Addendum: DOC-29 Automatic TDS/TCS Ledger Posting
+- **Cumulative Engine**: The backend automatically tracks a party's cumulative transaction total via the `TdsTcsTransaction` log.
+- **Automatic Accounting**: When the ₹50 Lakh threshold is crossed, and the Party's `tds_tcs_mode` is set to "AUTOMATIC", the ERP's `_auto_post_accounting` engine takes over.
+- **Journal Vouchers**: It automatically calculates the 0.1% TDS (or higher if non-filer) and instantly passes a Journal Voucher to debit/credit the "TDS Payable" / "TCS Receivable" ledgers against the Party's ledger, ensuring compliance without manual intervention.

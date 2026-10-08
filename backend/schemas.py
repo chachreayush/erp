@@ -1701,3 +1701,76 @@ class DepreciationLogResponse(BaseModel):
     created_at: datetime
     class Config:
         from_attributes = True
+
+
+# ============================================================
+# DOC-29: GST, Tax, E-Invoicing, E-Way Bill & TDS/TCS Schemas
+# ============================================================
+from typing import Any, Dict
+
+class TaxProfileCreate(BaseModel):
+    name: str
+    jurisdiction: str = "IN"
+    is_active: bool = True
+    rules_json: Optional[Dict[str, Any]] = None
+
+class TaxProfileResponse(TaxProfileCreate):
+    id: UUID
+    organization_id: UUID
+    created_at: datetime
+    class Config:
+        orm_mode = True
+
+class TaxTransactionLineCreate(BaseModel):
+    invoice_item_id: UUID
+    tax_component: str
+    tax_rate: float
+    taxable_amount: float
+    tax_amount: float
+    rule_version: Optional[str] = None
+
+class TaxTransactionLineResponse(TaxTransactionLineCreate):
+    id: UUID
+    organization_id: UUID
+    class Config:
+        orm_mode = True
+
+class EinvoiceEwayLogCreate(BaseModel):
+    invoice_id: UUID
+    log_type: str
+    status: str
+    irn: Optional[str] = None
+    ack_no: Optional[str] = None
+    ack_date: Optional[str] = None
+    signed_qr_data: Optional[str] = None
+    signed_invoice_data: Optional[str] = None
+    eway_bill_no: Optional[str] = None
+    eway_bill_valid_till: Optional[str] = None
+    error_message: Optional[str] = None
+    request_payload_json: Optional[Dict[str, Any]] = None
+    response_payload_json: Optional[Dict[str, Any]] = None
+
+class EinvoiceEwayLogResponse(EinvoiceEwayLogCreate):
+    id: UUID
+    organization_id: UUID
+    created_at: datetime
+    class Config:
+        orm_mode = True
+
+class TdsTcsTransactionCreate(BaseModel):
+    party_id: UUID
+    invoice_id: Optional[UUID] = None
+    financial_year: str
+    transaction_type: str
+    transaction_amount: float
+    cumulative_amount: float
+    section_code: Optional[str] = None
+    deducted_amount: float = 0
+    is_threshold_breached: bool = False
+
+class TdsTcsTransactionResponse(TdsTcsTransactionCreate):
+    id: UUID
+    organization_id: UUID
+    created_at: datetime
+    class Config:
+        orm_mode = True

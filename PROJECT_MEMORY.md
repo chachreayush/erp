@@ -151,3 +151,13 @@ Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Schem
 - **API**: Implemented `/api/finance/bank-statements/upload` to parse CSVs dynamically using saved column mapping profiles. Added matching endpoints with row-level locks.
 - **Frontend**: Created dual-pane `BankReconciliation.tsx` to view un-matched statement rows alongside un-matched ERP vouchers (Payments/Receipts). Added a profile creation wizard for standardizing bank CSV formats (HDFC, SBI, etc.).
 - **Fixes**: Cleaned up incorrect relationships in the `Product` model that were causing a 500 Internal Server Error during authentication. Added `[ESC]` key hook for quick navigation across new modules.
+
+### [2026-10-08] DOC-29: GST, Tax, E-Invoicing, E-Way Bill & Global Statutory Compliance Engine
+- **Models**: Proposed `TaxProfile`, `TaxTransactionLine`, `EinvoiceEwayLog`, and `TdsTcsTransaction` for comprehensive tax rules, compliance logs, and TDS/TCS tracking.
+- **Architecture**: Zero-recurring-cost strategy implemented. Uses bulk JSON export for the IRP portal and imports the response JSON, mapping IRN/QR to internal transactions.
+- **TDS/TCS Engine**: Continuous monitoring of cumulative transaction values per party per FY (₹50 Lakhs limit). Real-time user decision prompt (Auto/Manual/Defer) upon breach.
+
+### [2026-10-08] DOC-29 Extension: Auto-Posting Engine
+- **Implementation**: Injected logic into `backend/api/sales.py` (`_auto_post_accounting`) to autonomously check `TdsTcsTransaction` for ₹50L limits.
+- **Ledger Generation**: Automatically adjusts Party Debits/Credits and generates "TDS Payable" / "TCS Receivable" entries within the core finance engine.
+- **Frontend Intercept**: Finalized the `TdsTcsAlertModal` into `SalesBill` and `PurchaseBill` React components.

@@ -139,3 +139,28 @@ Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Schem
 4. Upload your CSV. The statement rows will populate on the **Left Pane** (Unreconciled Bank Statement).
 5. The **Right Pane** automatically shows all un-matched Payments and Receipts logged in the ERP for this ledger.
 6. Click one row on the left and one row on the right. The **Match Selected** button will turn blue. Click it to permanently reconcile the two records.
+
+## DOC-29: Compliance & TDS/TCS Workflow (2026-10-08)
+
+### E-Invoicing & E-Way Bill Generation (Zero-Cost Workflow)
+1. Go to **Compliance > Compliance Workbench**.
+2. Select pending invoices and press **F6** to validate them locally for errors (e.g., missing HSN or invalid GSTIN).
+3. Press **F7** to **Export Bulk JSON**.
+4. Log in to the official IRP/E-Way Bill portal and upload the exported JSON file.
+5. Download the success/error JSON response from the portal.
+6. Return to the ERP and press **F8** to **Import Response**. The system will automatically link the IRN, Acknowledgement No., and Signed QR code to your invoices.
+7. You can view the completed government evidence under **Signed Ledger**.
+
+### TDS/TCS Threshold Monitoring (₹50 Lakhs Limit)
+1. The ERP automatically tracks all purchases from a single supplier and sales to a single customer in the current Financial Year.
+2. When creating a Sales Bill or Purchase Bill, if the cumulative amount crosses ₹50 Lakhs, a prompt will appear.
+3. You can choose:
+   - **Automatic Mode**: The ERP will automatically deduct 0.1% TDS/TCS (or higher if the party is a non-filer) on the amount exceeding the limit, creating the respective accounting ledgers.
+   - **Manual Mode**: You will handle deductions manually; the ERP will just show reminders on subsequent bills.
+   - **Defer**: Remind later.
+
+
+### Addendum: DOC-29 Automatic TDS/TCS Ledger Posting
+- **Cumulative Engine**: The backend automatically tracks a party's cumulative transaction total via the `TdsTcsTransaction` log.
+- **Automatic Accounting**: When the ₹50 Lakh threshold is crossed, and the Party's `tds_tcs_mode` is set to "AUTOMATIC", the ERP's `_auto_post_accounting` engine takes over.
+- **Journal Vouchers**: It automatically calculates the 0.1% TDS (or higher if non-filer) and instantly passes a Journal Voucher to debit/credit the "TDS Payable" / "TCS Receivable" ledgers against the Party's ledger, ensuring compliance without manual intervention.

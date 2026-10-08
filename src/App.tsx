@@ -32,6 +32,8 @@ import { useThemeStore } from './store/themeStore'
 import LoginPage from './pages/Login'
 import DashboardPage from './pages/Dashboard'
 import SettingsPage from './pages/Settings'
+import ComplianceWorkbench from './pages/ComplianceWorkbench'
+import SignedLedger from './pages/SignedLedger'
 import ProductsPage from './pages/inventory/Products'
 import FinancePage from './pages/finance/Finance'
 import ClientManagementPage from './pages/admin/ClientManagement'
@@ -200,6 +202,8 @@ function App() {
         <Route path="stock-receive"    element={<BillingPage />} />
         <Route path="sales-order"      element={<BillingPage />} />
         <Route path="settings"         element={<SettingsPage />} />
+        <Route path="compliance"         element={<ComplianceWorkbench />} />
+        <Route path="compliance/signed"  element={<SignedLedger />} />
         
         {/* AM Admin Routes */}
         <Route path="clients" element={<ClientManagementPage />} />

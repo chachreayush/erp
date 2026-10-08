@@ -187,6 +187,8 @@ from api.dispatch import router as dispatch_router
 from api.billing import router as billing_router
 from api.expenses import router as expenses_router
 from api.assets import router as assets_router
+from api.compliance import router as compliance_router
+from api.tds_tcs import router as tds_tcs_router
 app.include_router(pricing_router)
 app.include_router(inventory_router)
 app.include_router(claims_router)
@@ -197,6 +199,8 @@ app.include_router(dispatch_router, prefix="/api/dispatch")
 app.include_router(billing_router, prefix="/api/billing")
 app.include_router(expenses_router, prefix="/api")
 app.include_router(assets_router)
+app.include_router(compliance_router, prefix="/api/compliance", tags=["Compliance"])
+app.include_router(tds_tcs_router, prefix="/api/tds_tcs", tags=["TDS/TCS"])
 
 # Future routers will be added here as modules are built:
 # app.include_router(hr_router)
