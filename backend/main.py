@@ -186,6 +186,7 @@ from api.orders import router as orders_router
 from api.dispatch import router as dispatch_router
 from api.billing import router as billing_router
 from api.expenses import router as expenses_router
+from api.assets import router as assets_router
 app.include_router(pricing_router)
 app.include_router(inventory_router)
 app.include_router(claims_router)
@@ -195,6 +196,7 @@ app.include_router(orders_router, prefix="/api/orders")
 app.include_router(dispatch_router, prefix="/api/dispatch")
 app.include_router(billing_router, prefix="/api/billing")
 app.include_router(expenses_router, prefix="/api")
+app.include_router(assets_router)
 
 # Future routers will be added here as modules are built:
 # app.include_router(hr_router)

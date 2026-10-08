@@ -71,6 +71,8 @@ import ProfitAndLoss from './pages/finance/ProfitAndLoss'
 import BalanceSheet from './pages/finance/BalanceSheet'
 import FinanceReports from './pages/finance/FinanceReports'
 import BankReconciliation from './pages/finance/BankReconciliation'
+import AssetCategories from './pages/finance/AssetCategories'
+import FixedAssets from './pages/finance/FixedAssets'
 import ExpenseManagement from './pages/finance/ExpenseManagement'
 
 import CurrentStockPage from './pages/stock/CurrentStock'
@@ -149,6 +151,8 @@ function App() {
         <Route path="master/pricing" element={<PricingMaster />} />
         <Route path="finance/claims" element={<SchemeClaims />} />
         <Route path="finance/bank-reconciliation" element={<BankReconciliation />} />
+          <Route path="finance/asset-categories" element={<AssetCategories />} />
+          <Route path="finance/fixed-assets" element={<FixedAssets />} />
           <Route path="finance/expenses" element={<ExpenseManagement />} />
         <Route path="finance/voucher/:type" element={<VoucherEntry />} />
         <Route path="finance/voucher/:type/:id" element={<VoucherEntry />} />
