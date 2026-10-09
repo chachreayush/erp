@@ -17,6 +17,10 @@
 
 import { Routes, Route, Navigate } from 'react-router-dom'
 
+import ReportViewer from './pages/reports/ReportViewer';
+import ReportDesigner from './pages/reports/ReportDesigner';
+
+
 // ── STORE ─────────────────────────────────────────────────────
 // useAuthStore gives us access to the global auth state
 // We use it to check if the user is logged in
@@ -217,7 +221,10 @@ function App() {
                               <Route path="/inventory/replenishment" element={<ProtectedRoute><Replenishment /></ProtectedRoute>} />
           <Route path="/stock-shift" element={<ProtectedRoute><StockShiftVoucher /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    
+          <Route path="/reports/viewer" element={<ReportViewer />} />
+          <Route path="/reports/designer" element={<ReportDesigner />} />
+</Routes>
     </ThemeProvider>
   )
 }

@@ -211,3 +211,11 @@ User dashboard content and data are restricted by role/company permissions estab
 Dashboard KPIs expose scope and freshness information.
 Visibility-rule changes can be reviewed historically.
 DOC-31 can render the dashboard without creating an independent calculation engine.
+
+=========================================
+[2026-10-09 23:22:38] IMPLEMENTATION UPDATE
+=========================================
+- Schema Additions: ReportTemplate, ReportVariant, DashboardExclusion (utilizing JSONB for config storage).
+- API Routes: Created /api/reports_v2/execute/{subject} allowing dynamic aggregation over Sales, Ledger, and Inventory without modifying core schemas. Implemented DashboardExclusion logic to omit non-actionable elements from KPI feeds while preserving accounting truth.
+- Frontend Dashboards: Built Advanced Report Designer (ReportDesigner.tsx) and Report Viewer (ReportViewer.tsx) with native CSV export capabilities. 
+- Integrated into global routing and Sidebar.

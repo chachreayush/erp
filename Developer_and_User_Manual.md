@@ -1881,3 +1881,9 @@ Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Schem
 - **Cumulative Engine**: The backend automatically tracks a party's cumulative transaction total via the `TdsTcsTransaction` log.
 - **Automatic Accounting**: When the ₹50 Lakh threshold is crossed, and the Party's `tds_tcs_mode` is set to "AUTOMATIC", the ERP's `_auto_post_accounting` engine takes over.
 - **Journal Vouchers**: It automatically calculates the 0.1% TDS (or higher if non-filer) and instantly passes a Journal Voucher to debit/credit the "TDS Payable" / "TCS Receivable" ledgers against the Party's ledger, ensuring compliance without manual intervention.
+
+
+## DOC-30 Reporting Engine (2026-10-09 23:22:38)
+- **Dynamic Aggregation:** Implemented flexible reporting endpoints (`/api/reports_v2`) leveraging JSONB for custom configurations.
+- **Dashboard Exclusions:** Users can suppress disputed parties/ledgers from KPI dashboards without deleting the source accounting record.
+- **Report Viewer & Designer:** Keyboard-first analytical tables with robust native CSV export, avoiding backend bottlenecks.

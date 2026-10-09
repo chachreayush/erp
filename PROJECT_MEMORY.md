@@ -161,3 +161,7 @@ Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Schem
 - **Implementation**: Injected logic into `backend/api/sales.py` (`_auto_post_accounting`) to autonomously check `TdsTcsTransaction` for ₹50L limits.
 - **Ledger Generation**: Automatically adjusts Party Debits/Credits and generates "TDS Payable" / "TCS Receivable" entries within the core finance engine.
 - **Frontend Intercept**: Finalized the `TdsTcsAlertModal` into `SalesBill` and `PurchaseBill` React components.
+
+
+### DOC-30 Implementation (2026-10-09 23:22:38)
+Successfully implemented Financial & Statutory Management Reporting Engine. Fixed frontend `useRef` import crashes in Sales/Purchase modules. Synchronized local folders to GitHub/Vercel.

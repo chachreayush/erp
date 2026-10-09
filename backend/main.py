@@ -160,6 +160,7 @@ app.include_router(system_router, prefix="/api/system", tags=["System"])
 
 # Reports routes (Party Ledger, Trial Balance, Ageing)
 from api.reports import router as reports_router
+from api.reports_v2 import router as reports_v2_router
 app.include_router(reports_router, prefix="/api/reports", tags=["Reports"])
 
 # DOC-12: Principal Master routes

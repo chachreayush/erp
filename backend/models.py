@@ -1791,3 +1791,40 @@ class TdsTcsTransaction(Base):
     section_code = Column(String(20), nullable=True) # e.g., "194Q"
     deducted_amount = Column(Numeric(12, 2), nullable=True, default=0)
     is_threshold_breached = Column(Boolean, default=False)
+
+
+# ==========================================
+# DOC-30: Financial & Management Reporting
+# ==========================================
+
+class ReportTemplate(Base):
+    __tablename__ = "report_templates"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"))
+    name = Column(String, index=True)
+    subject = Column(String) # e.g., "Sales", "Ledger", "Inventory"
+    config = Column(JSONB) # Stores selected columns, calculations, default filters
+    is_published = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class ReportVariant(Base):
+    __tablename__ = "report_variants"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    template_id = Column(UUID(as_uuid=True), ForeignKey("report_templates.id"), nullable=True)
+    name = Column(String)
+    saved_state = Column(JSONB) # Hidden columns, custom order, active filters
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class DashboardExclusion(Base):
+    __tablename__ = "dashboard_exclusions"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"))
+    entity_type = Column(String) # 'Party', 'Ledger', 'Invoice'
+    entity_id = Column(UUID(as_uuid=True))
+    reason = Column(String)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    expiry_date = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
