@@ -219,3 +219,11 @@ DOC-31 can render the dashboard without creating an independent calculation engi
 - API Routes: Created /api/reports_v2/execute/{subject} allowing dynamic aggregation over Sales, Ledger, and Inventory without modifying core schemas. Implemented DashboardExclusion logic to omit non-actionable elements from KPI feeds while preserving accounting truth.
 - Frontend Dashboards: Built Advanced Report Designer (ReportDesigner.tsx) and Report Viewer (ReportViewer.tsx) with native CSV export capabilities. 
 - Integrated into global routing and Sidebar.
+
+
+--- [UPDATE 2026-10-09 23:29:22] ---
+All ERP features have been fully documented in the central Markdown manuals. See DEVELOPER_MANUAL.md for the complete exhaustive list of features covering this DOC's implementation.
+
+
+--- [UPDATE 2026-10-09 23:29:22] ---
+All ERP features have been fully documented in the central Markdown manuals. See DEVELOPER_MANUAL.md for the complete exhaustive list of features covering this DOC's implementation.

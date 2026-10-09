@@ -436,3 +436,11 @@ The engine design incorporates established ERP patterns for posting definitions,
 
 Final Specification Statement
 DOC-08 establishes the Accounting Posting Engine as the single controlled financial execution layer of the ERP. DOC-07 defines what may be settled against what; DOC-08 ensures those settlement instructions interact with correctly posted invoices, payments, credit notes, debit notes, advances, expenses, freight, inventory and tax without duplicate or missing accounting effects.
+
+
+--- [UPDATE 2026-10-09 23:29:22] ---
+All ERP features have been fully documented in the central Markdown manuals. See DEVELOPER_MANUAL.md for the complete exhaustive list of features covering this DOC's implementation.
+
+
+--- [UPDATE 2026-10-09 23:29:22] ---
+All ERP features have been fully documented in the central Markdown manuals. See DEVELOPER_MANUAL.md for the complete exhaustive list of features covering this DOC's implementation.

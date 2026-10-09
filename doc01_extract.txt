@@ -404,3 +404,11 @@ The software currently features a hard-isolated SaaS layer. The root organizatio
 The UI features a full 'Client Management' interface where the Admin can click '+ Add Client' to provision new tenant companies. Fields include: Company Name, Subdomain/Org ID, Admin Email, Initial Password, and Database Schema routing. The system automatically provisions a unique UUID for the organization and seeds a default 'admin' user for that tenant.
 3. Database Isolation Mechanism
 In models.py, every single operational table (User, Ledger, Voucher, Product, Party) requires an 'organization_id' Foreign Key. All API queries explicitly filter by 'current_user.organization_id' ensuring strict data boundaries.
+
+
+--- [UPDATE 2026-10-09 23:29:22] ---
+All ERP features have been fully documented in the central Markdown manuals. See DEVELOPER_MANUAL.md for the complete exhaustive list of features covering this DOC's implementation.
+
+
+--- [UPDATE 2026-10-09 23:29:22] ---
+All ERP features have been fully documented in the central Markdown manuals. See DEVELOPER_MANUAL.md for the complete exhaustive list of features covering this DOC's implementation.

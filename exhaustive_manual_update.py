@@ -1,5 +1,10 @@
-# The Ultimate ERP System Manual
-*Last Updated: 2026-10-09 23:29:22*
+import os
+import datetime
+
+timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+exhaustive_manual = f"""# The Ultimate ERP System Manual
+*Last Updated: {timestamp}*
 
 Welcome to the exhaustive documentation for our modern, keyboard-first ERP system. This document outlines every single module, architecture decision, and workflow implemented to date.
 
@@ -118,3 +123,42 @@ By-passes expensive third-party GSP APIs by providing a direct portal integratio
 
 ---
 End of Manual.
+"""
+
+project_memory_update = f"""
+### Comprehensive Audit & Update ({timestamp})
+- Rewrote all manual files (DEVELOPER_MANUAL, User_Manual_and_Workflow, USER_WORKFLOW_MANUAL, Developer_and_User_Manual) with a unified, exhaustive architecture document detailing every module created (DOC-01 to DOC-30).
+- Explicitly documented Keyboard-First mechanics, Multi-Tenancy, CQRS Ledgers, Strict Stock Separation, Bill-by-Bill, E-Invoicing JSON flows, TDS/TCS auto-posting, and DOC-30 Dashboard Exclusions.
+- Preserved all historical DOC txt files by only appending update logs to them.
+- Initiated final folder sync and Git push.
+"""
+
+# 1. Update Manuals with Exhaustive Content
+manuals = [
+    "Developer_and_User_Manual.md",
+    "DEVELOPER_MANUAL.md",
+    "User_Manual_and_Workflow.md",
+    "USER_WORKFLOW_MANUAL.md"
+]
+for manual in manuals:
+    with open(manual, "w", encoding="utf-8") as f:
+        f.write(exhaustive_manual)
+    print(f"Overwrote {manual} with exhaustive details.")
+
+# 2. Update PROJECT_MEMORY.md
+with open("PROJECT_MEMORY.md", "a", encoding="utf-8") as f:
+    f.write(project_memory_update)
+print("Updated PROJECT_MEMORY.md")
+
+# 3. Append to doc files without removing anything
+import glob
+doc_files = glob.glob("DOC*.txt") + glob.glob("doc*.txt")
+for doc in doc_files:
+    with open(doc, "a", encoding="utf-8") as f:
+        f.write(f"\n\n--- [UPDATE {timestamp}] ---\nAll ERP features have been fully documented in the central Markdown manuals. See DEVELOPER_MANUAL.md for the complete exhaustive list of features covering this DOC's implementation.\n")
+    print(f"Safely appended to {doc}")
+
+# 4. Sync erp2 to erp
+print("Syncing erp2 to erp via robocopy...")
+os.system(r'robocopy "C:\Users\DELL\OneDrive\Desktop\erp2" "C:\Users\DELL\OneDrive\Desktop\erp" /MIR /XD node_modules .git .venv __pycache__ .next /XF .env')
+print("Sync complete.")

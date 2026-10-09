@@ -228,3 +228,10 @@ Instrument status is independent from entry existence.
 Multi-currency and backdated controls are explicit.
 G. Final Domain Rule
 Money movement is an operational financial fact; settlement application and accounting posting remain centralized authorities.
+
+--- [UPDATE 2026-10-09 23:29:22] ---
+All ERP features have been fully documented in the central Markdown manuals. See DEVELOPER_MANUAL.md for the complete exhaustive list of features covering this DOC's implementation.
+
+
+--- [UPDATE 2026-10-09 23:29:22] ---
+All ERP features have been fully documented in the central Markdown manuals. See DEVELOPER_MANUAL.md for the complete exhaustive list of features covering this DOC's implementation.

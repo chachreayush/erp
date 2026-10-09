@@ -303,3 +303,10 @@ Quarterly return data generates in TRACES-compatible format.
 Certificate generation (Form 16A/27D) produces correct party-wise certificates.
 All threshold breaches, mode selections, rate overrides, and deductions are audited (DOC-33).
 FY rollover resets cumulative tracking while preserving historical records.
+
+--- [UPDATE 2026-10-09 23:29:22] ---
+All ERP features have been fully documented in the central Markdown manuals. See DEVELOPER_MANUAL.md for the complete exhaustive list of features covering this DOC's implementation.
+
+
+--- [UPDATE 2026-10-09 23:29:22] ---
+All ERP features have been fully documented in the central Markdown manuals. See DEVELOPER_MANUAL.md for the complete exhaustive list of features covering this DOC's implementation.

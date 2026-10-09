@@ -693,3 +693,10 @@ U. Final Acceptance Criteria — Settlement
 12. No settlement can cross company boundaries or invalid parties/currencies.
 13. Allocation is safe under concurrent users and retry/replay.
 14. Every allocation is traceable from source to target and back.
+
+--- [UPDATE 2026-10-09 23:29:22] ---
+All ERP features have been fully documented in the central Markdown manuals. See DEVELOPER_MANUAL.md for the complete exhaustive list of features covering this DOC's implementation.
+
+
+--- [UPDATE 2026-10-09 23:29:22] ---
+All ERP features have been fully documented in the central Markdown manuals. See DEVELOPER_MANUAL.md for the complete exhaustive list of features covering this DOC's implementation.

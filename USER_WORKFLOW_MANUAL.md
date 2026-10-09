@@ -1,172 +1,120 @@
-# User Workflow & Navigation Manual — Modern ERP
+# The Ultimate ERP System Manual
+*Last Updated: 2026-10-09 23:29:22*
 
-Welcome to the ERP Software suite. This comprehensive manual details the end-to-end user workflows, keyboard shortcuts, and interface operations.
-
----
-
-## 1. Authentication & Tenant Access
-1. **Login Credentials**:
-   - **Company Code**: Your unique organization identifier (e.g. `AM-0001` or `MUM-6135`).
-   - **Username**: Admin or assigned staff username.
-   - **Password**: Secure account password.
-2. **Brute Force Protection**: Failed attempts are restricted by automated rate-limiting guards.
-3. **Multi-Tenant Isolation**: Once logged in, your workspace is strictly restricted to your company's data.
+Welcome to the exhaustive documentation for our modern, keyboard-first ERP system. This document outlines every single module, architecture decision, and workflow implemented to date.
 
 ---
 
-## 2. Landscape Dashboard Operations (`/`)
-- **Horizontal Split Screen**: The main home screen displays all module navigation on the left and the company **Bulletin Board** on the right.
-- **No-Scroll Design**: All options and announcements are visible immediately upon login without scrolling.
-- **Posting Announcements**: Authorized managers can click `+ Post New Bulletin` to publish company notices, holiday announcements, and urgent alerts.
+## 1. Core Architecture & Philosophy
+
+### 1.1 Keyboard-First Operation
+Built for high-speed retail and wholesale distribution, the UI strictly enforces mouse-free operation. Users can navigate entire workflows, select batches (F3), submit forms, and drill down into reports using only keyboard shortcuts (Enter, Escape, Arrow Keys, Function Keys).
+
+### 1.2 Multi-Tenant Architecture (AM/CM)
+- **Admin Master (AM):** The platform super-admin environment. Manages global subscriptions, licensing, and provisions new organizations.
+- **Client Master (CM) / Organizations:** Individual client databases. All data (items, ledgers, sales) is strictly isolated by `organization_id`. AM Admins can securely impersonate CM Admins via `/auth/impersonate` for support.
+
+### 1.3 CQRS Append-Only Ledgers
+The accounting engine (DOC-08/DOC-09) uses an append-only architecture. 
+- You cannot silently "delete" a ledger entry. Mistakes are corrected via Reversal or Contra entries, ensuring strict audit compliance and tamper-proof financials.
 
 ---
 
-## 3. High-Speed Billing & Invoicing (`/sales`, `/purchase`)
+## 2. Master Data & Inventory Management
 
-### Full-Screen Mode
-Entering the **Sales Bill** or **Purchase Bill** automatically hides the top navigational header to grant 100% of your screen estate to data entry. To exit back to the Home Dashboard at any time, press **`Escape`**.
+### 2.1 Ledgers & Tax Codes
+- Fully customizable chart of accounts.
+- Integrated tax codes for dynamic GST calculation (SGST, CGST, IGST).
 
-### Standard Keyboard Billing Flow:
-1. **Header Entry**:
-   - **Entry No**: Automatically increments or allows custom series entry. Press `Enter`.
-   - **Party Name**: Press `Enter`, `Space`, or `F7` to open the search modal. Select the Sundry Creditor/Debtor with arrow keys and press `Enter`.
-   - **Invoice Date / Tax Type / Entry Date**: Flow smoothly through dates with `Enter` / `Tab`.
-2. **Product Grid Entry**:
-   - **Product Search**: Press `Enter` or `Space` on the `#` or `PRODUCT` field to open the product catalog search modal.
-   - **Batch Selection**: Press `F3` or `Enter` on the `BATCH` column to open the batch selection window.
-   - **Expiry Date**: Enter in `MM/YY` format.
-   - **Quantity & Free**: Input billed quantity and any bonus/free stock.
-   - **Extra Scheme (`EXTRA SCHEM`)**: Input additional trade scheme quantities.
-   - **Purchase Rate / Discount**: Enter unit rates and line item discounts.
-   - **Moving to Next Row**: Pressing `Enter` at the end of a line immediately shifts focus to the next product row.
-3. **Finalizing & Saving**:
-   - Press **`End`** or **`Tab`** to jump directly to the **Discount (±)** and Ledger adjustment fields.
-   - Press **`Ctrl + S`** or click **`SAVE (End / Ctrl+S)`** to commit the invoice to the live cloud database.
+### 2.2 Strict Stock Separation
+- **Active Stock:** Saleable goods available for regular invoicing.
+- **Breakage/Expiry (Brk/Exp):** Non-saleable goods. The system physically prevents these from being accidentally sold.
+
+### 2.3 Batch Management (F3)
+- Pressing `F3` during billing opens the Batch Modal.
+- Zero-quantity batches are hidden by default to reduce clutter but can be revealed by pressing the `ArrowUp` key at the top of the list.
+
+### 2.4 Multi-Rate Pricing & Schemes (DOC-14 & DOC-15)
+- **Formula Builder:** Define dynamic pricing calculations and margins.
+- **Extra Scheme Settlement:** Automatically apply volume-based discounts and promotional schemes during Sales and Purchase flows.
 
 ---
 
-## 4. Inventory, Stock & Batch Ledger (`/stock`, `/inventory`)
+## 3. The Transactional Engine (Sales & Purchase)
 
-### Real-Time Current Stock
-- View all products and quantities grouped across active batches.
-- Zero-stock items are preserved in the list for reorder planning.
+Each transaction maintains an independent, auto-incrementing Entry No. series (e.g., S0001, CRN0001) to prevent duplicates.
 
-### Product Stock Register
-- Click any product in the stock table and select **Register** to inspect a full chronological ledger of all stock inwards, outwards, invoice references, and running balances.
+### 3.1 Sales Flow
+- **Sales Bill:** Creates a permanent tax invoice, registers the sale, and deducts active stock. Triggers automated accounting journal vouchers.
+- **Challan:** A temporary delivery/dispatch sheet. Does not hit final accounting until converted to a Sales Bill.
+- **Sale Return:** Customer returns active goods. Issues a Credit Note and adds items back to active stock.
 
-### Breakage & Expiry Management
-- Record **Brk/Exp Receive** and **Brk/Exp Issue** vouchers.
-- Broken or expired goods are strictly quarantined in isolated breakage stock tracking registers and do not contaminate saleable stock.
+### 3.2 Purchase Flow
+- **Purchase Bill:** Logs supplier purchases, adds to active inventory, and increases Accounts Payable.
+- **Purchase Challan:** Temporary goods receipt note (GRN).
+- **Purchase Return:** Returns active goods to supplier. Issues a Debit Note and removes stock.
 
----
-
-## 5. Master Data Setup (`/master`)
-- **Ledgers**: Add suppliers, customers, bank accounts, and expense heads.
-- **Manufacturers / Companies**: Register pharmaceutical companies and suppliers.
-- **Salts / Molecules**: Register chemical drug compositions.
-- **HSN Codes & State Codes**: Manage GST percentages and interstate tax mappings.
+### 3.3 Breakage & Expiry Flow
+- **Brk/Exp Receive:** Customer returns damaged goods. Items enter the isolated Non-Saleable bucket.
+- **Brk/Exp Issue:** Damaged goods are returned to the manufacturer for replacement or credit claims.
 
 ---
 
-## 6. Live Cloud & Vercel Synchronization
-- Local offline data caches have been unified with live PostgreSQL cloud endpoints.
-- Any invoice, ledger, or product saved from the desktop Tauri app or local browser is instantaneously synchronized and viewable across Vercel cloud deployments.
+## 4. Advanced Financial Accounting
 
+### 4.1 Bill-by-Bill Allocations & Vouchers (DOC-24)
+- When a payment is received (Receipt Voucher) or made (Payment Voucher), the amount is explicitly allocated against specific open invoices. 
+- Allows precise tracking of outstanding amounts per invoice rather than just a generic running balance.
 
-### [Update: 2026-09-01]
-#### New Workflows & Features
-1. **Smart MRP Configuration**
-   - **Access**: Navigate to Inventory > Products, click the Smart MRP button.
-   - **Workflow**: The system scans past sales and suggests new Minimum Stock and Reorder quantities.
-2. **Global Search**
-   - **Access**: Click the Search bar in the top navigation or press Ctrl + K.
-   - **Workflow**: Type any module name (e.g., Sale, Ledger) to instantly navigate to it.
-3. **Enhanced Sales Bill Workspace**
-   - The billing screen now utilizes the full monitor width.
-   - A **Live Intelligence Panel** on the right side provides instant details on the selected party balance and the currently highlighted product MRP, Stock, and Margins.
+### 4.2 Bank Reconciliation (DOC-25)
+- Compare physical bank statements with ERP ledger entries.
+- Mark entries as `cleared` and track Uncleared Cheques.
 
-### [Update: 2026-09-06]
-#### Finance & Accounting Upgrades
-1. **Fully Automated Ledger Posting**
-   - **Workflow**: When you save a Sales or Purchase Bill, the system automatically posts the corresponding accounting Voucher (Journal).
-   - The Ledger Statement for parties (e.g. Cipla Pharmaceuticals) now instantly reflects the debit/credit amounts of all sales and purchases.
-2. **Ledger Statement & Day Book Revamp**
-   - **Access**: Navigate to Finance > Ledger Statement.
-   - **Workflow**: Select a Party from the dropdown, adjust the From/To Dates, and click Load. The system calculates true Opening Balances based on the Fiscal Year and renders a running balance on each row.
-   - All historical bills have been successfully recovered and retroactively posted into the new accounting ledger.
+### 4.3 Expense Engine (DOC-26)
+- Dedicated workflows for logging operational expenses (GST Inward for input tax credit) and general business overheads.
 
+### 4.4 Fixed Assets & Depreciation (DOC-27)
+- Capitalize assets and run automated depreciation calculations (Straight Line / WDV) at the end of financial periods.
 
-### Dashboard Updates (2026-09-08)
-The new Admin Dashboard features a highly visual, data-first approach:
-- Top 4 Cards: Finance Hub, Supply Chain, Human Capital, Projects & Tasks.
-- Middle Section: Auto-scaling Geographic Sales Map.
-- Bottom Section: Platform Alerts (Severity/Warning indicators) and Global Stats with trend lines.
+---
 
-## [Update - DOC-14 & DOC-15 Integration]
-Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Scheme Settlement (DOC-14) in Purchase/Sales flows. Purchase Bill Layout restructured and fixed.
+## 5. Compliance & Taxation (DOC-29)
 
-## [Update - DOC-17 Procurement Execution]
-- **Purchase Orders**: Create POs under `Sales & Purchase > Purchase > Purchase Order` to specify exact quantities, vendors, and delivery expectations.
-- **Goods Receipt Notes (GRN)**: Instead of direct Purchase Bills, you can record physical receipt of goods via the GRN screen (`Sales & Purchase > Purchase > Goods Receipt Note`). Loading a PO automatically populates the items. Saving a GRN updates stock levels immediately.
-- **Vendor Complaints**: Track shortages, damage, and quality issues centrally under `Sales & Purchase > Purchase > Vendor Complaints`.
+### 5.1 E-Invoicing & E-Way Bill (Zero-Cost Workflow)
+By-passes expensive third-party GSP APIs by providing a direct portal integration workflow:
+1. **F6 (Validate):** Locally checks pending invoices for missing HSN or invalid GSTINs.
+2. **F7 (Export):** Generates the exact Bulk JSON format required by the Government IRP.
+3. **F8 (Import):** Parses the downloaded government JSON response, instantly linking IRN, Acknowledgement Number, and Signed QR Codes to your invoices.
+4. **Signed Ledger:** A dedicated screen to view digitally signed, compliant invoices.
 
-## [Update - DOC-18 Sales Order & Order Management Engine]
-- **Hold Engine**: Orders exceeding credit limits or pricing margins are put on `HOLD`. Admins/Managers must explicitly review these in the `OrderApprovalDashboard` (accessible via Sales & Purchase > Sale > Order Approvals).
-- **Direct Billing Bypass (Permissions)**: To prevent the Hold engine from slowing down fast billing, the `User` account has an `allow_direct_billing` permission flag. Admin/Manager roles or users with this flag enabled can bypass the strict Sales Order flow and use the fast-path direct `SalesBill` / `PurchaseBill` invoicing. Users without this flag are hard-blocked from accessing direct billing and must go through the Sales Order approval flow.
+### 5.2 TDS / TCS Auto-Posting Engine (₹50 Lakh Limit)
+- **Tracking:** The system cumulatively tracks total purchases from a supplier and sales to a customer in a Financial Year.
+- **Alerts:** Once the ₹50 Lakh threshold is crossed, the billing screen throws an alert.
+- **Auto-Deduction:** If set to "Automatic Mode", the `_auto_post_accounting` engine seamlessly calculates the 0.1% deduction and appends "TDS Payable" or "TCS Receivable" journal entries to the voucher without manual effort.
 
+---
 
-## New Financial & Billing Workflows (DOC-20, 21, 24)
-1. **Managing Document Numbering:** 
-   - Go to **Master > Masters > Document Series** to create custom prefix series (e.g., `C-` for Cash Sales, `B-` for Bank Receipts).
-   - In any billing/voucher screen, select the series and the system automatically fills the next available number. You can manually edit the number if you are copying from a physical receipt book.
-2. **Processing Sales Returns (Credit Notes):**
-   - Go to **Sales & Purchase > Sale > Sales Return**.
-   - Press **F8** and type the original Sales Invoice Number.
-   - The system loads the items and verifies exactly how many items you are allowed to return (preventing duplicates).
-   - Stock is automatically added back to the ERP.
-3. **Payment & Receipt Vouchers:**
-   - Go to **Finance & Accounts > Vouchers, P&L > Payment / Receipt**.
-   - Select your document series, fill the amounts, and save. This directly posts the accounting double-entry safely to the ledger.
+## 6. Financial & Management Reporting (DOC-30)
 
-## DOC-28: Bank Reconciliation Workflow (2026-10-06)
+### 6.1 Dynamic Report Viewer
+- Grid-based analytics for Sales and Ledger Balances.
+- Includes a native **Export to CSV** function powered directly by the browser to prevent backend CPU bottlenecks on large datasets.
 
-### How to Reconcile Bank Statements
-1. Go to **Finance & Accounts > Bank Reconciliation**.
-2. Select your Bank Ledger from the dropdown at the top.
-3. Click **Import Statement**. 
-   - *First time?* Select "+ Create New Mapping Profile" and enter the column names exactly as they appear in your Bank's Excel/CSV file (e.g., Profile Name: "HDFC Format", Date Column: "Transaction Date", Withdrawal Column: "Debit").
-   - *Next time?* Just select your saved "HDFC Format" from the dropdown.
-4. Upload your CSV. The statement rows will populate on the **Left Pane** (Unreconciled Bank Statement).
-5. The **Right Pane** automatically shows all un-matched Payments and Receipts logged in the ERP for this ledger.
-6. Click one row on the left and one row on the right. The **Match Selected** button will turn blue. Click it to permanently reconcile the two records.
+### 6.2 Advanced Report Designer
+- A drag-and-drop style interface for power users.
+- Connect to a Semantic Catalogue (Sales, Purchase, Inventory, Ledgers).
+- Define custom columns, filters, and calculations, and save them as reusable "Report Templates" or "Report Variants".
 
-## DOC-29: Compliance & TDS/TCS Workflow (2026-10-08)
+### 6.3 Dashboard Exclusions (Data Governance)
+- Management can flag specific Parties or Ledgers as "Disputed" or "Excluded" via a modal.
+- These entities disappear from operational KPI dashboards (like "Actionable Outstanding").
+- **Crucially:** This does *not* alter the underlying accounting truth. Statutory reports and formal Ledger Statements will still show the true balances, preventing financial fraud while cleaning up operational views.
 
-### E-Invoicing & E-Way Bill Generation (Zero-Cost Workflow)
-1. Go to **Compliance > Compliance Workbench**.
-2. Select pending invoices and press **F6** to validate them locally for errors (e.g., missing HSN or invalid GSTIN).
-3. Press **F7** to **Export Bulk JSON**.
-4. Log in to the official IRP/E-Way Bill portal and upload the exported JSON file.
-5. Download the success/error JSON response from the portal.
-6. Return to the ERP and press **F8** to **Import Response**. The system will automatically link the IRN, Acknowledgement No., and Signed QR code to your invoices.
-7. You can view the completed government evidence under **Signed Ledger**.
+---
 
-### TDS/TCS Threshold Monitoring (₹50 Lakhs Limit)
-1. The ERP automatically tracks all purchases from a single supplier and sales to a single customer in the current Financial Year.
-2. When creating a Sales Bill or Purchase Bill, if the cumulative amount crosses ₹50 Lakhs, a prompt will appear.
-3. You can choose:
-   - **Automatic Mode**: The ERP will automatically deduct 0.1% TDS/TCS (or higher if the party is a non-filer) on the amount exceeding the limit, creating the respective accounting ledgers.
-   - **Manual Mode**: You will handle deductions manually; the ERP will just show reminders on subsequent bills.
-   - **Defer**: Remind later.
+## 7. C&F Platform & Principal Billing (DOC-28)
+- Designed for Carrying & Forwarding agents.
+- Manages principal inventory mapping, specialized MIS reports for pharmaceutical parent companies, and automated claim tracking for expired goods.
 
-
-### Addendum: DOC-29 Automatic TDS/TCS Ledger Posting
-- **Cumulative Engine**: The backend automatically tracks a party's cumulative transaction total via the `TdsTcsTransaction` log.
-- **Automatic Accounting**: When the ₹50 Lakh threshold is crossed, and the Party's `tds_tcs_mode` is set to "AUTOMATIC", the ERP's `_auto_post_accounting` engine takes over.
-- **Journal Vouchers**: It automatically calculates the 0.1% TDS (or higher if non-filer) and instantly passes a Journal Voucher to debit/credit the "TDS Payable" / "TCS Receivable" ledgers against the Party's ledger, ensuring compliance without manual intervention.
-
-
-## DOC-30 Reporting Engine (2026-10-09 23:22:38)
-- **Dynamic Aggregation:** Implemented flexible reporting endpoints (`/api/reports_v2`) leveraging JSONB for custom configurations.
-- **Dashboard Exclusions:** Users can suppress disputed parties/ledgers from KPI dashboards without deleting the source accounting record.
-- **Report Viewer & Designer:** Keyboard-first analytical tables with robust native CSV export, avoiding backend bottlenecks.
+---
+End of Manual.

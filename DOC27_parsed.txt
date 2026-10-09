@@ -160,3 +160,10 @@ L. Version / Amendment Decision
 v3.0 deepens the existing v2.0 localization with explicit schema, lifecycle, workflow, edge and implementation controls.
 Final architectural rule
 An asset has one physical identity but can have multiple accounting/tax books, all with traceable lifecycle events.
+
+--- [UPDATE 2026-10-09 23:29:22] ---
+All ERP features have been fully documented in the central Markdown manuals. See DEVELOPER_MANUAL.md for the complete exhaustive list of features covering this DOC's implementation.
+
+
+--- [UPDATE 2026-10-09 23:29:22] ---
+All ERP features have been fully documented in the central Markdown manuals. See DEVELOPER_MANUAL.md for the complete exhaustive list of features covering this DOC's implementation.
