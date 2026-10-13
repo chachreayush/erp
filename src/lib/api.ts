@@ -106,9 +106,13 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid — clear local auth state and redirect to login
+      const authState = useAuthStore.getState();
+      if (authState.token === 'demo-preview-jwt-token') {
+        // In demo preview mode, allow components to catch 401 and display fallback data without forcing logout
+        return Promise.reject(error);
+      }
 
-      // Clear the saved auth state from localStorage
+      // Token expired or invalid — clear local auth state and redirect to login
       localStorage.removeItem('erp-auth')
       sessionStorage.removeItem('erp-auth')
 
