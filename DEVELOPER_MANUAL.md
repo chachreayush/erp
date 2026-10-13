@@ -3,6 +3,8 @@
 
 Welcome to the definitive developer and engineering manual for the Enterprise Multi-Tenant Pharmaceutical & Distribution ERP System. This manual details every architectural subsystem, database schema, API endpoint, keyboard navigation framework, series continuation engine, inventory disposition model, and accounting auto-posting pipeline.
 
+> **Master Editable Walkthrough Reference**: An exhaustive, publication-grade Microsoft Word document covering the complete software architecture, keyboard operations, data models, APIs, and screens is available in `ERP_ENTERPRISE_SYSTEM_COMPLETE_SOFTWARE_MASTER_WALKTHROUGH.docx`.
+
 ---
 
 ## 1. System Architecture & High-Level Topology

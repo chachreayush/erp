@@ -34,7 +34,7 @@ cmd3 = [
     "robocopy",
     src_dir,
     dest_dir,
-    "*.md", "*.json", "*.txt", "*.html", "*.py",
+    "*.md", "*.json", "*.txt", "*.html", "*.py", "*.docx",
     "/XF", "package-lock.json",
     "/XD", "node_modules", "backend", "src", ".git"
 ]

@@ -3,6 +3,8 @@
 
 Welcome to the complete operational manual for the Enterprise Pharmaceutical & Distribution ERP. This step-by-step guide walks you through every screen, keyboard shortcut, billing workflow, returns engine, financial statement, and report across the entire software suite.
 
+> **Master Editable Walkthrough Reference**: An exhaustive, publication-grade Microsoft Word document covering the complete software architecture, keyboard operations, data models, APIs, and screens is available in `ERP_ENTERPRISE_SYSTEM_COMPLETE_SOFTWARE_MASTER_WALKTHROUGH.docx`.
+
 ---
 
 ## 1. Getting Started & System Navigation

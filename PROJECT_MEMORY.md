@@ -371,6 +371,29 @@ px tsc --noEmit) with 0 errors.
 
 ---
 
+## Enterprise Master Documentation: Complete Software Walkthrough (.docx)
+
+An exhaustive, publication-grade master reference manual has been created as an editable Microsoft Word document:
+- **Location**: `C:\Users\DELL\OneDrive\Desktop\erp2\ERP_ENTERPRISE_SYSTEM_COMPLETE_SOFTWARE_MASTER_WALKTHROUGH.docx` (and mirrored to `erp`).
+- **Generator Script**: `generate_master_walkthrough_docx.py`.
+- **Scope & Coverage**:
+  1. Executive System Purpose, Zero-Mouse Guarantee, and Multi-Tenant AM/CM Partitioning.
+  2. Dual-Screen Architecture (Counter Workbench `/` vs Executive BI Dashboard `/dashboard` with Regional Sales Map `#mapModal`).
+  3. Universal Keyboard Command System & Marg/Tally Alphanumeric Series Continuation Algorithm (`incrementSeries`).
+  4. Master Data Catalogs, Multi-Godown Warehouses (Saleable, Breakage, Expiry), and Drug Licensing (20B/21B).
+  5. The 6 Core Transaction Voucher Modules (Sales Bill, Purchase Bill, Supplier Debit Note, Customer Credit Note, Breakage Issue, Breakage Receive) with step-by-step flows and GL impacts.
+  6. Payment, Receipt & FIFO Bill-by-Bill Settlement Engine (`[F6]` Receipt, `[F5]` Payment, `[Alt+A]` FIFO Allocation, Ageing Analysis).
+  7. Double-Entry General Ledger, Day Book, Trial Balance, P&L, Balance Sheet, and Journal Cockpit (`[Ctrl+B]` Auto-Balance, Accruals, Atomic Reversals).
+  8. Operational Expenditures (Direct Expenses, Live P&L Impact Box, Advances), Fixed Assets (WDV/SLM Depreciation), and Cash Control (BRS auto-matching & Currency Denomination Drawer Tally).
+  9. Statutory GST Compliance (GSTR-1, GSTR-2 with Debit Note ITC reversal, GSTR-3B, Government Offline Utility JSON, E-Invoicing IRN & E-Way Bill).
+  10. Management Reporting & Executive BI (Company Sales Drill-downs, Custom Report Designer, Predictive Risk Signals).
+  11. Workflow, Approval, Alert & Business Automation Engine (DOC-32: Inbox `[F4]`, Maker-Checker 403, Designer with Sandbox Simulator, SLA Monitor).
+  12. Relational Database Schema Dictionary (18+ PostgreSQL models).
+  13. RESTful API Directory (23+ core endpoints).
+  14. Automated Selenium QA Verification Matrix (10 test suites, 100% assertions) & Production Deployment guide.
+
+---
+
 ## How to Start Local Services
 
 ```powershell
@@ -401,9 +424,10 @@ robocopy C:\Users\DELL\OneDrive\Desktop\erp2\src C:\Users\DELL\OneDrive\Desktop\
 robocopy C:\Users\DELL\OneDrive\Desktop\erp2\backend C:\Users\DELL\OneDrive\Desktop\erp\backend /MIR /XD __pycache__ .venv .pytest_cache
 
 # Sync Documentation & Root Configs
-robocopy C:\Users\DELL\OneDrive\Desktop\erp2 C:\Users\DELL\OneDrive\Desktop\erp *.md *.json *.txt *.html /XF package-lock.json /XD node_modules backend src .git
+robocopy C:\Users\DELL\OneDrive\Desktop\erp2 C:\Users\DELL\OneDrive\Desktop\erp *.md *.docx *.json *.txt /XF package-lock.json /XD node_modules backend src .git
 ```
 
 ---
 *End of Master Memory File.*
+
 
