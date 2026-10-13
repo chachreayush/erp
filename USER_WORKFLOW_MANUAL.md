@@ -54,6 +54,7 @@ The ERP is **100% keyboard-navigable**. You never need to touch the mouse during
 | `Esc` | **Exit / Return to Home** | Safely exits the current billing screen and returns to the Home Dashboard (`HomeScreen`) |
 | `F2` | **Against Bill Mode** | Toggles "Against Original Invoice" mode in Sales Return and Purchase Return screens |
 | `F3` | **Batch Selector / Loose Mode** | Opens the live Batch Selection modal during billing (shows stock, MRP, expiry, rate) |
+| `F4` | **Unified Approval Inbox** | Launches the cross-module Approval Inbox (`/workflow/inbox`) for 1-click task actions |
 | `F5` | **View Register** | Switches between the Entry screen and the Historical Register list |
 | `F7` | **Party / Ledger Search** | Opens the Debtor/Creditor ledger lookup modal with instant search |
 | `F8` | **Load Return Bill** | Prompts for original invoice number during counter sales returns |
@@ -774,5 +775,67 @@ Designed for business owners, executives, and financial controllers:
 
 ---
 
+## 21. Workflow, Approval, Alert & Business Automation Engine (DOC-32)
+
+### 21.1 Unified Approval & Task Inbox (Route: `/workflow/inbox`, Hotkey: `[F4]`)
+The Approval Inbox aggregates actionable approval requests across Sales, Procurement, Finance, and Inventory into a single, high-velocity workbench:
+1. **Direct Access**: Press `[F4]` from anywhere on the Counter Workbench (`/`), or click **Workflows & Approvals [F4]** in the main navigation bar.
+2. **Actionable Queue & Filter**:
+   - Filter by **Pending Queue**, **Completed History**, or **All Items**.
+   - Instant search across document numbers, chemist/supplier party names, or approval categories.
+   - Urgency priority indicators (**URGENT**, **HIGH**, **NORMAL**, **LOW**) and real-time SLA countdown badges (e.g. `11.8h rem`).
+3. **Inspection Slide-Over Drawer**:
+   - Click any task row (or use keyboard selection) to open the detailed drawer on the right.
+   - Shows transaction value in INR, requestor name, assigned approver role, and full visual stage timeline with timestamps.
+4. **Maker-Checker Compliance Enforcement**:
+   - The engine guarantees strict separation of duties.
+   - If the logged-in user created the document, an orange banner appears: `Maker-Checker Policy Enforcement: You are recorded as the creator of this document. Approval must be executed by an independent reviewer.`
+   - The **Approve [A]** action is strictly disabled to prevent self-approval fraud.
+5. **Fast Keyboard Actions**:
+   - **Approve [A]**: Instantly signs off the task and moves the transaction to the next stage or completes the approval chain.
+   - **Reject [R]**: Launches a mandatory explanation modal (`#reject-remarks-input`). Enter the reason (e.g., *Rate variance exceeds authorized threshold*) and click **Confirm Rejection** to terminate the workflow and notify the initiator.
+   - **Delegate [D]**: Reassigns the task to another authorized supervisor or peer during leaves/audits.
+
+---
+
+### 21.2 Visual No-Code Workflow Designer (Route: `/workflow/designer`)
+Enables store managers, CFOs, and system administrators to configure approval hierarchies without writing code:
+1. **Rule Template Configuration**:
+   - Pick the source module (**Purchase**, **Sales**, **Finance**, **Inventory**).
+   - Select the trigger event (**Amount Threshold**, **Credit Limit Breach**, **Expense Claim Signoff**).
+   - Set the unique rule code, rule name, and toggle **Maker-Checker Enforcement**.
+2. **Multi-Tier Hierarchy Builder**:
+   - **Stage 1 (Floor Review)**: Configure minimum and maximum transaction bounds, assigned role (e.g. *Branch Floor Manager*), and SLA window (e.g. *12 Hours*).
+   - **Stage 2 (Executive Signoff)**: Set bounds for elevated amounts (e.g. *₹50,001 - ₹2,00,000*), assigned role (*CM Admin*), and SLA window (*24 Hours*).
+   - **Stage 3 (Director Authorization)**: For highest-value transactions exceeding ₹2,00,000 assigned to *Account Master Director* (*48 Hours*).
+   - Add or remove stages with 1-click controls.
+3. **Automated Downstream Actions**:
+   - Configure idempotent actions executed upon approval (e.g. `RELEASE_FOR_INWARD`, `ALLOW_BILLING_DISPATCH`, `DISBURSE_PAYMENT`).
+   - Configure rejection handling (e.g. `CANCEL_PO`, `HOLD_DISPATCH`).
+4. **Interactive Sandbox Simulator**:
+   - Test transaction values before publishing.
+   - Enter a test amount (e.g. `₹75,000`) in `#input-sim-amount` to immediately view the simulated routing path, active tier, and target reviewer role.
+
+---
+
+### 21.3 Real-Time Execution & SLA Monitor (Route: `/workflow/monitor`)
+Provides real-time visibility and health tracking for all automated enterprise workflows:
+1. **SLA Health & Performance Cards**:
+   - **Active Pending Tasks**: Live count of unresolved tasks across all departments.
+   - **Average Turnaround Time (TAT)**: Enterprise benchmark (currently **1.8 Hours** vs 4h optimal limit).
+   - **SLA Compliance Rate**: Percentage of tasks approved within SLA deadlines (currently **94.2%**).
+   - **Idempotency Engine**: Real-time status of SHA-256 deduplication locks (**100% Locked**).
+2. **Department Approval Volume Distribution**:
+   - Graphical breakdown across Procurement, Counter Sales, Finance & Expenses, and Inventory Quality.
+3. **Bottleneck Approver Ranking**:
+   - Identifies roles with delayed queues, average delay hours, and escalation risk indicators.
+4. **Live Execution Stream & Idempotency Audit**:
+   - Real-time audit log of all active workflow instances.
+   - Displays deterministic cryptographic hashes: `SHA-256: [hash]` ensuring zero double-approvals or duplicate downstream commands.
+   - **Safe Retry [↻]**: 1-click idempotent retry for interrupted external actions.
+
+---
+
 *End of User Workflow Manual.*
+
 

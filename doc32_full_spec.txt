@@ -1,0 +1,551 @@
+P1: DOC-32
+P2: Workflow, Approval, Alert & Business Automation Engine
+P3: Code-Free Enterprise Architecture Blueprint | Version 1.0
+P4: Purpose  Create one reusable workflow and automation layer that can be called by Sales, Purchase, Inventory, Billing, Payments, Tax, Assets, Expenses, Reporting and Dashboard modules without duplicating approval or alert logic.
+P6: 1. Scope and Position in the ERP
+P7: DOC-32 is the cross-module orchestration layer. It turns business rules and events into controlled actions while keeping each transaction inside its owning module.
+P9: 2. Core Workflow Lifecycle
+P10: Every workflow instance should have an immutable instance identifier and a predictable state machine. A workflow may be triggered by a user action, transaction event, threshold, schedule, synchronization event or another completed workflow.
+P12: 3. Workflow Types
+P13: Approval workflow: requires one or more human approvals before a transaction can proceed.
+P14: Validation workflow: runs structured checks and returns pass/fail/hold results.
+P15: Exception workflow: creates a case when a threshold, mismatch or unusual condition occurs.
+P16: Notification workflow: informs one or more users without blocking the transaction.
+P17: Timer workflow: performs an action at a scheduled time or after elapsed time.
+P18: Escalation workflow: changes owner or authority after a due time is breached.
+P19: Review workflow: creates recurring review tasks for balances, claims, vendors, assets or other items.
+P20: Automatic action workflow: performs pre-authorized non-financial actions after conditions are satisfied.
+P21: Composite workflow: chains several of the above into a single controlled process.
+P22: 4. No-Code Workflow Designer
+P23: Authorized administrators should create workflows visually. The designer uses business terms rather than code and provides a test/simulation mode before activation.
+P25: 5. Approval Routing Engine
+P26: Fixed approver: named user or role.
+P27: Hierarchy approver: route based on organization/branch reporting hierarchy.
+P28: Amount-based approver: route based on transaction value or cumulative exposure.
+P29: Department approver: route by department or cost centre.
+P30: Customer/vendor/principal-specific approver where authorized.
+P31: Multi-stage approval: sequential chain.
+P32: Parallel approval: independent approvals at the same stage.
+P33: Quorum approval: configurable minimum number of approvals.
+P34: Conditional approval: route changes based on data conditions.
+P35: Maker-checker: creator cannot be the sole final approver where the policy requires separation of duties.
+P36: 6. Delegation, Substitution and Escalation
+P38: 7. Alerts and Notification Engine
+P39: Alerts are separate from approvals. A user may receive an alert without an approval being required. Notification channels are configurable by company and user policy.
+P41: 8. Event and Trigger Catalog
+P42: Transaction lifecycle events: created, edited, submitted, approved, rejected, posted, cancelled, reversed.
+P43: Financial events: amount threshold, outstanding ageing threshold, payment received, payment overdue, bank reconciliation difference.
+P44: Inventory events: reorder breach, negative availability, batch/expiry threshold, quarantine, claim pending.
+P45: Operational events: challan pending billing, POD pending, dispatch delay, purchase receipt variance.
+P46: Compliance events: tax mismatch, e-invoice error, E-Way Bill exception, filing-period issue.
+P47: Master-data events: vendor complaint, blocked master, expiring registration/document.
+P48: Synchronization events: cloud sync conflict, failed upload, stale remote data.
+P49: Schedule events: daily, weekly, month-end, fiscal-year-end or custom calendar.
+P50: 9. Automation Action Guardrails
+P51: Automation must distinguish between safe non-financial actions and high-risk financial/statutory actions. The ERP should require explicit configuration for every action type.
+P53: 10. Workflow Data Model (Code-Free)
+P55: 11. Idempotency, Concurrency & Failure Handling
+P56: Every event and automatic action must have a stable deduplication key so a retry cannot perform the same action twice.
+P57: Concurrent approvals must not create double execution; the first valid completion wins according to the workflow state lock.
+P58: If an action fails, the workflow stores the failure reason and supports retry without losing the original event.
+P59: Offline/LAN operation may queue eligible workflow actions locally; cloud-dependent actions remain pending until synchronization.
+P60: Workflow state must survive application restart or network interruption.
+P61: Automation should use outbox/inbox-style persistence concepts so an accepted event is not lost between transaction commit and workflow processing.
+P62: 12. Authorization and Data Scope
+P64: 13. Integration with Existing Documents
+P66: 14. Example Workflows
+P67: Example A — Purchase Bill Approval  Purchase bill exceeds configured threshold → validate vendor status and open complaints → route to Finance Manager → if above second threshold, route to authorized senior approver → on final approval, release to posting workflow → notify creator.
+P68: Example B — Customer Outstanding  Invoice crosses overdue threshold → create collection task → notify owner → reminder before SLA → escalate to manager if no action → return to normal queue when settled or classified under an approved management status.
+P69: Example C — Low Stock  DOC-16 detects reorder threshold → create replenishment task → evaluate vendor rule and open vendor issues from DOC-17 → if special/restricted supply, route for confirmation → otherwise create approved purchase requirement.
+P70: Example D — E-Invoice Exception  DOC-29 receives portal error → classify technical/data issue → assign correction task → block only the affected compliance action → after correction, rerun validation and return to export queue.
+P71: 15. Approval Inbox UX
+P72: Keyboard-first inbox with global search, filters, queue shortcuts and bulk-safe actions.
+P73: Each task shows source document, amount, age, priority, reason, required action and deadline.
+P74: Open source transaction in context without losing the workflow queue.
+P75: Approve, reject, return for correction, delegate or escalate according to permission.
+P76: Bulk approval is permitted only where policy allows and every item remains individually logged.
+P77: Users can save queue views but cannot bypass data-scope restrictions.
+P78: 16. Audit, Evidence & Governance
+P79: Immutable workflow history: who, what, when, why, source record, before/after state.
+P80: Approval comments and uploaded evidence remain linked to the workflow instance.
+P81: Delegation and escalation events are auditable.
+P82: Workflow versions are effective-dated; already-running instances retain their initiating version unless explicitly migrated.
+P83: Changes to approval thresholds, approvers, automation actions and alert policies require authorization.
+P84: Compliance-sensitive workflows retain evidence and do not allow deletion of decision history.
+P85: 17. Reporting and Monitoring
+P86: Pending approvals by company, branch, department, role and age.
+P87: Approval turnaround time and SLA breaches.
+P88: Rejection/resubmission reasons.
+P89: Escalation volume and unresolved exceptions.
+P90: Automation success/failure/retry statistics.
+P91: Notification delivery and acknowledgement.
+P92: Workflows blocked by synchronization/offline state.
+P93: High-risk actions by user/role and period.
+P94: Workflow definition change history.
+P95: 18. Configuration Defaults
+P97: 19. Acceptance Criteria
+P98: An authorized admin can create and version a workflow without code.
+P99: A workflow can route sequential, parallel and conditional approvals.
+P100: Delegation and escalation operate within permitted authority.
+P101: Every approval/rejection/automation is traceable to a user or system actor.
+P102: An event retry cannot execute the same action twice.
+P103: Workflow state survives crash/offline interruption.
+P104: Users cannot approve outside their company/branch/data scope.
+P105: Financial/statutory actions respect maker-checker and source-module controls.
+P106: DOC-31 can surface workflow alerts while DOC-30 remains the calculation authority.
+P107: Workflow history can be drilled back to the original source transaction.
+P108: Architectural rule  DOC-32 is the ERP-wide orchestration authority for workflow, approval, alert, timer, escalation and automation policy. It must never become a shadow transaction engine. Source modules create and own the business records; DOC-32 coordinates what happens next.
+P109: Implementation Depth Upgrade
+P110: This 2.0 revision raises DOC-32 to the project standard established by DOC-01. It retains the prior approved baseline and adds explicit data ownership, UI behavior, state transitions, edge-case handling, integration contracts, permissions, synchronization, reporting and acceptance requirements. The module remains code-free but implementation-ready in design intent.
+P111: A. Authoritative Boundary & Non-Goals
+P112: Owns generic workflow orchestration, approval routing, reminders, SLA/escalation, delegation, event-triggered actions, retries and automation evidence. Business modules own transaction semantics; DOC-32 owns orchestration only.
+P113: B. Lifecycle / State Machine
+P114: C. Relational Data Model — Implementation Blueprint
+P115: Logical schema below is the minimum domain model; physical names, partitions and engine-specific constraints will be finalized in the database architecture document.
+P116: workflow_definitions
+P117: workflow_instances
+P118: approval_tasks
+P119: D. Detailed UI / Screen Specification
+P120: Workflow Inbox
+P121: Purpose: Approver/action queue across modules.
+P122: Keyboard path: F4 inbox; Enter opens task; A approve; R reject where permitted.
+P123: Save/post rule: Decision creates immutable workflow event and returns control to source module.
+P124: Workflow Designer
+P125: Purpose: No-code configuration of trigger, condition, steps and actions.
+P126: Keyboard path: Tab/Enter navigation; Ctrl+S draft.
+P127: Save/post rule: Publish requires validation and versioning; old active version is retired safely.
+P128: Run Monitor
+P129: Purpose: Monitor stuck/failed/escalated automation.
+P130: Keyboard path: Enter opens source and run evidence.
+P131: Save/post rule: Retry uses idempotency and cannot create duplicate business effects.
+P132: E. Integration Contract Matrix
+P133: F. Security, Permissions & Data Scope
+P134: G. Offline / LAN / Cloud Synchronization
+P135: Approval decisions are versioned events and idempotent.
+P136: Offline mode may queue eligible approvals but must not create duplicate decisions after reconnection.
+P137: Timers use server/authoritative time where possible.
+P138: Failed delivery of a notification does not equal failure of the underlying approval action.
+P139: H. Reporting & Dashboard Feed
+P140: Approval pending by role/user/age; SLA breaches; automation success/failure; retry counts; manual interventions; delegated tasks.
+P141: Expose workflow impact to DOC-31 without duplicating workflow state.
+P142: I. Expanded Edge-Case Handling
+P143: The following cases must have deterministic outcomes. This is intentionally broader than the happy path so that implementation does not leave operational gaps.
+P144: J. Implementation Acceptance Criteria
+P145: Workflow versions are immutable once used by a running instance.
+P146: Approval tasks enforce current authorization and SoD rules.
+P147: All automated actions are idempotent.
+P148: Failed actions never appear as successful.
+P149: Escalation and SLA status are visible.
+P150: Delegation is bounded and auditable.
+P151: Workflow does not bypass module accounting/stock/settlement authorities.
+P152: K. Small / Medium / Large Business Modes
+P153: L. Version / Amendment Decision
+P154: DOC-32 v2.0 upgrades the prior workflow document into a full orchestration architecture with data entities, states, idempotency, routing and edge-case behavior.
+P155: Final architectural rule
+P156: DOC-32 is the orchestration layer only. Business modules remain authoritative for transaction meaning, and automated actions must call the same services used by human users.
+
+--- TABLE 1 ---
+Design Principle | Decision
+One workflow authority | DOC-32 owns reusable workflow definitions, routing, approvals, timers, notifications, escalations and automation orchestration.
+Module ownership retained | Business modules remain the source of truth for their transactions, validations and posting rules.
+No accounting duplication | DOC-32 never replaces DOC-08 posting or DOC-07 settlement.
+Authorization first | Every approval, action and data view is checked against company, role, branch, warehouse and scope permissions.
+Audit by default | Every state change, approval, rejection, delegation, escalation and automated action is logged.
+Keyboard-first | Approval inboxes, action queues and exception handling support keyboard-only operation.
+
+--- TABLE 2 ---
+Layer | Primary responsibility | DOC-32 role
+Transaction modules | Sales, purchase, stock, billing, payment, returns, assets, tax, expenses | Emit events and expose permitted actions.
+DOC-07/08/09 | Settlement, posting, GL/open items | Remain authoritative for financial application and accounting.
+DOC-30 | Reports and calculations | Provides report/KPI definitions that can become workflow conditions.
+DOC-31 | Dashboards and alerts | Consumes DOC-32 events/actions and can launch workflows.
+DOC-32 | Workflow and automation | Routes approvals, notifications, timers, escalations and approved actions.
+
+--- TABLE 3 ---
+Stage | Purpose | Examples
+TRIGGERED | Event detected and workflow instance created. | Purchase bill saved; stock below reorder point.
+VALIDATING | Context, rules and authorization checked. | Company/branch, amount, user, master status.
+ROUTED | Approver(s) and action path determined. | Finance Manager → Owner.
+PENDING_APPROVAL | One or more approvals required. | Amount-limit approval.
+APPROVED | All mandatory approvals complete. | Ready for owning module to execute.
+REJECTED | Workflow stopped/revision required. | Reason captured; resubmission path.
+ESCALATED | Timer breached or exception threshold reached. | Move to next authority.
+EXECUTING | Authorized automation/action is performed. | Create task, post notification, release hold.
+COMPLETED | Required actions finished. | Source module receives completion event.
+CANCELLED / EXPIRED | Instance intentionally stopped or invalidated. | Source transaction cancelled; approval window expired.
+
+--- TABLE 4 ---
+Designer block | Capabilities
+Trigger | Module, transaction type, event, schedule, manual launch, threshold crossing.
+Condition | Field comparisons, amount bands, status, dates, ageing, user/role, branch, warehouse, customer/vendor/principal, tax profile.
+Decision | AND/OR groups, nested conditions, priority and stop/continue behavior.
+Approval | Sequential, parallel, any-one, all-required, amount-based or role-based approval.
+Action | Create task, notify, request review, set flag, assign owner, release/hold where authorized, initiate module action.
+Timer | Due time, reminder schedule, grace period, escalation time, working-calendar rules.
+Output | Approved, rejected, held, escalated, completed and exception outcomes.
+Simulation | Run a historical/sample transaction against a draft workflow without changing live data.
+
+--- TABLE 5 ---
+Feature | Design rule
+Delegation | Approver may delegate authority for a defined date range and permitted workflow types.
+Substitution | Temporary substitute receives pending work only within authorized scope.
+Escalation | Unacted items escalate after configurable SLA/time thresholds.
+Reminder | Non-blocking reminders can be issued before due time.
+Reassignment | Authorized manager can reassign with reason and audit trail.
+No silent bypass | Escalation/delegation never removes the original approval record.
+
+--- TABLE 6 ---
+Channel | Purpose | Control
+In-ERP inbox | Primary operational notification and task queue. | Permission + read/acknowledge state.
+Dashboard alert | Surface important exceptions in DOC-31. | Dashboard scope rules.
+Email | External notification for configured events. | Template + consent/policy.
+SMS/other gateway | Optional region/provider adapter. | Provider availability and cost policy.
+Document/comment task | Attach request to a source document. | Source record permission.
+Reminder queue | Schedule follow-ups. | Working calendar + SLA.
+
+--- TABLE 7 ---
+Action class | Examples | Control level
+Informational | Notification, dashboard flag, task creation. | Automatic if authorized.
+Operational | Create purchase requirement, assign picker, create follow-up. | Automatic or approval based on policy.
+Financial-impacting | Release payment hold, create journal, approve write-off. | Explicit approval / separation of duties.
+Statutory/compliance | Submit/commit e-document, finalize compliance correction. | Strong authorization + audit trail; follow module-specific controls.
+Destructive/irreversible | Cancel, reverse, purge draft, close period. | Highest control; confirmation + permission + audit.
+
+--- TABLE 8 ---
+Entity | Key fields / purpose
+workflow_definition | Company scope, name, version, trigger, status, effective dates, owner, ruleset reference.
+workflow_node | Node type, order, condition/action reference, timeout, required flag.
+workflow_route | Approver role/user, stage, sequence, quorum, delegation policy.
+workflow_instance | Source document, source ID, current state, priority, owner, started/due/completed timestamps.
+workflow_task | Assigned user/role, action, due date, status, response, comments, evidence.
+workflow_event | Source event, event time, payload reference, deduplication key, processing status.
+workflow_action_log | Action taken, actor/system, timestamp, result, before/after context.
+workflow_escalation | SLA rule, target, trigger time, escalation level, outcome.
+workflow_notification | Template, channel, recipient, delivery/ack status.
+workflow_calendar | Business days, holidays, working hours and region/company rules.
+workflow_version_history | Version, change reason, author, activation/deactivation timestamps.
+
+--- TABLE 9 ---
+Scope | Rule
+Platform Admin | Can manage platform-level workflow definitions without gaining uncontrolled access to client accounting data.
+Client Company Admin | Can configure workflows only within the authority ceiling assigned by Platform Admin.
+Branch/Warehouse | Can see and act on workflows within permitted organizational scope.
+User | Sees only assigned tasks and source records allowed by role/data permissions.
+CA/Finance | Receives finance-specific workflows according to company policy.
+Automation service | May execute only explicitly authorized actions recorded in the workflow definition.
+
+--- TABLE 10 ---
+Module | Example DOC-32 use
+DOC-14 | Scheme/claim approval and reimbursement workflow.
+DOC-15 | Pricing override approval for exceptional rates.
+DOC-16 | Reorder exception, stock adjustment and expiry/claim approvals.
+DOC-17 | Purchase/vendor issue approvals, vendor holds and complaint escalation.
+DOC-18 | Sales order approval, credit hold and special-supply approval.
+DOC-19 | Dispatch exception, special delivery and POD escalation.
+DOC-20 | Invoice approval, cancellation/reissue and billing exceptions.
+DOC-21/22 | Return/claim approvals and disposition decisions.
+DOC-23 | CN/DN approval, reversal and adjustment controls.
+DOC-24 | Payment/receipt approval and exception routing.
+DOC-25 | Journal approval, recurring journals and reversal scheduling.
+DOC-26 | Expense claim, advance settlement and reimbursement approval.
+DOC-27 | Asset capitalization/disposal approval.
+DOC-28 | Reconciliation exception assignment and resolution.
+DOC-29 | Tax/e-document exception workflows and compliance review.
+DOC-30/31 | Report exception alerts, dashboard action tasks and threshold monitoring.
+
+--- TABLE 11 ---
+Setting | Default approach
+Workflow status | Draft until tested and approved.
+Versioning | Immutable version once activated.
+Approver identity | Role-based by default, with optional named-user exception.
+Reminder | Configurable; off unless policy enables it.
+Escalation | Configured per workflow; no universal hard-coded delay.
+Bulk action | Disabled for high-risk actions by default.
+Automation | Only pre-authorized action classes may run automatically.
+Audit retention | Company policy plus applicable legal/compliance retention requirements.
+
+--- TABLE 12 ---
+Layer | Authoritative rule | Do not duplicate
+Transaction rules | Business module | DOC-32 must not reinterpret transaction calculations.
+Approval orchestration | DOC-32 | Single workflow authority.
+Notifications | DOC-32 | Channel delivery status remains auditable.
+Accounting | DOC-08 | Automation invokes posting services, never direct balances.
+Audit | DOC-33 | Every decision/action emits audit evidence.
+
+--- TABLE 13 ---
+State | Meaning | Next states | Blocked
+DRAFT | Rule/workflow being authored | ACTIVE / ARCHIVED | Activate without validation
+ACTIVE | Eligible for execution | PAUSED / ARCHIVED | Silent rule edits
+WAITING_APPROVAL | Task awaiting decision | APPROVED / REJECTED / ESCALATED | Auto-approve without configured policy
+EXECUTING | Action in progress | COMPLETED / FAILED / RETRYING | Duplicate action execution
+FAILED | Action unsuccessful | RETRYING / MANUAL_INTERVENTION / CLOSED | Mark complete without evidence
+COMPLETED | Successful run | CLOSED | Re-run without idempotency key
+
+--- TABLE 14 ---
+Field | Type | Req. | Constraint / index | Meaning
+workflow_id | UUID | Y | PK | Workflow
+company_id | UUID | Y | INDEX | Tenant
+event_type | VARCHAR(60) | Y | INDEX | Trigger
+version_no | INT | Y | UNIQUE scoped | Version
+status | VARCHAR(20) | Y | INDEX | Lifecycle
+rule_expression | TEXT | N |  | Condition definition
+sla_minutes | INT | N |  | SLA
+
+--- TABLE 15 ---
+Field | Type | Req. | Constraint / index | Meaning
+instance_id | UUID | Y | PK | Run
+workflow_id | UUID | Y | INDEX | Definition
+source_type | VARCHAR(40) | Y |  | Business object
+source_id | UUID | Y | INDEX | Source
+status | VARCHAR(30) | Y | INDEX | Run state
+current_step | VARCHAR(80) | N |  | Step
+idempotency_key | VARCHAR(160) | Y | UNIQUE | Duplicate guard
+started_at | TIMESTAMP | Y |  | Start
+completed_at | TIMESTAMP | N |  | End
+
+--- TABLE 16 ---
+Field | Type | Req. | Constraint / index | Meaning
+task_id | UUID | Y | PK | Approval task
+instance_id | UUID | Y | INDEX | Workflow run
+assignee_scope | VARCHAR(40) | Y |  | Role/user/data scope
+decision | VARCHAR(20) | N | INDEX | Pending/approve/reject
+due_at | TIMESTAMP | N | INDEX | SLA due
+delegated_from | UUID | N |  | Delegation source
+evidence_ref | UUID | N |  | Evidence
+
+--- TABLE 17 ---
+UI area | Behavior
+P | 
+e | 
+n | 
+d | 
+i | 
+n | 
+g | 
+ | 
+| | 
+ | 
+S | 
+L | 
+A | 
+ | 
+| | 
+ | 
+d | 
+e | 
+l | 
+e | 
+g | 
+a | 
+t | 
+e | 
+ | 
+| | 
+ | 
+a | 
+p | 
+p | 
+r | 
+o | 
+v | 
+e | 
+ | 
+| | 
+ | 
+r | 
+e | 
+j | 
+e | 
+c | 
+t | 
+ | 
+| | 
+ | 
+i | 
+n | 
+s | 
+p | 
+e | 
+c | 
+t | 
+ | 
+s | 
+o | 
+u | 
+r | 
+c | 
+e | 
+
+--- TABLE 18 ---
+UI area | Behavior
+T | 
+r | 
+i | 
+g | 
+g | 
+e | 
+r | 
+ | 
+| | 
+ | 
+c | 
+o | 
+n | 
+d | 
+i | 
+t | 
+i | 
+o | 
+n | 
+ | 
+| | 
+ | 
+s | 
+t | 
+e | 
+p | 
+s | 
+ | 
+| | 
+ | 
+r | 
+o | 
+l | 
+e | 
+s | 
+ | 
+| | 
+ | 
+S | 
+L | 
+A | 
+ | 
+| | 
+ | 
+n | 
+o | 
+t | 
+i | 
+f | 
+i | 
+c | 
+a | 
+t | 
+i | 
+o | 
+n | 
+s | 
+ | 
+| | 
+ | 
+a | 
+c | 
+t | 
+i | 
+o | 
+n | 
+ | 
+| | 
+ | 
+t | 
+e | 
+s | 
+t | 
+
+--- TABLE 19 ---
+UI area | Behavior
+I | 
+n | 
+s | 
+t | 
+a | 
+n | 
+c | 
+e | 
+ | 
+| | 
+ | 
+s | 
+o | 
+u | 
+r | 
+c | 
+e | 
+ | 
+| | 
+ | 
+s | 
+t | 
+e | 
+p | 
+ | 
+| | 
+ | 
+r | 
+e | 
+t | 
+r | 
+i | 
+e | 
+s | 
+ | 
+| | 
+ | 
+l | 
+a | 
+s | 
+t | 
+ | 
+e | 
+r | 
+r | 
+o | 
+r | 
+ | 
+| | 
+ | 
+n | 
+e | 
+x | 
+t | 
+ | 
+a | 
+c | 
+t | 
+i | 
+o | 
+n | 
+
+--- TABLE 20 ---
+System | Consumes / publishes | Required behavior
+DOC-03 | Authorization | Approver eligibility and data scope.
+DOC-31 | Alerts/actions | Dashboard may surface workflow tasks.
+DOC-08 | Posting | Automation calls posting service.
+DOC-07 | Settlement | Automation may request allocation, never duplicate it.
+DOC-33 | Audit | Record rule version, actor, decision, action and evidence.
+DOC-04/47 | Sync | Workflow state/events synchronize safely.
+
+--- TABLE 21 ---
+Control | Required permission | Enforcement
+Workflow design | Create/edit/publish | Admin/authorized role.
+Approval | Approve/reject | Task-specific + SoD rules.
+Automation action | Execute | Action-level permission.
+Delegation | Delegate | Restricted scope + date + audit.
+Break-glass | Override workflow | Exceptional permission + reason + audit.
+
+--- TABLE 22 ---
+Edge case | Detection | ERP behavior | User action | Audit / integration
+Approver removed while task pending | Permission/user status check | Re-route according to configured fallback; no silent approval | Admin resolves route | Route-change audit
+Two approvers act simultaneously | Concurrency | First valid decision wins if step is single-decision; second gets stale-state response | Refresh task | Conflict recorded
+Automation retries after timeout | Idempotency key | Retry safely; no duplicate posting/action | System retry/manual intervention | Execution hash + attempt log
+Workflow version changes mid-run | Version pinned on instance | Existing run completes under pinned version unless migration rule exists | Admin sees version | Audit version
+Delegated approver acts outside delegation window | Date/scope check | Reject action | Delegate/admin fixes | Security event
+Underlying transaction reversed while workflow pending | Source state check | Close/cancel workflow or route for review | User reviews source | Linked audit
+Notification fails but approval succeeds | Delivery status separate | Keep business decision; retry notification | Review notification queue | Delivery audit
+
+--- TABLE 23 ---
+Area | Small | Large
+Approvals | One-level | Multi-level/parallel/SoD
+Automation | Basic alerts | Complex event/rule/action orchestration
+Monitoring | Inbox | Central run monitor and SLA analytics
+Delegation | Manual admin | Policy-based scheduled delegation

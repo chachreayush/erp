@@ -1,0 +1,87 @@
+DOC-32
+
+Workflow, Approval, Alert & Business Automation Engine
+
+Code-Free Enterprise Architecture Blueprint | Version 1.0
+
+Purpose  Create one reusable workflow and automation layer that can be called by Sales, Purchase, Inventory, Billing, Payments, Tax, Assets, Expenses, Reporting and Dashboard modules without duplicating approval or alert logic.
+
+1. Scope and Position in the ERP
+
+DOC-32 is the cross-module orchestration layer. It turns business rules and events into controlled actions while keeping each transaction inside its owning module.
+
+2. Core Workflow Lifecycle
+
+Every workflow instance should have an immutable instance identifier and a predictable state machine. A workflow may be triggered by a user action, transaction event, threshold, schedule, synchronization event or another completed workflow.
+
+3. Workflow Types
+
+Approval workflow: requires one or more human approvals before a transaction can proceed.
+
+Validation workflow: runs structured checks and returns pass/fail/hold results.
+
+Exception workflow: creates a case when a threshold, mismatch or unusual condition occurs.
+
+Notification workflow: informs one or more users without blocking the transaction.
+
+Timer workflow: performs an action at a scheduled time or after elapsed time.
+
+Escalation workflow: changes owner or authority after a due time is breached.
+
+Review workflow: creates recurring review tasks for balances, claims, vendors, assets or other items.
+
+Automatic action workflow: performs pre-authorized non-financial actions after conditions are satisfied.
+
+Composite workflow: chains several of the above into a single controlled process.
+
+4. No-Code Workflow Designer
+
+Authorized administrators should create workflows visually. The designer uses business terms rather than code and provides a test/simulation mode before activation.
+
+5. Approval Routing Engine
+
+Fixed approver: named user or role.
+
+Hierarchy approver: route based on organization/branch reporting hierarchy.
+
+Amount-based approver: route based on transaction value or cumulative exposure.
+
+Department approver: route by department or cost centre.
+
+Customer/vendor/principal-specific approver where authorized.
+
+Multi-stage approval: sequential chain.
+
+Parallel approval: independent approvals at the same stage.
+
+Quorum approval: configurable minimum number of approvals.
+
+Conditional approval: route changes based on data conditions.
+
+Maker-checker: creator cannot be the sole final approver where the policy requires separation of duties.
+
+6. Delegation, Substitution and Escalation
+
+7. Alerts and Notification Engine
+
+Alerts are separate from approvals. A user may receive an alert without an approval being required. Notification channels are configurable by company and user policy.
+
+8. Event and Trigger Catalog
+
+Transaction lifecycle events: created, edited, submitted, approved, rejected, posted, cancelled, reversed.
+
+Financial events: amount threshold, outstanding ageing threshold, payment received, payment overdue, bank reconciliation difference.
+
+Inventory events: reorder breach, negative availability, batch/expiry threshold, quarantine, claim pending.
+
+Operational events: challan pending billing, POD pending, dispatch delay, purchase receipt variance.
+
+Compliance events: tax mismatch, e-invoice error, E-Way Bill exception, filing-period issue.
+
+Master-data events: vendor complaint, blocked master, expiring registration/document.
+
+Synchronization events: cloud sync conflict, failed upload, stale remote data.
+
+Schedule events: daily, weekly, month-end, fiscal-year-end or custom calendar.
+
+9. Automation Action Guardrails

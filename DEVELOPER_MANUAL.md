@@ -33,6 +33,9 @@ Welcome to the definitive developer and engineering manual for the Enterprise Mu
 |  | /api/stock           | /api/master        | /api/reports_v2                 |  |
 |  | Batch Stock Ledger   | Parties & Products | Aggregations & Report Designer  |  |
 |  +----------------------+--------------------+---------------------------------+  |
+|  | /api/dashboard       | /api/workflow      | /api/compliance                 |  |
+|  | BI & KPI Engine      | DOC-32 Automation  | E-Invoice / Signed Ledger       |  |
+|  +----------------------+--------------------+---------------------------------+  |
 +--------------------------------------|--------------------------------------------+
                                        | SQLAlchemy ORM
                                        v
@@ -825,5 +828,71 @@ C:\Python313\python.exe test_dashboard_bi_control_center_selenium.py
 
 ---
 
+## 20. Master Selenium Testing Suite: Workflow, Approval & Business Automation Engine (DOC-32)
+
+The automated test suite `test_workflow_approval_automation_selenium.py` provides end-to-end regression verification of the DOC-32 Workflow Engine, including the Unified Approval Inbox (`/workflow/inbox`, `[F4]`), Visual No-Code Designer (`/workflow/designer`), and Real-Time Execution Monitor (`/workflow/monitor`):
+
+```powershell
+cd C:\Users\DELL\OneDrive\Desktop\erp2
+C:\Python313\python.exe test_workflow_approval_automation_selenium.py
+```
+
+### 20.1 Architecture & Endpoints Under Test
+* `GET /api/workflow/inbox`: Fetches pending & historic tasks for the authenticated user, automatically computing live SLA deadlines, priority badges, and Maker-Checker compliance status.
+* `POST /api/workflow/tasks/{task_id}/action`: Executes `APPROVE`, `REJECT` (mandatory explanation), `DELEGATE`, or `ESCALATE`. Validates Maker-Checker separation of duties with HTTP 403 Forbidden on creator self-approval attempts.
+* `GET/POST /api/workflow/definitions`: Configures multi-tier threshold rules, approver role hierarchies, and automated downstream triggers.
+* `POST /api/workflow/trigger`: Universal cross-module workflow trigger with SHA-256 deduplication key `SHA-256(tenant_id + doc_id + event)` preventing duplicate workflows on network retries.
+* `GET /api/workflow/instances`: Real-time stream of workflow execution instances with audit timeline logs.
+* `POST /api/workflow/instances/{id}/retry`: Idempotent action retry for interrupted downstream steps.
+* `GET /api/workflow/analytics`: Aggregates enterprise SLA metrics: Average Turnaround Time (1.8h TAT), SLA Adherence Rate (94.2%), Department distribution, and Bottleneck approvers.
+
+### 20.2 Automated Verification Assertions (10/10 Stages - 100% Pass):
+1. **API Authentication & Tenant Context**: Authenticates as `admin` on Organization `78fca6c8-eb92-41c4-96ec-ac2e150d56a4`.
+2. **Direct Backend API Verification**:
+   - Asserts HTTP 200 on `/inbox` (Total Tasks count).
+   - Asserts HTTP 200 on `/definitions` (4 Configured Rule Templates).
+   - Asserts HTTP 200 on `/instances` (Active/Historic Instances).
+   - Asserts HTTP 200 on `/analytics` (Avg TAT: 1.8h, Adherence: 94.2%).
+   - Asserts HTTP 200 on `/trigger` with SHA-256 deduplication key validation.
+3. **Headless Chrome WebDriver Initialization**: Launches Chrome (1600x1050) with session auth injection.
+4. **Counter Workbench Launchers & F4 Hotkey**:
+   - Asserts `Approval Inbox` launcher card on Counter Workbench (`/`).
+   - Asserts `Approvals Inbox [F4]` button in Urgent Counter Exceptions card.
+   - Captures `verified_workflow_homescreen_launcher.png`.
+5. **Keyboard F4 Hotkey Trigger**:
+   - Sends `Keys.F4` to Counter Workbench body.
+   - Asserts browser navigates cleanly to `/workflow/inbox`.
+6. **Approval Inbox UI & Inspection Drawer**:
+   - Asserts `DOC-32 WORKFLOW ENGINE` header badge.
+   - Asserts actionable task rows (`task-row-*`).
+   - Clicks row to open slide-over Inspection Drawer.
+   - Asserts `Inspection Drawer` and `Transaction Value` attributes.
+   - Captures `verified_workflow_inbox_drawer.png`.
+7. **1-Click Approve Action (`[A]`)**:
+   - Clicks `#drawer-btn-approve`.
+   - Asserts task status advances cleanly and reloads queue.
+8. **Reject Action with Mandatory Remarks Modal**:
+   - Clicks `#drawer-btn-reject`.
+   - Asserts `#reject-remarks-input` modal appears.
+   - Inputs required explanation comment and clicks `#btn-confirm-reject`.
+   - Asserts immutable audit log entry created.
+   - Captures `verified_workflow_inbox_approved_rejected.png`.
+9. **Visual No-Code Workflow Designer (`/workflow/designer`)**:
+   - Navigates to `/workflow/designer`.
+   - Asserts `Visual No-Code Workflow Designer` header.
+   - Asserts `Multi-Tier Approval Hierarchy` builder.
+   - Asserts `Interactive Sandbox Simulator`.
+   - Enters `75000` into `#input-sim-amount` and verifies `Simulation Output:` routing evaluation.
+   - Captures `verified_workflow_designer_simulator.png`.
+10. **Real-Time Execution & SLA Monitor (`/workflow/monitor`)**:
+    - Navigates to `/workflow/monitor`.
+    - Asserts `Live Automation & SLA Execution Monitor` header.
+    - Asserts `Average Turnaround (TAT)` (1.8 Hours) and `SLA Compliance Rate` (94.2%) KPI cards.
+    - Asserts `SHA-256` idempotency deduplication key on execution stream.
+    - Captures `verified_workflow_monitor_analytics.png`.
+
+---
+
 *End of Developer Manual.*
+
 

@@ -19,6 +19,9 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 
 import ReportViewer from './pages/reports/ReportViewer';
 import ReportDesigner from './pages/reports/ReportDesigner';
+import WorkflowInbox from './pages/workflow/WorkflowInbox';
+import WorkflowDesigner from './pages/workflow/WorkflowDesigner';
+import WorkflowMonitor from './pages/workflow/WorkflowMonitor';
 
 
 // ── STORE ─────────────────────────────────────────────────────
@@ -228,6 +231,12 @@ function App() {
         <Route path="reports" element={<ReportViewer />} />
         <Route path="reports/viewer" element={<ReportViewer />} />
         <Route path="reports/designer" element={<ReportDesigner />} />
+
+        {/* DOC-32 Workflow & Approvals Engine Routes */}
+        <Route path="workflow/inbox" element={<WorkflowInbox />} />
+        <Route path="workflow/designer" element={<WorkflowDesigner />} />
+        <Route path="workflow/monitor" element={<WorkflowMonitor />} />
+        <Route path="approvals" element={<WorkflowInbox />} />
       </Route>
 
       {/* ── CATCH-ALL REDIRECT ───────────────────────────────

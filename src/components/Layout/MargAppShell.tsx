@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { 
   HelpCircle, Monitor, 
-  Search, LayoutDashboard, Receipt, Package, ShoppingCart, Users, UserCheck, BarChart3, Settings, Boxes
+  Search, LayoutDashboard, Receipt, Package, ShoppingCart, Users, UserCheck, BarChart3, Settings, Boxes, CheckCircle2
 } from 'lucide-react'
 import './MargAppShell.css'
 import GlobalSearch from '../GlobalSearch'
@@ -32,6 +32,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Inventory', path: '/inventory', icon: <Package size={14} />, module: 'inventory' },
   { label: 'Current Stock', path: '/stock', icon: <Boxes size={14} />, module: 'inventory' },
   { label: 'Sales & Purchase', path: '/sales', icon: <ShoppingCart size={14} />, module: 'sales' },
+  { label: 'Approvals [F4]', path: '/workflow/inbox', icon: <CheckCircle2 size={14} /> },
   { label: 'CRM', path: '/crm', icon: <Users size={14} />, module: 'crm' },
   { label: 'HR Management', path: '/hr', icon: <UserCheck size={14} />, module: 'hr' },
   { label: 'Reports', path: '/reports', icon: <BarChart3 size={14} />, module: 'reports' },
@@ -43,6 +44,18 @@ const MargAppShell = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const now = useCurrentTime()
+
+  // Global F4 listener for Marg theme
+  useEffect(() => {
+    const handleGlobalF4 = (e: KeyboardEvent) => {
+      if (e.key === 'F4') {
+        e.preventDefault()
+        navigate('/workflow/inbox')
+      }
+    }
+    window.addEventListener('keydown', handleGlobalF4)
+    return () => window.removeEventListener('keydown', handleGlobalF4)
+  }, [navigate])
   
   // Format dates for the footer
   const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })

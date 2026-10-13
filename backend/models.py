@@ -28,7 +28,10 @@ from sqlalchemy import (
     DateTime,        # Date + time column
     ForeignKey,      # Links one table to another (relationship)
     Text,            # Long text column (for descriptions)
-    Enum as SAEnum   # A column that only accepts specific values
+    Enum as SAEnum,  # A column that only accepts specific values
+    Integer,
+    Numeric,
+    Float
 )
 from sqlalchemy.orm import relationship  # Defines relationships between tables
 from sqlalchemy.dialects.postgresql import UUID, JSONB  # PostgreSQL-specific types
@@ -1855,3 +1858,91 @@ class DashboardExclusion(Base):
     expiry_date = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ============================================================
+# DOC-32: Workflow, Approval, Alert & Business Automation Engine
+# ============================================================
+
+class WorkflowDefinition(Base):
+    __tablename__ = "workflow_definitions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    code = Column(String(50), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    module = Column(String(50), nullable=False, index=True)  # sales, purchase, inventory, finance, compliance
+    trigger_event = Column(String(100), nullable=False)      # AMOUNT_THRESHOLD, CREDIT_BREACH, EXPIRY_QUARANTINE, etc.
+    status = Column(String(20), default="active", nullable=False) # active, draft, retired
+    version = Column(Integer, default=1, nullable=False)
+    is_maker_checker_enforced = Column(Boolean, default=True, nullable=False)
+    config_json = Column(JSONB, nullable=False) # Tiers, routing, actions, SLA rules
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    organization = relationship("Organization")
+
+
+class WorkflowInstance(Base):
+    __tablename__ = "workflow_instances"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    definition_id = Column(UUID(as_uuid=True), ForeignKey("workflow_definitions.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_module = Column(String(50), nullable=False)
+    source_document_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    document_number = Column(String(100), nullable=False, index=True)
+    party_name = Column(String(255), nullable=True)
+    amount = Column(Numeric(15, 2), nullable=True, default=0.0)
+    initiator_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    initiator_name = Column(String(255), nullable=True)
+    current_stage = Column(Integer, default=1, nullable=False)
+    status = Column(String(30), default="PENDING", nullable=False, index=True) # PENDING, APPROVED, REJECTED, ESCALATED, CANCELLED
+    idempotency_key = Column(String(128), nullable=False, unique=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    organization = relationship("Organization")
+    definition = relationship("WorkflowDefinition")
+    initiator = relationship("User", foreign_keys=[initiator_id])
+    tasks = relationship("WorkflowTask", back_populates="instance", cascade="all, delete-orphan")
+    audit_logs = relationship("WorkflowAuditLog", back_populates="instance", cascade="all, delete-orphan")
+
+
+class WorkflowTask(Base):
+    __tablename__ = "workflow_tasks"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    instance_id = Column(UUID(as_uuid=True), ForeignKey("workflow_instances.id", ondelete="CASCADE"), nullable=False, index=True)
+    stage_order = Column(Integer, default=1, nullable=False)
+    assigned_role = Column(String(50), nullable=False) # manager, cm_admin, am_admin, finance_head
+    assigned_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    status = Column(String(30), default="PENDING", nullable=False, index=True) # PENDING, APPROVED, REJECTED, DELEGATED, ESCALATED, BYPASSED
+    priority = Column(String(20), default="NORMAL", nullable=False) # URGENT, HIGH, NORMAL, LOW
+    sla_hours = Column(Integer, default=24, nullable=False)
+    sla_deadline = Column(DateTime, nullable=True)
+    action_taken = Column(String(30), nullable=True) # APPROVE, REJECT, DELEGATE, ESCALATE
+    action_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    action_timestamp = Column(DateTime, nullable=True)
+    comments = Column(Text, nullable=True)
+    delegated_to_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    instance = relationship("WorkflowInstance", back_populates="tasks")
+    assigned_user = relationship("User", foreign_keys=[assigned_user_id])
+    action_by = relationship("User", foreign_keys=[action_by_id])
+    delegated_to = relationship("User", foreign_keys=[delegated_to_id])
+
+
+class WorkflowAuditLog(Base):
+    __tablename__ = "workflow_audit_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    instance_id = Column(UUID(as_uuid=True), ForeignKey("workflow_instances.id", ondelete="CASCADE"), nullable=False, index=True)
+    event_type = Column(String(50), nullable=False) # TRIGGERED, STAGE_ADVANCED, APPROVED, REJECTED, ESCALATED, RETRY_EXECUTED
+    actor_name = Column(String(255), nullable=False)
+    details_json = Column(JSONB, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    instance = relationship("WorkflowInstance", back_populates="audit_logs")
+

@@ -332,6 +332,45 @@ px tsc --noEmit) with 0 errors.
 
 ---
 
+## Major Milestone: DOC-32 Workflow, Approval, Alert & Business Automation Engine (COMPLETED)
+
+1. **Architectural Principles (DOC-32 Non-Negotiables)**:
+   - **Orchestration Layer Only**: Coordinates routing, multi-tier thresholds, SLA timers, escalations, maker-checker governance, and idempotent post-approval triggers. Business modules retain 100% calculation and transactional ownership.
+   - **Maker-Checker Separation of Duties**: The document creator cannot be the approver for their own transaction. System enforces HTTP 403 Forbidden and displays an orange compliance warning banner with disabled approve actions.
+   - **Idempotency Guarantee**: Every workflow trigger utilizes a deterministic SHA-256 deduplication key (`SHA-256(tenant_id + doc_id + event)`) to prevent duplicate workflow instances on network retries.
+
+2. **Relational Database Schema (`backend/models.py`)**:
+   - `workflow_definitions`: Versioned no-code rule templates with JSONB configuration for tiered thresholds, maker-checker enforcement, and downstream action triggers.
+   - `workflow_instances`: Tracks active/historic workflow execution lifecycles with unique SHA-256 idempotency key index.
+   - `workflow_tasks`: Individual approval work items assigned to specific roles/users with SLA deadlines and priority flags.
+   - `workflow_audit_logs`: Immutable chronological audit feed for regulatory compliance.
+
+3. **Backend REST APIs (`backend/api/workflow.py`)**:
+   - `GET /api/workflow/inbox`: Fetches pending & historic tasks with live SLA countdowns, priority urgency badges, and maker-checker eligibility.
+   - `POST /api/workflow/tasks/{task_id}/action`: Executes `APPROVE`, `REJECT` (mandatory remarks), `DELEGATE`, and `ESCALATE`.
+   - `GET/POST /api/workflow/definitions`: Rule templates and visual hierarchy builder.
+   - `POST /api/workflow/trigger`: Universal cross-module workflow initiation with SHA-256 deduplication.
+   - `GET /api/workflow/instances`: Real-time execution stream with audit timelines.
+   - `POST /api/workflow/instances/{id}/retry`: Idempotent action retry for interrupted downstream steps.
+   - `GET /api/workflow/analytics`: SLA turnaround time (1.8h TAT), 94.2% adherence, bottleneck analysis, and department distribution.
+
+4. **Frontend Cockpits & Hotkey Integration**:
+   - `WorkflowInbox.tsx` (`/workflow/inbox`): Keyboard-first approval queue (`[F4]` hotkey, `[A]` approve, `[R]` reject modal with mandatory explanation, `[D]` delegate, task detail slide-over drawer, Maker-Checker compliance banner).
+   - `WorkflowDesigner.tsx` (`/workflow/designer`): Visual no-code rule designer with module/trigger pickers, multi-tier threshold builder (Tier 1 Manager, Tier 2 CM Admin, Tier 3 AM Admin), post-approval action picker, and interactive sandbox simulator (`#input-sim-amount`).
+   - `WorkflowMonitor.tsx` (`/workflow/monitor`): Live execution stream, SLA analytics cards (TAT 1.8h, 94.2% adherence), bottleneck ranking, SHA-256 idempotency hash tracking, and 1-click safe retry button.
+   - `HomeScreen.tsx` & `Header.tsx`: Wired `[F4]` function key, added Approval Inbox launcher card and Urgent Exceptions action button.
+
+5. **Master Automated Selenium Suite (`test_workflow_approval_automation_selenium.py`)**:
+   - Verified 100% PASS across all 10 verification stages (Exit Code 0).
+   - 5 live visual proof screenshots captured:
+     - `verified_workflow_homescreen_launcher.png`
+     - `verified_workflow_inbox_drawer.png`
+     - `verified_workflow_inbox_approved_rejected.png`
+     - `verified_workflow_designer_simulator.png`
+     - `verified_workflow_monitor_analytics.png`
+
+---
+
 ## How to Start Local Services
 
 ```powershell
@@ -367,3 +406,4 @@ robocopy C:\Users\DELL\OneDrive\Desktop\erp2 C:\Users\DELL\OneDrive\Desktop\erp 
 
 ---
 *End of Master Memory File.*
+

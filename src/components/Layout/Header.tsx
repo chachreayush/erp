@@ -17,6 +17,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Finance & Accounting', path: '/finance', module: 'finance' },
   { label: 'Inventory', path: '/inventory-dashboard', module: 'inventory' },
   { label: 'Sales & Purchase', path: '/sales', module: 'sales' },
+  { label: 'Workflows [F4]', path: '/workflow/inbox', module: undefined },
   { label: 'CRM & Admin', path: '/crm', module: 'crm' },
   { label: 'GST & Compliance', path: '/gst', module: undefined },
   { label: 'HR Management', path: '/hr', module: 'hr' },
@@ -214,6 +215,7 @@ function Header() {
   const [financeDropdownOpen, setFinanceDropdownOpen] = useState(false)
   const [crmDropdownOpen, setCrmDropdownOpen] = useState(false)
   const [gstDropdownOpen, setGstDropdownOpen] = useState(false)
+  const [workflowDropdownOpen, setWorkflowDropdownOpen] = useState(false)
 
   // Keyboard navigation indexes
   const [_focusedMainIndex, setFocusedMainIndex] = useState(0)
@@ -228,6 +230,7 @@ function Header() {
   const [focusedFinanceParentIndex, setFocusedFinanceParentIndex] = useState(0)
   const [focusedCrmParentIndex, setFocusedCrmParentIndex] = useState(0)
   const [focusedGstParentIndex, setFocusedGstParentIndex] = useState(0)
+  const [focusedWorkflowParentIndex, setFocusedWorkflowParentIndex] = useState(0)
 
   // Refs for focusing
   const mainItemRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -240,12 +243,20 @@ function Header() {
   const financeParentRefs = useRef<(HTMLButtonElement | null)[]>([])
   const crmParentRefs = useRef<(HTMLButtonElement | null)[]>([])
   const gstParentRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const workflowParentRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   // Filter permission items
   const visibleNavItems = NAV_ITEMS.filter(item => {
     if (!item.module) return true
     return hasPermission(item.module as any, 'view')
   })
+
+  // Workflow & Approvals menu items
+  const workflowMenuItems: MenuItem[] = [
+    { label: 'Approval Inbox [F4]', path: '/workflow/inbox' },
+    { label: 'Rule Designer', path: '/workflow/designer' },
+    { label: 'Execution & SLA Monitor', path: '/workflow/monitor' }
+  ]
 
   // Build CRM menu items dynamically based on role
   const crmMenuItems: MenuItem[] = [
@@ -623,6 +634,48 @@ function Header() {
     }
   }
 
+  // Workflow dropdown key handlers
+  const handleWorkflowParentDropdownKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const nextIndex = (index + 1) % workflowMenuItems.length
+      setFocusedWorkflowParentIndex(nextIndex)
+      workflowParentRefs.current[nextIndex]?.focus()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const prevIndex = (index - 1 + workflowMenuItems.length) % workflowMenuItems.length
+      setFocusedWorkflowParentIndex(prevIndex)
+      workflowParentRefs.current[prevIndex]?.focus()
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      const item = workflowMenuItems[index]
+      if (item && item.path) {
+        navigate(item.path)
+        closeAllDropdowns()
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      closeAllDropdowns()
+      const wfIndex = headerItems.findIndex(item => item.label === 'Workflows [F4]')
+      if (wfIndex !== -1) {
+        mainItemRefs.current[wfIndex]?.focus()
+      }
+    }
+  }
+
+  // Global F4 key listener for Approval Inbox
+  useEffect(() => {
+    const handleGlobalF4 = (e: KeyboardEvent) => {
+      if (e.key === 'F4') {
+        e.preventDefault()
+        closeAllDropdowns()
+        navigate('/workflow/inbox')
+      }
+    }
+    window.addEventListener('keydown', handleGlobalF4)
+    return () => window.removeEventListener('keydown', handleGlobalF4)
+  }, [navigate])
+
   const closeAllDropdowns = () => {
     setSalesDropdownOpen(false)
     setSalesSubDropdownOpen(false)
@@ -635,6 +688,8 @@ function Header() {
     setFinanceDropdownOpen(false)
     setCrmDropdownOpen(false)
     setGstDropdownOpen(false)
+    setWorkflowDropdownOpen(false)
+    setFocusedWorkflowParentIndex(0)
     setFocusedMasterSubIndex(-1)
   }
 
@@ -649,6 +704,7 @@ function Header() {
     if (path === '/dashboard') return location.pathname === '/' || location.pathname === '/dashboard'
     if (path === '/crm') return location.pathname.startsWith('/crm') || location.pathname.startsWith('/clients') || location.pathname.startsWith('/bulletin')
     if (path === '/gst') return location.pathname.startsWith('/gst') || location.pathname.startsWith('/finance-reports')
+    if (path === '/workflow/inbox') return location.pathname.startsWith('/workflow') || location.pathname.startsWith('/approvals')
     return location.pathname.startsWith(path)
   }
 
@@ -710,6 +766,7 @@ function Header() {
           const isFinance = item.label === 'Finance & Accounting'
           const isCrm = item.label === 'CRM & Admin'
           const isGst = item.label === 'GST & Compliance'
+          const isWorkflow = item.label === 'Workflows [F4]'
 
           return (
             <div key={item.path} style={{ position: 'relative', display: 'inline-block' }}>
@@ -729,6 +786,8 @@ function Header() {
                     closeAllDropdowns(); setCrmDropdownOpen(!crmDropdownOpen)
                   } else if (isGst) {
                     closeAllDropdowns(); setGstDropdownOpen(!gstDropdownOpen)
+                  } else if (isWorkflow) {
+                    closeAllDropdowns(); setWorkflowDropdownOpen(!workflowDropdownOpen)
                   } else {
                     closeAllDropdowns()
                     navigate(item.path)
@@ -736,13 +795,14 @@ function Header() {
                 }}
                 onKeyDown={(e) => handleMainKeyDown(e, index)}
                 onMouseEnter={() => {
-                  if (salesDropdownOpen || inventoryDropdownOpen || masterDropdownOpen || financeDropdownOpen || crmDropdownOpen || gstDropdownOpen) {
+                  if (salesDropdownOpen || inventoryDropdownOpen || masterDropdownOpen || financeDropdownOpen || crmDropdownOpen || gstDropdownOpen || workflowDropdownOpen) {
                     if (isSalesPurchase) { closeAllDropdowns(); setSalesDropdownOpen(true); }
                     else if (isInventory) { closeAllDropdowns(); setInventoryDropdownOpen(true); }
                     else if (isMaster) { closeAllDropdowns(); setMasterDropdownOpen(true); }
                     else if (isFinance) { closeAllDropdowns(); setFinanceDropdownOpen(true); }
                     else if (isCrm) { closeAllDropdowns(); setCrmDropdownOpen(true); }
                     else if (isGst) { closeAllDropdowns(); setGstDropdownOpen(true); }
+                    else if (isWorkflow) { closeAllDropdowns(); setWorkflowDropdownOpen(true); }
                     else { closeAllDropdowns() }
                   }
                 }}
@@ -760,7 +820,7 @@ function Header() {
                 }}
               >
                 {item.label}
-                {(isSalesPurchase || isInventory || isMaster || isFinance || isCrm || isGst) && <ChevronDown size={10} style={{ marginLeft: '4px', display: 'inline' }} />}
+                {(isSalesPurchase || isInventory || isMaster || isFinance || isCrm || isGst || isWorkflow) && <ChevronDown size={10} style={{ marginLeft: '4px', display: 'inline' }} />}
               </button>
 
               {/* ── SALES & PURCHASE PARENT DROPDOWN ───────────────── */}
@@ -1286,6 +1346,63 @@ function Header() {
                 </div>
               )}
 
+              {/* ── WORKFLOWS DROPDOWN ───────────────── */}
+              {isWorkflow && workflowDropdownOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  marginTop: '4px',
+                  backgroundColor: 'var(--color-bg-surface)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '6px',
+                  boxShadow: 'var(--shadow-md)',
+                  padding: '4px',
+                  minWidth: '200px',
+                  zIndex: 110,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px'
+                }}>
+                  {workflowMenuItems.map((wfItem, idx) => {
+                    const isParentFocused = focusedWorkflowParentIndex === idx
+                    return (
+                      <div key={wfItem.label || `wf-${idx}`} style={{ position: 'relative' }}>
+                        <button
+                          ref={el => { workflowParentRefs.current[idx] = el }}
+                          onKeyDown={e => handleWorkflowParentDropdownKeyDown(e, idx)}
+                          onClick={() => {
+                            if (wfItem.path) {
+                              navigate(wfItem.path)
+                              closeAllDropdowns()
+                            }
+                          }}
+                          onMouseEnter={() => {
+                            setFocusedWorkflowParentIndex(idx)
+                          }}
+                          style={{
+                            padding: '6px 10px',
+                            fontSize: '11px',
+                            fontWeight: 500,
+                            textAlign: 'left',
+                            border: 'none',
+                            borderRadius: '4px',
+                            backgroundColor: isParentFocused ? 'rgba(79,70,229,0.1)' : 'transparent',
+                            color: isParentFocused ? 'var(--color-primary)' : 'var(--color-text-primary)',
+                            cursor: 'pointer',
+                            width: '100%',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <span>{wfItem.label}</span>
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
 
             </div>
           )

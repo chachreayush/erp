@@ -2072,3 +2072,148 @@ export async function apiGetDashboardAlerts(): Promise<DashboardAlertsResponse> 
   const response = await apiClient.get<DashboardAlertsResponse>('/api/dashboard/alerts');
   return response.data;
 }
+
+// ============================================================
+// DOC-32: Workflow, Approval, Alert & Business Automation Engine
+// ============================================================
+
+export interface WorkflowTaskItem {
+  task_id: string;
+  instance_id: string;
+  stage_order: number;
+  assigned_role: string;
+  priority: 'URGENT' | 'HIGH' | 'NORMAL' | 'LOW';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DELEGATED' | 'ESCALATED' | 'BYPASSED';
+  module: string;
+  document_number: string;
+  party_name: string;
+  amount: number;
+  initiator_name: string;
+  definition_code: string;
+  definition_name: string;
+  sla_deadline: string | null;
+  sla_hours_remaining: number;
+  sla_badge: 'ON_TRACK' | 'WARNING' | 'BREACHED';
+  maker_checker_blocked: boolean;
+  comments: string | null;
+  created_at: string;
+}
+
+export interface WorkflowInboxResponse {
+  count: number;
+  tasks: WorkflowTaskItem[];
+  current_user: {
+    name: string;
+    role: string;
+    id: string;
+  };
+}
+
+export interface WorkflowDefinitionItem {
+  id: string;
+  code: string;
+  name: string;
+  module: string;
+  trigger_event: string;
+  status: string;
+  version: number;
+  is_maker_checker_enforced: boolean;
+  config_json: {
+    tiers?: {
+      tier: number;
+      min_amount?: number;
+      max_amount?: number;
+      approver_role: string;
+      sla_hours: number;
+    }[];
+    on_approved_action?: string;
+    on_rejected_action?: string;
+    [key: string]: any;
+  };
+  created_at: string;
+}
+
+export interface WorkflowInstanceItem {
+  instance_id: string;
+  document_number: string;
+  source_module: string;
+  party_name: string | null;
+  amount: number;
+  current_stage: number;
+  status: string;
+  idempotency_key: string;
+  initiator_name: string;
+  created_at: string;
+  tasks: {
+    task_id: string;
+    stage: number;
+    role: string;
+    status: string;
+    action: string | null;
+    comments: string | null;
+  }[];
+}
+
+export interface WorkflowAnalyticsResponse {
+  summary: {
+    total_tasks: number;
+    pending_approvals: number;
+    approved_count: number;
+    rejected_count: number;
+    sla_adherence_rate: number;
+    avg_turnaround_hours: number;
+  };
+  department_distribution: {
+    department: string;
+    count: number;
+    pct: number;
+  }[];
+  bottlenecks: {
+    role: string;
+    pending: number;
+    avg_delay_hours: number;
+  }[];
+}
+
+export async function apiGetWorkflowInbox(filterStatus = 'PENDING'): Promise<WorkflowInboxResponse> {
+  const response = await apiClient.get<WorkflowInboxResponse>('/api/workflow/inbox', {
+    params: { filter_status: filterStatus }
+  });
+  return response.data;
+}
+
+export async function apiPerformWorkflowAction(
+  taskId: string,
+  payload: { action: string; comments?: string; delegate_to_user_id?: string }
+): Promise<{ success: boolean; action: string; message: string; instance_status: string }> {
+  const response = await apiClient.post(`/api/workflow/tasks/${taskId}/action`, payload);
+  return response.data;
+}
+
+export async function apiGetWorkflowDefinitions(): Promise<WorkflowDefinitionItem[]> {
+  const response = await apiClient.get<WorkflowDefinitionItem[]>('/api/workflow/definitions');
+  return response.data;
+}
+
+export async function apiCreateWorkflowDefinition(payload: any): Promise<{ success: boolean; message: string; id: string; version: number }> {
+  const response = await apiClient.post('/api/workflow/definitions', payload);
+  return response.data;
+}
+
+export async function apiGetWorkflowInstances(statusFilter?: string, moduleFilter?: string): Promise<WorkflowInstanceItem[]> {
+  const response = await apiClient.get<WorkflowInstanceItem[]>('/api/workflow/instances', {
+    params: { status_filter: statusFilter, module_filter: moduleFilter }
+  });
+  return response.data;
+}
+
+export async function apiRetryWorkflowInstance(instanceId: string): Promise<{ success: boolean; message: string }> {
+  const response = await apiClient.post(`/api/workflow/instances/${instanceId}/retry`);
+  return response.data;
+}
+
+export async function apiGetWorkflowAnalytics(): Promise<WorkflowAnalyticsResponse> {
+  const response = await apiClient.get<WorkflowAnalyticsResponse>('/api/workflow/analytics');
+  return response.data;
+}
+

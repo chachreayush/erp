@@ -214,6 +214,10 @@ app.include_router(gst_router, prefix="/api/gst", tags=["GST Compliance"])
 from api.dashboard import router as dashboard_router
 app.include_router(dashboard_router, prefix="/api")
 
+# DOC-32: Workflow, Approval, Alert & Business Automation Engine
+from api.workflow import router as workflow_router
+app.include_router(workflow_router)
+
 # Future routers will be added here as modules are built:
 # app.include_router(hr_router)
 
