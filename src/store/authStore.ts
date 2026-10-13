@@ -247,11 +247,9 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'erp-auth',
       storage: createJSONStorage(() => {
-        // Mobile users: localStorage (persistent until logout/app deletion)
-        // Desktop users (Tauri/Browser): sessionStorage (cleared on system restart/software close)
-        // This runs client-side only, avoiding SSR hydration mismatch
+        // Use localStorage for all browser sessions so users stay logged in across refreshes and tabs
         if (typeof window === 'undefined') return sessionStorage;
-        return isMobileClient() ? localStorage : sessionStorage;
+        return localStorage;
       }),
       partialize: (state) => ({
         user:      state.user,
