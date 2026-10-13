@@ -3,7 +3,7 @@ import { Search, Calendar, Filter, FileText } from 'lucide-react'
 
 // Assuming Ag-Grid is available in the project
 import { AgGridReact } from 'ag-grid-react'
-import { apiGetInvoices } from '../../lib/api'
+import apiClient, { apiGetInvoices } from '../../lib/api'
 import { ColDef } from 'ag-grid-community'
 import { useReturnNavigation } from '../../hooks/useReturnNavigation'
 
@@ -42,8 +42,9 @@ export default function SalesReturnList({ onSelectBill, type }: SalesReturnListP
   useEffect(() => {
     const fetchBills = async () => {
       try {
-        const data = await apiGetInvoices(`sales-return-${baseType}`);
-        const mapped = data.map(inv => ({
+        const res = await apiClient.get('/api/sales/invoices?invoice_type=sales-return');
+        const data = res.data || [];
+        const mapped = data.map((inv: any) => ({
           entryNo: inv.invoice_number,
           partyName: inv.customer_name,
           partyInvNo: inv.party_inv_no || '',

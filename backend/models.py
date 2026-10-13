@@ -34,7 +34,7 @@ from sqlalchemy.orm import relationship  # Defines relationships between tables
 from sqlalchemy.dialects.postgresql import UUID, JSONB  # PostgreSQL-specific types
 from database import Base  # The declarative base all models inherit from
 import uuid                # Python standard library for generating UUIDs
-from datetime import datetime  # For timestamps
+from datetime import datetime, date  # For timestamps and dates
 import enum                # Python standard library for enum definitions
 
 
@@ -485,6 +485,8 @@ class InvoiceItem(Base):
     billed_qty = Column(Integer, nullable=False, default=0)
     source_invoice_item_id = Column(UUID(as_uuid=True), ForeignKey("invoice_items.id", ondelete="SET NULL"), nullable=True)
     returned_qty = Column(Integer, nullable=False, default=0)
+    free_quantity = Column(Integer, default=0, nullable=True)
+    disposition = Column(String(50), nullable=True, default="saleable")
     
     line_total = Column(Numeric(12, 2), nullable=False)
 
@@ -1440,7 +1442,7 @@ class PurchaseOrder(Base):
     
     po_number = Column(String(100), nullable=False, index=True)
     date = Column(DateTime, default=datetime.utcnow, nullable=False)
-    vendor_id = Column(UUID(as_uuid=True), ForeignKey("ledgers.id", ondelete="RESTRICT"), nullable=False)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("parties.id", ondelete="RESTRICT"), nullable=False)
     
     status = Column(String(50), nullable=False, default="DRAFT") # DRAFT, APPROVED, PARTIAL, COMPLETED, CANCELLED
     expected_delivery = Column(DateTime, nullable=True)
@@ -1448,6 +1450,8 @@ class PurchaseOrder(Base):
     total_amount = Column(Numeric(15, 2), default=0.00)
     
     created_at = Column(DateTime, default=datetime.utcnow)
+    items = relationship("PurchaseOrderItem", back_populates="purchase_order", cascade="all, delete-orphan")
+    vendor = relationship("Party")
 
 class PurchaseOrderItem(Base):
     __tablename__ = "purchase_order_items"
@@ -1461,6 +1465,8 @@ class PurchaseOrderItem(Base):
     received_qty = Column(Integer, nullable=False, default=0)
     rate = Column(Numeric(10, 2), nullable=False)
     line_total = Column(Numeric(15, 2), nullable=False)
+    
+    purchase_order = relationship("PurchaseOrder", back_populates="items")
 
 class VendorComplaint(Base):
     __tablename__ = "vendor_complaints"
@@ -1469,7 +1475,7 @@ class VendorComplaint(Base):
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
     
     complaint_number = Column(String(100), nullable=False, index=True)
-    vendor_id = Column(UUID(as_uuid=True), ForeignKey("ledgers.id", ondelete="RESTRICT"), nullable=False)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("parties.id", ondelete="RESTRICT"), nullable=False)
     
     category = Column(String(50), nullable=False) # SHORTAGE, DAMAGE, QUALITY, PRICING
     status = Column(String(50), nullable=False, default="OPEN") # OPEN, PENDING, RESOLVED, CLOSED
@@ -1496,12 +1502,15 @@ class SalesOrder(Base):
     
     order_number = Column(String(100), nullable=False, index=True)
     date = Column(DateTime, default=datetime.utcnow, nullable=False)
-    party_id = Column(UUID(as_uuid=True), ForeignKey("ledgers.id", ondelete="RESTRICT"), nullable=False)
+    party_id = Column(UUID(as_uuid=True), ForeignKey("parties.id", ondelete="RESTRICT"), nullable=False)
     
     status = Column(String(50), nullable=False, default="DRAFT") # DRAFT, HOLD, APPROVED, CONFIRMED, CANCELLED, CLOSED
     total_amount = Column(Numeric(15, 2), default=0.00)
     
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    items = relationship("SalesOrderItem", backref="order", lazy="joined", cascade="all, delete-orphan")
+    holds = relationship("SalesOrderHold", backref="order", lazy="joined", cascade="all, delete-orphan")
 
 class SalesOrderItem(Base):
     __tablename__ = "sales_order_items"
@@ -1604,6 +1613,24 @@ class BankReconciliationMatch(Base):
     matched_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     matched_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     match_type = Column(String(50), nullable=False) # 'AUTO', 'MANUAL'
+
+class CashVerification(Base):
+    __tablename__ = "cash_verifications"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    ledger_id = Column(UUID(as_uuid=True), ForeignKey("ledgers.id", ondelete="CASCADE"), nullable=False, index=True)
+    verification_date = Column(Date, nullable=False, default=date.today)
+    denominations = Column(JSONB, nullable=False) # {"2000": 0, "500": 10, ...}
+    system_balance = Column(Numeric(15, 2), nullable=False)
+    counted_balance = Column(Numeric(15, 2), nullable=False)
+    variance = Column(Numeric(15, 2), nullable=False) # counted - system
+    status = Column(String(50), default="VERIFIED", nullable=False) # 'BALANCED', 'SURPLUS', 'SHORTAGE'
+    remarks = Column(String(500), nullable=True)
+    verified_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    ledger = relationship("Ledger")
 
 # -- TABLE 26: Expense Management ---------------------------------
 class ExpenseCategory(Base):

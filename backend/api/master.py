@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from database import get_db
@@ -300,3 +300,28 @@ def delete_station(station_id: UUID, db: Session = Depends(get_db), current_user
     db.delete(db_station)
     db.commit()
     return {"message": "Station deleted successfully"}
+
+# ── PARTIES (MASTER ALIAS) ──────────────────────────────────
+@router.get("/parties", response_model=List[schemas.PartyResponse])
+def get_master_parties(
+    type: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    org_id = get_org_id(current_user)
+    query = db.query(models.Party).filter(models.Party.organization_id == org_id)
+    if type == "customer":
+        # Return parties that have a customer profile or all if no profile yet
+        cust_query = query.join(models.CustomerProfile, models.Party.id == models.CustomerProfile.party_id)
+        res = cust_query.offset(skip).limit(limit).all()
+        if res:
+            return res
+    elif type in ["vendor", "supplier"]:
+        supp_query = query.join(models.SupplierProfile, models.Party.id == models.SupplierProfile.party_id)
+        res = supp_query.offset(skip).limit(limit).all()
+        if res:
+            return res
+            
+    return query.offset(skip).limit(limit).all()

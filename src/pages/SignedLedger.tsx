@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, FileText, CheckCircle2 } from 'lucide-react';
+import { useReturnNavigation } from '../hooks/useReturnNavigation';
 
 export default function SignedLedger() {
+  useReturnNavigation();
+  const navigate = useNavigate();
   const [logs, setLogs] = useState<any[]>([]);
 
   useEffect(() => {
@@ -15,42 +20,84 @@ export default function SignedLedger() {
   }, []);
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4 text-gray-800">Signed Evidence Ledger</h1>
-      <div className="bg-white rounded shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Date/Time</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Invoice No</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Type</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Status</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">IRN</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Ack No</th>
+    <div style={{ backgroundColor: '#eef2ef', minHeight: '100vh', padding: '24px', color: '#111827', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      
+      {/* Top Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button 
+              onClick={() => navigate('/gst')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#2d6a4f', display: 'flex', alignItems: 'center' }}
+              title="Return to GST Reports [ESC]"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#2d6a4f' }}>
+              STATUTORY COMPLIANCE / AUDIT LOG
+            </span>
+            <span style={{ backgroundColor: '#d8e2dc', color: '#1b4332', fontSize: '11px', fontWeight: 800, padding: '2px 8px', borderRadius: '4px' }}>
+              DOC-29
+            </span>
+          </div>
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#1b4332', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <FileText size={26} color="#1b4332" />
+            Signed Compliance Evidence Ledger
+          </h1>
+          <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#52796f' }}>
+            Permanent Audit Trail for IRN Hashes, Acknowledgement Numbers & Signed QR Payloads
+          </p>
+        </div>
+      </div>
+
+      {/* Table Container */}
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #d8e2dc', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#f8faf9', color: '#52796f', borderBottom: '1px solid #d8e2dc', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.04em' }}>
+              <th style={{ padding: '10px 14px' }}>Date / Time</th>
+              <th style={{ padding: '10px 14px' }}>Invoice No</th>
+              <th style={{ padding: '10px 14px' }}>Type</th>
+              <th style={{ padding: '10px 14px', textAlign: 'center' }}>Status</th>
+              <th style={{ padding: '10px 14px' }}>IRN Hash</th>
+              <th style={{ padding: '10px 14px' }}>Ack Number</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody>
             {logs.length === 0 ? (
-              <tr><td colSpan={6} className="p-4 text-center text-gray-500">No compliance logs found.</td></tr>
+              <tr>
+                <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>
+                  <CheckCircle2 size={36} color="#10b981" style={{ margin: '0 auto 8px auto', display: 'block' }} />
+                  No compliance evidence records generated yet.
+                </td>
+              </tr>
             ) : (
               logs.map((log) => (
-                <tr key={log.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 text-sm text-gray-900">{new Date(log.created_at).toLocaleString()}</td>
-                  <td className="px-4 py-2 text-sm font-medium text-indigo-600">{log.invoice_number}</td>
-                  <td className="px-4 py-2 text-sm text-gray-900">{log.log_type}</td>
-                  <td className="px-4 py-2 text-sm">
-                    <span className={`px-2 py-1 text-xs font-bold rounded ${log.status === 'SUCCESS' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                <tr key={log.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <td style={{ padding: '10px 14px', color: '#374151' }}>{new Date(log.created_at).toLocaleString()}</td>
+                  <td style={{ padding: '10px 14px', fontWeight: 700, color: '#1b4332' }}>{log.invoice_number}</td>
+                  <td style={{ padding: '10px 14px', color: '#4b5563' }}>{log.log_type}</td>
+                  <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                    <span style={{
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      backgroundColor: log.status === 'SUCCESS' ? '#dcfce7' : '#f3f4f6',
+                      color: log.status === 'SUCCESS' ? '#166534' : '#4b5563'
+                    }}>
                       {log.status}
                     </span>
                   </td>
-                  <td className="px-4 py-2 text-sm text-gray-900">{log.irn || '-'}</td>
-                  <td className="px-4 py-2 text-sm text-gray-900">{log.ack_no || '-'}</td>
+                  <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: '11px', color: '#1f2937' }}>{log.irn || '-'}</td>
+                  <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: '11px', color: '#1f2937' }}>{log.ack_no || '-'}</td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
+
     </div>
   );
 }

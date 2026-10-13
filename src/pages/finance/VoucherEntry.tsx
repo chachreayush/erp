@@ -154,7 +154,7 @@ export default function VoucherEntry() {
       } else {
         resetForm();
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       alert('Error: ' + (err.response?.data?.detail || err.message || 'Unknown error'));
     }

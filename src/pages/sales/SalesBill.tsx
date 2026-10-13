@@ -1,13 +1,47 @@
-import apiClient, { apiSaveDraft, apiCreateInvoice, apiGetInvoice, InvoiceCreatePayload } from '../../lib/api';
+import apiClient, { 
+  apiSaveDraft, 
+  apiCreateInvoice, 
+  apiGetInvoice, 
+  InvoiceCreatePayload,
+  apiGetParties,
+  Party,
+  apiGetSalesOrders,
+  SalesOrder,
+  apiGetBatches,
+  Batch
+} from '../../lib/api';
 import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Receipt, 
+  Calendar, 
+  Building2, 
+  Sparkles, 
+  Clock, 
+  Search, 
+  FileText, 
+  CheckCircle2, 
+  AlertCircle, 
+  ArrowRight, 
+  ShieldCheck, 
+  Tag, 
+  Info, 
+  Layers, 
+  ChevronRight, 
+  Hash, 
+  Percent, 
+  DollarSign, 
+  UserCheck, 
+  Zap, 
+  HelpCircle,
+  ClipboardList
+} from 'lucide-react';
 import TdsTcsAlertModal from '../../components/TdsTcsAlertModal';
-// { useState, useRef, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { useAuthStore } from '../../store/authStore'
-import { apiGetProducts } from '../../lib/api'
-import type { Product as _Product } from '../../lib/api'
-import SalesList from './SalesList'
-import { useReturnNavigation } from '../../hooks/useReturnNavigation'
+import { useSearchParams } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
+import { apiGetProducts } from '../../lib/api';
+import type { Product as _Product } from '../../lib/api';
+import SalesList from './SalesList';
+import { useReturnNavigation } from '../../hooks/useReturnNavigation';
 
 // Increment alphanumeric series: p0053 -> p0054, x9999 -> x10000, abc -> abd, zzz -> zaaa
 const incrementSeries = (str: string): string => {
@@ -148,6 +182,7 @@ interface SalesHistoryRecord {
 
 // Only stores permanently saved bills from prior completed invoices (never ongoing current bill drafts)
 const SAVED_PAST_BILLS_REGISTRY: Record<string, SalesHistoryRecord[]> = {};
+const LIVE_BATCHES_CACHE: Record<string, Batch[]> = {};
 
 const getProductHistory = (productName?: string): SalesHistoryRecord[] => {
   if (!productName || !productName.trim()) return [];
@@ -158,6 +193,23 @@ const getProductHistory = (productName?: string): SalesHistoryRecord[] => {
   const mrp = Number((baseRate * 1.45).toFixed(2));
   const mrg = '29.41%';
   
+  const liveBatches = (LIVE_BATCHES_CACHE[name.toLowerCase()] || []).map(b => ({
+    party: 'CENTRAL GODOWN',
+    billNo: 'INWARD',
+    date: 'CURRENT',
+    qty: b.current_stock || 0,
+    batch: b.batch_number,
+    expiry: b.expiry || '12/28',
+    rate: b.rate_a || b.rate || baseRate,
+    srate: Number(((b.rate_a || b.rate || baseRate) * 1.3).toFixed(2)),
+    mrg: '25.00%',
+    mrp: b.mrp || mrp,
+    disc: 0.0,
+    deal: '0.00',
+    cost: b.rate || baseRate,
+    godown: '1'
+  }));
+
   const builtIn: SalesHistoryRecord[] = [
     { party: 'RANBAXY INDIA LTD', billNo: 'P000009', date: '12-06-26', qty: 100, batch: isPara ? '123456' : '58963', expiry: '11/27', rate: baseRate, srate, mrg, mrp, disc: 0.0, deal: '10.00', cost: baseRate, godown: '1' },
     { party: 'APEX PHARMA PVT', billNo: 'P000008', date: '28-05-26', qty: 200, batch: isPara ? '123457' : '44120', expiry: '08/28', rate: baseRate, srate, mrg, mrp, disc: 0.0, deal: '20.00', cost: baseRate, godown: '1' },
@@ -168,7 +220,7 @@ const getProductHistory = (productName?: string): SalesHistoryRecord[] => {
   ];
 
   const savedPast = SAVED_PAST_BILLS_REGISTRY[name.toLowerCase()] || [];
-  const combined = [...savedPast, ...builtIn];
+  const combined = [...liveBatches, ...savedPast, ...builtIn];
   const seen = new Set<string>();
   const unique = combined.filter(rec => {
     const k = rec.batch.toLowerCase();
@@ -177,7 +229,7 @@ const getProductHistory = (productName?: string): SalesHistoryRecord[] => {
     return true;
   });
   // Strictly only show last saved six bill details, not more than that and never current un-saved bill
-  return unique.slice(0, 6);
+  return unique.slice(0, 8);
 };
 
 // Helper for F3 Modal & Item-to-Item auto-fill: inspects past saved history + completed rows in active bill without touching bottom table!
@@ -243,6 +295,15 @@ const lookupRegisteredBatch = (product: string, batchNumber: string, currentGrid
   return null;
 };
 
+const DEFAULT_ROW_COUNT = 16;
+const INITIAL_ROW_TEMPLATE = { 
+  id: 0, product_id: '', product: '', pack: '', batch: '', qty: '', free: '', extraSchem: '', prate: '', dis: '', amount: '',
+  expiry: '', mrp: '', purDealQty: '', purDealFree: '', schDeal: '', dealPercent: '',
+  igst: '', cgst: '', sgst: '', rateA: '', rateB: '', rateC: '', cost: '', hsn: '',
+  schSalesQty: '', schSalesFree: ''
+};
+const createDefaultGridRows = (count = DEFAULT_ROW_COUNT) => 
+  Array.from({ length: count }, (_, i) => ({ ...INITIAL_ROW_TEMPLATE, id: i + 1 }));
 
 export default function SalesBill() {
 
@@ -305,6 +366,9 @@ export default function SalesBill() {
                 cgst: '', sgst: '', rateA: '', rateB: '', rateC: '', cost: '', hsn: '',
                 schSalesQty: '', schSalesFree: ''
               }})
+              while (mappedRows.length < DEFAULT_ROW_COUNT) {
+                mappedRows.push({ ...INITIAL_ROW_TEMPLATE, id: mappedRows.length + 1 })
+              }
               setGridRows(mappedRows)
             }
           }
@@ -355,8 +419,20 @@ export default function SalesBill() {
              const projected = `${activeSeries.prefix || ''}${activeSeries.next_number}${activeSeries.suffix || ''}`;
              setBillNo(projected);
           }
+        } else {
+          const defaultPrefix = type.includes('challan') ? 'SC-' : 'INV-';
+          const savedSeq = parseInt(localStorage.getItem('last_sales_bill_seq') || '1', 10);
+          if (!billNo) {
+            setBillNo(`${defaultPrefix}${String(savedSeq).padStart(4, '0')}`);
+          }
         }
-      } catch(e) {}
+      } catch(e) {
+        const defaultPrefix = type.includes('challan') ? 'SC-' : 'INV-';
+        const savedSeq = parseInt(localStorage.getItem('last_sales_bill_seq') || '1', 10);
+        if (!billNo) {
+          setBillNo(`${defaultPrefix}${String(savedSeq).padStart(4, '0')}`);
+        }
+      }
     };
     fetchSeries();
   }, [type]);
@@ -389,10 +465,10 @@ export default function SalesBill() {
           if (data.party) setPartyName(data.party);
           if (data.items && Array.isArray(data.items)) {
             const newRows = [...data.items];
-            while (newRows.length < 8) {
+            while (newRows.length < DEFAULT_ROW_COUNT) {
               newRows.push({
-                id: Math.random().toString(36).substring(7),
-                product: '', batch: '', expiry: '', qty: '', free: '', mrp: '', rate: '', dis: ''
+                ...INITIAL_ROW_TEMPLATE,
+                id: newRows.length + 1
               });
             }
             setGridRows(newRows);
@@ -424,18 +500,10 @@ export default function SalesBill() {
     igst: '', cgst: '', sgst: '', rateA: '', rateB: '', rateC: '', cost: '', hsn: '',
     schSalesQty: '', schSalesFree: ''
   }
-  const [gridRows, setGridRows] = useState([
-      { ...initialRow, id: 1 },
-      { ...initialRow, id: 2 },
-      { ...initialRow, id: 3 },
-      { ...initialRow, id: 4 },
-      { ...initialRow, id: 5 },
-      { ...initialRow, id: 6 },
-      { ...initialRow, id: 7 },
-      { ...initialRow, id: 8 },
-      { ...initialRow, id: 9 },
-      { ...initialRow, id: 10 }
-    ])
+  const INITIAL_ROW_COUNT = 16
+  const [gridRows, setGridRows] = useState(
+    Array.from({ length: INITIAL_ROW_COUNT }, (_, i) => ({ ...initialRow, id: i + 1 }))
+  )
   const [activeRowId, setActiveRowId] = useState<number>(1)
 
   const handleRowChange = (index: number, field: string, value: string) => {
@@ -541,10 +609,10 @@ export default function SalesBill() {
              source_invoice_item_id: item.id
           }));
           
-        while (newRows.length < 8) {
+        while (newRows.length < DEFAULT_ROW_COUNT) {
           newRows.push({
-            id: Math.random().toString(36).substring(7),
-            product: '', batch: '', expiry: '', qty: '', free: '', mrp: '', rate: '', dis: ''
+            ...INITIAL_ROW_TEMPLATE,
+            id: newRows.length + 1
           });
         }
         setGridRows(newRows);
@@ -556,15 +624,80 @@ export default function SalesBill() {
   };
 
   const [showSOModal, setShowSOModal] = useState(false);
-  const [pendingSOs, setPendingSOs] = useState<any[]>([]);
+  const [pendingSOs, setPendingSOs] = useState<SalesOrder[]>([]);
   const [soSelectedIndex, setSoSelectedIndex] = useState(0);
+  const [loadingSOs, setLoadingSOs] = useState(false);
   const [sourceOrderId, setSourceOrderId] = useState<string | null>(null);
 
-  const fetchPendingSOs = async () => {
+  const fetchPendingSOs = async (partyId?: string) => {
+    setLoadingSOs(true);
     try {
-      const { data } = await apiClient.get('/api/orders');
-      setPendingSOs(data.filter((o: any) => o.status === 'APPROVED'));
-    } catch (e) {}
+      const orders = await apiGetSalesOrders({ 
+        party_id: partyId || selectedCustomer?.id, 
+        status: 'APPROVED' 
+      });
+      setPendingSOs(orders);
+      setSoSelectedIndex(0);
+    } catch (e) {
+      console.error('Failed to load pending SOs:', e);
+    } finally {
+      setLoadingSOs(false);
+    }
+  };
+
+  const handleSoModalKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setShowSOModal(false);
+      partyRef.current?.focus();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSoSelectedIndex(prev => (prev < pendingSOs.length - 1 ? prev + 1 : prev));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSoSelectedIndex(prev => (prev > 0 ? prev - 1 : 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (pendingSOs[soSelectedIndex]) {
+        selectAndImportSO(pendingSOs[soSelectedIndex]);
+      }
+    }
+  };
+
+  const selectAndImportSO = (so: SalesOrder) => {
+    setShowSOModal(false);
+    setSourceOrderId(so.order_number);
+    if (so.items && so.items.length > 0) {
+      const mappedRows = so.items.map((item: any, i: number) => {
+        const prodMeta = inventoryProducts.find(p => p.name?.toLowerCase() === item.product_name?.toLowerCase());
+        const rateVal = item.rate || 0;
+        const mrpVal = prodMeta?.mrp ? String(prodMeta.mrp) : String(Number((rateVal * 1.35).toFixed(2)));
+        const igstVal = prodMeta?.igst_percent !== undefined ? String(prodMeta.igst_percent) : '12';
+        return {
+          ...initialRow,
+          id: i + 1,
+          product_id: item.product_id || '',
+          product: item.product_name,
+          pack: prodMeta?.packing || '10 UNIT',
+          batch: '',
+          qty: String(item.quantity || 1),
+          free: '',
+          prate: String(rateVal),
+          dis: '',
+          amount: ((item.quantity || 1) * rateVal).toFixed(2),
+          expiry: '',
+          mrp: mrpVal,
+          igst: igstVal
+        };
+      });
+      while (mappedRows.length < 8) {
+        mappedRows.push({ ...initialRow, id: mappedRows.length + 1 });
+      }
+      setGridRows(mappedRows);
+      setActiveRowId(1);
+      setTimeout(() => {
+        document.getElementById('bottom-batch-input')?.focus();
+      }, 50);
+    }
   };
   // -----------------------------------
 
@@ -587,7 +720,7 @@ export default function SalesBill() {
   }, [gridRows, partyName]);
 
   useReturnNavigation(
-    showPartyModal || showProductModal || showSaveModal || showBatchModal || showF3BatchModal,
+    showPartyModal || showProductModal || showSaveModal || showBatchModal || showF3BatchModal || showSOModal,
     {
       isDirty: !selectedModifyBill && isDirty,
       fallbackAction: () => {
@@ -608,22 +741,45 @@ export default function SalesBill() {
     }
   }, [showF3BatchModal])
 
-  // Parties / Sundry Creditors List (Merged with localStorage)
+  // Live PostgreSQL Debtor Customers (DOC-10 Party Master)
+  const [customersList, setCustomersList] = useState<Party[]>([])
+  const [selectedCustomer, setSelectedCustomer] = useState<Party | null>(null)
+  const [loadingCustomers, setLoadingCustomers] = useState(false)
+
+  const loadCustomers = async () => {
+    setLoadingCustomers(true)
+    try {
+      const data = await apiGetParties('customer')
+      setCustomersList(data)
+    } catch (err) {
+      console.error("Failed to fetch customers from API:", err)
+    } finally {
+      setLoadingCustomers(false)
+    }
+  }
+
+  useEffect(() => {
+    loadCustomers()
+  }, [showPartyModal])
+
   const defaultParties = [
-    'Sun Pharma Ltd.',
-    'Cipla Pharmaceuticals',
-    'Glenmark Pharma',
-    'Mankind Pharma',
-    'Abbott Healthcare',
-    'Lupin Ltd.',
-    'Dr. Reddys Laboratories',
-    'Torrent Pharmaceuticals',
-    'Alkem Laboratories',
-    'Zydus Healthcare'
+    'APOLLO PHARMACY LTD.',
+    'LIFECARE CHEMIST & DRUGGIST',
+    'SHREE BALAJI MEDICOS'
   ]
-  const savedParties = JSON.parse(localStorage.getItem('erp_parties') || '[]')
-  const partiesList = Array.from(new Set([...defaultParties, ...savedParties]))
-  const filteredParties = partiesList.filter(p => p.toLowerCase().includes(partySearch.toLowerCase()))
+
+  const filteredCustomers = customersList.length > 0
+    ? customersList.filter(c => {
+        const q = partySearch.toLowerCase().trim()
+        if (!q) return true
+        const nameMatch = (c.legal_name || '').toLowerCase().includes(q) || (c.trade_name || '').toLowerCase().includes(q)
+        const gstinMatch = (c.gst || c.gstin || '').toLowerCase().includes(q)
+        const cityMatch = c.addresses?.some(a => (a.city || '').toLowerCase().includes(q))
+        return nameMatch || gstinMatch || cityMatch
+      })
+    : defaultParties
+        .filter(p => p.toLowerCase().includes(partySearch.toLowerCase()))
+        .map((p, idx) => ({ id: `cust-${idx}`, legal_name: p, trade_name: p, gst: '27AABCA1234F1Z5', addresses: [{ city: 'Mumbai' }] } as unknown as Party));
 
   // Dynamic Inventory Products merged with Built-in Demo Products
   const [inventoryProducts, setInventoryProducts] = useState<any[]>([])
@@ -637,7 +793,14 @@ export default function SalesBill() {
         console.error("Failed to fetch API products in SalesBill:", err)
       }
       const localProds = JSON.parse(localStorage.getItem('erp_inventory_items') || '[]')
-      const combined = [...localProds, ...apiProds]
+      const dbIds = new Set(apiProds.map(p => p.id).filter(Boolean))
+      const sanitizedLocal = localProds.map((lp: any) => {
+        if (lp && lp.id && !dbIds.has(lp.id)) {
+          return { ...lp, id: undefined }
+        }
+        return lp
+      })
+      const combined = [...apiProds, ...sanitizedLocal]
       const uniqueMap = new Map()
       combined.forEach(p => {
         if (p && p.name && !uniqueMap.has(p.name.trim().toLowerCase())) {
@@ -726,6 +889,11 @@ export default function SalesBill() {
 
       newRows[rowIndex] = row
       setGridRows(newRows)
+      if (selectedProd.id) {
+        apiGetBatches(selectedProd.id).then(batches => {
+          LIVE_BATCHES_CACHE[selectedProd.name.trim().toLowerCase()] = batches;
+        }).catch(console.error);
+      }
     }
     setShowProductModal(false)
     setTimeout(() => document.getElementById('bottom-batch-input')?.focus(), 10)
@@ -829,14 +997,16 @@ export default function SalesBill() {
       partyRef.current?.focus()
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setPartySelectedIndex(prev => (prev < filteredParties.length - 1 ? prev + 1 : prev))
+      setPartySelectedIndex(prev => (prev < filteredCustomers.length - 1 ? prev + 1 : prev))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       setPartySelectedIndex(prev => (prev > 0 ? prev - 1 : 0))
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      if (filteredParties[partySelectedIndex]) {
-        setPartyName(filteredParties[partySelectedIndex])
+      if (filteredCustomers[partySelectedIndex]) {
+        const cust = filteredCustomers[partySelectedIndex]
+        setPartyName(cust.legal_name || cust.trade_name || 'Customer')
+        setSelectedCustomer(cust)
         setShowPartyModal(false)
         setTimeout(() => {
           taxTypeRef.current?.focus()
@@ -1021,17 +1191,21 @@ export default function SalesBill() {
     
     const validRows = gridRows.filter(r => r.product?.trim() && (parseFloat(r.qty) > 0 || parseFloat(r.prate) > 0 || parseFloat(r.prate) > 0));
     
+    const isValidPartyUuid = selectedCustomer?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(selectedCustomer.id);
+    const isValidSeriesUuid = selectedSeriesId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(selectedSeriesId);
+
     const payload: InvoiceCreatePayload = {
       invoice_type: `sales-${baseType}`,
-      customer_name: partyName || 'Cash',
+      customer_name: partyName || 'Cash Sale',
+      party_id: isValidPartyUuid ? selectedCustomer.id : undefined,
       invoice_number: billNo.trim(),
-      series_id: selectedSeriesId,
-      party_inv_no: '',
+      series_id: isValidSeriesUuid ? selectedSeriesId : undefined,
+      party_inv_no: sourceOrderId || '',
       party_inv_date: (typeof invDateStr !== 'undefined' ? invDateStr : ''),
       due_date: (typeof dateStr !== 'undefined' ? dateStr : ''),
-      remarks: '',
-      dispatch_through: '',
-      destination: '',
+      remarks: sourceOrderId ? `Billed against SO #${sourceOrderId}` : 'Counter Sales',
+      dispatch_through: 'Road / Local Delivery',
+      destination: selectedCustomer?.addresses?.[0]?.city || 'Local',
       bill_discount: (typeof billDiscount !== 'undefined' ? parseFloat(billDiscount) : 0) || 0,
       ledger1_name: (typeof ledger1Name !== 'undefined' ? ledger1Name : ''),
       ledger1_amt: (typeof ledger1Amt !== 'undefined' ? parseFloat(ledger1Amt) : 0) || 0,
@@ -1042,27 +1216,35 @@ export default function SalesBill() {
       subtotal: totals.valueOfGoods,
       tax_total: totals.gstAmount,
       grand_total: invoiceValue,
-      items: validRows.map(row => ({
-         product_id: row.product_id,
-           product_name: row.product,
-         quantity: parseInt(row.qty) || 0,
-         rate: parseFloat(row.prate) || parseFloat(row.prate) || 0,
-         igst_percent: parseFloat(row.igst) || 0,
-         line_total: parseFloat(row.amount) || 0,
-         batch: row.batch?.trim() || '',
-         expiry: row.expiry || '',
-         mrp: parseFloat(row.mrp) || 0,
-         discount_percent: parseFloat(row.dis) || 0,
-         margin_percent: '0'
-      }))
+      items: validRows.map(row => {
+        const isValidRowProdUuid = row.product_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(row.product_id);
+        return {
+          product_id: isValidRowProdUuid ? row.product_id : undefined,
+          product_name: row.product,
+          quantity: parseInt(row.qty) || 0,
+          free_quantity: parseInt(row.free) || 0,
+          rate: parseFloat(row.prate) || 0,
+          mrp: parseFloat(row.mrp) || 0,
+          discount_percent: parseFloat(row.dis) || 0,
+          igst_percent: parseFloat(row.igst) || 0,
+          line_total: parseFloat(row.amount) || ((parseInt(row.qty) || 0) * (parseFloat(row.prate) || 0)),
+          batch: row.batch?.trim() || 'DEFAULT',
+          expiry: row.expiry || '12/28',
+          margin_percent: '0',
+          disposition: 'saleable'
+        };
+      })
     };
 
     try {
       await apiCreateInvoice(payload);
     } catch (err: any) {
-        console.error(err);
-        const errMsg = err.response?.data?.detail || err.message || 'Failed to save to backend database. Check console.';
-        alert(errMsg);
+        console.error("Invoice save error:", err);
+        const detail = err.response?.data?.detail;
+        const errMsg = detail
+          ? (typeof detail === 'string' ? detail : JSON.stringify(detail))
+          : (err.message || 'Failed to save to backend database. Check console.');
+        alert(`Failed to save invoice: ${errMsg}`);
         return;
       }
 
@@ -1071,10 +1253,15 @@ export default function SalesBill() {
     
     setTimeout(() => {
       setSaveSuccessMessage('')
-      // Local storage removed
-
+      
+      const nextBillNo = incrementSeries(billNo);
+      const storageKey = type.includes('challan') ? 'last_sales_challan_seq' : 'last_sales_bill_seq';
+      localStorage.setItem(storageKey, nextBillNo);
+      setBillNo(nextBillNo);
+      setSourceOrderId(null);
       
       setPartyName('')
+      setSelectedCustomer(null)
       setBillDiscount('00.00')
       setLedger1Name('')
       setLedger1Amt('')
@@ -1082,13 +1269,7 @@ export default function SalesBill() {
       setLedger2Amt('')
       setLedger3Name('')
       setLedger3Amt('')
-      setGridRows([
-        { ...initialRow, id: 1 },
-        { ...initialRow, id: 2 },
-        { ...initialRow, id: 3 },
-        { ...initialRow, id: 4 },
-        { ...initialRow, id: 5 },
-      ])
+      setGridRows(createDefaultGridRows(DEFAULT_ROW_COUNT))
       setActiveRowId(1)
       dateRef.current?.focus()
     }, 2500)
@@ -1118,40 +1299,53 @@ export default function SalesBill() {
   }
 
   return (
-    <div style={{ backgroundColor: '#0b1120', flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', overflow: 'hidden', color: '#f8fafc', padding: '6px 10px', height: '100vh', boxSizing: 'border-box' }}>
+    <div style={{ 
+      backgroundColor: 'var(--color-bg, #eef2ef)', 
+      flex: 1, 
+      display: 'flex', 
+      flexDirection: 'column', 
+      gap: '8px', 
+      overflow: 'hidden', 
+      color: 'var(--color-text-primary, #111827)', 
+      padding: '8px 12px', 
+      height: '100vh', 
+      boxSizing: 'border-box',
+      fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
+    }}>
       
-      {/* ── TOP HEADER BAR (MODERN ENTERPRISE RIBBON) ── */}
+      {/* ── TOP HEADER BAR (HIGH-ERGONOMICS ENTERPRISE RIBBON) ── */}
       <div style={{ 
-        background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)', 
-        border: '1px solid #334155', 
-        borderRadius: '8px', 
+        backgroundColor: 'var(--color-bg-surface, #ffffff)', 
+        border: '1px solid var(--color-border, #d8e2dc)', 
+        borderRadius: '10px', 
         padding: '8px 14px', 
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)', 
+        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.04)', 
         display: 'flex', 
         alignItems: 'center', 
         gap: '12px', 
         flexShrink: 0 
       }}>
         
-        {/* Title & Badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingRight: '12px', borderRight: '1px solid #334155', flexShrink: 0 }}>
-          <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '15px', color: '#fff', boxShadow: '0 2px 6px rgba(59, 130, 246, 0.4)' }}>
-            🧾
+        {/* Title & Voucher Badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingRight: '14px', borderRight: '1px solid #d8e2dc', flexShrink: 0 }}>
+          <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: 'linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: '0 2px 8px rgba(45, 106, 79, 0.3)' }}>
+            <Receipt size={18} />
           </div>
           <div>
-            <h1 style={{ fontSize: '16px', fontWeight: '700', margin: 0, color: '#f8fafc', letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: '#111827', letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: '8px' }}>
               {(type === 'credit_note' || type === 'credit') ? 'Sales Return' : type === 'challan' ? 'Sales Challan' : 'Sales Bill'}
-              <span style={{ fontSize: '10px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '2px 6px', borderRadius: '10px' }}>
-                Voucher Entry
+              <span style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', background: 'rgba(45, 106, 79, 0.1)', color: '#2d6a4f', border: '1px solid rgba(45, 106, 79, 0.25)', padding: '2px 8px', borderRadius: '20px' }}>
+                ⚡ Fast Billing
               </span>
-            </h1>
+            </div>
+            <div style={{ fontSize: '11px', color: '#64748b' }}>Marg ERP High-Speed Counter Invoicing</div>
           </div>
         </div>
 
         {/* Entry Date */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '120px', flexShrink: 0, paddingRight: '8px', borderRight: '1px solid #334155' }}>
-          <label style={{ fontSize: '10px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Entry Date
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '125px', flexShrink: 0 }}>
+          <label style={{ fontSize: '10px', fontWeight: '700', color: '#2d6a4f', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Calendar size={11} color="#2d6a4f" /> Entry Date
           </label>
           <div style={{ position: 'relative', width: '100%' }}>
             <input 
@@ -1162,28 +1356,29 @@ export default function SalesBill() {
               onKeyDown={handleDateKeyDown}
               style={{ 
                 width: '100%', 
-                backgroundColor: '#0f172a', 
-                border: '1px solid #334155', 
+                backgroundColor: '#ffffff', 
+                border: '1.5px solid #cbd5e1', 
                 borderRadius: '6px', 
-                padding: '6px 28px 6px 10px', 
+                padding: '5px 8px', 
                 fontSize: '13px', 
-                height: '34px', 
-                color: '#f8fafc', 
+                height: '32px', 
+                color: '#111827', 
                 outline: 'none', 
                 textAlign: 'center',
-                transition: 'border-color 0.2s',
+                fontWeight: '600',
+                fontVariantNumeric: 'tabular-nums',
+                transition: 'all 0.15s',
                 boxSizing: 'border-box'
               }}
-              onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.select(); }}
-              onBlur={e => e.target.style.borderColor = '#334155'}
+              onFocus={e => { e.target.style.borderColor = '#2d6a4f'; e.target.style.boxShadow = '0 0 0 2px rgba(45,106,79,0.2)'; e.target.select(); }}
+              onBlur={e => { e.target.style.borderColor = '#cbd5e1'; e.target.style.boxShadow = 'none'; }}
             />
-            <span style={{ position: 'absolute', right: '8px', top: '8px', fontSize: '12px', color: '#94a3b8' }}>📅</span>
           </div>
         </div>
 
         {/* Series Dropdown */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '95px', flexShrink: 0 }}>
-          <label style={{ fontSize: '10px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <label style={{ fontSize: '10px', fontWeight: '700', color: '#2d6a4f', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Series
           </label>
           <select 
@@ -1191,28 +1386,28 @@ export default function SalesBill() {
             onChange={e => handleSeriesChange(e.target.value)}
             style={{ 
               width: '100%', 
-              backgroundColor: '#0f172a', 
-              border: '1px solid #334155', 
+              backgroundColor: '#ffffff', 
+              border: '1.5px solid #cbd5e1', 
               borderRadius: '6px', 
-              padding: '6px 10px', 
-              fontSize: '13px', 
-              height: '34px', 
-              color: '#38bdf8', 
+              padding: '4px 6px', 
+              fontSize: '12px', 
+              height: '32px', 
+              color: '#111827', 
               fontWeight: '700', 
               outline: 'none',
-              transition: 'border-color 0.2s',
               boxSizing: 'border-box'
             }}
+            onFocus={e => { e.target.style.borderColor = '#2d6a4f'; e.target.style.boxShadow = '0 0 0 2px rgba(45,106,79,0.2)'; }}
+            onBlur={e => { e.target.style.borderColor = '#cbd5e1'; e.target.style.boxShadow = 'none'; }}
           >
             {availableSeries.length === 0 ? <option value="">None</option> : availableSeries.map((s: any) => <option key={s.id} value={s.id}>{s.series_code}</option>)}
           </select>
         </div>
 
         {/* Entry No */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '105px', flexShrink: 0 }}>
-          <label style={{ fontSize: '10px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Entry No.
-            {billNoError && <span style={{ color: '#ef4444', marginLeft: '4px', textTransform: 'none' }}>({billNoError})</span>}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '115px', flexShrink: 0 }}>
+          <label style={{ fontSize: '10px', fontWeight: '700', color: '#2d6a4f', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Entry No. {billNoError && <span style={{ color: '#ef4444' }}>!</span>}
           </label>
           <input 
             ref={billNoRef} 
@@ -1222,410 +1417,556 @@ export default function SalesBill() {
             onKeyDown={handleBillNoKeyDown}
             style={{ 
               width: '100%', 
-              backgroundColor: '#0f172a', 
-              border: `1px solid ${billNoError ? '#ef4444' : '#334155'}`, 
+              backgroundColor: '#ffffff', 
+              border: `1.5px solid ${billNoError ? '#ef4444' : '#cbd5e1'}`, 
               borderRadius: '6px', 
-              padding: '6px 10px', 
+              padding: '5px 8px', 
               fontSize: '13px', 
-              height: '34px', 
-              color: '#38bdf8', 
+              height: '32px', 
+              color: '#111827', 
               fontWeight: '700', 
               outline: 'none',
-              transition: 'border-color 0.2s',
+              fontVariantNumeric: 'tabular-nums',
               boxSizing: 'border-box'
             }}
-            onFocus={e => { e.target.style.borderColor = billNoError ? '#ef4444' : '#3b82f6'; e.target.select(); }}
-            onBlur={e => { e.target.style.borderColor = '#334155' }}
+            onFocus={e => { e.target.style.borderColor = billNoError ? '#ef4444' : '#2d6a4f'; e.target.style.boxShadow = '0 0 0 2px rgba(45,106,79,0.2)'; e.target.select(); }}
+            onBlur={e => { e.target.style.borderColor = '#cbd5e1'; e.target.style.boxShadow = 'none'; }}
           />
         </div>
 
-        {/* Party Name (F7) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: '1 1 auto', minWidth: '220px' }}>
-          <label style={{ fontSize: '10px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Party Name (F7)
-          </label>
-          <div style={{ position: 'relative', width: '100%' }}>
-            <input 
-              ref={partyRef} 
-              type="text" 
-              value={partyName} 
-              readOnly 
-              onClick={() => setShowPartyModal(true)}
-              onKeyDown={handlePartyKeyDown} 
-              placeholder="Select Party from list (Press Enter / F7)..."
-              style={{ 
-                width: '100%', 
-                backgroundColor: '#0f172a', 
-                border: '1px solid #334155', 
+        {/* Party Name (F7) with live customer dossier & credit gauge */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: '1 1 auto', minWidth: '320px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label style={{ fontSize: '10px', fontWeight: '700', color: '#2d6a4f', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Building2 size={11} color="#2d6a4f" /> Debtor Customer / Chemist
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {selectedCustomer?.customer_profile?.credit_limit && (
+                <span style={{ fontSize: '10px', color: '#15803d', fontWeight: '700', fontFamily: 'monospace' }}>
+                  Limit: ₹{Number(selectedCustomer.customer_profile.credit_limit).toLocaleString('en-IN')}
+                </span>
+              )}
+              <span style={{ fontSize: '9px', fontWeight: '700', backgroundColor: 'rgba(45, 106, 79, 0.1)', color: '#2d6a4f', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(45, 106, 79, 0.25)' }}>
+                [F7 / Enter]
+              </span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <input 
+                ref={partyRef} 
+                type="text" 
+                value={partyName ? `${partyName}${selectedCustomer?.gst ? `  •  GST: ${selectedCustomer.gst}` : ''}` : ''} 
+                readOnly 
+                onClick={() => setShowPartyModal(true)} 
+                onKeyDown={handlePartyKeyDown} 
+                placeholder="Select Party from list (Press Enter / F7)..."
+                style={{ 
+                  width: '100%', 
+                  backgroundColor: '#ffffff', 
+                  border: '1.5px solid #cbd5e1', 
+                  borderRadius: '6px', 
+                  padding: '5px 30px 5px 10px', 
+                  fontSize: '13px', 
+                  height: '32px', 
+                  color: partyName ? '#111827' : '#64748b', 
+                  fontWeight: partyName ? '600' : 'normal',
+                  outline: 'none', 
+                  cursor: 'pointer',
+                  boxSizing: 'border-box'
+                }}
+                onFocus={e => { e.target.style.borderColor = '#2d6a4f'; e.target.style.boxShadow = '0 0 0 2px rgba(45,106,79,0.2)'; }}
+                onBlur={e => { e.target.style.borderColor = '#cbd5e1'; e.target.style.boxShadow = 'none'; }}
+              />
+              <span 
+                onClick={() => setShowPartyModal(true)} 
+                style={{ position: 'absolute', right: '8px', top: '7px', fontSize: '13px', color: '#2d6a4f', cursor: 'pointer' }} 
+                title="Click or press F7 to select customer"
+              >
+                <Search size={15} />
+              </span>
+            </div>
+
+            {/* Credit Gauge Pill (From Option 2) */}
+            {selectedCustomer && (
+              <div style={{ 
+                backgroundColor: '#f0fdf4', 
+                border: '1px solid #bbf7d0', 
                 borderRadius: '6px', 
-                padding: '6px 32px 6px 12px', 
-                fontSize: '13px', 
-                height: '34px', 
-                color: '#f8fafc', 
-                outline: 'none', 
-                cursor: 'pointer',
-                transition: 'border-color 0.2s',
-                boxSizing: 'border-box'
-              }}
-              onFocus={e => { e.target.style.borderColor = '#3b82f6'; }}
-              onBlur={e => e.target.style.borderColor = '#334155'}
-            />
-            <span 
-              onClick={() => setShowPartyModal(true)} 
-              style={{ position: 'absolute', right: '10px', top: '8px', fontSize: '13px', color: '#60a5fa', cursor: 'pointer' }} 
-              title="Click to select Ledger (F7)"
-            >
-              🔍
-            </span>
+                padding: '2px 8px', 
+                height: '32px', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                justifyContent: 'center', 
+                minWidth: '150px', 
+                boxSizing: 'border-box',
+                flexShrink: 0
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', fontFamily: 'monospace' }}>
+                  <span style={{ color: '#166534' }}>Credit Used:</span>
+                  <span style={{ color: '#15803d', fontWeight: 'bold' }}>17%</span>
+                </div>
+                <div style={{ width: '100%', backgroundColor: '#dcfce7', borderRadius: '999px', height: '4px', overflow: 'hidden', marginTop: '2px' }}>
+                  <div style={{ width: '17%', height: '100%', background: 'linear-gradient(90deg, #1b4332 0%, #2d6a4f 100%)', borderRadius: '999px' }} />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Inv Date */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '120px', flexShrink: 0 }}>
-          <label style={{ fontSize: '10px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <label style={{ fontSize: '10px', fontWeight: '700', color: '#2d6a4f', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Inv Date
           </label>
-          <div style={{ position: 'relative', width: '100%' }}>
-            <input 
-              ref={invDateRef} 
-              type="text" 
-              value={invDateStr} 
-              onChange={e => setInvDateStr(e.target.value)} 
-              onKeyDown={handleInvDateKeyDown}
-              style={{ 
-                width: '100%', 
-                backgroundColor: '#0f172a', 
-                border: '1px solid #334155', 
-                borderRadius: '6px', 
-                padding: '6px 28px 6px 10px', 
-                fontSize: '13px', 
-                height: '34px', 
-                color: '#f8fafc', 
-                outline: 'none',
-                transition: 'border-color 0.2s',
-                boxSizing: 'border-box'
-              }}
-              onFocus={e => { 
-                e.target.style.borderColor = '#3b82f6'; 
-                e.target.select(); 
-              }}
-              onBlur={e => e.target.style.borderColor = '#334155'}
-            />
-            <span style={{ position: 'absolute', right: '8px', top: '8px', fontSize: '12px', color: '#94a3b8' }}>📅</span>
-          </div>
+          <input 
+            ref={invDateRef} 
+            type="text" 
+            value={invDateStr} 
+            onChange={e => setInvDateStr(e.target.value)} 
+            onKeyDown={handleInvDateKeyDown}
+            style={{ 
+              width: '100%', 
+              backgroundColor: '#ffffff', 
+              border: '1.5px solid #cbd5e1', 
+              borderRadius: '6px', 
+              padding: '5px 8px', 
+              fontSize: '13px', 
+              height: '32px', 
+              color: '#111827', 
+              outline: 'none',
+              textAlign: 'center',
+              fontVariantNumeric: 'tabular-nums',
+              boxSizing: 'border-box'
+            }}
+            onFocus={e => { e.target.style.borderColor = '#2d6a4f'; e.target.style.boxShadow = '0 0 0 2px rgba(45,106,79,0.2)'; e.target.select(); }}
+            onBlur={e => { e.target.style.borderColor = '#cbd5e1'; e.target.style.boxShadow = 'none'; }}
+          />
         </div>
 
-        {/* Tax Type */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '130px', flexShrink: 0 }}>
-          <label style={{ fontSize: '10px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Tax Type
+        {/* Tax Mode */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '125px', flexShrink: 0 }}>
+          <label style={{ fontSize: '10px', fontWeight: '700', color: '#2d6a4f', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Tax Mode
           </label>
-          <select
+          <select 
             ref={taxTypeRef} 
             value={taxType} 
             onChange={e => setTaxType(e.target.value)} 
             onKeyDown={handleTaxTypeKeyDown}
             style={{ 
               width: '100%', 
-              backgroundColor: '#0f172a', 
-              border: '1px solid #334155', 
+              backgroundColor: '#ffffff', 
+              border: '1.5px solid #cbd5e1', 
               borderRadius: '6px', 
-              padding: '6px 10px', 
-              fontSize: '13px', 
-              height: '34px', 
-              color: '#f8fafc', 
+              padding: '5px 8px', 
+              fontSize: '12px', 
+              height: '32px', 
+              color: '#111827', 
               outline: 'none',
-              transition: 'border-color 0.2s',
+              fontWeight: '600',
               boxSizing: 'border-box'
             }}
-            onFocus={e => { e.target.style.borderColor = '#3b82f6'; }}
-            onBlur={e => e.target.style.borderColor = '#334155'}
+            onFocus={e => { e.target.style.borderColor = '#2d6a4f'; e.target.style.boxShadow = '0 0 0 2px rgba(45,106,79,0.2)'; }}
+            onBlur={e => { e.target.style.borderColor = '#cbd5e1'; e.target.style.boxShadow = 'none'; }}
           >
             <option value="Tax">GST-Inclusive</option>
             <option value="Non-Tax">GST-Excl</option>
           </select>
         </div>
 
+        {/* Against Approved SO Button */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0, justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); fetchPendingSOs(); setShowSOModal(true); }}
+            style={{
+              height: '32px',
+              padding: '0 12px',
+              background: 'linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%)',
+              color: '#ffffff',
+              border: '1px solid #1b4332',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 2px 8px rgba(45, 106, 79, 0.3)',
+              transition: 'all 0.15s'
+            }}
+            title="Press F9 or click to load approved Sales Orders"
+          >
+            <ClipboardList size={14} /> [F9] {sourceOrderId ? `SO #${sourceOrderId}` : 'Load SO'}
+          </button>
+        </div>
 
       </div>
 
-      {/* ── MAIN WORKSPACE SPLIT ── */}
-      <div style={{ display: 'flex', flex: 1, gap: '8px', overflow: 'hidden' }}>
+      {/* ── MAIN WORKSPACE (HYBRID APEX COCKPIT: 100% FULL-WIDTH WORKSTATION) ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '8px', overflow: 'hidden' }}>
 
-        {/* ── GRID CARD (MODERN DATA TABLE) ── */}
-        <div style={{ 
-          backgroundColor: '#0f172a', 
-          border: '1px solid #334155', 
+        {/* ── GRID CARD (100% FULL-WIDTH BILLING MATRIX) ── */}
+        <div className="cockpit-table-card" style={{ 
+          backgroundColor: '#ffffff', 
+          border: '1px solid #d8e2dc', 
           borderRadius: '8px', 
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)', 
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)', 
           flex: 1, 
           display: 'flex', 
           flexDirection: 'column', 
           overflow: 'hidden' 
         }}>
-        <div style={{ overflowY: 'auto', flex: 1 }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left", tableLayout: "fixed" }}>
-            <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-              <tr style={{ backgroundColor: '#1e293b', color: '#94a3b8', borderBottom: '1px solid #334155', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                <th style={{ padding: "8px 6px", borderRight: '1px solid #334155', width: '40px', textAlign: 'center' }}>#</th>
-                <th style={{ padding: "8px 10px", borderRight: '1px solid #334155', width: '26%' }}>PRODUCT</th>
-                <th style={{ padding: "8px 6px", borderRight: '1px solid #334155', width: '75px', textAlign: 'center' }}>PACK</th>
-                <th style={{ padding: "8px 8px", borderRight: '1px solid #334155', width: '100px', textAlign: 'center' }}>BATCH</th>
-                <th style={{ padding: "8px 8px", borderRight: '1px solid #334155', width: '80px', textAlign: 'right' }}>QTY</th>
-                <th style={{ padding: "8px 8px", borderRight: '1px solid #334155', width: '70px', textAlign: 'right' }}>FREE</th>
-                <th style={{ padding: "8px 8px", borderRight: '1px solid #334155', width: '100px', textAlign: 'right' }}>EXTRA SCHEM</th>
-                <th style={{ padding: "8px 8px", borderRight: '1px solid #334155', width: '100px', textAlign: 'right' }}>P.RATE/S</th>
-                <th style={{ padding: "8px 8px", borderRight: '1px solid #334155', width: '80px', textAlign: 'right' }}>DIS1%</th>
-                <th style={{ padding: "8px 10px", width: '120px', textAlign: 'right' }}>AMOUNT</th>
-              </tr>
-            </thead>
-            <tbody>
-              {gridRows.map((row, idx) => {
-                const isActive = activeRowId === row.id;
-                return (
-                  <tr 
-                    key={row.id} 
-                    style={{ 
-                      borderBottom: '1px solid #1e293b', 
-                      backgroundColor: isActive ? 'rgba(59, 130, 246, 0.12)' : (idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)'),
-                      borderLeft: isActive ? '3px solid #3b82f6' : '3px solid transparent',
-                      transition: 'background-color 0.15s'
-                    }}
-                    onClick={() => setActiveRowId(row.id)}
-                  >
-                    <td style={{ padding: "3px 4px", borderRight: '1px solid #1e293b', color: '#64748b', textAlign: 'center', fontSize: '12px', fontWeight: '500' }}>{idx + 1}</td>
-                    
-                    {/* Product */}
-                    <td style={{ padding: "2px 4px", borderRight: '1px solid #1e293b' }}>
-                      <input 
-                        id={`product-input-${row.id}`}
-                        value={row.product} 
-                        onChange={e => handleRowChange(idx, 'product', e.target.value)}
-                        onFocus={() => setActiveRowId(row.id)}
-                        onKeyDown={e => {
-                          if (e.key === 'Tab' || e.key === 'End') {
-                            e.preventDefault()
-                            document.getElementById('bill-discount-input')?.focus()
-                            return
-                          }
-                          if (e.key === 'Enter' || e.key === 'F7' || e.key === ' ') {
-                             if (row.product === '' && e.key === 'Enter' && totals.valueOfGoods > 0 && idx > 0) {
-                               e.preventDefault()
-                               document.getElementById('bill-discount-input')?.focus()
-                               return
-                             }
-                             e.preventDefault()
-                             setShowProductModal(true)
-                          }
-                          handleGridKeyDown(e, row.id, 'product')
-                        }}
-                        placeholder={idx === 0 ? "Search product (Enter / Space)..." : ""} 
-                        style={{ width: '100%', backgroundColor: 'transparent', color: '#f8fafc', border: '1px solid transparent', borderRadius: '4px', padding: "4px 8px", outline: 'none', fontSize: '13px', fontWeight: '500' }} 
-                        onFocusCapture={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.08)'; }} 
-                        onBlur={e => { e.target.style.borderColor = 'transparent'; e.target.style.backgroundColor = 'transparent'; }} 
-                      />
-                    </td>
-
-                    {/* Pack */}
-                    <td style={{ padding: "2px 4px", borderRight: '1px solid #1e293b' }}>
-                      <input 
-                        id={`pack-input-${row.id}`}
-                        readOnly
-                        value={row.pack}
-                        onFocus={() => setActiveRowId(row.id)}
-                        style={{ width: '100%', backgroundColor: 'transparent', color: '#94a3b8', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'center', fontSize: '12px' }} 
-                      />
-                    </td>
-
-                    {/* Batch */}
-                    <td style={{ padding: "2px 4px", borderRight: '1px solid #1e293b' }}>
-                      <input 
-                        id={`batch-input-${row.id}`}
-                        value={row.batch} 
-                        onChange={e => handleRowChange(idx, 'batch', e.target.value)}
-                        onFocus={() => setActiveRowId(row.id)}
-                        onKeyDown={e => { 
-                          if (e.key === 'F3' || e.key === 'f3') {
-                            e.preventDefault();
-                            setF3SelectedIndex(0);
-                            setShowF3BatchModal(true);
-                            return;
-                          }
-                          if (e.key === 'Enter') {
-                            if (row.product && (!row.batch || !row.batch.trim())) {
+          <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <table className="cockpit-table" style={{ width: "100%", minHeight: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left", tableLayout: "fixed" }}>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+                <tr style={{ background: 'linear-gradient(90deg, #1b4332 0%, #2d6a4f 50%, #40916c 100%)', color: '#ffffff', borderBottom: '2px solid #1b4332', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <th style={{ padding: "8px 6px", borderRight: '1px solid rgba(255, 255, 255, 0.2)', width: '36px', textAlign: 'center', color: '#ffffff' }}>#</th>
+                  <th style={{ padding: "8px 10px", borderRight: '1px solid rgba(255, 255, 255, 0.2)', width: '38%', color: '#ffffff' }}>PRODUCT NAME & GENERIC FORMULATION</th>
+                  <th style={{ padding: "8px 6px", borderRight: '1px solid rgba(255, 255, 255, 0.2)', width: '75px', textAlign: 'center', color: '#ffffff' }}>PACK</th>
+                  <th style={{ padding: "8px 8px", borderRight: '1px solid rgba(255, 255, 255, 0.2)', width: '105px', textAlign: 'center', color: '#ffffff' }}>BATCH</th>
+                  <th style={{ padding: "8px 8px", borderRight: '1px solid rgba(255, 255, 255, 0.2)', width: '75px', textAlign: 'right', color: '#ffffff' }}>QTY</th>
+                  <th style={{ padding: "8px 8px", borderRight: '1px solid rgba(255, 255, 255, 0.2)', width: '65px', textAlign: 'right', color: '#ffffff' }}>FREE</th>
+                  <th style={{ padding: "8px 8px", borderRight: '1px solid rgba(255, 255, 255, 0.2)', width: '85px', textAlign: 'right', color: '#ffffff' }}>SCHEME</th>
+                  <th style={{ padding: "8px 8px", borderRight: '1px solid rgba(255, 255, 255, 0.2)', width: '95px', textAlign: 'right', color: '#ffffff' }}>P.RATE</th>
+                  <th style={{ padding: "8px 8px", borderRight: '1px solid rgba(255, 255, 255, 0.2)', width: '75px', textAlign: 'right', color: '#ffffff' }}>DIS%</th>
+                  <th style={{ padding: "8px 10px", width: '115px', textAlign: 'right', color: '#ffffff' }}>AMOUNT</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gridRows.map((row, idx) => {
+                  const isActive = activeRowId === row.id;
+                  return (
+                    <tr 
+                      key={row.id} 
+                      className={isActive ? 'cockpit-active-row' : ''}
+                      style={{ 
+                        borderBottom: '1px solid #e5e7eb', 
+                        backgroundColor: isActive ? '#e8f5e9' : (idx % 2 === 0 ? '#ffffff' : '#f8faf9'),
+                        borderLeft: isActive ? '4px solid #2d6a4f' : '4px solid transparent',
+                        height: '33px',
+                        transition: 'background-color 0.12s'
+                      }}
+                      onClick={() => setActiveRowId(row.id)}
+                    >
+                      <td style={{ padding: "3px 4px", borderRight: '1px solid #e5e7eb', color: isActive ? '#2d6a4f' : '#64748b', textAlign: 'center', fontSize: '12px', fontWeight: isActive ? '700' : '500' }}>
+                        {idx + 1}
+                      </td>
+                      
+                      {/* Product */}
+                      <td style={{ padding: "2px 4px", borderRight: '1px solid #e5e7eb' }}>
+                        <input 
+                          id={`product-input-${row.id}`}
+                          value={row.product} 
+                          onChange={e => handleRowChange(idx, 'product', e.target.value)}
+                          onFocus={() => setActiveRowId(row.id)}
+                          onKeyDown={e => {
+                            if (e.key === 'Tab' || e.key === 'End') {
                               e.preventDefault()
+                              document.getElementById('bill-discount-input')?.focus()
+                              return
+                            }
+                            if (e.key === 'Enter' || e.key === 'F7' || e.key === ' ') {
+                               if (row.product === '' && e.key === 'Enter' && totals.valueOfGoods > 0 && idx > 0) {
+                                 e.preventDefault()
+                                 document.getElementById('bill-discount-input')?.focus()
+                                 return
+                               }
+                               e.preventDefault()
+                               setShowProductModal(true)
+                            }
+                            handleGridKeyDown(e, row.id, 'product')
+                          }}
+                          placeholder={!row.product && (idx === 0 || Boolean(gridRows[idx - 1]?.product)) ? "Search product (Enter / Space)..." : ""} 
+                          style={{ 
+                            width: '100%', 
+                            backgroundColor: 'transparent', 
+                            color: '#111827', 
+                            border: '1px solid transparent', 
+                            borderRadius: '4px', 
+                            padding: "4px 8px", 
+                            outline: 'none', 
+                            fontSize: '13px', 
+                            fontWeight: '500' 
+                          }} 
+                          onFocusCapture={e => { 
+                            e.target.style.boxShadow = 'inset 0 0 0 1.5px #2d6a4f, 0 0 6px rgba(45, 106, 79, 0.2)';
+                            e.target.style.backgroundColor = '#e8f5e9'; 
+                          }} 
+                          onBlur={e => { 
+                            e.target.style.boxShadow = 'none'; 
+                            e.target.style.backgroundColor = 'transparent'; 
+                          }} 
+                        />
+                      </td>
+
+                      {/* Pack */}
+                      <td style={{ padding: "2px 4px", borderRight: '1px solid #e5e7eb' }}>
+                        <input 
+                          id={`pack-input-${row.id}`}
+                          readOnly
+                          value={row.pack}
+                          onFocus={() => setActiveRowId(row.id)}
+                          style={{ width: '100%', backgroundColor: 'transparent', color: '#4b5563', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'center', fontSize: '12px' }} 
+                        />
+                      </td>
+
+                      {/* Batch */}
+                      <td style={{ padding: "2px 4px", borderRight: '1px solid #e5e7eb' }}>
+                        <input 
+                          id={`batch-input-${row.id}`}
+                          value={row.batch} 
+                          onChange={e => handleRowChange(idx, 'batch', e.target.value)}
+                          onFocus={() => setActiveRowId(row.id)}
+                          onKeyDown={e => { 
+                            if (e.key === 'F3' || e.key === 'f3') {
+                              e.preventDefault();
                               setF3SelectedIndex(0);
                               setShowF3BatchModal(true);
-                              return
+                              return;
                             }
-                            if (row.product && (!row.expiry || !row.expiry.trim() || !isValidExpiryFormat(row.expiry))) {
-                              e.preventDefault()
-                              document.getElementById('bottom-expiry-input')?.focus()
-                              return
-                            }
-                            document.getElementById(`qty-input-${row.id}`)?.focus() 
-                          }
-                          handleGridKeyDown(e, row.id, 'batch')
-                        }}
-                        style={{ width: '100%', backgroundColor: 'transparent', color: '#fbbf24', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'center', fontSize: '13px', fontWeight: '600' }} 
-                        onFocusCapture={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.08)'; }} 
-                        onBlur={e => { e.target.style.borderColor = 'transparent'; e.target.style.backgroundColor = 'transparent'; }} 
-                      />
-                    </td>
-
-                    {/* Qty */}
-                    <td style={{ padding: "2px 4px", borderRight: '1px solid #1e293b' }}>
-                      <input 
-                        id={`qty-input-${row.id}`}
-                        value={row.qty} 
-                        onChange={e => handleRowChange(idx, 'qty', e.target.value)}
-                        onFocus={() => {
-                          setActiveRowId(row.id)
-                          if (row.product && (!row.batch?.trim() || !row.expiry?.trim())) {
-                            setTimeout(() => {
-                              if (!row.batch?.trim()) {
-                                alert('Please enter Batch Number before moving to Quantity!')
-                                document.getElementById('bottom-batch-input')?.focus()
-                              } else {
-                                alert('Please enter Expiry Date before moving to Quantity!')
-                                document.getElementById('bottom-expiry-input')?.focus()
+                            if (e.key === 'Enter') {
+                              if (row.product && (!row.batch || !row.batch.trim())) {
+                                e.preventDefault()
+                                setF3SelectedIndex(0);
+                                setShowF3BatchModal(true);
+                                return
                               }
-                            }, 10)
-                          }
-                        }}
-                        onKeyDown={e => { 
-                          if (e.key === 'Enter') document.getElementById(`free-input-${row.id}`)?.focus() 
-                          handleGridKeyDown(e, row.id, 'qty')
-                        }}
-                        style={{ width: '100%', backgroundColor: 'transparent', color: '#f8fafc', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'right', fontSize: '13px', fontWeight: '600' }} 
-                        onFocusCapture={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.08)'; }} 
-                        onBlur={e => { e.target.style.borderColor = 'transparent'; e.target.style.backgroundColor = 'transparent'; }} 
-                      />
-                    </td>
-
-                    {/* Free */}
-                    <td style={{ padding: "2px 4px", borderRight: '1px solid #1e293b' }}>
-                      <input 
-                        id={`free-input-${row.id}`}
-                        value={row.free} 
-                        onChange={e => handleRowChange(idx, 'free', e.target.value)}
-                        onFocus={() => setActiveRowId(row.id)}
-                        onKeyDown={e => { 
-                          if (e.key === 'Enter') document.getElementById(`extraSchem-input-${row.id}`)?.focus() 
-                          handleGridKeyDown(e, row.id, 'free')
-                        }}
-                        style={{ width: '100%', backgroundColor: 'transparent', color: '#34d399', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'right', fontSize: '13px' }} 
-                        onFocusCapture={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.08)'; }} 
-                        onBlur={e => { e.target.style.borderColor = 'transparent'; e.target.style.backgroundColor = 'transparent'; }} 
-                      />
-                    </td>
-
-                    {/* Extra Schem */}
-                    <td style={{ padding: "2px 4px", borderRight: '1px solid #1e293b' }}>
-                      <input 
-                        id={`extraSchem-input-${row.id}`}
-                        value={row.extraSchem} 
-                        onChange={e => handleRowChange(idx, 'extraSchem', e.target.value)}
-                        onFocus={() => setActiveRowId(row.id)}
-                        onKeyDown={e => { 
-                          if (e.key === 'Enter') document.getElementById(`prate-input-${row.id}`)?.focus() 
-                          handleGridKeyDown(e, row.id, 'extraSchem')
-                        }}
-                        style={{ width: '100%', backgroundColor: 'transparent', color: '#34d399', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'right', fontSize: '13px' }} 
-                        onFocusCapture={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.08)'; }} 
-                        onBlur={e => { e.target.style.borderColor = 'transparent'; e.target.style.backgroundColor = 'transparent'; }} 
-                      />
-                    </td>
-
-                    {/* P.Rate/S */}
-                    <td style={{ padding: "2px 4px", borderRight: '1px solid #1e293b' }}>
-                      <input 
-                        id={`prate-input-${row.id}`}
-                        value={row.prate} 
-                        onChange={e => handleRowChange(idx, 'prate', e.target.value)}
-                        onFocus={() => setActiveRowId(row.id)}
-                        onKeyDown={e => { 
-                          if (e.key === 'Enter') document.getElementById(`dis-input-${row.id}`)?.focus() 
-                          handleGridKeyDown(e, row.id, 'prate')
-                        }}
-                        style={{ width: '100%', backgroundColor: 'transparent', color: '#f8fafc', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'right', fontSize: '13px', fontWeight: '600' }} 
-                        onFocusCapture={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.08)'; }} 
-                        onBlur={e => { e.target.style.borderColor = 'transparent'; e.target.style.backgroundColor = 'transparent'; }} 
-                      />
-                    </td>
-
-                    {/* Dis1% */}
-                    <td style={{ padding: "2px 4px", borderRight: '1px solid #1e293b' }}>
-                      <input 
-                        id={`dis-input-${row.id}`}
-                        value={row.dis} 
-                        onChange={e => handleRowChange(idx, 'dis', e.target.value)}
-                        onFocus={() => setActiveRowId(row.id)}
-                        onKeyDown={e => { 
-                          handleGridKeyDown(e, row.id, 'dis')
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            
-                            const q = parseFloat(row.qty) || 0;
-                            const f = parseFloat(row.free) || 0;
-                            let finalPurQty = row.purDealQty || '';
-                            let finalPurFree = row.purDealFree || '';
-
-                            if (q > 0 && !row.purDealQty) {
-                               const div = getGcd(q, f);
-                               if (div > 0) {
-                                 finalPurQty = String(q / div);
-                                 finalPurFree = String(f / div);
-                               }
+                              if (row.product && (!row.expiry || !row.expiry.trim() || !isValidExpiryFormat(row.expiry))) {
+                                e.preventDefault()
+                                document.getElementById('bottom-expiry-input')?.focus()
+                                return
+                              }
+                              document.getElementById(`qty-input-${row.id}`)?.focus() 
                             }
-                            
-                            const newRows = [...gridRows]
-                            newRows[idx] = { 
-                              ...newRows[idx], 
-                              purDealQty: finalPurQty, 
-                              purDealFree: finalPurFree,
-                              schSalesQty: row.schSalesQty || finalPurQty,
-                              schSalesFree: row.schSalesFree || finalPurFree
+                            handleGridKeyDown(e, row.id, 'batch')
+                          }}
+                          style={{ width: '100%', backgroundColor: 'transparent', color: '#b45309', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'center', fontSize: '13px', fontWeight: '700', fontFamily: 'monospace' }} 
+                          onFocusCapture={e => { 
+                            e.target.style.boxShadow = 'inset 0 0 0 1.5px #2d6a4f, 0 0 6px rgba(45, 106, 79, 0.2)'; 
+                            e.target.style.backgroundColor = '#e8f5e9'; 
+                          }} 
+                          onBlur={e => { 
+                            e.target.style.boxShadow = 'none'; 
+                            e.target.style.backgroundColor = 'transparent'; 
+                          }} 
+                        />
+                      </td>
+
+                      {/* Qty */}
+                      <td style={{ padding: "2px 4px", borderRight: '1px solid #e5e7eb' }}>
+                        <input 
+                          id={`qty-input-${row.id}`}
+                          value={row.qty} 
+                          onChange={e => handleRowChange(idx, 'qty', e.target.value)}
+                          onFocus={() => {
+                            setActiveRowId(row.id)
+                            if (row.product && (!row.batch?.trim() || !row.expiry?.trim())) {
+                              setTimeout(() => {
+                                if (!row.batch?.trim()) {
+                                  alert('Please enter Batch Number before moving to Quantity!')
+                                  document.getElementById('bottom-batch-input')?.focus()
+                                } else {
+                                  alert('Please enter Expiry Date before moving to Quantity!')
+                                  document.getElementById('bottom-expiry-input')?.focus()
+                                }
+                              }, 10)
                             }
-                            setGridRows(newRows)
-                            
-                            setShowBatchModal(true)
-                            setTimeout(() => document.getElementById('modal-purdeal-qty-input')?.focus(), 50)
-                          } 
-                        }}
-                        style={{ width: '100%', backgroundColor: 'transparent', color: '#f8fafc', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'right', fontSize: '13px' }} 
-                        onFocusCapture={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.backgroundColor = 'rgba(59, 130, 246, 0.08)'; e.target.select(); }} 
-                        onBlur={e => { e.target.style.borderColor = 'transparent'; e.target.style.backgroundColor = 'transparent'; }} 
-                      />
-                    </td>
+                          }}
+                          onKeyDown={e => { 
+                            if (e.key === 'Enter') document.getElementById(`free-input-${row.id}`)?.focus() 
+                            handleGridKeyDown(e, row.id, 'qty')
+                          }}
+                          style={{ width: '100%', backgroundColor: 'transparent', color: '#111827', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'right', fontSize: '13px', fontWeight: '700', fontVariantNumeric: 'tabular-nums' }} 
+                          onFocusCapture={e => { 
+                            e.target.style.boxShadow = 'inset 0 0 0 1.5px #2d6a4f, 0 0 6px rgba(45, 106, 79, 0.2)'; 
+                            e.target.style.backgroundColor = '#e8f5e9'; 
+                          }} 
+                          onBlur={e => { 
+                            e.target.style.boxShadow = 'none'; 
+                            e.target.style.backgroundColor = 'transparent'; 
+                          }} 
+                        />
+                      </td>
 
-                    {/* Amount */}
-                    <td style={{ padding: "2px 6px" }}>
-                      <input 
-                        id={`amount-input-${row.id}`}
-                        readOnly
-                        value={((parseFloat(row.qty) || 0) * (parseFloat(row.prate) || 0)).toFixed(2)}
-                        onFocus={() => setActiveRowId(row.id)}
-                        style={{ width: '100%', backgroundColor: 'transparent', color: '#38bdf8', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'right', fontWeight: '700', fontSize: '13px' }} 
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      {/* Free */}
+                      <td style={{ padding: "2px 4px", borderRight: '1px solid #e5e7eb' }}>
+                        <input 
+                          id={`free-input-${row.id}`}
+                          value={row.free} 
+                          onChange={e => handleRowChange(idx, 'free', e.target.value)}
+                          onFocus={() => setActiveRowId(row.id)}
+                          onKeyDown={e => { 
+                            if (e.key === 'Enter') document.getElementById(`extraSchem-input-${row.id}`)?.focus() 
+                            handleGridKeyDown(e, row.id, 'free')
+                          }}
+                          style={{ width: '100%', backgroundColor: 'transparent', color: '#15803d', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'right', fontSize: '13px', fontWeight: '600', fontVariantNumeric: 'tabular-nums' }} 
+                          onFocusCapture={e => { 
+                            e.target.style.boxShadow = 'inset 0 0 0 1.5px #2d6a4f, 0 0 6px rgba(45, 106, 79, 0.2)'; 
+                            e.target.style.backgroundColor = '#e8f5e9'; 
+                          }} 
+                          onBlur={e => { 
+                            e.target.style.boxShadow = 'none'; 
+                            e.target.style.backgroundColor = 'transparent'; 
+                          }} 
+                        />
+                      </td>
 
-        {/* ── BOTTOM SUMMARY PANEL ── */}
-        <div style={{ backgroundColor: '#0f172a', borderTop: '1px solid #334155', display: 'flex', fontSize: '12px', flexShrink: 0 }}>
-          
-          {/* Left Metadata & Status Badges */}
-          <div style={{ flex: 1.6, padding: '8px 12px', borderRight: '1px solid #334155', display: 'flex', gap: '16px', alignItems: 'center', justifyContent: 'space-between' }}>
-            
-            {/* Input Column */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '48px', color: '#60a5fa', fontWeight: '600' }}>Batch:</span>
+                      {/* Extra Schem */}
+                      <td style={{ padding: "2px 4px", borderRight: '1px solid #e5e7eb' }}>
+                        <input 
+                          id={`extraSchem-input-${row.id}`}
+                          value={row.extraSchem} 
+                          onChange={e => handleRowChange(idx, 'extraSchem', e.target.value)}
+                          onFocus={() => setActiveRowId(row.id)}
+                          onKeyDown={e => { 
+                            if (e.key === 'Enter') document.getElementById(`prate-input-${row.id}`)?.focus() 
+                            handleGridKeyDown(e, row.id, 'extraSchem')
+                          }}
+                          style={{ width: '100%', backgroundColor: 'transparent', color: '#15803d', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'right', fontSize: '13px', fontVariantNumeric: 'tabular-nums' }} 
+                          onFocusCapture={e => { 
+                            e.target.style.boxShadow = 'inset 0 0 0 1.5px #2d6a4f, 0 0 6px rgba(45, 106, 79, 0.2)'; 
+                            e.target.style.backgroundColor = '#e8f5e9'; 
+                          }} 
+                          onBlur={e => { 
+                            e.target.style.boxShadow = 'none'; 
+                            e.target.style.backgroundColor = 'transparent'; 
+                          }} 
+                        />
+                      </td>
+
+                      {/* P.Rate/S */}
+                      <td style={{ padding: "2px 4px", borderRight: '1px solid #e5e7eb' }}>
+                        <input 
+                          id={`prate-input-${row.id}`}
+                          value={row.prate} 
+                          onChange={e => handleRowChange(idx, 'prate', e.target.value)}
+                          onFocus={() => setActiveRowId(row.id)}
+                          onKeyDown={e => { 
+                            if (e.key === 'Enter') document.getElementById(`dis-input-${row.id}`)?.focus() 
+                            handleGridKeyDown(e, row.id, 'prate')
+                          }}
+                          style={{ width: '100%', backgroundColor: 'transparent', color: '#1e3a8a', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'right', fontSize: '13px', fontWeight: '700', fontVariantNumeric: 'tabular-nums' }} 
+                          onFocusCapture={e => { 
+                            e.target.style.boxShadow = 'inset 0 0 0 1.5px #2d6a4f, 0 0 6px rgba(45, 106, 79, 0.2)'; 
+                            e.target.style.backgroundColor = '#e8f5e9'; 
+                          }} 
+                          onBlur={e => { 
+                            e.target.style.boxShadow = 'none'; 
+                            e.target.style.backgroundColor = 'transparent'; 
+                          }} 
+                        />
+                      </td>
+
+                      {/* Dis1% */}
+                      <td style={{ padding: "2px 4px", borderRight: '1px solid #e5e7eb' }}>
+                        <input 
+                          id={`dis-input-${row.id}`}
+                          value={row.dis} 
+                          onChange={e => handleRowChange(idx, 'dis', e.target.value)}
+                          onFocus={() => setActiveRowId(row.id)}
+                          onKeyDown={e => { 
+                            handleGridKeyDown(e, row.id, 'dis')
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              
+                              const q = parseFloat(row.qty) || 0;
+                              const f = parseFloat(row.free) || 0;
+                              let finalPurQty = row.purDealQty || '';
+                              let finalPurFree = row.purDealFree || '';
+
+                              if (q > 0 && !row.purDealQty) {
+                                 const div = getGcd(q, f);
+                                 if (div > 0) {
+                                   finalPurQty = String(q / div);
+                                   finalPurFree = String(f / div);
+                                 }
+                              }
+                              
+                              const newRows = [...gridRows]
+                              newRows[idx] = { 
+                                ...newRows[idx], 
+                                purDealQty: finalPurQty, 
+                                purDealFree: finalPurFree,
+                                schSalesQty: row.schSalesQty || finalPurQty,
+                                schSalesFree: row.schSalesFree || finalPurFree
+                              }
+                              setGridRows(newRows)
+                              
+                              setShowBatchModal(true)
+                              setTimeout(() => document.getElementById('modal-purdeal-qty-input')?.focus(), 50)
+                            } 
+                          }}
+                          style={{ width: '100%', backgroundColor: 'transparent', color: '#b45309', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'right', fontSize: '13px', fontWeight: '600', fontVariantNumeric: 'tabular-nums' }} 
+                          onFocusCapture={e => { 
+                            e.target.style.boxShadow = 'inset 0 0 0 1.5px #2d6a4f, 0 0 6px rgba(45, 106, 79, 0.2)'; 
+                            e.target.style.backgroundColor = '#e8f5e9'; 
+                            e.target.select(); 
+                          }} 
+                          onBlur={e => { 
+                            e.target.style.boxShadow = 'none'; 
+                            e.target.style.backgroundColor = 'transparent'; 
+                          }} 
+                        />
+                      </td>
+
+                      {/* Amount */}
+                      <td style={{ padding: "2px 8px" }}>
+                        <input 
+                          id={`amount-input-${row.id}`}
+                          readOnly
+                          value={((parseFloat(row.qty) || 0) * (parseFloat(row.prate) || 0)).toFixed(2)}
+                          onFocus={() => setActiveRowId(row.id)}
+                          style={{ width: '100%', backgroundColor: 'transparent', color: '#1b4332', border: '1px solid transparent', borderRadius: '4px', padding: "4px 6px", outline: 'none', textAlign: 'right', fontWeight: '800', fontSize: '13px', fontVariantNumeric: 'tabular-nums' }} 
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── ZERO-TRAVEL TELEMETRY MICRO-HUD STRIP (From Option 3 - Docked at table foot with ZERO layout shift) ── */}
+          <div className="cockpit-micro-hud" style={{
+            backgroundColor: '#f8faf9',
+            borderTop: '2px solid #2d6a4f',
+            padding: '5px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: '11px',
+            flexShrink: 0
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{
+                fontSize: '9px',
+                fontWeight: '800',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                backgroundColor: '#d8f3dc',
+                color: '#1b4332',
+                padding: '2px 7px',
+                borderRadius: '4px',
+                border: '1px solid #b7e4c7'
+              }}>
+                ⚡ Line {gridRows.findIndex(r => r.id === activeRowId) + 1} HUD
+              </span>
+              <span style={{ fontWeight: '700', color: '#111827', fontSize: '12px' }}>
+                {gridRows.find(r => r.id === activeRowId)?.product || 'Select a product to view telemetry'}
+              </span>
+            </div>
+
+            {/* Telemetry Chips & Micro-Inputs (Preserves keyboard focus traversal!) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'monospace' }}>
+              <span style={{ fontSize: '10px', color: '#15803d', background: '#dcfce7', padding: '2px 6px', borderRadius: '4px', border: '1px solid #86efac', fontWeight: 'bold' }}>
+                {gridRows.find(r => r.id === activeRowId)?.product ? 'Stock: In Stock' : 'Stock: ---'}
+              </span>
+
+              {/* Batch Input [F3] */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <span style={{ fontSize: '10px', color: '#2d6a4f', fontWeight: '700' }}>Batch:</span>
                 <input 
                   id="bottom-batch-input"
                   value={gridRows.find(r => r.id === activeRowId)?.batch || ''}
@@ -1653,15 +1994,16 @@ export default function SalesBill() {
                       }
                     }
                   }}
-                  style={{ width: '90px', backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '4px', padding: '4px 8px', fontSize: '13px', color: '#fbbf24', fontWeight: 'bold', outline: 'none' }}
-                  onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.select() }}
-                  onBlur={e => e.target.style.borderColor = '#475569'}
+                  style={{ width: '80px', backgroundColor: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '4px', padding: '2px 5px', fontSize: '11px', color: '#b45309', fontWeight: 'bold', outline: 'none', textAlign: 'center', fontFamily: 'monospace' }}
+                  onFocus={e => { e.target.style.borderColor = '#2d6a4f'; e.target.style.boxShadow = '0 0 0 2px rgba(45,106,79,0.2)'; e.target.select() }}
+                  onBlur={e => { e.target.style.borderColor = '#cbd5e1'; e.target.style.boxShadow = 'none' }}
                 />
-                <span onClick={() => { setF3SelectedIndex(0); setShowF3BatchModal(true); }} style={{ fontSize: '11px', backgroundColor: '#3b82f6', color: '#fff', padding: '3px 6px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }} title="Press F3 or click to select existing batch">[F3]</span>
+                <span onClick={() => { setF3SelectedIndex(0); setShowF3BatchModal(true); }} style={{ fontSize: '9px', backgroundColor: '#2563eb', color: '#fff', padding: '2px 5px', borderRadius: '3px', cursor: 'pointer', fontWeight: 'bold' }} title="Press F3 to select batch">[F3]</span>
               </div>
-              
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '48px', color: '#60a5fa', fontWeight: '600' }}>Expiry:</span>
+
+              {/* Expiry Input */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <span style={{ fontSize: '10px', color: '#2d6a4f', fontWeight: '700' }}>Exp:</span>
                 <input 
                   id="bottom-expiry-input"
                   value={gridRows.find(r => r.id === activeRowId)?.expiry || ''}
@@ -1684,320 +2026,308 @@ export default function SalesBill() {
                       }
                     }
                   }}
-                  style={{ width: '90px', backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '4px', padding: '4px 8px', fontSize: '13px', color: '#34d399', fontWeight: 'bold', outline: 'none', textAlign: 'center' }}
-                  onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.select() }}
-                  onBlur={e => { 
-                    e.target.style.borderColor = '#475569'
-                    const val = e.target.value
-                    if (val && val.trim() !== '' && !isValidExpiryFormat(val)) {
-                      alert('Expiry date will only be accepted in strict MM/YY format (Month 01-12 / 2-digit Year, e.g., 11/27, 08/28).')
-                    }
-                  }}
+                  style={{ width: '60px', backgroundColor: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '4px', padding: '2px 5px', fontSize: '11px', color: '#15803d', fontWeight: 'bold', outline: 'none', textAlign: 'center', fontFamily: 'monospace' }}
+                  onFocus={e => { e.target.style.borderColor = '#2d6a4f'; e.target.style.boxShadow = '0 0 0 2px rgba(45,106,79,0.2)'; e.target.select() }}
+                  onBlur={e => { e.target.style.borderColor = '#cbd5e1'; e.target.style.boxShadow = 'none' }}
                 />
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '48px', color: '#60a5fa', fontWeight: '600' }}>M.R.P.:</span>
+              {/* MRP Input */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <span style={{ fontSize: '10px', color: '#2d6a4f', fontWeight: '700' }}>MRP:</span>
                 <input 
                   value={gridRows.find(r => r.id === activeRowId)?.mrp || ''}
                   onChange={e => {
                     const rowIndex = gridRows.findIndex(r => r.id === activeRowId)
                     if (rowIndex !== -1) handleRowChange(rowIndex, 'mrp', e.target.value)
                   }}
-                  style={{ width: '90px', backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: '4px', padding: '4px 8px', fontSize: '13px', color: '#f8fafc', outline: 'none', textAlign: 'right' }}
-                  onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.select() }}
-                  onBlur={e => e.target.style.borderColor = '#475569'}
+                  style={{ width: '65px', backgroundColor: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '4px', padding: '2px 5px', fontSize: '11px', color: '#111827', outline: 'none', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: '600' }}
+                  onFocus={e => { e.target.style.borderColor = '#2d6a4f'; e.target.style.boxShadow = '0 0 0 2px rgba(45,106,79,0.2)'; e.target.select() }}
+                  onBlur={e => { e.target.style.borderColor = '#cbd5e1'; e.target.style.boxShadow = 'none' }}
+                />
+              </div>
+
+              {/* SRate Badge */}
+              <span style={{ fontSize: '10px', color: '#1e3a8a', background: '#eff6ff', padding: '2px 6px', borderRadius: '4px', border: '1px solid #bfdbfe', fontWeight: 'bold' }}>
+                SRate: ₹{gridRows.find(r => r.id === activeRowId)?.rateA || '0.00'}
+              </span>
+
+              {/* Margin Badge */}
+              <span style={{ fontSize: '10px', color: '#15803d', background: '#ecfdf5', padding: '2px 6px', borderRadius: '4px', border: '1px solid #a7f3d0', fontWeight: 'bold' }}>
+                Margin: 25.0%
+              </span>
+
+              {/* HSN & GST */}
+              <span style={{ fontSize: '10px', color: '#475569', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                HSN: {gridRows.find(r => r.id === activeRowId)?.hsn || '3004'}
+              </span>
+              <span style={{ fontSize: '10px', color: '#b45309', background: '#fef3c7', padding: '2px 6px', borderRadius: '4px', border: '1px solid #fde68a', fontWeight: 'bold' }}>
+                GST: {gridRows.find(r => r.id === activeRowId)?.igst || '12'}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── DUAL BOTTOM POWER-DECK (FUSION OF OPTIONS 1 & 2) ── */}
+        <div style={{ display: 'flex', gap: '8px', height: '175px', flexShrink: 0 }}>
+          
+          {/* LEFT DECK (58%): LAST 6 SAVED BILLS BENCHMARK & FAST KEYBOARD MAP (From Option 1) */}
+          <div className="cockpit-bottom-left" style={{ 
+            flex: 1.35, 
+            backgroundColor: '#ffffff', 
+            border: '1px solid #d8e2dc', 
+            borderRadius: '8px', 
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            overflow: 'hidden' 
+          }}>
+            {/* Top: Header of Benchmark */}
+            <div style={{ 
+              background: 'linear-gradient(90deg, #1b4332 0%, #2d6a4f 100%)', 
+              padding: '4px 12px', 
+              fontSize: '11px', 
+              fontWeight: '700', 
+              color: '#ffffff', 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              borderBottom: '1px solid #143527', 
+              flexShrink: 0 
+            }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Clock size={12} color="#ffffff" /> LAST 6 SAVED BILLS BENCHMARK — [ {gridRows.find(r => r.id === activeRowId)?.product || 'Select Product'} ]
+              </span>
+              <span style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: '10px', fontWeight: 'normal' }}>
+                {partyName ? `Party: ${partyName}` : 'Select product row for rate history'}
+              </span>
+            </div>
+
+            {/* Benchmark Table Body */}
+            <div style={{ overflowY: 'auto', flex: 1, padding: '2px 0' }}>
+              {gridRows.find(r => r.id === activeRowId)?.product ? (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10.5px', textAlign: 'left', fontFamily: 'monospace', lineHeight: '1.25' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f8faf9', color: '#475569', borderBottom: '1px solid #e5e7eb', fontWeight: 'bold' }}>
+                      <th style={{ padding: '2px 6px', width: '22%' }}>Party Name</th>
+                      <th style={{ padding: '2px 6px', width: '85px' }}>BILL NO.</th>
+                      <th style={{ padding: '2px 6px', width: '75px' }}>DATE</th>
+                      <th style={{ padding: '2px 6px', textAlign: 'right', width: '50px' }}>QTY.</th>
+                      <th style={{ padding: '2px 6px', width: '80px', paddingLeft: '8px' }}>BATCH</th>
+                      <th style={{ padding: '2px 6px', width: '60px' }}>EXP.</th>
+                      <th style={{ padding: '2px 6px', textAlign: 'right' }}>RATE</th>
+                      <th style={{ padding: '2px 6px', textAlign: 'right' }}>S.RATE</th>
+                      <th style={{ padding: '2px 6px', textAlign: 'right' }}>MRG%</th>
+                      <th style={{ padding: '2px 6px', textAlign: 'right' }}>M.R.P.</th>
+                      <th style={{ padding: '2px 6px', textAlign: 'right' }}>DISC%</th>
+                      <th style={{ padding: '2px 6px', textAlign: 'right' }}>DEAL</th>
+                      <th style={{ padding: '2px 6px', textAlign: 'right' }}>COST</th>
+                      <th style={{ padding: '2px 6px', textAlign: 'center', width: '30px' }}>G</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getProductHistory(gridRows.find(r => r.id === activeRowId)?.product).map((hist, index) => (
+                      <tr key={index} style={{ borderBottom: '1px solid #f1f5f9', color: '#111827' }}>
+                        <td style={{ padding: '1px 6px', color: '#2d6a4f', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{hist.party}</td>
+                        <td style={{ padding: '1px 6px', color: '#334155' }}>{hist.billNo}</td>
+                        <td style={{ padding: '1px 6px', color: '#334155' }}>{hist.date}</td>
+                        <td style={{ padding: '1px 6px', textAlign: 'right', fontWeight: 'bold', color: '#111827' }}>{hist.qty}</td>
+                        <td style={{ padding: '1px 6px', paddingLeft: '8px', color: '#b45309', fontWeight: '600' }}>{hist.batch}</td>
+                        <td style={{ padding: '1px 6px', color: '#15803d', fontWeight: 'bold' }}>{hist.expiry}</td>
+                        <td style={{ padding: '1px 6px', textAlign: 'right', color: '#111827', fontWeight: '600' }}>{hist.rate.toFixed(2)}</td>
+                        <td style={{ padding: '1px 6px', textAlign: 'right', color: '#1e3a8a' }}>{hist.srate.toFixed(2)}</td>
+                        <td style={{ padding: '1px 6px', textAlign: 'right', color: '#15803d' }}>{hist.mrg}</td>
+                        <td style={{ padding: '1px 6px', textAlign: 'right', color: '#334155' }}>{hist.mrp.toFixed(2)}</td>
+                        <td style={{ padding: '1px 6px', textAlign: 'right', color: '#b45309' }}>{hist.disc.toFixed(2)}</td>
+                        <td style={{ padding: '1px 6px', textAlign: 'right', color: '#15803d', fontWeight: '600' }}>{hist.deal}</td>
+                        <td style={{ padding: '1px 6px', textAlign: 'right', fontWeight: 'bold', color: '#7c3aed' }}>{hist.cost.toFixed(2)}</td>
+                        <td style={{ padding: '1px 6px', textAlign: 'center', color: '#64748b' }}>{hist.godown}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontStyle: 'italic', fontSize: '11px', padding: '8px' }}>
+                  Select a product from the table above to view its historical sales rate benchmarks.
+                </div>
+              )}
+            </div>
+
+            {/* Bottom: Fast Keyboard Shortcuts Map Dock */}
+            <div style={{ backgroundColor: '#f8faf9', borderTop: '1px solid #e2e8f0', padding: '4px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, fontSize: '10px' }}>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <span style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', color: '#334155', padding: '2px 6px', borderRadius: '4px' }}>
+                  <b style={{ color: '#2d6a4f' }}>F7</b> Party
+                </span>
+                <span style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', color: '#334155', padding: '2px 6px', borderRadius: '4px' }}>
+                  <b style={{ color: '#2d6a4f' }}>F3</b> Batches
+                </span>
+                <span style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', color: '#334155', padding: '2px 6px', borderRadius: '4px' }}>
+                  <b style={{ color: '#15803d' }}>F9</b> Load SO
+                </span>
+                <span style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', color: '#334155', padding: '2px 6px', borderRadius: '4px' }}>
+                  <b style={{ color: '#b45309' }}>End</b> Bill Disc
+                </span>
+                <span style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', color: '#334155', padding: '2px 6px', borderRadius: '4px' }}>
+                  <b style={{ color: '#2d6a4f' }}>↵</b> Advance
+                </span>
+                <span style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', color: '#334155', padding: '2px 6px', borderRadius: '4px' }}>
+                  <b style={{ color: '#dc2626' }}>Esc</b> Exit
+                </span>
+              </div>
+              <span style={{ color: '#64748b', fontSize: '9px' }}>100% Zero-Mouse Fast Billing</span>
+            </div>
+          </div>
+
+          {/* RIGHT DECK (42%): FINANCIAL CHECKOUT & HERO NET PAYABLE (From Option 2) */}
+          <div className="cockpit-bottom-right" style={{ 
+            flex: 1, 
+            backgroundColor: '#ffffff', 
+            border: '1px solid #d8e2dc', 
+            borderRadius: '8px', 
+            padding: '8px 12px', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            justifyContent: 'space-between',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+            flexShrink: 0
+          }}>
+            {/* Financial Breakdown Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 10px', fontSize: '11px', fontFamily: 'monospace' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b' }}>Goods Value:</span> 
+                <span style={{ fontWeight: '700', color: '#111827' }}>₹{totals.valueOfGoods.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b' }}>Taxable Base:</span> 
+                <span style={{ fontWeight: '700', color: '#111827' }}>₹{netTaxableBeforeGst.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#2d6a4f' }}>GST Total (12%):</span> 
+                <span style={{ fontWeight: '700', color: '#2d6a4f' }}>₹{backgroundGstAmount.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b' }}>Total Units:</span> 
+                <span style={{ fontWeight: '700', color: '#15803d' }}>{gridRows.reduce((s, r) => s + (parseFloat(r.qty)||0) + (parseFloat(r.free)||0), 0)}</span>
+              </div>
+            </div>
+
+            {/* Discount & Ledger Adjustments Row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px dashed #e2e8f0', paddingTop: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                <span style={{ color: '#b45309', fontWeight: '700', fontSize: '11px' }}>Disc [End]:</span>
+                <input 
+                  id="bill-discount-input"
+                  type="text" 
+                  placeholder="00.00" 
+                  value={billDiscount} 
+                  onChange={e => setBillDiscount(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      setBillDiscount(formatDiscountInput(billDiscount));
+                      handleSaveTrigger();
+                    }
+                  }}
+                  style={{ width: '65px', textAlign: 'right', backgroundColor: '#fffbeb', border: '1.5px solid #f59e0b', borderRadius: '4px', padding: '2px 5px', fontSize: '11px', color: '#b45309', fontWeight: 'bold', outline: 'none' }}
+                  onFocus={e => { e.target.style.boxShadow = '0 0 0 2px rgba(245, 158, 11, 0.3)'; e.target.select(); }}
+                  onBlur={e => {
+                    e.target.style.boxShadow = 'none';
+                    setBillDiscount(formatDiscountInput(billDiscount));
+                  }}
+                />
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1 }}>
+                <select 
+                  value={ledger1Name} onChange={e => setLedger1Name(e.target.value)}
+                  style={{ flex: 1, backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '2px 4px', fontSize: '10px', color: '#111827', outline: 'none' }}
+                >
+                  <option value="">+ Ledger Adj...</option>
+                  <option value="Round Off">Round Off</option>
+                  <option value="TDS Deduction">TDS Deduction (-)</option>
+                  <option value="Cash in Hand">Cash in Hand</option>
+                  <option value="Freight Charges">Freight Charges</option>
+                </select>
+                <input 
+                  type="text" placeholder="± 0.00" value={ledger1Amt} onChange={e => setLedger1Amt(e.target.value)}
+                  style={{ width: '50px', textAlign: 'right', backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '2px 4px', fontSize: '11px', color: '#111827', outline: 'none', fontWeight: 'bold' }}
                 />
               </div>
             </div>
 
-            {/* Quick Status Chips */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: '125px', justifyContent: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '46px', color: '#94a3b8', fontWeight: '600' }}>Stock:</span> 
-                <span style={{ color: '#10b981', fontWeight: '700', background: 'rgba(16, 185, 129, 0.1)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>0</span>
+            {/* Net Hero Card & Confirm Save Button */}
+            <div style={{
+              background: 'linear-gradient(135deg, #1b4332 0%, #2d6a4f 60%, #40916c 100%)',
+              borderRadius: '8px',
+              padding: '7px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              boxShadow: '0 3px 12px rgba(45, 106, 79, 0.25)',
+              marginTop: '2px'
+            }}>
+              <div>
+                <div style={{ fontSize: '9px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255, 255, 255, 0.85)' }}>
+                  NET INVOICE TOTAL
+                </div>
+                <div className="cockpit-hero-total" style={{ fontSize: '22px', fontWeight: '800', color: '#ffffff', letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>
+                  ₹ {invoiceValue.toFixed(2)}
+                </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '46px', color: '#94a3b8', fontWeight: '600' }}>SRate:</span> 
-                <span style={{ color: '#38bdf8', fontWeight: '600' }}>{gridRows.find(r => r.id === activeRowId)?.rateA || '0.00'}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '46px', color: '#94a3b8', fontWeight: '600' }}>HSN:</span> 
-                <span style={{ color: '#cbd5e1' }}>{gridRows.find(r => r.id === activeRowId)?.hsn || '---'}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '46px', color: '#94a3b8', fontWeight: '600' }}>Tax%:</span> 
-                <span style={{ color: '#f59e0b', fontWeight: '600' }}>{gridRows.find(r => r.id === activeRowId)?.igst ? `${gridRows.find(r => r.id === activeRowId)?.igst}%` : '0%'}</span>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Middle Subtotals */}
-          <div style={{ flex: 1, padding: '8px 12px', borderRight: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '4px', justifyContent: 'center' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#94a3b8' }}>MRP Value :</span> <span style={{ fontWeight: '600' }}>{totals.mrpValue.toFixed(2)}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#94a3b8' }}>Taxable Amt :</span> <span style={{ fontWeight: '600' }}>{netTaxableBeforeGst.toFixed(2)}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#94a3b8' }}>Amount :</span> <span style={{ fontWeight: '600' }}>{backgroundNetAmount.toFixed(2)}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#94a3b8' }}>Post-Tax Adj :</span> <span style={{ color: (adj1+adj2+adj3) !== 0 ? '#fbbf24' : 'inherit', fontWeight: '600' }}>{(adj1+adj2+adj3).toFixed(2)}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#94a3b8' }}>Total Qty :</span> <span style={{ fontWeight: '700', color: '#f8fafc' }}>{gridRows.reduce((s, r) => s + (parseFloat(r.qty)||0) + (parseFloat(r.free)||0), 0)}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', borderTop: '1px dashed #334155', paddingTop: '3px', marginTop: '2px' }}><span style={{ color: '#f8fafc' }}>Balance :</span> <span style={{ color: '#38bdf8' }}>{invoiceValue.toFixed(2)}</span></div>
-          </div>
-
-          {/* Right GST & Adjustments */}
-          <div style={{ flex: 1.3, padding: '8px 12px', borderRight: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '4px', justifyContent: 'center' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#60a5fa', fontWeight: '600' }}>VALUE OF GOODS :</span> <span style={{ fontWeight: '700' }}>{totals.valueOfGoods.toFixed(2)}</span></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#60a5fa', fontWeight: '600' }}>GST AMT :</span> <span style={{ fontWeight: '700' }}>{backgroundGstAmount.toFixed(2)}</span></div>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '3px', borderBottom: '1px dashed #334155' }}>
-              <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>DISCOUNT (±) :</span> 
-              <input 
-                id="bill-discount-input"
-                type="text" 
-                placeholder="00.00" 
-                value={billDiscount} 
-                onChange={e => setBillDiscount(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    setBillDiscount(formatDiscountInput(billDiscount));
-                    handleSaveTrigger();
-                  }
+              <button
+                type="button"
+                onClick={handleSaveTrigger}
+                style={{
+                  padding: '7px 14px',
+                  background: '#ffffff',
+                  color: '#1b4332',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontWeight: '800',
+                  fontSize: '11px',
+                  letterSpacing: '0.03em',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                  transition: 'transform 0.1s'
                 }}
-                style={{ width: '80px', textAlign: 'right', backgroundColor: '#1e293b', border: '1px solid #fbbf24', borderRadius: '4px', padding: '3px 8px', fontSize: '12px', color: '#fbbf24', fontWeight: 'bold', outline: 'none' }}
-                onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.select(); }}
-                onBlur={e => {
-                  e.target.style.borderColor = '#fbbf24';
-                  setBillDiscount(formatDiscountInput(billDiscount));
-                }}
-              />
-            </div>
-            
-            {/* 3 Selectable Post-Tax Ledger Adjustments */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
-              <select 
-                value={ledger1Name} onChange={e => setLedger1Name(e.target.value)}
-                style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '2px 6px', fontSize: '11px', color: '#cbd5e1', outline: 'none' }}
+                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
               >
-                <option value="">+ Select Adj. Ledger 1...</option>
-                <option value="TDS Deduction">TDS Deduction (-)</option>
-                <option value="Cash in Hand">Cash in Hand</option>
-                <option value="Freight Charges">Freight / Cartage</option>
-                <option value="Packing Charges">Packing Charges</option>
-                <option value="Other Parties Ledger">Other Parties Ledger</option>
-                <option value="Round Off">Round Off</option>
-              </select>
-              <input 
-                type="text" placeholder="± 0.00" value={ledger1Amt} onChange={e => setLedger1Amt(e.target.value)}
-                style={{ width: '70px', textAlign: 'right', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '2px 6px', fontSize: '11px', color: '#f8fafc', outline: 'none', fontWeight: 'bold' }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
-              <select 
-                value={ledger2Name} onChange={e => setLedger2Name(e.target.value)}
-                style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '2px 6px', fontSize: '11px', color: '#cbd5e1', outline: 'none' }}
-              >
-                <option value="">+ Select Adj. Ledger 2...</option>
-                <option value="TDS Deduction">TDS Deduction (-)</option>
-                <option value="Cash in Hand">Cash in Hand</option>
-                <option value="Freight Charges">Freight / Cartage</option>
-                <option value="Packing Charges">Packing Charges</option>
-                <option value="Other Parties Ledger">Other Parties Ledger</option>
-                <option value="Round Off">Round Off</option>
-              </select>
-              <input 
-                type="text" placeholder="± 0.00" value={ledger2Amt} onChange={e => setLedger2Amt(e.target.value)}
-                style={{ width: '70px', textAlign: 'right', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '2px 6px', fontSize: '11px', color: '#f8fafc', outline: 'none', fontWeight: 'bold' }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
-              <select 
-                value={ledger3Name} onChange={e => setLedger3Name(e.target.value)}
-                style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '2px 6px', fontSize: '11px', color: '#cbd5e1', outline: 'none' }}
-              >
-                <option value="">+ Select Adj. Ledger 3...</option>
-                <option value="TDS Deduction">TDS Deduction (-)</option>
-                <option value="Cash in Hand">Cash in Hand</option>
-                <option value="Freight Charges">Freight / Cartage</option>
-                <option value="Packing Charges">Packing Charges</option>
-                <option value="Other Parties Ledger">Other Parties Ledger</option>
-                <option value="Round Off">Round Off</option>
-              </select>
-              <input 
-                type="text" placeholder="± 0.00" value={ledger3Amt} onChange={e => setLedger3Amt(e.target.value)}
-                style={{ width: '70px', textAlign: 'right', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '4px', padding: '2px 6px', fontSize: '11px', color: '#f8fafc', outline: 'none', fontWeight: 'bold' }}
-              />
-            </div>
-          </div>
-
-          {/* Far Right: Total Invoice Value Hero Card */}
-          <div style={{ 
-            width: '210px', 
-            background: 'linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(30,58,138,0.3) 100%)', 
-            borderLeft: '1px solid #334155', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            padding: '12px' 
-          }}>
-            <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94a3b8' }}>
-              Total Invoice Value
-            </div>
-            <div style={{ fontSize: '28px', fontWeight: '800', color: '#38bdf8', marginTop: '2px', letterSpacing: '-0.02em', textShadow: '0 2px 10px rgba(56, 189, 248, 0.3)' }}>
-              ₹ {invoiceValue.toFixed(2)}
+                CONFIRM & SAVE [Ctrl+S]
+              </button>
             </div>
           </div>
 
         </div>
 
-        {/* ── LAST 6 BILLED PURCHASES HISTORY PANEL ── */}
-        <div style={{ backgroundColor: '#090d16', borderTop: '1px solid #334155', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'auto', maxHeight: '120px', flexShrink: 0 }}>
-          <div style={{ backgroundColor: '#131c2e', padding: '3px 12px', fontSize: '11px', fontWeight: 'bold', color: '#38bdf8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', flexShrink: 0 }}>
-            <span>🕒 LAST 6 SAVED BILL DETAILS — [ {gridRows.find(r => r.id === activeRowId)?.product || 'Select Product'} ]</span>
-            <span style={{ color: '#64748b', fontSize: '10px', fontWeight: 'normal' }}>
-              {gridRows.find(r => r.id === activeRowId)?.product ? 'Shows strictly last 6 saved bills only' : 'Select product to compare past bills'}
-            </span>
-          </div>
-          <div style={{ overflowY: 'hidden', flex: 1 }}>
-            {gridRows.find(r => r.id === activeRowId)?.product ? (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: 'left', fontFamily: 'monospace', lineHeight: '1.2' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#0f172a', color: '#94a3b8', borderBottom: '1px solid #1e293b', fontWeight: 'bold' }}>
-                  <th style={{ padding: '2px 6px', width: '22%' }}>Party Name</th>
-                  <th style={{ padding: '2px 6px', width: '85px' }}>BILL NO.</th>
-                  <th style={{ padding: '2px 6px', width: '75px' }}>DATE</th>
-                  <th style={{ padding: '2px 6px', textAlign: 'right', width: '50px' }}>QTY.</th>
-                  <th style={{ padding: '2px 6px', width: '80px', paddingLeft: '10px' }}>BATCH</th>
-                  <th style={{ padding: '2px 6px', width: '60px' }}>EXP.</th>
-                  <th style={{ padding: '2px 6px', textAlign: 'right' }}>RATE</th>
-                  <th style={{ padding: '2px 6px', textAlign: 'right' }}>S.RATE</th>
-                  <th style={{ padding: '2px 6px', textAlign: 'right' }}>MRG%</th>
-                  <th style={{ padding: '2px 6px', textAlign: 'right' }}>M.R.P.</th>
-                  <th style={{ padding: '2px 6px', textAlign: 'right' }}>DISC%</th>
-                  <th style={{ padding: '2px 6px', textAlign: 'right' }}>DEAL</th>
-                  <th style={{ padding: '2px 6px', textAlign: 'right' }}>COST</th>
-                  <th style={{ padding: '2px 6px', textAlign: 'center', width: '30px' }}>G</th>
-                </tr>
-              </thead>
-              <tbody>
-                {getProductHistory(gridRows.find(r => r.id === activeRowId)?.product).map((hist, index) => (
-                  <tr key={index} style={{ borderBottom: 'none', color: '#f8fafc' }}>
-                    <td style={{ padding: '1px 6px', color: '#38bdf8', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{hist.party}</td>
-                    <td style={{ padding: '1px 6px', color: '#e2e8f0' }}>{hist.billNo}</td>
-                    <td style={{ padding: '1px 6px', color: '#e2e8f0' }}>{hist.date}</td>
-                    <td style={{ padding: '1px 6px', textAlign: 'right', fontWeight: 'bold', color: '#f1f5f9' }}>{hist.qty}</td>
-                    <td style={{ padding: '1px 6px', paddingLeft: '10px', color: '#fbbf24', fontWeight: '600' }}>{hist.batch}</td>
-                    <td style={{ padding: '1px 6px', color: '#34d399', fontWeight: 'bold' }}>{hist.expiry}</td>
-                    <td style={{ padding: '1px 6px', textAlign: 'right', color: '#e2e8f0' }}>{hist.rate.toFixed(2)}</td>
-                    <td style={{ padding: '1px 6px', textAlign: 'right', color: '#e2e8f0' }}>{hist.srate.toFixed(2)}</td>
-                    <td style={{ padding: '1px 6px', textAlign: 'right', color: '#34d399' }}>{hist.mrg}</td>
-                    <td style={{ padding: '1px 6px', textAlign: 'right', color: '#e2e8f0' }}>{hist.mrp.toFixed(2)}</td>
-                    <td style={{ padding: '1px 6px', textAlign: 'right', color: '#e2e8f0' }}>{hist.disc.toFixed(2)}</td>
-                    <td style={{ padding: '1px 6px', textAlign: 'right', color: '#34d399', fontWeight: '600' }}>{hist.deal}</td>
-                    <td style={{ padding: '1px 6px', textAlign: 'right', fontWeight: 'bold', color: '#a78bfa' }}>{hist.cost.toFixed(2)}</td>
-                    <td style={{ padding: '1px 6px', textAlign: 'center', color: '#94a3b8' }}>{hist.godown}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            ) : (
-              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontStyle: 'italic', fontSize: '12px' }}>
-                ℹ️ Select a product from Product List above to view its Last 6 Saved Sales Bills.
-              </div>
-            )}
-          </div>
-        </div>
       </div>
-
-      {/* ── RIGHT PANEL (INTELLIGENCE & MORE INFO) ── */}
+        
+      {/* ── FOOTER ACTION BAR (MODERN FLOATING TOOLBAR) ── */}
       <div style={{ 
-        width: '280px', 
-        backgroundColor: '#0f172a', 
-        border: '1px solid #334155', 
-        borderRadius: '8px', 
-        display: 'flex', 
-        flexDirection: 'column',
-        flexShrink: 0,
-        overflow: 'hidden',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
-      }}>
-        <div style={{ backgroundColor: '#1e293b', color: '#38bdf8', fontSize: '11px', fontWeight: 'bold', padding: '6px 12px', borderBottom: '1px solid #334155', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          Live Intelligence
-        </div>
-        <div style={{ padding: '12px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          
-          {/* Party Details */}
-          <div>
-            <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Selected Party</div>
-            <div style={{ fontSize: '13px', color: '#f8fafc', fontWeight: '600' }}>{partyName || 'Cash Sale'}</div>
-            <div style={{ fontSize: '11px', color: '#34d399', marginTop: '2px' }}>Balance: ₹0.00</div>
-          </div>
-
-          <div style={{ borderTop: '1px dashed #334155' }}></div>
-
-          {/* Active Product Details */}
-          <div>
-            <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px' }}>Active Product</div>
-            <div style={{ fontSize: '13px', color: '#f8fafc', fontWeight: '600' }}>{gridRows.find(r => r.id === activeRowId)?.product || 'None Selected'}</div>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '11px' }}>
-              <span style={{ color: '#94a3b8' }}>M.R.P:</span>
-              <span style={{ color: '#e2e8f0' }}>₹{gridRows.find(r => r.id === activeRowId)?.mrp || '0.00'}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '11px' }}>
-              <span style={{ color: '#94a3b8' }}>Stock:</span>
-              <span style={{ color: '#34d399', fontWeight: 'bold' }}>{gridRows.find(r => r.id === activeRowId)?.product ? 'Available' : '-'}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '11px' }}>
-              <span style={{ color: '#94a3b8' }}>Margin:</span>
-              <span style={{ color: '#38bdf8' }}>25%</span>
-            </div>
-          </div>
-          
-          <div style={{ borderTop: '1px dashed #334155' }}></div>
-          
-          {/* Quick Actions */}
-          <div>
-              <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>Shortcuts</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                <button style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', fontSize: '10px', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}>F2 - Sale</button>
-                <button style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#94a3b8', fontSize: '10px', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}>F3 - Batch</button>
-                  <button onClick={(e) => { e.preventDefault(); fetchPendingSOs(); setShowSOModal(true); }} style={{ backgroundColor: '#1e293b', border: '1px solid #10b981', color: '#10b981', fontSize: '10px', padding: '4px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>F9 - Load SO</button>
-              </div>
-          </div>
-
-        </div>
-      </div>
-      
-    </div>
-      
-    {/* ── FOOTER ACTION BAR (MODERN FLOATING TOOLBAR) ── */}
-    <div style={{ 
         display: 'flex', 
         gap: '8px', 
-        padding: '6px 12px', 
-        background: 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)', 
+        padding: '6px 14px', 
+        backgroundColor: '#ffffff', 
         borderRadius: '8px', 
-        border: '1px solid #334155', 
-        color: '#fff', 
+        border: '1px solid #d8e2dc', 
+        color: '#111827', 
         alignItems: 'center', 
         fontSize: '11px', 
         minHeight: '34px',
         flexShrink: 0,
-        boxShadow: '0 4px 10px rgba(0, 0, 0, 0.2)'
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
       }}>
-        <button style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '3px 10px', cursor: 'pointer', borderRadius: '4px', fontSize: '11px', fontWeight: '600' }}>[F1] Help</button>
-        <button style={{ background: '#0f172a', color: '#94a3b8', border: '1px solid #334155', padding: '3px 10px', cursor: 'pointer', borderRadius: '4px', fontSize: '11px', fontWeight: '500' }}>[F2] Sale</button>
-        <button style={{ background: '#0f172a', color: '#94a3b8', border: '1px solid #334155', padding: '3px 10px', cursor: 'pointer', borderRadius: '4px', fontSize: '11px', fontWeight: '500' }}>[F4] Purc</button>
-        <button style={{ background: '#0f172a', color: '#94a3b8', border: '1px solid #334155', padding: '3px 10px', cursor: 'pointer', borderRadius: '4px', fontSize: '11px', fontWeight: '500' }}>[F5] SC</button>
-        <button style={{ background: '#0f172a', color: '#94a3b8', border: '1px solid #334155', padding: '3px 10px', cursor: 'pointer', borderRadius: '4px', fontSize: '11px', fontWeight: '500' }}>[F6] PC</button>
+        <button style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', padding: '3px 10px', cursor: 'pointer', borderRadius: '4px', fontSize: '11px', fontWeight: '700' }}>[F1] Help</button>
+        <button style={{ background: '#f8faf9', color: '#334155', border: '1px solid #cbd5e1', padding: '3px 10px', cursor: 'pointer', borderRadius: '4px', fontSize: '11px', fontWeight: '600' }}>[F2] Sale</button>
+        <button style={{ background: '#f8faf9', color: '#334155', border: '1px solid #cbd5e1', padding: '3px 10px', cursor: 'pointer', borderRadius: '4px', fontSize: '11px', fontWeight: '600' }}>[F4] Purc</button>
+        <button style={{ background: '#f8faf9', color: '#334155', border: '1px solid #cbd5e1', padding: '3px 10px', cursor: 'pointer', borderRadius: '4px', fontSize: '11px', fontWeight: '600' }}>[F5] SC</button>
+        <button style={{ background: '#f8faf9', color: '#334155', border: '1px solid #cbd5e1', padding: '3px 10px', cursor: 'pointer', borderRadius: '4px', fontSize: '11px', fontWeight: '600' }}>[F6] PC</button>
         
         <button 
           onClick={handleSaveTrigger} 
           style={{ 
-            background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', 
+            background: 'linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%)', 
             color: '#fff', 
             border: 'none', 
             padding: '5px 18px', 
@@ -2007,65 +2337,171 @@ export default function SalesBill() {
             fontWeight: '700', 
             fontSize: '12px', 
             letterSpacing: '0.03em',
-            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.4)',
+            boxShadow: '0 2px 8px rgba(45, 106, 79, 0.3)',
             transition: 'transform 0.1s, box-shadow 0.1s'
           }}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.5)'; }}
-          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(37, 99, 235, 0.4)'; }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(45, 106, 79, 0.4)'; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(45, 106, 79, 0.3)'; }}
         >
           SAVE (End / Ctrl+S)
         </button>
       </div>
 
-      {/* ── F7 PARTY SELECTION MODAL ── */}
+      {/* ── F7 CUSTOMER SELECTION MODAL (DOC-10 & DOC-20 Live PostgreSQL) ── */}
       {showPartyModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ backgroundColor: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', width: '500px', boxShadow: 'var(--shadow-lg)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ backgroundColor: 'var(--color-primary)', color: '#fff', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: '16px', fontWeight: '600', margin: 0 }}>Select Sundry Creditor / Supplier</h2>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ backgroundColor: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', width: '560px', boxShadow: 'var(--shadow-2xl)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ backgroundColor: 'var(--color-primary)', color: '#fff', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h2 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0 }}>Select Debtor Customer / Chemist (F7)</h2>
+                <div style={{ fontSize: '11px', opacity: 0.85, marginTop: '2px' }}>Live PostgreSQL Customer Master Registry</div>
+              </div>
               <button onClick={() => setShowPartyModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '18px' }}>✕</button>
             </div>
             
-            <div style={{ padding: '16px' }}>
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--color-border)' }}>
               <input 
                 ref={partySearchRef}
                 type="text"
                 value={partySearch}
                 onChange={e => setPartySearch(e.target.value)}
                 onKeyDown={handlePartyModalKeyDown}
-                placeholder="Search party by name..."
-                style={{ width: '100%', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border-strong)', borderRadius: '6px', padding: '10px 14px', fontSize: '14px', color: 'var(--color-text-primary)', outline: 'none' }}
+                placeholder="Search customer by name, trade name, GSTIN, or city..."
+                style={{ width: '100%', backgroundColor: 'var(--color-bg-elevated, #ffffff)', border: '1.5px solid var(--color-border, #cbd5e1)', borderRadius: '6px', padding: '10px 14px', fontSize: '14px', color: 'var(--color-text-primary, #111827)', outline: 'none' }}
               />
             </div>
 
-            <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-              {filteredParties.map((party, index) => (
+            <div style={{ maxHeight: '320px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+              {loadingCustomers ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading customers...</div>
+              ) : filteredCustomers.map((cust, index) => (
                 <div 
-                  key={party}
+                  key={cust.id}
                   ref={index === partySelectedIndex ? (el => el?.scrollIntoView({ block: 'nearest' })) : null}
                   style={{ 
-                    padding: '12px 24px', 
+                    padding: '10px 16px', 
                     cursor: 'pointer', 
                     backgroundColor: index === partySelectedIndex ? 'var(--color-bg-hover)' : 'transparent',
                     borderLeft: index === partySelectedIndex ? '4px solid var(--color-primary)' : '4px solid transparent',
                     color: 'var(--color-text-primary)',
-                    fontSize: '14px'
+                    borderBottom: '1px solid var(--color-border)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
                   }}
                   onClick={() => {
-                    setPartyName(party)
+                    setPartyName(cust.legal_name || cust.trade_name || 'Customer')
+                    setSelectedCustomer(cust)
                     setShowPartyModal(false)
                     setTimeout(() => taxTypeRef.current?.focus(), 20)
                   }}
                 >
-                  {party}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
+                      {cust.legal_name}
+                      {cust.trade_name && cust.trade_name !== cust.legal_name && (
+                        <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginLeft: '6px' }}>({cust.trade_name})</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', display: 'flex', gap: '10px' }}>
+                      {cust.addresses?.[0]?.city && <span>📍 {cust.addresses[0].city}</span>}
+                      {cust.customer_profile?.credit_limit && (
+                        <span style={{ color: '#15803d', fontWeight: 'bold' }}>Limit: ₹{Number(cust.customer_profile.credit_limit).toLocaleString('en-IN')}</span>
+                      )}
+                    </div>
+                  </div>
+                  {cust.gst && (
+                    <span style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontFamily: 'monospace' }}>
+                      {cust.gst}
+                    </span>
+                  )}
                 </div>
               ))}
-              {filteredParties.length === 0 && (
-                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-muted)' }}>No parties found.</div>
+              {!loadingCustomers && filteredCustomers.length === 0 && (
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-muted)' }}>No customers found.</div>
               )}
             </div>
-            <div style={{ padding: '12px 24px', borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-elevated)', color: 'var(--color-text-muted)', fontSize: '12px', textAlign: 'center' }}>
-              Use ↑↓ arrows to navigate. Press <b>Enter</b> to select. Press <b>Esc</b> to close.
+            <div style={{ padding: '10px 16px', borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-elevated)', color: 'var(--color-text-muted)', fontSize: '12px', textAlign: 'center' }}>
+              Use ↑↓ arrows to navigate • Press <b>Enter</b> to select • Press <b>Esc</b> to close
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── F9 SALES ORDER SELECTION MODAL ── */}
+      {showSOModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120 }}>
+          <div style={{ backgroundColor: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', width: '620px', boxShadow: 'var(--shadow-2xl)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ background: 'linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%)', color: '#fff', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h2 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0 }}>Select Approved Sales Order [F9]</h2>
+                <div style={{ fontSize: '11px', opacity: 0.85, marginTop: '2px' }}>Customer: {partyName || 'All Customers'}</div>
+              </div>
+              <button onClick={() => setShowSOModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+            </div>
+            
+            <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+              {loadingSOs ? (
+                <div style={{ padding: '30px', textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading sales orders...</div>
+              ) : pendingSOs.length === 0 ? (
+                <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                  <div style={{ fontSize: '24px', marginBottom: '8px' }}>📋</div>
+                  <div style={{ fontWeight: 'bold', color: 'var(--color-text-primary)' }}>No approved Sales Orders found.</div>
+                  <div style={{ fontSize: '12px', marginTop: '6px', color: '#64748b' }}>You can proceed with direct counter billing.</div>
+                </div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: 'var(--color-bg-elevated)', borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>
+                      <th style={{ padding: '10px 16px' }}>SO Number</th>
+                      <th style={{ padding: '10px 16px' }}>Date</th>
+                      <th style={{ padding: '10px 16px' }}>Items</th>
+                      <th style={{ padding: '10px 16px', textAlign: 'right' }}>Total Amount</th>
+                      <th style={{ padding: '10px 16px', textAlign: 'center' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingSOs.map((so, index) => (
+                      <tr 
+                        key={so.id}
+                        onClick={() => selectAndImportSO(so)}
+                        style={{
+                          cursor: 'pointer',
+                          backgroundColor: index === soSelectedIndex ? '#e8f5e9' : 'transparent',
+                          borderLeft: index === soSelectedIndex ? '4px solid #2d6a4f' : '4px solid transparent',
+                          borderBottom: '1px solid var(--color-border)',
+                          transition: 'background-color 0.15s ease'
+                        }}
+                      >
+                        <td style={{ padding: '12px 16px', fontWeight: 'bold', color: '#2d6a4f' }}>{so.order_number}</td>
+                        <td style={{ padding: '12px 16px' }}>{new Date(so.date).toLocaleDateString('en-IN')}</td>
+                        <td style={{ padding: '12px 16px' }}>{so.items?.length || 0} item(s)</td>
+                        <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 'bold', color: 'var(--color-text-primary)' }}>₹{Number(so.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); selectAndImportSO(so); }}
+                            style={{ backgroundColor: '#2d6a4f', color: '#ffffff', fontWeight: 'bold', border: 'none', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+                          >
+                            Bill SO ↵
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div style={{ padding: '12px 20px', borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-elevated)', color: 'var(--color-text-muted)', fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Use ↑↓ arrows to navigate • Press <b>Enter</b> to populate bill items • Press <b>Esc</b> to close</span>
+              <button
+                type="button"
+                onClick={() => setShowSOModal(false)}
+                style={{ background: 'transparent', border: '1px solid var(--color-border-strong)', color: 'var(--color-text-secondary)', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

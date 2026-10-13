@@ -12,6 +12,11 @@ interface PurchaseListProps {
   type: string; // 'modify-bill' | 'modify-challan'
 }
 
+const getStartOfMonthDateString = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+}
+
 const getTodayDateString = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -32,7 +37,7 @@ export default function SalesList({ onSelectBill, type }: PurchaseListProps) {
   const baseType = type.includes('challan') ? 'challan' : 'bill';
   const [partySearch, setPartySearch] = useState('')
   const [billNoSearch, setBillNoSearch] = useState('')
-  const [fromDate, setFromDate] = useState(getTodayDateString())
+  const [fromDate, setFromDate] = useState(getStartOfMonthDateString())
   const [toDate, setToDate] = useState(getTodayDateString())
 
   useEffect(() => {
@@ -71,8 +76,15 @@ export default function SalesList({ onSelectBill, type }: PurchaseListProps) {
 
   const colDefs: ColDef[] = [
     { field: 'date', headerName: 'Date', width: 120, filter: true },
-    { field: 'entryNo', headerName: 'Entry No', width: 120, filter: true },
-    { field: 'partyName', headerName: 'Party Name', flex: 1, filter: true },
+    { field: 'entryNo', headerName: 'Entry No', width: 140, filter: true },
+    { field: 'partyName', headerName: 'Party / Customer Name', flex: 1, filter: true },
+    { 
+      field: 'grandTotal', 
+      headerName: 'Total (₹)', 
+      width: 140, 
+      filter: true,
+      valueFormatter: (params: any) => params.value ? `₹${Number(params.value).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '₹0.00'
+    },
     {
       headerName: 'Action',
       width: 100,

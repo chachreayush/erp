@@ -162,6 +162,9 @@ app.include_router(system_router, prefix="/api/system", tags=["System"])
 from api.reports import router as reports_router
 from api.reports_v2 import router as reports_v2_router
 app.include_router(reports_router, prefix="/api/reports", tags=["Reports"])
+app.include_router(reports_v2_router, prefix="/api", tags=["Reports V2"])
+
+
 
 # DOC-12: Principal Master routes
 from api.principals import router as principals_router
@@ -202,6 +205,14 @@ app.include_router(expenses_router, prefix="/api")
 app.include_router(assets_router)
 app.include_router(compliance_router, prefix="/api/compliance", tags=["Compliance"])
 app.include_router(tds_tcs_router, prefix="/api/tds_tcs", tags=["TDS/TCS"])
+
+# DOC-30 & DOC-42: Statutory GST Compliance & Tax Filing Engine
+from api.gst import router as gst_router
+app.include_router(gst_router, prefix="/api/gst", tags=["GST Compliance"])
+
+# DOC-31: Dashboard, KPI, Business Intelligence & Management Control Centre Engine
+from api.dashboard import router as dashboard_router
+app.include_router(dashboard_router, prefix="/api")
 
 # Future routers will be added here as modules are built:
 # app.include_router(hr_router)

@@ -49,7 +49,7 @@ export const apiClient = axios.create({
 
   // timeout: If the server doesn't respond in 10 seconds, fail with an error.
   // Prevents the UI from hanging indefinitely on network issues.
-  timeout: 10000, // 10 seconds
+  timeout: 30000, // 30 seconds for complete GL posting and cloud DB latency
 
   // headers: Default headers sent with every request.
   // "Content-Type: application/json" tells the server we're sending JSON.
@@ -71,11 +71,11 @@ export const apiClient = axios.create({
 // The token is added automatically.
 apiClient.interceptors.request.use(
   (config) => {
-    // Read the token directly from the global Zustand store.
-    // This perfectly bypasses the need to guess if it's in localStorage
-    // or sessionStorage, and it guarantees we have the exact token
-    // that the app is currently using for this session.
-    const token = useAuthStore.getState().token
+    // Read the token and serverUrl directly from the global Zustand store.
+    const authState = useAuthStore.getState();
+    const token = authState.token;
+    const effectiveBase = authState.serverUrl || API_BASE_URL || 'http://localhost:8000';
+    config.baseURL = effectiveBase;
 
     if (token) {
       // Add the Authorization header in the format the backend expects:
@@ -299,6 +299,9 @@ export interface Batch {
   rate_c: number
   cost: number
   current_stock: number
+  brk_exp_stock?: number
+  is_near_expiry?: boolean
+  is_expired?: boolean
   is_active?: boolean
 }
 
@@ -326,6 +329,9 @@ export interface InvoiceItem {
   mrp?: number
   discount_percent?: number
   margin_percent?: string
+  free_quantity?: number
+  disposition?: string
+  source_invoice_item_id?: string
 }
 
 export interface Invoice {
@@ -336,6 +342,7 @@ export interface Invoice {
   
   invoice_type?: string
   customer_name: string
+  party_id?: string
   invoice_number: string
   
   // Advanced ERP Fields
@@ -478,6 +485,127 @@ export async function apiUpdateLedger(id: string, payload: Ledger): Promise<Ledg
 }
 export async function apiDeleteLedger(id: string): Promise<void> {
   await apiClient.delete(`/api/master/ledgers/${id}`)
+}
+
+// ── PARTIES (BUSINESS PARTNERS) ──────────────────────────────
+export interface PartyAddress {
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+}
+
+export interface PartyContact {
+  contact_name?: string;
+  phone?: string;
+  email?: string;
+}
+
+export interface CustomerProfile {
+  party_id?: string;
+  ledger_id?: string;
+  credit_limit?: number;
+  credit_days?: number;
+  price_list?: string;
+  route_id?: string;
+}
+
+export interface Party {
+  id: string;
+  legal_name: string;
+  trade_name?: string;
+  gstin?: string;
+  gst?: string;
+  pan?: string;
+  party_type?: string;
+  is_active?: boolean;
+  addresses?: PartyAddress[];
+  contacts?: PartyContact[];
+  customer_profile?: CustomerProfile;
+  supplier_profile?: any;
+}
+
+export async function apiGetParties(type?: string): Promise<Party[]> {
+  const response = await apiClient.get<Party[]>('/api/master/parties', {
+    params: type ? { type } : {}
+  });
+  return response.data;
+}
+
+// ── PROCUREMENT & PO APIS ────────────────────────────────────
+export interface PurchaseOrderItem {
+  id?: string;
+  po_id?: string;
+  product_id?: string;
+  product_name: string;
+  quantity: number;
+  received_qty?: number;
+  rate: number;
+  line_total: number;
+}
+
+export interface PurchaseOrder {
+  id: string;
+  po_number: string;
+  date: string;
+  vendor_id: string;
+  status: string;
+  expected_delivery?: string;
+  supply_classification?: string;
+  total_amount: number;
+  items?: PurchaseOrderItem[];
+}
+
+export async function apiGetPurchaseOrders(params?: { vendor_id?: string; status?: string }): Promise<PurchaseOrder[]> {
+  const response = await apiClient.get<PurchaseOrder[]>('/api/procurement/orders', { params });
+  return response.data;
+}
+
+export async function apiGetPurchaseOrderById(poId: string): Promise<PurchaseOrder> {
+  const response = await apiClient.get<PurchaseOrder>(`/api/procurement/orders/${poId}`);
+  return response.data;
+}
+
+export interface SalesOrderItem {
+  id?: string;
+  order_id?: string;
+  product_id?: string;
+  product_name: string;
+  quantity: number;
+  rate: number;
+  igst_percent?: number;
+  line_total: number;
+}
+
+export interface SalesOrder {
+  id: string;
+  order_number: string;
+  date: string;
+  party_id: string;
+  status: string;
+  total_amount: number;
+  items?: SalesOrderItem[];
+}
+
+export async function apiGetSalesOrders(params?: { party_id?: string; status?: string }): Promise<SalesOrder[]> {
+  const response = await apiClient.get<SalesOrder[]>('/api/orders/', { params });
+  return response.data;
+}
+
+export interface VendorComplaintCreatePayload {
+  complaint_number: string;
+  vendor_id: string;
+  category: string;
+  status?: string;
+  severity?: string;
+  description?: string;
+  related_document_id?: string;
+}
+
+export async function apiCreateVendorComplaint(payload: VendorComplaintCreatePayload): Promise<any> {
+  const response = await apiClient.post('/api/procurement/complaints', payload);
+  return response.data;
 }
 
 export interface Salt {
@@ -986,5 +1114,957 @@ export async function apiSaveDraft(module_name: string, json_payload: string): P
 
 export async function apiDeleteDraft(draft_id: string): Promise<{message: string}> {
   const response = await apiClient.delete<{message: string}>(`/api/system/drafts/${draft_id}`);
+  return response.data;
+}
+
+// ==========================================
+// STATUTORY GST COMPLIANCE & FILING APIS (DOC-30 & DOC-42)
+// ==========================================
+
+export interface GstSummaryResponse {
+  period: {
+    from_date: string;
+    to_date: string;
+  };
+  metrics: {
+    outward_taxable: number;
+    outward_tax: number;
+    outward_gross: number;
+    inward_taxable: number;
+    inward_itc_tax: number;
+    inward_gross: number;
+    net_gst_payable: number;
+    itc_credit_balance: number;
+    counts: {
+      sales_invoices: number;
+      purchase_bills: number;
+      credit_notes: number;
+      debit_notes: number;
+    };
+  };
+}
+
+export interface Gstr1InvoiceRow {
+  invoice_no: string;
+  date: string;
+  customer: string;
+  gstin: string;
+  place_of_supply: string;
+  taxable_amount: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  total: number;
+  status: string;
+  note_type?: string;
+  note_number?: string;
+  original_invoice?: string;
+}
+
+export interface Gstr1HsnRow {
+  hsn_code: string;
+  description: string;
+  uqc: string;
+  total_quantity: number;
+  total_value: number;
+  taxable_value: number;
+  integrated_tax: number;
+  central_tax: number;
+  state_tax: number;
+  cess: number;
+}
+
+export interface Gstr1DocIssueRow {
+  doc_num: number;
+  doc_type: string;
+  from_serial: string;
+  to_serial: string;
+  total_count: number;
+  cancelled: number;
+  net_issued: number;
+}
+
+export interface Gstr1Response {
+  period: {
+    from_date: string;
+    to_date: string;
+  };
+  b2b: Gstr1InvoiceRow[];
+  b2cl: Gstr1InvoiceRow[];
+  b2cs: Gstr1InvoiceRow[];
+  cdnr: Gstr1InvoiceRow[];
+  hsn_summary: Gstr1HsnRow[];
+  doc_issues: Gstr1DocIssueRow[];
+  totals: {
+    b2b_taxable: number;
+    b2b_tax: number;
+    b2cl_taxable: number;
+    b2cl_tax: number;
+    b2cs_taxable: number;
+    b2cs_tax: number;
+    cdnr_taxable: number;
+    cdnr_tax: number;
+    total_outward_taxable: number;
+    total_outward_tax: number;
+  };
+}
+
+export interface Gstr2InwardRow {
+  invoice_no: string;
+  internal_voucher_no: string;
+  date: string;
+  supplier: string;
+  gstin: string;
+  taxable_amount: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  total: number;
+  itc_eligibility: string;
+}
+
+export interface Gstr2Response {
+  period: {
+    from_date: string;
+    to_date: string;
+  };
+  inward_supplies: Gstr2InwardRow[];
+  itc_reversals: Gstr2InwardRow[];
+  summary: {
+    total_purchases_count: number;
+    total_inward_taxable: number;
+    gross_itc_available: number;
+    itc_reversed_debit_notes: number;
+    net_eligible_itc: number;
+  };
+}
+
+export interface Gstr3bSupplyRow {
+  nature_of_supplies: string;
+  taxable_value: number;
+  igst: number;
+  cgst: number;
+  sgst: number;
+  cess: number;
+}
+
+export interface Gstr3bItcRow {
+  details: string;
+  igst: number;
+  cgst: number;
+  sgst: number;
+  cess: number;
+}
+
+export interface Gstr3bPaymentRow {
+  description: string;
+  tax_payable: number;
+  paid_through_itc: number;
+  tax_paid_in_cash: number;
+}
+
+export interface Gstr3bResponse {
+  period: {
+    from_date: string;
+    to_date: string;
+  };
+  table_3_1_outward: Gstr3bSupplyRow[];
+  table_4_itc: Gstr3bItcRow[];
+  table_5_1_payment: Gstr3bPaymentRow[];
+  net_cash_liability: number;
+}
+
+export async function apiGetGstSummary(fromDate?: string, toDate?: string): Promise<GstSummaryResponse> {
+  const response = await apiClient.get<GstSummaryResponse>("/api/gst/summary", {
+    params: { ...(fromDate ? { from_date: fromDate } : {}), ...(toDate ? { to_date: toDate } : {}) }
+  });
+  return response.data;
+}
+
+export async function apiGetGstr1(fromDate?: string, toDate?: string): Promise<Gstr1Response> {
+  const response = await apiClient.get<Gstr1Response>("/api/gst/gstr1", {
+    params: { ...(fromDate ? { from_date: fromDate } : {}), ...(toDate ? { to_date: toDate } : {}) }
+  });
+  return response.data;
+}
+
+export async function apiGetGstr2(fromDate?: string, toDate?: string): Promise<Gstr2Response> {
+  const response = await apiClient.get<Gstr2Response>("/api/gst/gstr2", {
+    params: { ...(fromDate ? { from_date: fromDate } : {}), ...(toDate ? { to_date: toDate } : {}) }
+  });
+  return response.data;
+}
+
+export async function apiGetGstr3b(fromDate?: string, toDate?: string): Promise<Gstr3bResponse> {
+  const response = await apiClient.get<Gstr3bResponse>("/api/gst/gstr3b", {
+    params: { ...(fromDate ? { from_date: fromDate } : {}), ...(toDate ? { to_date: toDate } : {}) }
+  });
+  return response.data;
+}
+
+export async function apiGetGstr1Json(fromDate?: string, toDate?: string): Promise<any> {
+  const response = await apiClient.get<any>("/api/gst/gstr1/json", {
+    params: { ...(fromDate ? { from_date: fromDate } : {}), ...(toDate ? { to_date: toDate } : {}) }
+  });
+  return response.data;
+}
+
+// ==========================================
+// BILL-BY-BILL SETTLEMENT & RECEIPT/PAYMENT APIS (DOC-24 & DOC-07)
+// ==========================================
+
+export interface PendingAllocationItem {
+  id: string;
+  voucher_number?: string;
+  invoice_number?: string;
+  date?: string;
+  total_amount: number;
+  allocated_total: number;
+  outstanding: number;
+  document_type: string;
+  party_id?: string;
+  party_name?: string;
+  days_overdue?: number;
+}
+
+export interface AllocationLineItemPayload {
+  target_invoice_id?: string;
+  target_cn_dn_id?: string;
+  allocated_amount: number;
+  narration?: string;
+}
+
+export interface ReceiptPaymentPayload {
+  voucher_type: 'Receipt' | 'Payment';
+  voucher_number?: string;
+  series_id?: string;
+  date?: string;
+  party_id: string;
+  cash_bank_ledger_id: string;
+  amount: number;
+  payment_mode?: 'Cash' | 'Cheque' | 'NEFT/RTGS' | 'UPI';
+  reference_number?: string;
+  bank_name?: string;
+  instrument_date?: string;
+  narration?: string;
+  allocations?: AllocationLineItemPayload[];
+  auto_allocate_fifo?: boolean;
+}
+
+export interface ReceiptPaymentResponse {
+  voucher_id: string;
+  voucher_number: string;
+  voucher_type: string;
+  date: string;
+  party_id: string;
+  party_name: string;
+  total_amount: number;
+  allocated_total: number;
+  floating_balance: number;
+  allocations_count: number;
+  narration?: string;
+}
+
+export interface OutstandingBillItem {
+  invoice_id: string;
+  invoice_number: string;
+  date: string;
+  total_amount: number;
+  allocated_amount: number;
+  outstanding_amount: number;
+  days_overdue: number;
+  ageing_bucket: string;
+  document_type: string;
+}
+
+export interface OutstandingPartySummary {
+  party_id: string;
+  party_name: string;
+  party_type: 'customer' | 'vendor';
+  gstin?: string;
+  credit_limit?: number;
+  total_invoiced: number;
+  total_settled: number;
+  total_outstanding: number;
+  bucket_0_30: number;
+  bucket_31_60: number;
+  bucket_61_90: number;
+  bucket_90_plus: number;
+  bills: OutstandingBillItem[];
+}
+
+export interface OutstandingReportResponse {
+  report_type: 'receivables' | 'payables';
+  as_of_date: string;
+  total_parties: number;
+  total_outstanding: number;
+  total_bucket_0_30: number;
+  total_bucket_31_60: number;
+  total_bucket_61_90: number;
+  total_bucket_90_plus: number;
+  parties: OutstandingPartySummary[];
+}
+
+export async function apiGetPendingAllocations(params?: {
+  party_id?: string;
+  party_type?: 'customer' | 'vendor';
+  direction?: 'receivable' | 'payable';
+}): Promise<PendingAllocationItem[]> {
+  const response = await apiClient.get<PendingAllocationItem[]>("/api/finance/allocations/pending", {
+    params
+  });
+  return response.data;
+}
+
+export async function apiCreateReceiptPayment(
+  payload: ReceiptPaymentPayload
+): Promise<ReceiptPaymentResponse> {
+  const response = await apiClient.post<ReceiptPaymentResponse>("/api/finance/receipt-payment", payload);
+  return response.data;
+}
+
+export async function apiGetOutstandingReport(params?: {
+  type?: 'receivables' | 'payables';
+  search?: string;
+  as_of?: string;
+}): Promise<OutstandingReportResponse> {
+  const response = await apiClient.get<OutstandingReportResponse>("/api/finance/outstanding", {
+    params
+  });
+  return response.data;
+}
+
+// =====================================================================
+// DOC-25: JOURNAL VOUCHER & ACCRUAL ENGINE INTERFACES & CALLERS
+// =====================================================================
+
+export interface JournalLinePayload {
+  ledger_id: string;
+  ledger_name?: string;
+  cr_dr: 'Dr' | 'Cr';
+  amount: number;
+  narration?: string;
+}
+
+export interface JournalVoucherPayload {
+  voucher_number?: string;
+  date: string;
+  journal_type: string;
+  narration?: string;
+  reference_number?: string;
+  scheduled_reversal_date?: string | null;
+  fiscal_year_id?: string;
+  series_id?: string;
+  entries: JournalLinePayload[];
+}
+
+export interface JournalLineResponse {
+  id: string;
+  voucher_id: string;
+  ledger_id: string;
+  ledger_name?: string;
+  cr_dr: 'Dr' | 'Cr';
+  amount: number;
+}
+
+export interface JournalVoucherResponse {
+  id: string;
+  organization_id: string;
+  created_at: string;
+  voucher_type: string;
+  voucher_number: string;
+  date: string;
+  narration?: string;
+  total_amount: number;
+  journal_type?: string;
+  reference_number?: string;
+  scheduled_reversal_date?: string | null;
+  status: string;
+  fiscal_year_id?: string;
+  reversal_voucher_id?: string | null;
+  reversal_voucher_number?: string | null;
+  entries: JournalLineResponse[];
+}
+
+export interface JournalReversePayload {
+  reversal_date?: string;
+  reason?: string;
+}
+
+export async function apiCreateJournal(
+  payload: JournalVoucherPayload
+): Promise<JournalVoucherResponse> {
+  const response = await apiClient.post<JournalVoucherResponse>("/api/finance/journal", payload);
+  return response.data;
+}
+
+export async function apiGetJournals(params?: {
+  journal_type?: string;
+  start_date?: string;
+  end_date?: string;
+  status?: string;
+  search?: string;
+}): Promise<JournalVoucherResponse[]> {
+  const response = await apiClient.get<JournalVoucherResponse[]>("/api/finance/journals", {
+    params
+  });
+  return response.data;
+}
+
+export async function apiReverseJournal(
+  id: string,
+  payload?: JournalReversePayload
+): Promise<JournalVoucherResponse> {
+  const response = await apiClient.post<JournalVoucherResponse>(`/api/finance/journal/${id}/reverse`, payload || {});
+  return response.data;
+}
+
+// =====================================================================
+// DOC-26: EXPENSE, PETTY CASH & EMPLOYEE REIMBURSEMENT INTERFACES & CALLERS
+// =====================================================================
+
+export interface ExpenseCategory {
+  id: string;
+  name: string;
+  description?: string;
+  ledger_id: string;
+  is_active: boolean;
+}
+
+export interface EmployeeAdvance {
+  id: string;
+  employee_ledger_id: string;
+  date: string;
+  amount: number;
+  reason?: string;
+  status: 'Active' | 'Settled';
+  voucher_id?: string;
+}
+
+export interface ExpenseLine {
+  id?: string;
+  category_id: string;
+  amount: number;
+  bill_number?: string;
+  bill_date?: string;
+  note?: string;
+}
+
+export interface ExpenseClaim {
+  id: string;
+  claim_number: string;
+  employee_ledger_id: string;
+  date: string;
+  total_amount: number;
+  status: 'Draft' | 'Approved' | 'Paid' | 'Rejected';
+  approved_by?: string;
+  payment_voucher_id?: string;
+  remarks?: string;
+  lines: ExpenseLine[];
+}
+
+export interface ExpenseSummaryResponse {
+  total_expenses: number;
+  pending_claims_count: number;
+  active_advances_amount: number;
+  settled_advances_count: number;
+  categories_count: number;
+  today_cash_expenses?: number;
+  cash_in_hand_balance?: number;
+}
+
+export async function apiGetExpenseSummary(): Promise<ExpenseSummaryResponse> {
+  const response = await apiClient.get<ExpenseSummaryResponse>('/api/expenses/summary');
+  return response.data;
+}
+
+export async function apiGetExpenseCategories(): Promise<ExpenseCategory[]> {
+  const response = await apiClient.get<ExpenseCategory[]>('/api/expenses/categories');
+  return response.data;
+}
+
+export async function apiCreateExpenseCategory(payload: {
+  name: string;
+  description?: string;
+  ledger_id: string;
+}): Promise<ExpenseCategory> {
+  const response = await apiClient.post<ExpenseCategory>('/api/expenses/categories', payload);
+  return response.data;
+}
+
+export async function apiGetEmployeeAdvances(): Promise<EmployeeAdvance[]> {
+  const response = await apiClient.get<EmployeeAdvance[]>('/api/expenses/advances');
+  return response.data;
+}
+
+export async function apiCreateEmployeeAdvance(payload: {
+  employee_ledger_id: string;
+  date: string;
+  amount: number;
+  reason?: string;
+}): Promise<EmployeeAdvance> {
+  const response = await apiClient.post<EmployeeAdvance>('/api/expenses/advances', payload);
+  return response.data;
+}
+
+export async function apiSettleEmployeeAdvance(id: string): Promise<{ message: string }> {
+  const response = await apiClient.put<{ message: string }>(`/api/expenses/advances/${id}/settle`);
+  return response.data;
+}
+
+export async function apiGetExpenseClaims(): Promise<ExpenseClaim[]> {
+  const response = await apiClient.get<ExpenseClaim[]>('/api/expenses/claims');
+  return response.data;
+}
+
+export async function apiCreateExpenseClaim(payload: {
+  claim_number?: string;
+  employee_ledger_id: string;
+  date: string;
+  total_amount: number;
+  remarks?: string;
+  lines: {
+    category_id: string;
+    amount: number;
+    bill_number?: string;
+    bill_date?: string;
+    note?: string;
+  }[];
+}): Promise<ExpenseClaim> {
+  const response = await apiClient.post<ExpenseClaim>('/api/expenses/claims', payload);
+  return response.data;
+}
+
+export async function apiApproveExpenseClaim(id: string): Promise<{ message: string; voucher_id: string }> {
+  const response = await apiClient.post<{ message: string; voucher_id: string }>(`/api/expenses/claims/${id}/approve`);
+  return response.data;
+}
+
+export interface DirectExpenseInput {
+  date: string;
+  expense_ledger_id: string;
+  paid_from_ledger_id: string;
+  amount: number;
+  paid_to?: string;
+  payment_mode: string;
+  reference_no?: string;
+  narration?: string;
+}
+
+export interface DirectExpenseResponse {
+  message: string;
+  voucher_id: string;
+  voucher_number: string;
+  amount: number;
+  expense_ledger_name: string;
+  paid_from_ledger_name: string;
+  claim_id?: string;
+}
+
+export async function apiCreateDirectExpense(payload: DirectExpenseInput): Promise<DirectExpenseResponse> {
+  const response = await apiClient.post<DirectExpenseResponse>('/api/expenses/direct', payload);
+  return response.data;
+}
+
+// ==========================================
+// DOC-27 FIXED ASSETS & DEPRECIATION APIS
+// ==========================================
+
+export interface AssetCategory {
+  id: string;
+  name: string;
+  depreciation_method: string;
+  depreciation_rate: number;
+  asset_ledger_id: string;
+  acc_depreciation_ledger_id: string;
+  depreciation_expense_ledger_id: string;
+  created_at?: string;
+}
+
+export interface FixedAsset {
+  id: string;
+  category_id: string;
+  name: string;
+  description?: string;
+  serial_number?: string;
+  location?: string;
+  purchase_date: string;
+  purchase_value: number;
+  salvage_value: number;
+  current_net_block: number;
+  status: 'Active' | 'Disposed';
+  created_at?: string;
+}
+
+export interface DepreciationLog {
+  id: string;
+  asset_id: string;
+  voucher_id?: string;
+  run_date: string;
+  depreciation_amount: number;
+  closing_net_block: number;
+  notes?: string;
+  created_at?: string;
+}
+
+export interface AssetSummaryResponse {
+  total_gross_block: number;
+  total_accumulated_depreciation: number;
+  total_net_block: number;
+  active_assets_count: number;
+  disposed_assets_count: number;
+  categories_count: number;
+}
+
+export interface BulkDepreciationResponse {
+  message: string;
+  total_depreciation: number;
+  assets_processed: number;
+  voucher_number?: string;
+  voucher_id?: string;
+}
+
+export interface AssetDisposalResponse {
+  asset_id: string;
+  sale_proceeds: number;
+  net_block_at_disposal: number;
+  gain_or_loss: number;
+  voucher_number?: string;
+  voucher_id?: string;
+  message: string;
+}
+
+export async function apiGetAssetSummary(): Promise<AssetSummaryResponse> {
+  const response = await apiClient.get<AssetSummaryResponse>('/api/assets/summary');
+  return response.data;
+}
+
+export async function apiGetAssetCategories(): Promise<AssetCategory[]> {
+  const response = await apiClient.get<AssetCategory[]>('/api/assets/categories');
+  return response.data;
+}
+
+export async function apiCreateAssetCategory(payload: {
+  name: string;
+  depreciation_method: string;
+  depreciation_rate: number;
+  asset_ledger_id: string;
+  acc_depreciation_ledger_id: string;
+  depreciation_expense_ledger_id: string;
+}): Promise<AssetCategory> {
+  const response = await apiClient.post<AssetCategory>('/api/assets/categories', payload);
+  return response.data;
+}
+
+export async function apiGetFixedAssets(): Promise<FixedAsset[]> {
+  const response = await apiClient.get<FixedAsset[]>('/api/assets');
+  return response.data;
+}
+
+export async function apiRegisterFixedAsset(payload: {
+  category_id: string;
+  name: string;
+  description?: string;
+  serial_number?: string;
+  location?: string;
+  purchase_date: string;
+  purchase_value: number;
+  salvage_value: number;
+}): Promise<FixedAsset> {
+  const response = await apiClient.post<FixedAsset>('/api/assets', payload);
+  return response.data;
+}
+
+export async function apiGetAssetDepreciationLogs(assetId: string): Promise<DepreciationLog[]> {
+  const response = await apiClient.get<DepreciationLog[]>(`/api/assets/${assetId}/depreciation-logs`);
+  return response.data;
+}
+
+export async function apiRunAssetDepreciation(assetId: string, runDate: string, notes?: string): Promise<DepreciationLog> {
+  const response = await apiClient.post<DepreciationLog>(`/api/assets/${assetId}/depreciate`, {
+    run_date: runDate,
+    notes
+  });
+  return response.data;
+}
+
+export async function apiBulkDepreciateAssets(runDate: string, notes?: string): Promise<BulkDepreciationResponse> {
+  const response = await apiClient.post<BulkDepreciationResponse>('/api/assets/bulk-depreciate', {
+    run_date: runDate,
+    notes
+  });
+  return response.data;
+}
+
+export async function apiDisposeAsset(assetId: string, payload: {
+  disposal_date: string;
+  sale_proceeds: number;
+  settlement_ledger_id?: string;
+  notes?: string;
+}): Promise<AssetDisposalResponse> {
+  const response = await apiClient.post<AssetDisposalResponse>(`/api/assets/${assetId}/dispose`, payload);
+  return response.data;
+}
+
+// ==========================================
+// DOC-28 BANK RECONCILIATION & CASH CONTROL
+// ==========================================
+
+export interface BankReconciliationSummary {
+  ledger_id: string;
+  ledger_name: string;
+  book_balance: number;
+  unreconciled_statement_count: number;
+  unreconciled_statement_withdrawal: number;
+  unreconciled_statement_deposit: number;
+  unreconciled_voucher_count: number;
+  unreconciled_voucher_cr: number;
+  unreconciled_voucher_dr: number;
+  reconciled_bank_balance: number;
+  difference: number;
+}
+
+export interface BankAutoMatchResponse {
+  matches_count: number;
+  matched_amount: number;
+  unmatched_statements_count: number;
+  unmatched_vouchers_count: number;
+  message: string;
+}
+
+export interface CashVerification {
+  id: string;
+  organization_id: string;
+  ledger_id: string;
+  ledger_name?: string;
+  verification_date: string;
+  denominations: Record<string, number>;
+  system_balance: number;
+  counted_balance: number;
+  variance: number;
+  status: 'BALANCED' | 'SURPLUS' | 'SHORTAGE';
+  remarks?: string;
+  created_at: string;
+}
+
+export interface CashVerificationPayload {
+  ledger_id: string;
+  verification_date?: string;
+  denominations: Record<string, number>;
+  counted_balance: number;
+  remarks?: string;
+}
+
+export async function apiGetBankReconciliationSummary(ledgerId: string): Promise<BankReconciliationSummary> {
+  const response = await apiClient.get<BankReconciliationSummary>(`/api/finance/bank-reconciliation/summary/${ledgerId}`);
+  return response.data;
+}
+
+export async function apiRunBankAutoMatch(ledgerId: string): Promise<BankAutoMatchResponse> {
+  const response = await apiClient.post<BankAutoMatchResponse>(`/api/finance/bank-reconciliation/auto-match/${ledgerId}`);
+  return response.data;
+}
+
+export async function apiMatchBankReconciliation(statementRowId: string, voucherId: string): Promise<{ message: string }> {
+  const response = await apiClient.post<{ message: string }>('/api/finance/bank-reconciliation/match', {
+    statement_row_id: statementRowId,
+    voucher_id: voucherId
+  });
+  return response.data;
+}
+
+export async function apiGetUnreconciledStatementRows(ledgerId: string): Promise<any[]> {
+  const response = await apiClient.get<any[]>(`/api/finance/bank-statements/unreconciled/${ledgerId}`);
+  return response.data;
+}
+
+export async function apiGetUnreconciledVouchers(ledgerId: string): Promise<any[]> {
+  const response = await apiClient.get<any[]>(`/api/finance/vouchers/unreconciled/${ledgerId}`);
+  return response.data;
+}
+
+export async function apiGetCashVerifications(): Promise<CashVerification[]> {
+  const response = await apiClient.get<CashVerification[]>('/api/finance/cash-verifications');
+  return response.data;
+}
+
+export async function apiCreateCashVerification(payload: CashVerificationPayload): Promise<CashVerification> {
+  const response = await apiClient.post<CashVerification>('/api/finance/cash-verifications', payload);
+  return response.data;
+}
+
+// ============================================================
+// DOC-31: DASHBOARD, KPI, BI & CONTROL CENTRE API
+// ============================================================
+
+export interface DashboardSummary {
+  as_of: string;
+  today_sales: {
+    amount: number;
+    invoice_count: number;
+    cash_share: number;
+    credit_share: number;
+  };
+  mtd_sales: {
+    amount: number;
+    invoice_count: number;
+    target: number;
+    attainment_percent: number;
+    growth_yoy: number;
+  };
+  procurement_volume: {
+    amount: number;
+    inward_count: number;
+    cogs_ratio_percent: number;
+    growth_yoy: number;
+  };
+  gross_operating_margin: {
+    amount: number;
+    margin_percent: number;
+    net_profit_est: number;
+    health_status: string;
+  };
+  consolidated_liquidity: {
+    cash_balance: number;
+    bank_balance: number;
+    total_liquidity: number;
+    quick_ratio: number;
+    working_capital_status: string;
+  };
+  actionable_receivables: {
+    amount: number;
+    total_debtors: number;
+    overdue_percent: number;
+  };
+  payables_exposure: {
+    amount: number;
+    total_creditors: number;
+    due_this_week: number;
+  };
+  inventory_health: {
+    active_skus: number;
+    low_stock_alerts: number;
+    near_expiry_alerts: number;
+  };
+  exclusions_applied: number;
+}
+
+export interface SalesTerritory {
+  id: string;
+  name: string;
+  short_name: string;
+  turnover: number;
+  share_percent: number;
+  retail_chemists: number;
+  quota_target: number;
+  attainment_percent: number;
+  growth_yoy: number;
+  top_molecule: string;
+  status: string;
+}
+
+export interface SalesTerritoriesResponse {
+  period: string;
+  total_regional_turnover: number;
+  total_retail_chemists: number;
+  territories: SalesTerritory[];
+}
+
+export interface DashboardTrendsResponse {
+  monthly_performance: { name: string; sales: number; purchase: number }[];
+  operating_expenses: {
+    total_opex: number;
+    breakdown: { name: string; short_name: string; percentage: number; amount: number; color: string }[];
+  };
+  top_products: { rank: number; product_name: string; manufacturer: string; turnover: number; quantity_packs: number; share_pct: number }[];
+  receivables_ageing: {
+    total_outstanding: number;
+    buckets: { bucket: string; label: string; amount: number; percentage: number; severity: string }[];
+  };
+}
+
+export interface PredictiveIntelligenceResponse {
+  cash_flow_forecast: {
+    projection_window_days: number;
+    projected_collections: number;
+    scheduled_supplier_payments: number;
+    estimated_operating_expenses: number;
+    net_projected_cash_position: number;
+    confidence_score_percent: number;
+    summary: string;
+  };
+  stockout_velocity: {
+    product_name: string;
+    current_stock_packs: number;
+    daily_run_rate_packs: number;
+    days_to_stockout: number;
+    risk_level: string;
+    recommended_order_qty: number;
+    action: string;
+  }[];
+  customer_churn_risk: {
+    customer_name: string;
+    historical_order_interval_days: number;
+    days_since_last_order: number;
+    avg_monthly_billing: number;
+    risk_score: string;
+    suggested_action: string;
+  }[];
+  near_expiry_exposure: {
+    batches_expiring_30_days_val: number;
+    batches_expiring_60_days_val: number;
+    batches_expiring_90_days_val: number;
+    total_at_risk_value: number;
+    recommended_salvage_action: string;
+  };
+}
+
+export interface DashboardAlertsResponse {
+  urgent_exceptions: {
+    id: string;
+    category: string;
+    severity: string;
+    title: string;
+    subtitle: string;
+    action_label: string;
+    action_route: string;
+  }[];
+  counter_ticker: {
+    id: string;
+    type: string;
+    number: string;
+    party: string;
+    amount: number;
+    timestamp: string;
+    status: string;
+  }[];
+}
+
+export async function apiGetDashboardSummary(useExclusions = true): Promise<DashboardSummary> {
+  const response = await apiClient.get<DashboardSummary>('/api/dashboard/summary', {
+    params: { use_exclusions: useExclusions }
+  });
+  return response.data;
+}
+
+export async function apiGetSalesTerritories(period = 'quarter'): Promise<SalesTerritoriesResponse> {
+  const response = await apiClient.get<SalesTerritoriesResponse>('/api/dashboard/sales-territories', {
+    params: { period }
+  });
+  return response.data;
+}
+
+export async function apiGetDashboardTrends(): Promise<DashboardTrendsResponse> {
+  const response = await apiClient.get<DashboardTrendsResponse>('/api/dashboard/trends');
+  return response.data;
+}
+
+export async function apiGetPredictiveIntelligence(): Promise<PredictiveIntelligenceResponse> {
+  const response = await apiClient.get<PredictiveIntelligenceResponse>('/api/dashboard/predictive');
+  return response.data;
+}
+
+export async function apiGetDashboardAlerts(): Promise<DashboardAlertsResponse> {
+  const response = await apiClient.get<DashboardAlertsResponse>('/api/dashboard/alerts');
   return response.data;
 }

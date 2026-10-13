@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload, selectinload
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 from typing import List, Optional
 from uuid import UUID
+import uuid
 from datetime import datetime
 from decimal import Decimal
 from api.finance_v2 import create_voucher, cancel_voucher, get_active_fiscal_year
@@ -44,7 +45,12 @@ def get_invoices(
     )
     
     if invoice_type:
-        query = query.filter(models.Invoice.invoice_type == invoice_type)
+        query = query.filter(
+            or_(
+                models.Invoice.invoice_type == invoice_type,
+                models.Invoice.invoice_type.ilike(f"{invoice_type}%")
+            )
+        )
         
     if party_search:
         query = query.filter(models.Invoice.customer_name.ilike(f"%{party_search}%"))
@@ -98,38 +104,141 @@ def get_invoice_by_number(
     return invoice
 
 
+@router.get("/invoices/by-customer/{customer_name}", response_model=List[schemas.InvoiceResponse])
+def get_customer_invoices(
+    customer_name: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Fetch past sales invoices for a specific customer to power Sales Return Against Bill."""
+    return db.query(models.Invoice).options(
+        selectinload(models.Invoice.items)
+    ).filter(
+        models.Invoice.organization_id == current_user.organization_id,
+        models.Invoice.customer_name.ilike(f"%{customer_name.strip()}%"),
+        models.Invoice.invoice_type.in_(["bill", "sales-bill", "sales_invoice"]),
+        models.Invoice.is_active == True
+    ).order_by(desc(models.Invoice.date)).limit(50).all()
+
+
+@router.get("/invoices/by-supplier/{supplier_name}", response_model=List[schemas.InvoiceResponse])
+def get_supplier_invoices(
+    supplier_name: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Fetch past purchase invoices for a specific supplier/vendor to power Purchase Return / Debit Note Against Bill."""
+    return db.query(models.Invoice).options(
+        selectinload(models.Invoice.items)
+    ).filter(
+        models.Invoice.organization_id == current_user.organization_id,
+        models.Invoice.customer_name.ilike(f"%{supplier_name.strip()}%"),
+        models.Invoice.invoice_type.in_(["purchase-bill", "purchase", "purchase_bill", "purchase-challan"]),
+        models.Invoice.is_active == True
+    ).order_by(desc(models.Invoice.date)).limit(50).all()
+
+
+def _resolve_or_create_product(db: Session, org_id: UUID, item) -> Optional[models.Product]:
+    """Ensure product exists in DB. If product_id is valid, return it.
+    If not found, resolve by name or auto-provision product so fast counter billing never fails."""
+    prod = None
+    if getattr(item, "product_id", None):
+        try:
+            prod = db.query(models.Product).filter(
+                models.Product.organization_id == org_id,
+                models.Product.id == item.product_id
+            ).first()
+        except Exception:
+            prod = None
+
+    if not prod and getattr(item, "product_name", None):
+        clean_name = item.product_name.strip()
+        if clean_name:
+            prod = db.query(models.Product).filter(
+                models.Product.organization_id == org_id,
+                models.Product.name.ilike(clean_name)
+            ).first()
+
+    if not prod and getattr(item, "product_name", None):
+        clean_name = item.product_name.strip()
+        if clean_name:
+            code_suffix = uuid.uuid4().hex[:6].upper()
+            rate_val = getattr(item, "rate", 0.0) or 0.0
+            mrp_val = getattr(item, "mrp", 0.0) or rate_val
+            igst_val = getattr(item, "igst_percent", 12.0) or 12.0
+            prod = models.Product(
+                id=uuid.uuid4(),
+                organization_id=org_id,
+                status="continue",
+                hide="no",
+                code=f"GEN-{code_suffix}",
+                name=clean_name,
+                packing="10 TAB",
+                unit="TAB",
+                colour_type="normal",
+                item_type="normal",
+                mrp=mrp_val,
+                p_rate=rate_val,
+                ptr_rate=rate_val,
+                pts_rate=rate_val,
+                rate_a=rate_val,
+                igst_percent=igst_val,
+                cgst_percent=igst_val / 2.0,
+                sgst_percent=igst_val / 2.0,
+                is_active=True
+            )
+            db.add(prod)
+            db.flush()
+
+    if prod:
+        item.product_id = prod.id
+        return prod
+    else:
+        item.product_id = None
+        return None
+
+
 def _update_stock_for_invoice(db: Session, org_id: UUID, items: list[schemas.InvoiceItemCreate], invoice_type: str):
     """Update stock from batches for invoice items."""
     is_brk = invoice_type.startswith("brk-")
     is_addition = True
     if invoice_type.startswith("sales-bill") or invoice_type.startswith("sales-challan") or invoice_type.startswith("purchase-return") or invoice_type.startswith("stock-issue") or invoice_type.startswith("brk-issue"):
         is_addition = False
-    
-    stock_attr = "brk_exp_stock" if is_brk else "current_stock"
 
     for item in items:
-        if not item.product_id and item.product_name:
-            prod = db.query(models.Product).filter(
-                models.Product.organization_id == org_id,
-                models.Product.name.ilike(item.product_name.strip())
-            ).first()
-            if prod:
-                item.product_id = prod.id
+        if invoice_type.startswith("sales-return") or invoice_type.startswith("purchase-return"):
+            item_disp = getattr(item, "disposition", "saleable") or "saleable"
+            stock_attr = "brk_exp_stock" if item_disp in ["breakage", "expiry", "quarantine"] else "current_stock"
+        else:
+            stock_attr = "brk_exp_stock" if is_brk else "current_stock"
 
-        if not item.product_id or not item.batch:
+        prod = _resolve_or_create_product(db, org_id, item)
+        if not prod or not item.batch:
             continue  # Skip if no product or batch specified
         
+        # Track returned_qty on source invoice item if linked
+        if getattr(item, "source_invoice_item_id", None):
+            src_item = db.query(models.InvoiceItem).filter(models.InvoiceItem.id == item.source_invoice_item_id).first()
+            if src_item:
+                src_item.returned_qty = (src_item.returned_qty or 0) + item.quantity
+
         batch = db.query(models.Batch).filter(
             models.Batch.organization_id == org_id,
             models.Batch.product_id == item.product_id,
             models.Batch.batch_number == item.batch
         ).first()
         
+        total_units = item.quantity + (getattr(item, 'free_quantity', 0) or 0)
+        
         if batch:
             batch_stock = getattr(batch, stock_attr)
             
             if is_addition:
-                setattr(batch, stock_attr, batch_stock + item.quantity)
+                setattr(batch, stock_attr, batch_stock + total_units)
+                if item.rate:
+                    batch.rate = item.rate
+                if item.mrp:
+                    batch.mrp = item.mrp
             else:
                 setattr(batch, stock_attr, batch_stock - item.quantity)
         else:
@@ -145,8 +254,8 @@ def _update_stock_for_invoice(db: Session, org_id: UUID, items: list[schemas.Inv
                 rate_b=0,
                 rate_c=0,
                 cost=0,
-                current_stock=0 if is_brk else (item.quantity if is_addition else -item.quantity),
-                brk_exp_stock=(item.quantity if is_addition else -item.quantity) if is_brk else 0
+                current_stock=0 if is_brk else (total_units if is_addition else -item.quantity),
+                brk_exp_stock=(total_units if is_addition else -item.quantity) if is_brk else 0
             )
             db.add(new_batch)
 
@@ -162,7 +271,7 @@ def _cancel_accounting(db: Session, current_user: models.User, invoice: models.I
         cancel_voucher(v.id, db, current_user)
 
 def _auto_post_accounting(db: Session, current_user: models.User, invoice: models.Invoice):
-    if invoice.invoice_type not in ["sales-bill", "purchase-bill", "sales-return", "purchase-return"]:
+    if not any(invoice.invoice_type.startswith(p) for p in ["sales-bill", "purchase-bill", "sales-return", "purchase-return"]):
         return
         
     org_id = current_user.organization_id
@@ -195,28 +304,28 @@ def _auto_post_accounting(db: Session, current_user: models.User, invoice: model
     party_group = "Sundry Debtors" if "sales" in invoice.invoice_type else "Sundry Creditors"
     party_ledger = get_or_create_ledger(invoice.customer_name, party_group)
     
-    if invoice.invoice_type == "sales-bill":
+    if invoice.invoice_type.startswith("sales-bill"):
         sales_ledger = get_or_create_ledger("Sales Account", "Sales Accounts", "Cr")
         entries = [
             {"ledger_id": str(party_ledger.id), "cr_dr": "Dr", "amount": Decimal(str(invoice.grand_total))},
             {"ledger_id": str(sales_ledger.id), "cr_dr": "Cr", "amount": Decimal(str(invoice.grand_total))}
         ]
         v_type = "Journal"
-    elif invoice.invoice_type == "purchase-bill":
+    elif invoice.invoice_type.startswith("purchase-bill"):
         purchase_ledger = get_or_create_ledger("Purchase Account", "Purchase Accounts", "Dr")
         entries = [
             {"ledger_id": str(purchase_ledger.id), "cr_dr": "Dr", "amount": Decimal(str(invoice.grand_total))},
             {"ledger_id": str(party_ledger.id), "cr_dr": "Cr", "amount": Decimal(str(invoice.grand_total))}
         ]
         v_type = "Journal"
-    elif invoice.invoice_type == "sales-return":
+    elif invoice.invoice_type.startswith("sales-return"):
         sales_ret_ledger = get_or_create_ledger("Sales Return", "Sales Accounts", "Dr")
         entries = [
             {"ledger_id": str(sales_ret_ledger.id), "cr_dr": "Dr", "amount": Decimal(str(invoice.grand_total))},
             {"ledger_id": str(party_ledger.id), "cr_dr": "Cr", "amount": Decimal(str(invoice.grand_total))}
         ]
         v_type = "Journal"
-    elif invoice.invoice_type == "purchase-return":
+    elif invoice.invoice_type.startswith("purchase-return"):
         purch_ret_ledger = get_or_create_ledger("Purchase Return", "Purchase Accounts", "Cr")
         entries = [
             {"ledger_id": str(party_ledger.id), "cr_dr": "Dr", "amount": Decimal(str(invoice.grand_total))},
@@ -232,9 +341,10 @@ def _auto_post_accounting(db: Session, current_user: models.User, invoice: model
             # Calculate total cumulative amount for this party in current FY BEFORE this invoice
             fy = get_active_fiscal_year(db, org_id)
             if fy:
+                fy_name = getattr(fy, 'name', getattr(fy, 'year_label', '2026-27'))
                 prev_tx = db.query(models.TdsTcsTransaction).filter(
                     models.TdsTcsTransaction.party_id == party.id,
-                    models.TdsTcsTransaction.financial_year == str(fy.year_label)
+                    models.TdsTcsTransaction.financial_year == str(fy_name)
                 ).order_by(models.TdsTcsTransaction.created_at.desc()).first()
                 
                 prev_cumulative = float(prev_tx.cumulative_amount) if prev_tx else 0.0
@@ -281,7 +391,7 @@ def _auto_post_accounting(db: Session, current_user: models.User, invoice: model
                     organization_id=org_id,
                     party_id=party.id,
                     invoice_id=invoice.id,
-                    financial_year=str(fy.year_label),
+                    financial_year=str(fy_name),
                     transaction_type=invoice.invoice_type,
                     transaction_amount=float(invoice.grand_total),
                     cumulative_amount=new_cumulative,
@@ -334,10 +444,9 @@ def create_invoice(
         return update_invoice(existing_invoice.id, invoice_data, db, current_user)
     
 
-    # --- DOC-20 Document Series Numbering ---
+    # --- DOC-20 Document Series Numbering (Marg / Tally Continuation) ---
     final_invoice_number = invoice_data.invoice_number
     if invoice_data.series_id:
-        # Lock the row for atomic increment
         series = db.query(models.DocumentSeries).with_for_update().filter(
             models.DocumentSeries.id == invoice_data.series_id,
             models.DocumentSeries.organization_id == org_id
@@ -345,22 +454,59 @@ def create_invoice(
         if series:
             prefix = series.prefix or ""
             suffix = series.suffix or ""
-            # Generate number e.g., W-1004
-            final_invoice_number = f"{prefix}{series.next_number}{suffix}"
-            series.next_number += 1
-            db.add(series)
+            if not final_invoice_number or final_invoice_number.strip().lower() in ['auto', '']:
+                final_invoice_number = f"{prefix}{series.next_number}{suffix}"
+                series.next_number += 1
+                db.add(series)
+            else:
+                # User provided an explicit or customized invoice number; honor it and advance sequence if numeric
+                import re
+                m = re.search(r'(\d+)$', final_invoice_number.strip())
+                if m:
+                    series.next_number = int(m.group(1)) + 1
+                    db.add(series)
     # ----------------------------------------
+    # Validate series_id
+    valid_series_id = None
+    if invoice_data.series_id:
+        series_obj = db.query(models.DocumentSeries).filter(
+            models.DocumentSeries.id == invoice_data.series_id,
+            models.DocumentSeries.organization_id == org_id
+        ).first()
+        if series_obj:
+            valid_series_id = series_obj.id
+
+    # Validate party_id
+    valid_party_id = None
+    if invoice_data.party_id:
+        p_obj = db.query(models.Party).filter(
+            models.Party.organization_id == org_id,
+            models.Party.id == invoice_data.party_id
+        ).first()
+        if p_obj:
+            valid_party_id = p_obj.id
+    if not valid_party_id and invoice_data.customer_name and invoice_data.customer_name.strip() not in ["Cash Sale", "Cash", ""]:
+        cust_clean = invoice_data.customer_name.strip()
+        p_obj = db.query(models.Party).filter(
+            models.Party.organization_id == org_id,
+            or_(
+                models.Party.legal_name.ilike(cust_clean),
+                models.Party.trade_name.ilike(cust_clean)
+            )
+        ).first()
+        if p_obj:
+            valid_party_id = p_obj.id
     
     # 1. Create the parent Invoice record with ALL fields
     new_invoice = models.Invoice(
         organization_id=org_id,
         invoice_type=invoice_data.invoice_type,
         invoice_number=final_invoice_number,
-        series_id=invoice_data.series_id,
+        series_id=valid_series_id,
 
         date=datetime.utcnow(),  # Set current timestamp
         customer_name=invoice_data.customer_name,
-        party_id=invoice_data.party_id,
+        party_id=valid_party_id,
         
         # Advanced ERP fields
         party_inv_no=invoice_data.party_inv_no,
@@ -389,13 +535,7 @@ def create_invoice(
 
     # 2. Add Invoice Items with ALL fields
     for item in invoice_data.items:
-        if not item.product_id and item.product_name:
-            prod = db.query(models.Product).filter(
-                models.Product.organization_id == org_id,
-                models.Product.name.ilike(item.product_name.strip())
-            ).first()
-            if prod:
-                item.product_id = prod.id
+        prod = _resolve_or_create_product(db, org_id, item)
 
         new_item = models.InvoiceItem(
             invoice_id=new_invoice.id,
@@ -411,7 +551,10 @@ def create_invoice(
             expiry=item.expiry,
             mrp=item.mrp,
             discount_percent=item.discount_percent,
-            margin_percent=item.margin_percent
+            margin_percent=item.margin_percent,
+            disposition=getattr(item, "disposition", "saleable") or "saleable",
+            source_invoice_item_id=getattr(item, "source_invoice_item_id", None),
+            free_quantity=getattr(item, "free_quantity", 0) or 0
         )
         db.add(new_item)
 
@@ -481,6 +624,34 @@ def update_invoice(
     
     # Update invoice fields
     update_data = invoice_data.model_dump(exclude={"items"})
+
+    if "series_id" in update_data and update_data["series_id"]:
+        series_obj = db.query(models.DocumentSeries).filter(
+            models.DocumentSeries.id == update_data["series_id"],
+            models.DocumentSeries.organization_id == org_id
+        ).first()
+        if not series_obj:
+            update_data["series_id"] = None
+
+    if "party_id" in update_data and update_data["party_id"]:
+        p_obj = db.query(models.Party).filter(
+            models.Party.organization_id == org_id,
+            models.Party.id == update_data["party_id"]
+        ).first()
+        if not p_obj:
+            update_data["party_id"] = None
+    if not update_data.get("party_id") and update_data.get("customer_name") and update_data["customer_name"].strip() not in ["Cash Sale", "Cash", ""]:
+        cust_clean = update_data["customer_name"].strip()
+        p_obj = db.query(models.Party).filter(
+            models.Party.organization_id == org_id,
+            or_(
+                models.Party.legal_name.ilike(cust_clean),
+                models.Party.trade_name.ilike(cust_clean)
+            )
+        ).first()
+        if p_obj:
+            update_data["party_id"] = p_obj.id
+
     for key, value in update_data.items():
         setattr(db_invoice, key, value)
     
@@ -488,13 +659,7 @@ def update_invoice(
     
     # Add new items
     for item in invoice_data.items:
-        if not item.product_id and item.product_name:
-            prod = db.query(models.Product).filter(
-                models.Product.organization_id == org_id,
-                models.Product.name.ilike(item.product_name.strip())
-            ).first()
-            if prod:
-                item.product_id = prod.id
+        prod = _resolve_or_create_product(db, org_id, item)
 
         new_item = models.InvoiceItem(
             invoice_id=db_invoice.id,

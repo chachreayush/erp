@@ -27,11 +27,37 @@ def create_vendor_supply_rule(rule: schemas.VendorSupplyRuleCreate, db: Session 
     db.refresh(db_rule)
     return db_rule
 
+from typing import List, Optional
+
 @router.get("/orders", response_model=List[schemas.PurchaseOrderResponse])
-def get_purchase_orders(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    return db.query(models.PurchaseOrder).filter(
+def get_purchase_orders(
+    vendor_id: Optional[uuid.UUID] = None,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    query = db.query(models.PurchaseOrder).filter(
         models.PurchaseOrder.organization_id == current_user.organization_id
-    ).order_by(models.PurchaseOrder.created_at.desc()).all()
+    )
+    if vendor_id:
+        query = query.filter(models.PurchaseOrder.vendor_id == vendor_id)
+    if status:
+        query = query.filter(models.PurchaseOrder.status == status)
+    return query.order_by(models.PurchaseOrder.created_at.desc()).all()
+
+@router.get("/orders/{po_id}", response_model=schemas.PurchaseOrderResponse)
+def get_purchase_order_by_id(
+    po_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    po = db.query(models.PurchaseOrder).filter(
+        models.PurchaseOrder.id == po_id,
+        models.PurchaseOrder.organization_id == current_user.organization_id
+    ).first()
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase Order not found")
+    return po
 
 @router.post("/orders", response_model=schemas.PurchaseOrderResponse)
 def create_purchase_order(po: schemas.PurchaseOrderCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):

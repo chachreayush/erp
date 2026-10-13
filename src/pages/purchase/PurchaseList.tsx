@@ -12,6 +12,11 @@ interface PurchaseListProps {
   type: string; // 'modify-bill' | 'modify-challan'
 }
 
+const getStartOfMonthDateString = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+}
+
 const getTodayDateString = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -32,7 +37,7 @@ export default function PurchaseList({ onSelectBill, type }: PurchaseListProps) 
   const baseType = type.includes('challan') ? 'challan' : 'bill';
   const [partySearch, setPartySearch] = useState('')
   const [billNoSearch, setBillNoSearch] = useState('')
-  const [fromDate, setFromDate] = useState(getTodayDateString())
+  const [fromDate, setFromDate] = useState(getStartOfMonthDateString())
   const [toDate, setToDate] = useState(getTodayDateString())
 
   useEffect(() => {
@@ -72,8 +77,19 @@ export default function PurchaseList({ onSelectBill, type }: PurchaseListProps) 
   const colDefs: ColDef[] = [
     { field: 'date', headerName: 'Date', width: 120, filter: true },
     { field: 'entryNo', headerName: 'Entry No', width: 120, filter: true },
-    { field: 'partyName', headerName: 'Party Name', flex: 1, filter: true },
-    { field: 'partyInvNo', headerName: 'Party Inv No', width: 150, filter: true },
+    { field: 'partyName', headerName: 'Party / Vendor Name', flex: 1, filter: true },
+    { field: 'partyInvNo', headerName: 'Supplier Bill No', width: 150, filter: true },
+    { 
+      field: 'grandTotal', 
+      headerName: 'Total (₹)', 
+      width: 140, 
+      filter: true,
+      cellRenderer: (params: any) => (
+        <span style={{ fontWeight: 'bold', color: '#10b981' }}>
+          ₹{Number(params.value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </span>
+      )
+    },
     {
       headerName: 'Action',
       width: 100,

@@ -979,9 +979,9 @@ export default function BrkReceiveBill() {
         {/* Title & Type */}
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingRight: '10px', borderRight: '1px solid var(--color-border)', flexShrink: 0 }}>
           <h1 style={{ fontSize: '15px', fontWeight: 'bold', margin: 0, color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>
-            {type === 'challan' ? 'Purchase Challan' : 'Purchase Bill'}
+            {type === 'challan' ? 'Breakage Receive Challan' : 'Breakage & Expiry Receive'}
           </h1>
-          <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', marginTop: '1px' }}>Voucher Entry</span>
+          <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', marginTop: '1px' }}>From Chemist / Debtor (DOC-21/23)</span>
         </div>
 
         {/* Entry No */}

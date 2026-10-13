@@ -1,120 +1,191 @@
-# The Ultimate ERP System Manual
-*Last Updated: 2026-10-09 23:29:22*
+# Enterprise ERP System — User Manual and Operational Workflows
+*Reference Guide for Cashiers, Billing Operators, Store Managers, and Accountants*
 
-Welcome to the exhaustive documentation for our modern, keyboard-first ERP system. This document outlines every single module, architecture decision, and workflow implemented to date.
-
----
-
-## 1. Core Architecture & Philosophy
-
-### 1.1 Keyboard-First Operation
-Built for high-speed retail and wholesale distribution, the UI strictly enforces mouse-free operation. Users can navigate entire workflows, select batches (F3), submit forms, and drill down into reports using only keyboard shortcuts (Enter, Escape, Arrow Keys, Function Keys).
-
-### 1.2 Multi-Tenant Architecture (AM/CM)
-- **Admin Master (AM):** The platform super-admin environment. Manages global subscriptions, licensing, and provisions new organizations.
-- **Client Master (CM) / Organizations:** Individual client databases. All data (items, ledgers, sales) is strictly isolated by `organization_id`. AM Admins can securely impersonate CM Admins via `/auth/impersonate` for support.
-
-### 1.3 CQRS Append-Only Ledgers
-The accounting engine (DOC-08/DOC-09) uses an append-only architecture. 
-- You cannot silently "delete" a ledger entry. Mistakes are corrected via Reversal or Contra entries, ensuring strict audit compliance and tamper-proof financials.
+This document provides complete, exhaustive workflow documentation for operating the Enterprise Multi-Tenant Pharmaceutical ERP.
 
 ---
 
-## 2. Master Data & Inventory Management
+## 1. System Navigation & Keyboard-First Architecture
 
-### 2.1 Ledgers & Tax Codes
-- Fully customizable chart of accounts.
-- Integrated tax codes for dynamic GST calculation (SGST, CGST, IGST).
+The software is engineered for **100% keyboard-only counter operation**, allowing cashiers and operators to complete transactions in less than 2 to 3 seconds per customer bill without touching a mouse.
 
-### 2.2 Strict Stock Separation
-- **Active Stock:** Saleable goods available for regular invoicing.
-- **Breakage/Expiry (Brk/Exp):** Non-saleable goods. The system physically prevents these from being accidentally sold.
+### Master Keyboard Hotkey Map
 
-### 2.3 Batch Management (F3)
-- Pressing `F3` during billing opens the Batch Modal.
-- Zero-quantity batches are hidden by default to reduce clutter but can be revealed by pressing the `ArrowUp` key at the top of the list.
-
-### 2.4 Multi-Rate Pricing & Schemes (DOC-14 & DOC-15)
-- **Formula Builder:** Define dynamic pricing calculations and margins.
-- **Extra Scheme Settlement:** Automatically apply volume-based discounts and promotional schemes during Sales and Purchase flows.
-
----
-
-## 3. The Transactional Engine (Sales & Purchase)
-
-Each transaction maintains an independent, auto-incrementing Entry No. series (e.g., S0001, CRN0001) to prevent duplicates.
-
-### 3.1 Sales Flow
-- **Sales Bill:** Creates a permanent tax invoice, registers the sale, and deducts active stock. Triggers automated accounting journal vouchers.
-- **Challan:** A temporary delivery/dispatch sheet. Does not hit final accounting until converted to a Sales Bill.
-- **Sale Return:** Customer returns active goods. Issues a Credit Note and adds items back to active stock.
-
-### 3.2 Purchase Flow
-- **Purchase Bill:** Logs supplier purchases, adds to active inventory, and increases Accounts Payable.
-- **Purchase Challan:** Temporary goods receipt note (GRN).
-- **Purchase Return:** Returns active goods to supplier. Issues a Debit Note and removes stock.
-
-### 3.3 Breakage & Expiry Flow
-- **Brk/Exp Receive:** Customer returns damaged goods. Items enter the isolated Non-Saleable bucket.
-- **Brk/Exp Issue:** Damaged goods are returned to the manufacturer for replacement or credit claims.
+| Key | Purpose | Active Screens |
+| :--- | :--- | :--- |
+| `Enter` | **Forward Field Navigation** | Advances through Date &rarr; Bill No &rarr; Party &rarr; Product &rarr; Batch &rarr; Qty &rarr; Free &rarr; Rate &rarr; Next Row |
+| `Esc` | **Exit / Return to Home** | Safely exits the active screen and navigates back to Home Dashboard (`HomeScreen`) |
+| `F2` | **Against Original Bill Mode** | Toggles "Against Original Inward / Outward Bill" in Debit Notes and Credit Notes |
+| `F3` | **Batch Modal / Loose Mode** | Opens the live batch selection popup during billing (shows stock, MRP, expiry, trade rate) |
+| `F5` | **Register View** | Switches between the Transaction Entry form and the Historical Document Register |
+| `F7` | **Ledger / Party Search** | Opens the party lookup modal with real-time search across customers and vendors |
+| `F8` | **Load Inward Invoice** | Prompts for original invoice number during return processing |
+| `F9` | **Sales Order Picker** | Imports line items directly from an approved customer Sales Order |
+| `End` | **Instant Settlement Modal** | Directly opens the Bill Discount & Payment Settlement modal |
+| `Ctrl + S`| **Save & Post Document** | Commits and posts Debit Notes, Credit Notes, and Accounting Vouchers |
+| `ArrowUp`/`Down`| **Vertical Cell Navigation** | Navigates vertically across table rows or batch popup lists |
+| `ArrowLeft`/`Right`| **Horizontal Cell Navigation** | Navigates between Rate, Discount, and Quantity cells in billing grids |
 
 ---
 
-## 4. Advanced Financial Accounting
+## 2. The 6 Core Transaction Voucher Workflows
 
-### 4.1 Bill-by-Bill Allocations & Vouchers (DOC-24)
-- When a payment is received (Receipt Voucher) or made (Payment Voucher), the amount is explicitly allocated against specific open invoices. 
-- Allows precise tracking of outstanding amounts per invoice rather than just a generic running balance.
+```
++-----------------------------------------------------------------------------------+
+|                            THE 6 TRANSACTION WORKFLOWS                            |
++-------------------+---------------------+-----------------------------------------+
+| Voucher Type      | Route               | Operational Purpose                     |
++-------------------+---------------------+-----------------------------------------+
+| 1. Sales Bill     | /sales              | Fast retail/wholesale customer billing  |
+| 2. Purchase Bill  | /purchase           | Inward goods entry & batch creation     |
+| 3. Debit Note     | /purchase-return    | Returning stock to suppliers/C&F        |
+| 4. Credit Note    | /sales-return       | Customer returns & credit issuance      |
+| 5. Breakage Issue | /brk-issue          | Returning damaged stock to manufacturer |
+| 6. Breakage Recv  | /brk-receive        | Receiving damaged stock from customers  |
++-------------------+---------------------+-----------------------------------------+
+```
 
-### 4.2 Bank Reconciliation (DOC-25)
-- Compare physical bank statements with ERP ledger entries.
-- Mark entries as `cleared` and track Uncleared Cheques.
+### 2.1 Counter Sales Billing (`/sales`)
+1. **Header Entry**: Date defaults to today &rarr; Press `Enter`. Bill No displays current active series &rarr; Press `Enter` (or type custom series and press `Enter`). Party Name: Press `[F7]` or type customer name &rarr; Press `Enter`.
+2. **Product Lines**: Type drug name &rarr; Press `Enter`. Press `[F3]` to open the Batch Modal. Use `ArrowDown` to select batch with available stock &rarr; Press `Enter`. Enter Quantity &rarr; Free Quantity &rarr; Rate &rarr; Discount %. The line total calculates and automatically advances to the next product row.
+3. **Settlement**: Press `[End]` to open the Discount & Settlement modal. Review Taxable Amount, GST splits, Round-off, and Net Total. Press `Enter` to confirm and save.
+4. **Series Continuation**: The bill number auto-increments with your custom series (e.g. `RJ-INV-1001` &rarr; `RJ-INV-1002`).
 
-### 4.3 Expense Engine (DOC-26)
-- Dedicated workflows for logging operational expenses (GST Inward for input tax credit) and general business overheads.
+### 2.2 Purchase Inward Entry (`/purchase`)
+1. **Inward Mode**: Choose `DIRECT` or `AGAINST_PO`.
+2. **Header Entry**: Enter Bill No, select Supplier (`[F7]`), enter Supplier Invoice Number (`party_inv_no`), and Supplier Invoice Date.
+3. **Batch Accrual**: Enter Product Name, Batch Number, Expiry (`MM/YY`), Purchase Rate (Cost), Sale Rate (Trade Price), and MRP.
+4. **Discrepancy Logging**: Tick `Discrepancy` on any damaged item row to automatically log vendor complaints.
+5. **Post Inward**: Press `[End]` and confirm. Stock is accrued to active inventory (`current_stock`).
 
-### 4.4 Fixed Assets & Depreciation (DOC-27)
-- Capitalize assets and run automated depreciation calculations (Straight Line / WDV) at the end of financial periods.
+### 2.3 Supplier Debit Note / Purchase Return (`/purchase-return`)
+1. **Dual Modes**: Press `[F2]` for **Against Inward Bill** or `[F3]` for **Direct Loose Return**.
+2. **Load Past Inward Bill**: Select Supplier &rarr; Click `🔍 Select Inward Purchase Bill` &rarr; Pick past inward bill &rarr; Click `Load Items →`. Original items, inward batches, and purchase rates populate the grid.
+3. **Stock Disposition**: For each row, select inventory deduction routing:
+   * `🟢 Return from Saleable Stock`
+   * `🔴 Return from Breakage Godown`
+   * `🟡 Return from Expired Godown`
+4. **Series Continuation**: Edit Debit Note number (e.g., `RJ-DN-0020`).
+5. **Issue**: Press `Ctrl + S` or click **Issue Debit Note**. Next series auto-advances to **`RJ-DN-0021`**. GL voucher posts: `Dr Supplier`, `Cr Purchase Return`.
+
+### 2.4 Customer Credit Note / Sales Return (`/sales-return`)
+1. **Dual Modes**: Press `[F2]` for **Against Original Invoice** or `[F3]` for **Direct Counter Return**.
+2. **Load Sales Bill**: Select Customer &rarr; Click `🔍 Select Original Sales Bill` &rarr; Pick sales bill. Original billed items populate with sold price and discount.
+3. **Adjust Return Quantity**: Type returned units. Press `Enter` to walk across rows. Select stock disposition (`🟢 Saleable`, `🔴 Breakage Godown`, `🟡 Expired Godown`).
+4. **Series Continuation**: Edit Credit Note number (e.g. `RJ-CN-8281`).
+5. **Save**: Press `Ctrl + S`. Next series auto-advances to **`RJ-CN-8282`**. GL voucher posts: `Dr Sales Return`, `Cr Customer`.
+
+### 2.5 Breakage Receive & Issue (`/brk-receive`, `/brk-issue`)
+* **Breakage Receive (`/brk-receive`)**: Records damaged medicines returned by retail chemists directly into the isolated `brk_exp_stock` table.
+* **Breakage Issue (`/brk-issue`)**: Records shipments of damaged medicine returned to pharmaceutical companies for credit or replacement, deducting stock from `brk_exp_stock`.
+
+---
+
+## 3. Financial Accounting & Audit Statements (`/finance`)
+
+* **Day Book (`/finance/daybook`)**: Chronological audit trail of all transactions recorded in a business day.
+* **Ledger Statement (`/finance/ledger-statement`)**: Running balance statement for any customer, supplier, bank, or expense ledger.
+* **Trial Balance (`/finance/trial-balance`)**: Statutory trial balance verifying that debits equal credits across all accounts.
+* **Profit & Loss (`/finance/profit-loss`)**: Calculates Gross Profit, COGS, indirect expenses, and Net Operating Profit.
+* **Balance Sheet (`/finance/balance-sheet`)**: Balance sheet tracking Capital, Liabilities, Fixed Assets, Current Assets, and Bank Accounts.
+* **Bank Reconciliation (`/finance/bank-reconciliation`)**: Reconciles uploaded bank statement CSVs against ERP bank vouchers.
 
 ---
 
-## 5. Compliance & Taxation (DOC-29)
+## 4. Management Reports & Analytics (`/reports`)
 
-### 5.1 E-Invoicing & E-Way Bill (Zero-Cost Workflow)
-By-passes expensive third-party GSP APIs by providing a direct portal integration workflow:
-1. **F6 (Validate):** Locally checks pending invoices for missing HSN or invalid GSTINs.
-2. **F7 (Export):** Generates the exact Bulk JSON format required by the Government IRP.
-3. **F8 (Import):** Parses the downloaded government JSON response, instantly linking IRN, Acknowledgement Number, and Signed QR Codes to your invoices.
-4. **Signed Ledger:** A dedicated screen to view digitally signed, compliant invoices.
-
-### 5.2 TDS / TCS Auto-Posting Engine (₹50 Lakh Limit)
-- **Tracking:** The system cumulatively tracks total purchases from a supplier and sales to a customer in a Financial Year.
-- **Alerts:** Once the ₹50 Lakh threshold is crossed, the billing screen throws an alert.
-- **Auto-Deduction:** If set to "Automatic Mode", the `_auto_post_accounting` engine seamlessly calculates the 0.1% deduction and appends "TDS Payable" or "TCS Receivable" journal entries to the voucher without manual effort.
+* **Company-Wise Sales Register**: Aggregates sales by manufacturer across 25+ pharmaceutical companies. Includes multi-company filter modal with batch selection and search.
+* **Inline Product Drill-Down**: Click `[▶ View Products]` on any manufacturer row to expand product sales drawer.
+* **Custom Report Designer (`/reports/designer`)**: Build, filter, execute, and save custom multi-dimensional management reports.
 
 ---
 
-## 6. Financial & Management Reporting (DOC-30)
+## 5. Master 6-Module Keyboard Operation Quick Reference & Shortcuts Matrix
 
-### 6.1 Dynamic Report Viewer
-- Grid-based analytics for Sales and Ledger Balances.
-- Includes a native **Export to CSV** function powered directly by the browser to prevent backend CPU bottlenecks on large datasets.
-
-### 6.2 Advanced Report Designer
-- A drag-and-drop style interface for power users.
-- Connect to a Semantic Catalogue (Sales, Purchase, Inventory, Ledgers).
-- Define custom columns, filters, and calculations, and save them as reusable "Report Templates" or "Report Variants".
-
-### 6.3 Dashboard Exclusions (Data Governance)
-- Management can flag specific Parties or Ledgers as "Disputed" or "Excluded" via a modal.
-- These entities disappear from operational KPI dashboards (like "Actionable Outstanding").
-- **Crucially:** This does *not* alter the underlying accounting truth. Statutory reports and formal Ledger Statements will still show the true balances, preventing financial fraud while cleaning up operational views.
+| Module Name | Shortcut Route | Header & Series Hotkeys | Party / Ledger Selection | Product Search & Grid | Save Confirmation |
+|---|---|---|---|---|---|
+| **Sales Bill** | `/sales?type=bill` | Type entry no &rarr; `Enter` | `F7` or click party &rarr; Enter | `F7` / `Enter` on product &rarr; Enter batch & qty | `Ctrl+S` &rarr; Enter on `Yes, Save Bill` |
+| **Purchase Bill** | `/purchase?type=bill` | Type entry no &rarr; `Enter` | `F7` or `Enter` &rarr; picks vendor | `F7` / `Enter` &rarr; picks product &rarr; batch, qty, prate | `SAVE (End / Ctrl+S)` &rarr; Enter on `Yes, Save` |
+| **Supplier Debit Note** | `/purchase-return` | Type DN number | Type supplier &rarr; `Enter` | `[F2]` pick inward bill or `[F3]` loose return &rarr; qty | `Issue Debit Note` button |
+| **Customer Credit Note** | `/sales-return` | Type CN number | Select debtor &rarr; `Enter` | `[F2]` pick sales bill or `[F3]` loose return &rarr; qty | `Issue Credit Note` button |
+| **Breakage Issue** | `/brk-issue?type=bill` | Type entry no &rarr; `Enter` | `Enter` opens vendor modal | `Enter` on product &rarr; enters damaged batch/qty | `SAVE (End / Ctrl+S)` &rarr; Enter on `Yes, Save` |
+| **Breakage Receive** | `/brk-receive?type=bill` | Type entry no &rarr; `Enter` | `Enter` opens debtor modal | `Enter` on product &rarr; enters damaged batch/qty | `SAVE (End / Ctrl+S)` &rarr; Enter on `Yes, Save` |
 
 ---
 
-## 7. C&F Platform & Principal Billing (DOC-28)
-- Designed for Carrying & Forwarding agents.
-- Manages principal inventory mapping, specialized MIS reports for pharmaceutical parent companies, and automated claim tracking for expired goods.
+## 6. Automated Selenium Verification Results for Reports & Finance
+
+The ERP reporting and double-entry accounting engine has been verified with **100% automated pass** across all 8 modules via [`test_reports_and_finance_selenium.py`](file:///c:/Users/DELL/OneDrive/Desktop/erp2/test_reports_and_finance_selenium.py):
+1. **Company-Wise Sales (`/reports`)**: 25+ manufacturers loaded, multi-company search/batch modal verified, inline product drill-downs `[▶ View Products]` responsive.
+2. **Report Designer (`/reports/designer`)**: Dynamic semantic query execution against `/api/reports_v2/query` and template persistence verified.
+3. **Day Book (`/finance/daybook`)**: Daily chronological transaction vouchers with double-entry debit/credit legs.
+4. **Ledger Statement (`/finance/ledger-statement`)**: 69 ledgers dropdown, debtor opening balance, and running balance calculation verified.
+5. **Trial Balance (`/finance/trial-balance`)**: 62 active ledgers verified, Debits equal Credits balanced check confirmed.
+6. **Profit & Loss (`/finance/profit-loss`)**: Income vs Expenses accounts, multi-group sub-totals, and Net Profit/Loss banner verified.
+7. **Balance Sheet (`/finance/balance-sheet`)**: Capital, Liabilities, and Asset accounts verified with balanced equation check.
+8. **Bank Reconciliation (`/finance/bank-reconciliation`)**: Bank account selection and unreconciled split-screen ledger transaction mapper verified.
 
 ---
-End of Manual.
+
+## 7. Statutory GST Compliance & Tax Filing Workbench (`/gst`)
+
+1. **Executive Statutory Metrics**: Real-time calculation of Outward Supplies (₹1,52,519.34), Tax Liability (₹17,318.00), Inward Purchases (₹1,81,76,245.90), Eligible ITC (₹29,03,956.42), Net Cash Liability (₹0.00), and Accumulated ITC Balance (₹28,86,638.42).
+2. **GSTR-1 Outward Supplies Multi-Tab**:
+   - Table 4 (B2B): Invoices with customer GSTIN, POS state code, and tax breakdown.
+   - Table 7 (B2CS): Consolidated retail counter turnover.
+   - Table 9B (CDNR): Customer credit notes reducing outward tax liability.
+   - Table 12 (HSN): Pharmaceutical HSN summary with quantities and UQC codes.
+   - Table 13 (Documents Issued): Series numbering audit with cancellations count.
+3. **GSTR-2 Inward Register**: Full purchase audit with vendor GSTINs and automatic Debit Note ITC Reversals (-₹95.20).
+4. **GSTR-3B Monthly Return**: Consolidated tables (3.1 Outward supplies, 4 Eligible ITC, 5.1 Tax payment breakdown and auto set-off).
+5. **Government GSTN Portal Offline JSON Export**: Download official `GSTR1_Offline_Utility_v1.5` JSON directly for instant upload to `gst.gov.in`.
+6. **Automated Verification**: Verified 100% PASS across 10 steps via `test_gst_compliance_selenium.py`.
+
+---
+
+## 8. Fixed Assets & Depreciation Engine (DOC-27)
+
+* **Route**: `/finance/assets` & `/finance/asset-categories`
+* **Executive Metrics**: Total Gross Block, Accumulated Depreciation, Net Book Value, and Active Asset Count.
+* **Statutory Asset Blocks**: Plant & Machinery, Buildings, Furniture & Fixtures, Computer Equipment, Vehicles.
+* **Depreciation Methods**: Straight Line Method (SLM) and Written Down Value (WDV) with configurable useful life and 5% residual scrap value.
+* **Automated Accounting Posting**: Single-click and bulk period runs post double-entry Journal Vouchers (`Dr Depreciation Expense`, `Cr Accumulated Depreciation`), automatically reducing P&L Net Profit and Balance Sheet Net Block.
+* **Automated Verification**: 100% PASS via `test_fixed_assets_selenium.py`.
+
+---
+
+## 9. Bank Reconciliation & Physical Cash Control Engine (DOC-28)
+
+* **Route**: `/finance/bank-reconciliation`
+* **Real-Time BRS Metrics**: Bank Statement Closing Balance, ERP General Ledger Book Balance, Unreconciled Variance (reaches ₹0.00 when balanced), and Pending Clearance Count.
+* **Dual-Pane Interactive Workbench**: Split-screen view of ERP Ledger bank vouchers vs External Bank Statement feed (with CSV import).
+* **Automated Auto-Match Wizard**: Matches transactions by Cheque / Reference No, Exact Amount, and Date Proximity Tolerance ($\pm 3$ days).
+* **Physical Cash Denomination Counter**: RBI denomination counter grid (₹2000 to ₹1 coin), calculating Physical Drawer Total vs Book Cash Balance, flagging Shortage or Excess with cashier audit trail.
+* **Automated Verification**: 100% PASS via `test_bank_recon_cash_selenium.py`.
+
+---
+
+## 10. Operational Expense Manager & Petty Cash Engine (DOC-26)
+
+* **Route**: `/finance/expenses`
+* **Executive Metrics**: Approved Expenses, Pending Approvals, Active Advances, and Settled Advances.
+* **Dual-Track Workflow**:
+  1. *⚡ Quick Daily Expense Entry*: Instant direct cash/bank disbursements to 10 statutory P&L heads (Tea/Refreshments, Conveyance, Freight, Printing, Courier, Sanitation) with live Dr/Cr/Net Profit impact preview.
+  2. *Employee Imprest & Advances*: Tour advance issuance, multi-line itemized reimbursement claims, and automatic advance offset.
+* **Automated Verification**: 100% PASS via `test_expense_petty_cash_selenium.py` and `test_direct_expense_ui_selenium.py`.
+
+---
+
+## 11. Journal Voucher Multi-Leg Adjustment & Accrual Scheduler (DOC-25)
+
+* **Route**: `/journal` & `/finance/journal-register`
+* **Keyboard-First Cockpit**: Hotkeys `[Ctrl+B]` Auto-Balance, `[Ctrl+D]` Duplicate row, `[Alt+A]` Add row, `[Ctrl+S]` Save.
+* **Statutory Classifications**: Standard Journal, Accrual Journal, Provision, Prepaid Amortization, Reclassification, Opening Balance Adjustment.
+* **Traceable Reversals**: One-click atomic inversion (`[Reverse ↩]`) creating Dr &rarr; Cr, Cr &rarr; Dr vouchers linked permanently to original journal.
+* **Automated Verification**: 100% PASS via `test_journal_accrual_engine_selenium.py`.
+
+---
+*End of User Manual and Workflows.*
+
+
+

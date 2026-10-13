@@ -1,120 +1,85 @@
-# The Ultimate ERP System Manual
-*Last Updated: 2026-10-09 23:29:22*
+# Enterprise ERP System — Unified Developer & User Master Manual
+*Unified Technical Architecture and Operational Guide*
 
-Welcome to the exhaustive documentation for our modern, keyboard-first ERP system. This document outlines every single module, architecture decision, and workflow implemented to date.
-
----
-
-## 1. Core Architecture & Philosophy
-
-### 1.1 Keyboard-First Operation
-Built for high-speed retail and wholesale distribution, the UI strictly enforces mouse-free operation. Users can navigate entire workflows, select batches (F3), submit forms, and drill down into reports using only keyboard shortcuts (Enter, Escape, Arrow Keys, Function Keys).
-
-### 1.2 Multi-Tenant Architecture (AM/CM)
-- **Admin Master (AM):** The platform super-admin environment. Manages global subscriptions, licensing, and provisions new organizations.
-- **Client Master (CM) / Organizations:** Individual client databases. All data (items, ledgers, sales) is strictly isolated by `organization_id`. AM Admins can securely impersonate CM Admins via `/auth/impersonate` for support.
-
-### 1.3 CQRS Append-Only Ledgers
-The accounting engine (DOC-08/DOC-09) uses an append-only architecture. 
-- You cannot silently "delete" a ledger entry. Mistakes are corrected via Reversal or Contra entries, ensuring strict audit compliance and tamper-proof financials.
+This document unifies the technical architecture specifications for software engineers with the operational workflows for cashiers, accountants, and store managers.
 
 ---
 
-## 2. Master Data & Inventory Management
+## Part 1: Technical Developer Architecture
 
-### 2.1 Ledgers & Tax Codes
-- Fully customizable chart of accounts.
-- Integrated tax codes for dynamic GST calculation (SGST, CGST, IGST).
+### 1.1 Architecture & Tech Stack
+* **Frontend**: React 19 + TypeScript + Vite (`port 50005`), Zustand state management, Axios client.
+* **Backend**: FastAPI + Uvicorn (`port 8000`), Python 3.11/3.13, SQLAlchemy ORM.
+* **Database**: PostgreSQL with strict multi-tenant isolation by `organization_id`.
+* **Desktop Wrapper**: Tauri v2 (native Rust client).
 
-### 2.2 Strict Stock Separation
-- **Active Stock:** Saleable goods available for regular invoicing.
-- **Breakage/Expiry (Brk/Exp):** Non-saleable goods. The system physically prevents these from being accidentally sold.
+### 1.2 Core Data Models
+* **Invoices (`models.Invoice`, `models.InvoiceItem`)**: Covers all 6 voucher types (`sales-bill`, `purchase-bill`, `sales-return`, `purchase-return`, `brk-receive`, `brk-issue`).
+* **General Ledger (`models.Voucher`, `models.VoucherEntry`)**: Append-only double-entry ledger with automatic journal generation.
+* **Stock Godowns**: Active inventory in `current_stock` partitioned from quarantined damaged goods in `brk_exp_stock`.
 
-### 2.3 Batch Management (F3)
-- Pressing `F3` during billing opens the Batch Modal.
-- Zero-quantity batches are hidden by default to reduce clutter but can be revealed by pressing the `ArrowUp` key at the top of the list.
-
-### 2.4 Multi-Rate Pricing & Schemes (DOC-14 & DOC-15)
-- **Formula Builder:** Define dynamic pricing calculations and margins.
-- **Extra Scheme Settlement:** Automatically apply volume-based discounts and promotional schemes during Sales and Purchase flows.
+### 1.3 Alphanumeric Series Continuation Engine
+The system uses the `incrementSeries` algorithm to parse and advance alphanumeric series prefixes while preserving leading zeros and sequence width (e.g., `RJ-DN-0020` &rarr; `RJ-DN-0021`). Custom user sequences are persisted to `localStorage` and never overridden by default values.
 
 ---
 
-## 3. The Transactional Engine (Sales & Purchase)
+## Part 2: User Operational Guide
 
-Each transaction maintains an independent, auto-incrementing Entry No. series (e.g., S0001, CRN0001) to prevent duplicates.
+### 2.1 Keyboard-First Counter Billing
+The ERP is 100% keyboard-navigable. Key shortcuts:
+* `Enter`: Advance through fields and create rows.
+* `Esc`: Exit to Dashboard.
+* `F2`: Against Bill Mode.
+* `F3`: Batch selection modal / Loose mode.
+* `F5`: Register view.
+* `F7`: Ledger / Party search modal.
+* `End`: Jump to Discount & Settlement modal.
+* `Ctrl + S`: Save & Post voucher.
 
-### 3.1 Sales Flow
-- **Sales Bill:** Creates a permanent tax invoice, registers the sale, and deducts active stock. Triggers automated accounting journal vouchers.
-- **Challan:** A temporary delivery/dispatch sheet. Does not hit final accounting until converted to a Sales Bill.
-- **Sale Return:** Customer returns active goods. Issues a Credit Note and adds items back to active stock.
+### 2.2 The 6 Transaction Modules
+1. **Sales Bill (`/sales`)**: Fast counter billing with batch selection (`[F3]`), settlement modal (`[End]`), and auto-incrementing bill series.
+2. **Purchase Bill (`/purchase`)**: Direct inward and PO-matching with vendor invoice reference and batch accrual.
+3. **Supplier Debit Note (`/purchase-return`)**: Dual mode (`[F2] Against Bill` vs `[F3] Loose Return`), stock disposition routing (`Saleable`, `Breakage Godown`, `Expired Godown`), and automatic series advance (`RJ-DN-0020` &rarr; `RJ-DN-0021`).
+4. **Customer Credit Note (`/sales-return`)**: Dual mode (`[F2] Against Bill` vs `[F3] Counter Return`), returnable quantity caps, table keyboard navigation, and series continuation (`RJ-CN-8281` &rarr; `RJ-CN-8282`).
+5. **Breakage Receive (`/brk-receive`)**: Records damaged returns into non-saleable quarantine godown (`brk_exp_stock`).
+6. **Breakage Issue (`/brk-issue`)**: Records damaged goods returned to manufacturers for credit claims.
 
-### 3.2 Purchase Flow
-- **Purchase Bill:** Logs supplier purchases, adds to active inventory, and increases Accounts Payable.
-- **Purchase Challan:** Temporary goods receipt note (GRN).
-- **Purchase Return:** Returns active goods to supplier. Issues a Debit Note and removes stock.
+### 2.3 Financials & Management Reports
+* **Day Book (`/finance/daybook`)**: Chronological daily audit trail.
+* **Ledger Statement (`/finance/ledger-statement`)**: Running balance statement per party.
+* **Trial Balance, P&L, Balance Sheet**: Statutory double-entry statements.
+* **Company-Wise Sales & Drill-Downs (`/reports`)**: Manufacturer sales aggregation across 25+ companies with multi-company filter modal and inline product drill-downs.
 
-### 3.3 Breakage & Expiry Flow
-- **Brk/Exp Receive:** Customer returns damaged goods. Items enter the isolated Non-Saleable bucket.
-- **Brk/Exp Issue:** Damaged goods are returned to the manufacturer for replacement or credit claims.
+### 2.4 Statutory GST Compliance Workbench (`/gst`)
+* **Executive Metrics**: Outward Taxable (₹1,52,519.34), Tax (₹17,318.00), Inward (₹1,81,76,245.90), Eligible ITC (₹29,03,956.42), Net Cash (₹0.00), ITC Balance (₹28,86,638.42).
+* **GSTR-1 Outward Registers**: Table 4 (B2B), Table 7 (B2CS), Table 9B (CDNR), Table 12 (HSN), Table 13 (Documents Issued).
+* **GSTR-2 Inward & ITC Register**: Inward purchase bills matching with Debit Note ITC reversals (-₹95.20).
+* **GSTR-3B Monthly Return**: Consolidated tables (3.1 Outward supplies, 4 Eligible ITC, 5.1 Tax payment calculation).
+* **GSTN Portal Offline JSON**: Direct export compliant with `GSTR1_Offline_Utility_v1.5` schema for upload to `gst.gov.in`.
+### 2.5 Fixed Assets & Depreciation Engine (`/finance/assets`)
+* **Asset Lifecycle**: Code `AST-2026-xxxx`, Statutory Categories (Schedule II Companies Act 2013), Capitalization Date, Gross Block, Salvage Value (5%).
+* **Depreciation Methods**: SLM and WDV calculation models with proration.
+* **Automated Accounting**: Single and bulk period runs post `Dr Depreciation Expense A/c (P&L)` and `Cr Accumulated Depreciation A/c (Balance Sheet Contra)`.
+* **Verified 100% PASS**: Automated Selenium suite `test_fixed_assets_selenium.py`.
 
----
+### 2.6 Bank Reconciliation & Physical Cash Control (`/finance/bank-reconciliation`)
+* **BRS Metrics**: Statement Closing Balance, ERP Book Balance, Unreconciled Variance, Pending Clearance Count.
+* **Dual Workbench**: ERP Bank Vouchers vs External Statement feed (CSV import supported).
+* **Auto-Match Engine**: Tolerance matching by Reference/Cheque Number, Exact Amount, and Date Proximity ($\pm 3$ days).
+* **Physical Cash Denomination Counter**: RBI denomination grid (₹2000 to ₹1 coin), Physical Total vs Book Balance comparison, Cash Shortage/Excess reporting.
+* **Verified 100% PASS**: Automated Selenium suite `test_bank_recon_cash_selenium.py`.
 
-## 4. Advanced Financial Accounting
+### 2.7 Operational Expense & Reimbursement Engine (`/finance/expenses`)
+* **Quick Daily Expense Entry**: Instant petty cash/bank disbursements to 10 statutory P&L heads with live Dr/Cr/Net Profit impact preview.
+* **Employee Imprest & Advances**: Tour advance tracking, multi-line itemized claims, and automatic advance offset.
+* **Verified 100% PASS**: Automated Selenium suite `test_expense_petty_cash_selenium.py`.
 
-### 4.1 Bill-by-Bill Allocations & Vouchers (DOC-24)
-- When a payment is received (Receipt Voucher) or made (Payment Voucher), the amount is explicitly allocated against specific open invoices. 
-- Allows precise tracking of outstanding amounts per invoice rather than just a generic running balance.
-
-### 4.2 Bank Reconciliation (DOC-25)
-- Compare physical bank statements with ERP ledger entries.
-- Mark entries as `cleared` and track Uncleared Cheques.
-
-### 4.3 Expense Engine (DOC-26)
-- Dedicated workflows for logging operational expenses (GST Inward for input tax credit) and general business overheads.
-
-### 4.4 Fixed Assets & Depreciation (DOC-27)
-- Capitalize assets and run automated depreciation calculations (Straight Line / WDV) at the end of financial periods.
-
----
-
-## 5. Compliance & Taxation (DOC-29)
-
-### 5.1 E-Invoicing & E-Way Bill (Zero-Cost Workflow)
-By-passes expensive third-party GSP APIs by providing a direct portal integration workflow:
-1. **F6 (Validate):** Locally checks pending invoices for missing HSN or invalid GSTINs.
-2. **F7 (Export):** Generates the exact Bulk JSON format required by the Government IRP.
-3. **F8 (Import):** Parses the downloaded government JSON response, instantly linking IRN, Acknowledgement Number, and Signed QR Codes to your invoices.
-4. **Signed Ledger:** A dedicated screen to view digitally signed, compliant invoices.
-
-### 5.2 TDS / TCS Auto-Posting Engine (₹50 Lakh Limit)
-- **Tracking:** The system cumulatively tracks total purchases from a supplier and sales to a customer in a Financial Year.
-- **Alerts:** Once the ₹50 Lakh threshold is crossed, the billing screen throws an alert.
-- **Auto-Deduction:** If set to "Automatic Mode", the `_auto_post_accounting` engine seamlessly calculates the 0.1% deduction and appends "TDS Payable" or "TCS Receivable" journal entries to the voucher without manual effort.
-
----
-
-## 6. Financial & Management Reporting (DOC-30)
-
-### 6.1 Dynamic Report Viewer
-- Grid-based analytics for Sales and Ledger Balances.
-- Includes a native **Export to CSV** function powered directly by the browser to prevent backend CPU bottlenecks on large datasets.
-
-### 6.2 Advanced Report Designer
-- A drag-and-drop style interface for power users.
-- Connect to a Semantic Catalogue (Sales, Purchase, Inventory, Ledgers).
-- Define custom columns, filters, and calculations, and save them as reusable "Report Templates" or "Report Variants".
-
-### 6.3 Dashboard Exclusions (Data Governance)
-- Management can flag specific Parties or Ledgers as "Disputed" or "Excluded" via a modal.
-- These entities disappear from operational KPI dashboards (like "Actionable Outstanding").
-- **Crucially:** This does *not* alter the underlying accounting truth. Statutory reports and formal Ledger Statements will still show the true balances, preventing financial fraud while cleaning up operational views.
+### 2.8 Journal Voucher Multi-Leg Adjustment & Accrual Engine (`/journal`)
+* **Keyboard Cockpit**: Hotkeys `[Ctrl+B]` Auto-Balance, `[Ctrl+D]` Duplicate row, `[Alt+A]` Add row.
+* **Accrual Scheduler**: Automatic future reversal scheduling (1st of next month).
+* **Traceable Reversals**: One-click GL inversion (`[Reverse ↩]`) on Journal Register.
+* **Verified 100% PASS**: Automated Selenium suite `test_journal_accrual_engine_selenium.py`.
 
 ---
+*End of Unified Master Manual.*
 
-## 7. C&F Platform & Principal Billing (DOC-28)
-- Designed for Carrying & Forwarding agents.
-- Manages principal inventory mapping, specialized MIS reports for pharmaceutical parent companies, and automated claim tracking for expired goods.
-
----
-End of Manual.

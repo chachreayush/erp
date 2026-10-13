@@ -56,7 +56,8 @@ elif DATABASE_URL.startswith("postgresql://"):
 # This prevents errors if PostgreSQL restarted while the app was running.
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True  # Test connections before using them
+    pool_pre_ping=True,  # Test connections before using them
+    pool_recycle=300     # Recycle connections every 5 minutes for serverless Postgres
 )
 
 # ── CREATE SESSION FACTORY ────────────────────────────────────

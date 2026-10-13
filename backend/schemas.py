@@ -24,7 +24,7 @@ from typing import List, Dict
 
 from pydantic import BaseModel, EmailStr, Field, UUID4, ConfigDict
 from typing import Optional
-from datetime import datetime, date
+from datetime import datetime, date, date as dt_date
 from uuid import UUID
 from models import UserRole  # Import the role enum from our models
 
@@ -234,6 +234,9 @@ class InvoiceItemBase(BaseModel):
     mrp: Optional[float] = 0.0
     discount_percent: Optional[float] = 0.0
     margin_percent: Optional[str] = None
+    disposition: Optional[str] = "saleable"
+    source_invoice_item_id: Optional[UUID4] = None
+    free_quantity: Optional[int] = 0
 
 class InvoiceItemCreate(InvoiceItemBase):
     pass
@@ -246,6 +249,7 @@ class InvoiceItemResponse(InvoiceItemBase):
 
 class InvoiceBase(BaseModel):
     customer_name: str
+    party_id: Optional[UUID4] = None
     invoice_type: str = "bill"
     invoice_number: str
     subtotal: float
@@ -878,8 +882,133 @@ class AllocationSummary(BaseModel):
     document_type: str = Field(
         ..., description="'Invoice', 'Receipt', 'Payment', 'CN', 'DN', 'Floating'"
     )
+    party_id: Optional[UUID] = None
+    party_name: Optional[str] = None
+    days_overdue: Optional[int] = 0
 
 
+# ── RECEIPT / PAYMENT & OUTSTANDING SETTLEMENT SCHEMAS (DOC-24 & DOC-07) ──
+
+class ReceiptPaymentCreate(BaseModel):
+    voucher_type: str = Field(..., description="'Receipt' or 'Payment'")
+    voucher_number: Optional[str] = None
+    series_id: Optional[UUID] = None
+    date: dt_date = Field(default_factory=dt_date.today)
+    party_id: UUID
+    cash_bank_ledger_id: UUID
+    amount: Decimal = Field(..., gt=0)
+    payment_mode: str = Field(default="Cash", description="Cash, Cheque, NEFT/RTGS, UPI")
+    reference_number: Optional[str] = None # Cheque No / UTR / UPI Ref
+    bank_name: Optional[str] = None
+    instrument_date: Optional[dt_date] = None
+    narration: Optional[str] = None
+    allocations: Optional[List[AllocationItemCreate]] = None
+    auto_allocate_fifo: Optional[bool] = False
+
+
+class ReceiptPaymentResponse(BaseModel):
+    voucher_id: UUID
+    voucher_number: str
+    voucher_type: str
+    date: dt_date
+    party_id: UUID
+    party_name: str
+    total_amount: Decimal
+    allocated_total: Decimal
+    floating_balance: Decimal
+    allocations_count: int
+    narration: Optional[str] = None
+
+
+class OutstandingBillItem(BaseModel):
+    invoice_id: UUID
+    invoice_number: str
+    date: dt_date
+    total_amount: Decimal
+    allocated_amount: Decimal
+    outstanding_amount: Decimal
+    days_overdue: int
+    ageing_bucket: str # "0-30", "31-60", "61-90", "90+"
+    document_type: str
+
+
+class OutstandingPartySummary(BaseModel):
+    party_id: UUID
+    party_name: str
+    party_type: str # "customer" or "vendor"
+    gstin: Optional[str] = None
+    credit_limit: Optional[Decimal] = None
+    total_invoiced: Decimal
+    total_settled: Decimal
+    total_outstanding: Decimal
+    bucket_0_30: Decimal
+    bucket_31_60: Decimal
+    bucket_61_90: Decimal
+    bucket_90_plus: Decimal
+    bills: List[OutstandingBillItem] = []
+
+
+class OutstandingReportResponse(BaseModel):
+    report_type: str # "receivables" or "payables"
+    as_of_date: dt_date
+    total_parties: int
+    total_outstanding: Decimal
+    total_bucket_0_30: Decimal
+    total_bucket_31_60: Decimal
+    total_bucket_61_90: Decimal
+    total_bucket_90_plus: Decimal
+    parties: List[OutstandingPartySummary]
+
+
+# ── JOURNAL VOUCHER & ACCRUAL MANAGEMENT SCHEMAS (DOC-25) ──
+
+class JournalEntryLineCreate(BaseModel):
+    ledger_id: UUID
+    cr_dr: str = Field(..., description="'Dr' or 'Cr'")
+    amount: Decimal = Field(..., gt=0)
+    narration: Optional[str] = None
+    cost_centre_id: Optional[UUID] = None
+    party_id: Optional[UUID] = None
+
+
+class JournalEntryLineResponse(BaseModel):
+    id: UUID
+    ledger_id: UUID
+    ledger_name: Optional[str] = None
+    cr_dr: str
+    amount: Decimal
+    narration: Optional[str] = None
+
+
+class JournalVoucherCreate(BaseModel):
+    voucher_number: Optional[str] = None
+    series_id: Optional[UUID] = None
+    date: dt_date = Field(default_factory=dt_date.today)
+    narration: str = Field(..., min_length=1)
+    journal_type: str = Field(default="Standard", description="Standard, Accrual, Provision, Prepaid, Reclassification, Opening Balance")
+    reversal_date: Optional[dt_date] = None
+    entries: List[JournalEntryLineCreate] = Field(..., min_items=2)
+
+
+class JournalVoucherResponse(BaseModel):
+    id: UUID
+    voucher_number: str
+    voucher_type: str
+    journal_type: str
+    date: dt_date
+    narration: str
+    total_amount: Decimal
+    status: str
+    reversal_date: Optional[dt_date] = None
+    reversal_of_id: Optional[UUID] = None
+    reversed_by_id: Optional[UUID] = None
+    entries: List[JournalEntryLineResponse] = []
+    created_at: datetime
+
+
+class JournalReverseRequest(BaseModel):
+    reason: Optional[str] = "Adjustment Reversal"
+    reversal_date: Optional[dt_date] = None
 # ── CRM PERMISSIONS MATRIX SCHEMAS ────────────────────────────
 # Used by GET/PUT /api/organizations/{org_id}/permissions
 
@@ -1572,6 +1701,49 @@ class BankReconciliationMatchRequest(BaseModel):
     statement_row_id: UUID
     voucher_id: UUID
 
+class BankReconciliationSummaryResponse(BaseModel):
+    ledger_id: UUID
+    ledger_name: str
+    book_balance: Decimal
+    unreconciled_statement_count: int
+    unreconciled_statement_withdrawal: Decimal
+    unreconciled_statement_deposit: Decimal
+    unreconciled_voucher_count: int
+    unreconciled_voucher_cr: Decimal
+    unreconciled_voucher_dr: Decimal
+    reconciled_bank_balance: Decimal
+    difference: Decimal
+
+class BankAutoMatchResponse(BaseModel):
+    matches_count: int
+    matched_amount: Decimal
+    unmatched_statements_count: int
+    unmatched_vouchers_count: int
+    message: str
+
+class CashVerificationCreate(BaseModel):
+    ledger_id: UUID
+    verification_date: Optional[date] = None
+    denominations: dict
+    counted_balance: Decimal
+    remarks: Optional[str] = None
+
+class CashVerificationResponse(BaseModel):
+    id: UUID
+    organization_id: UUID
+    ledger_id: UUID
+    ledger_name: Optional[str] = None
+    verification_date: date
+    denominations: dict
+    system_balance: Decimal
+    counted_balance: Decimal
+    variance: Decimal
+    status: str
+    remarks: Optional[str] = None
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
 # -- EXPENSE MANAGEMENT SCHEMAS ---------------------------------
 
 class ExpenseCategoryBase(BaseModel):
@@ -1642,6 +1814,36 @@ class ExpenseClaimResponse(ExpenseClaimBase):
     class Config:
         from_attributes = True
 
+class ExpenseSummaryResponse(BaseModel):
+    total_expenses: Decimal
+    pending_claims_count: int
+    active_advances_amount: Decimal
+    settled_advances_count: int
+    categories_count: int
+    today_cash_expenses: Optional[Decimal] = Decimal("0.00")
+    cash_in_hand_balance: Optional[Decimal] = Decimal("0.00")
+
+class DirectExpenseCreate(BaseModel):
+    date: datetime = Field(default_factory=datetime.utcnow)
+    expense_ledger_id: UUID
+    paid_from_ledger_id: UUID
+    amount: Decimal = Field(..., gt=0)
+    paid_to: Optional[str] = None
+    payment_mode: str = "Cash"  # Cash, UPI, Bank Transfer, Cheque
+    reference_no: Optional[str] = None
+    narration: Optional[str] = None
+
+class DirectExpenseResponse(BaseModel):
+    message: str
+    voucher_id: UUID
+    voucher_number: str
+    amount: Decimal
+    expense_ledger_name: str
+    paid_from_ledger_name: str
+    claim_id: Optional[UUID] = None
+
+
+
 
 # ==========================================
 # FIXED ASSETS & DEPRECIATION SCHEMAS
@@ -1701,6 +1903,40 @@ class DepreciationLogResponse(BaseModel):
     created_at: datetime
     class Config:
         from_attributes = True
+
+class AssetSummaryResponse(BaseModel):
+    total_gross_block: float
+    total_accumulated_depreciation: float
+    total_net_block: float
+    active_assets_count: int
+    disposed_assets_count: int
+    categories_count: int
+
+class BulkDepreciationRequest(BaseModel):
+    run_date: datetime
+    notes: Optional[str] = None
+
+class BulkDepreciationResponse(BaseModel):
+    message: str
+    total_depreciation: float
+    assets_processed: int
+    voucher_number: Optional[str] = None
+    voucher_id: Optional[UUID] = None
+
+class AssetDisposalRequest(BaseModel):
+    disposal_date: datetime
+    sale_proceeds: float = 0.0
+    settlement_ledger_id: Optional[UUID] = None # Cash or Bank ledger where proceeds are received
+    notes: Optional[str] = None
+
+class AssetDisposalResponse(BaseModel):
+    asset_id: UUID
+    sale_proceeds: float
+    net_block_at_disposal: float
+    gain_or_loss: float # positive = gain, negative = loss
+    voucher_number: Optional[str] = None
+    voucher_id: Optional[UUID] = None
+    message: str
 
 
 # ============================================================
@@ -1828,3 +2064,69 @@ class DashboardExclusionResponse(DashboardExclusionBase):
     created_at: datetime
     class Config:
         from_attributes = True
+
+
+# =====================================================================
+# DOC-25: JOURNAL VOUCHER & ACCRUAL MANAGEMENT SCHEMAS
+# =====================================================================
+
+class JournalClassificationEnum(str, enum.Enum):
+    STANDARD = "Standard Manual Journal"
+    ACCRUAL = "Accrual Journal"
+    PROVISION = "Provision"
+    PREPAID = "Prepaid / Deferred Adjustment"
+    RECLASSIFICATION = "Reclassification / Transfer"
+    OPENING_BALANCE = "Opening Balance Adjustment"
+
+class JournalEntryLineCreate(BaseModel):
+    ledger_id: UUID
+    ledger_name: Optional[str] = None
+    cr_dr: str  # 'Dr' or 'Cr'
+    amount: Decimal
+    narration: Optional[str] = None
+
+class JournalEntryLineResponse(BaseModel):
+    id: UUID
+    voucher_id: UUID
+    ledger_id: UUID
+    ledger_name: Optional[str] = None
+    cr_dr: str
+    amount: Decimal
+    class Config:
+        from_attributes = True
+
+class JournalVoucherCreate(BaseModel):
+    voucher_number: Optional[str] = None
+    date: datetime
+    journal_type: str = "Standard Manual Journal"
+    narration: Optional[str] = None
+    reference_number: Optional[str] = None
+    scheduled_reversal_date: Optional[date] = None
+    fiscal_year_id: Optional[UUID] = None
+    series_id: Optional[UUID] = None
+    entries: List[JournalEntryLineCreate]
+
+class JournalVoucherResponse(BaseModel):
+    id: UUID
+    organization_id: UUID
+    created_at: datetime
+    voucher_type: str
+    voucher_number: str
+    date: datetime
+    narration: Optional[str] = None
+    total_amount: Decimal
+    journal_type: Optional[str] = "Standard Manual Journal"
+    reference_number: Optional[str] = None
+    scheduled_reversal_date: Optional[date] = None
+    status: str
+    fiscal_year_id: Optional[UUID] = None
+    reversal_voucher_id: Optional[UUID] = None
+    reversal_voucher_number: Optional[str] = None
+    entries: List[JournalEntryLineResponse]
+    class Config:
+        from_attributes = True
+
+class JournalReverseRequest(BaseModel):
+    reversal_date: Optional[datetime] = None
+    reason: Optional[str] = "Period-end adjustment reversal"
+

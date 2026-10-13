@@ -1,0 +1,73 @@
+{
+  "state": {
+    "user": {
+      "id": "8a6bfa06-99ae-42d1-9ce9-0c9774cbfb11",
+      "name": "System Admin",
+      "username": "admin",
+      "email": "admin@erp.local",
+      "role": "am_admin",
+      "organization_id": "78fca6c8-eb92-41c4-96ec-ac2e150d56a4",
+      "org_name": "My Organization",
+      "org_code": "AM-0001",
+      "is_am_user": true,
+      "permissions": {
+        "finance": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "approve": true
+        },
+        "inventory": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "approve": true
+        },
+        "sales": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "approve": true
+        },
+        "crm": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "approve": true
+        },
+        "hr": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "approve": true
+        },
+        "reports": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "approve": true
+        },
+        "settings": {
+          "view": true,
+          "create": true,
+          "edit": true,
+          "delete": true,
+          "approve": true
+        }
+      },
+      "avatar_url": null
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4YTZiZmEwNi05OWFlLTQyZDEtOWNlOS0wYzk3NzRjYmZiMTEiLCJvcmdhbml6YXRpb25faWQiOiI3OGZjYTZjOC1lYjkyLTQxYzQtOTZlYy1hYzJlMTUwZDU2YTQiLCJyb2xlIjoiYW1fYWRtaW4iLCJleHAiOjE3OTE3NTM3MjQsImlhdCI6MTc5MTcyNDkyNH0.JWd4PgBFFOvpOrlHx2C_hv67OaJ0zu42lwzcgn0auIE",
+    "originalAmUser": null,
+    "originalAmToken": null,
+    "appMode": "lan",
+    "serverUrl": "http://localhost:8000"
+  },
+  "version": 0
+}

@@ -10,11 +10,23 @@ from auth.router import get_current_user
 
 router = APIRouter(tags=["Sales Orders"])
 
+from typing import List, Optional
+
 @router.get("/", response_model=List[schemas.SalesOrderResponse])
-def get_sales_orders(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    return db.query(models.SalesOrder).filter(
+def get_sales_orders(
+    party_id: Optional[uuid.UUID] = None,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    query = db.query(models.SalesOrder).filter(
         models.SalesOrder.organization_id == current_user.organization_id
-    ).order_by(models.SalesOrder.created_at.desc()).all()
+    )
+    if party_id:
+        query = query.filter(models.SalesOrder.party_id == party_id)
+    if status:
+        query = query.filter(models.SalesOrder.status == status)
+    return query.order_by(models.SalesOrder.created_at.desc()).all()
 
 @router.post("/", response_model=schemas.SalesOrderResponse)
 def create_sales_order(order: schemas.SalesOrderCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -45,14 +57,21 @@ def create_sales_order(order: schemas.SalesOrderCreate, db: Session = Depends(ge
     # Validation logic (Hold Engine)
     # Check if we need to put it on HOLD
     party = db.query(models.Party).filter(models.Party.id == order.party_id).first()
-    if party and party.credit_limit:
-        # Simplistic check: If order total > credit_limit, put on hold
-        if order.total_amount > party.credit_limit:
+    credit_limit = None
+    if party:
+        if party.customer_profile and party.customer_profile.credit_limit:
+            credit_limit = float(party.customer_profile.credit_limit)
+        elif hasattr(party, 'credit_limit') and getattr(party, 'credit_limit'):
+            credit_limit = float(getattr(party, 'credit_limit'))
+
+    if credit_limit and credit_limit > 0:
+        # Check: If order total > credit_limit, put on hold
+        if float(order.total_amount) > credit_limit:
             db_order.status = "HOLD"
             hold = models.SalesOrderHold(
                 order_id=db_order.id,
                 organization_id=current_user.organization_id,
-                hold_reason=f"Credit Limit Exceeded (Limit: {party.credit_limit}, Order: {order.total_amount})",
+                hold_reason=f"Credit Limit Exceeded (Limit: {credit_limit}, Order: {order.total_amount})",
                 status="ACTIVE"
             )
             db.add(hold)

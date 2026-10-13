@@ -984,9 +984,23 @@ def get_trial_balance(
     return {
         "as_of_date": as_of_date,
         "fiscal_year_name": fy.name if fy else None,
+        "fiscal_year": fy.name if fy else None,
         "rows": rows,
+        "entries": [
+            {
+                "ledger_id": r["ledger_id"],
+                "ledger_name": r["ledger_name"],
+                "group_name": r["group_name"],
+                "debit": float(r["dr_total"]),
+                "credit": float(r["cr_total"]),
+                "balance": float(r["closing_balance"]) if r["balance_type"] == 'Dr' else -float(r["closing_balance"])
+            }
+            for r in rows
+        ],
         "grand_dr_total": str(grand_dr),
-        "grand_cr_total": str(grand_cr)
+        "grand_cr_total": str(grand_cr),
+        "total_debit": float(grand_dr),
+        "total_credit": float(grand_cr)
     }
 
 
@@ -1069,14 +1083,43 @@ def get_profit_loss(
     
     net_result = total_income - total_expense
     
+    expenses_grouped: dict = {}
+    for exp in expense_items:
+        g = exp["group_name"]
+        if g not in expenses_grouped:
+            expenses_grouped[g] = {"group_name": g, "items": [], "total": Decimal("0")}
+        expenses_grouped[g]["items"].append({"name": exp["ledger_name"], "amount": float(exp["amount"])})
+        expenses_grouped[g]["total"] += Decimal(exp["amount"])
+
+    expenses_list = [
+        {"group_name": g["group_name"], "items": g["items"], "total": float(g["total"])}
+        for g in expenses_grouped.values()
+    ]
+
+    incomes_grouped: dict = {}
+    for inc in income_items:
+        g = inc["group_name"]
+        if g not in incomes_grouped:
+            incomes_grouped[g] = {"group_name": g, "items": [], "total": Decimal("0")}
+        incomes_grouped[g]["items"].append({"name": inc["ledger_name"], "amount": float(inc["amount"])})
+        incomes_grouped[g]["total"] += Decimal(inc["amount"])
+
+    incomes_list = [
+        {"group_name": g["group_name"], "items": g["items"], "total": float(g["total"])}
+        for g in incomes_grouped.values()
+    ]
+
     return {
         "from_date": from_date,
         "to_date": to_date,
         "income_items": income_items,
         "expense_items": expense_items,
+        "incomes": incomes_list,
+        "expenses": expenses_list,
         "total_income": str(total_income),
         "total_expense": str(total_expense),
         "net_profit_or_loss": str(abs(net_result)),
+        "net_profit": float(net_result),
         "result_type": "Profit" if net_result >= 0 else "Loss"
     }
 
@@ -1171,46 +1214,146 @@ def get_balance_sheet(
             liabilities.append(item)
             total_liabilities += amount
     
+    liabilities_grouped: dict = {}
+    for liab in liabilities:
+        g = liab["group_name"]
+        if g not in liabilities_grouped:
+            liabilities_grouped[g] = {"group_name": g, "items": [], "total": Decimal("0")}
+        liabilities_grouped[g]["items"].append({"name": liab["ledger_name"], "amount": float(liab["amount"])})
+        liabilities_grouped[g]["total"] += Decimal(liab["amount"])
+
+    liabilities_list = [
+        {"group_name": g["group_name"], "items": g["items"], "total": float(g["total"])}
+        for g in liabilities_grouped.values()
+    ]
+
+    assets_grouped: dict = {}
+    for ast in assets:
+        g = ast["group_name"]
+        if g not in assets_grouped:
+            assets_grouped[g] = {"group_name": g, "items": [], "total": Decimal("0")}
+        assets_grouped[g]["items"].append({"name": ast["ledger_name"], "amount": float(ast["amount"])})
+        assets_grouped[g]["total"] += Decimal(ast["amount"])
+
+    assets_list = [
+        {"group_name": g["group_name"], "items": g["items"], "total": float(g["total"])}
+        for g in assets_grouped.values()
+    ]
+
     return {
         "as_of_date": as_of_date,
-        "liabilities": liabilities,
-        "assets": assets,
+        "liabilities": liabilities_list,
+        "assets": assets_list,
+        "liability_items": liabilities,
+        "asset_items": assets,
         "total_liabilities": str(total_liabilities),
         "total_assets": str(total_assets)
     }
 
 # =============================================
-# BILL-BY-BILL ALLOCATION ENGINE
+# BILL-BY-BILL ALLOCATION & SETTLEMENT ENGINE (DOC-24 & DOC-07)
 # =============================================
 
+def _resolve_or_create_party_ledger(db: Session, org_id: UUID, party: models.Party, fy_id: UUID) -> models.Ledger:
+    """Finds or automatically provisions the Party's ledger in Sundry Debtors/Creditors."""
+    ledger = db.query(models.Ledger).filter(
+        models.Ledger.organization_id == org_id,
+        or_(
+            func.lower(models.Ledger.name) == func.lower(party.legal_name),
+            func.lower(models.Ledger.name) == func.lower(party.trade_name) if party.trade_name else False
+        )
+    ).first()
+    if ledger:
+        return ledger
+    
+    is_customer = bool(party.customer_profile)
+    group_name = "Sundry Debtors" if is_customer else "Sundry Creditors"
+    group = db.query(models.LedgerGroup).filter(
+        models.LedgerGroup.organization_id == org_id,
+        func.lower(models.LedgerGroup.name) == func.lower(group_name)
+    ).first()
+    group_id = group.id if group else None
+    
+    new_ledger = models.Ledger(
+        organization_id=org_id,
+        name=party.legal_name,
+        group_name=group_name,
+        group_id=group_id,
+        gstin=party.gst,
+        opening_balance=Decimal("0"),
+        closing_balance=Decimal("0"),
+        op_type="Dr" if is_customer else "Cr",
+        cl_type="Dr" if is_customer else "Cr"
+    )
+    db.add(new_ledger)
+    db.flush()
+    return new_ledger
+
+
 @router.get("/allocations/pending", response_model=List[schemas.AllocationSummary])
-def get_pending_allocations(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def get_pending_allocations(
+    party_id: Optional[UUID] = Query(None, description="Filter by customer or supplier party UUID"),
+    party_type: Optional[str] = Query(None, description="'customer' or 'vendor'"),
+    direction: Optional[str] = Query(None, description="'receivable' or 'payable'"),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
     """
     Fetches all unallocated/partially allocated vouchers and unpaid invoices.
+    Supports party-specific scoping for high-speed counter settlement.
     """
     org_id = get_org_id(current_user)
     
-    invoices = db.query(models.Invoice).filter(
+    # 1. Build Invoices Query
+    inv_query = db.query(models.Invoice).filter(
         models.Invoice.organization_id == org_id,
         models.Invoice.is_active == True
-    ).all()
+    )
 
-    vouchers = db.query(models.Voucher).filter(
-        models.Voucher.organization_id == org_id,
-        models.Voucher.is_active == True,
-        models.Voucher.status != "Cancelled",
-        models.Voucher.voucher_type.in_(["Receipt", "Payment", "Credit Note", "Debit Note"])
-    ).all()
+    if party_id:
+        inv_query = inv_query.filter(models.Invoice.party_id == party_id)
+        
+    if party_type == 'customer' or direction == 'receivable':
+        inv_query = inv_query.filter(
+            models.Invoice.invoice_type.in_(["sales-bill", "bill", "sales-invoice", "sales-order"])
+        )
+    elif party_type == 'vendor' or direction == 'payable':
+        inv_query = inv_query.filter(
+            models.Invoice.invoice_type.in_(["purchase-bill", "purchase", "purchase-invoice"])
+        )
+
+    invoices = inv_query.order_by(models.Invoice.date.asc()).all()
+
+    # Pre-fetch party names for fast display if party_id was not filtered
+    party_map = {}
+    if not party_id:
+        all_parties = db.query(models.Party.id, models.Party.legal_name).filter(
+            models.Party.organization_id == org_id
+        ).all()
+        party_map = {p[0]: p[1] for p in all_parties}
+
+    # Pre-fetch all invoice allocations in bulk
+    inv_ids = [inv.id for inv in invoices]
+    allocs_map = {}
+    if inv_ids:
+        alloc_records = db.query(
+            models.InvoiceAllocation.target_invoice_id,
+            func.sum(models.InvoiceAllocation.allocated_amount)
+        ).filter(
+            models.InvoiceAllocation.target_invoice_id.in_(inv_ids)
+        ).group_by(models.InvoiceAllocation.target_invoice_id).all()
+        allocs_map = {r[0]: r[1] or Decimal("0") for r in alloc_records}
 
     summaries = []
-    
+    today = date.today()
+
     for inv in invoices:
-        allocs = db.query(func.sum(models.InvoiceAllocation.allocated_amount)).filter(
-            models.InvoiceAllocation.target_invoice_id == inv.id
-        ).scalar() or Decimal("0")
-        
+        allocs = allocs_map.get(inv.id, Decimal("0"))
         outstanding = Decimal(inv.grand_total) - allocs
         if outstanding > 0:
+            inv_date = inv.date.date() if isinstance(inv.date, datetime) else inv.date
+            days_overdue = max(0, (today - inv_date).days)
+            p_name = inv.customer_name or party_map.get(inv.party_id, "Customer")
             summaries.append({
                 "id": inv.id,
                 "invoice_number": inv.invoice_number,
@@ -1218,33 +1361,415 @@ def get_pending_allocations(db: Session = Depends(get_db), current_user: models.
                 "total_amount": inv.grand_total,
                 "allocated_total": allocs,
                 "outstanding": outstanding,
-                "document_type": "Invoice"
+                "document_type": inv.invoice_type or "Invoice",
+                "party_id": inv.party_id,
+                "party_name": p_name,
+                "days_overdue": days_overdue
             })
 
+    # 2. Vouchers (Credit Notes / Debit Notes with unallocated amounts)
+    vch_query = db.query(models.Voucher).filter(
+        models.Voucher.organization_id == org_id,
+        models.Voucher.is_active == True,
+        models.Voucher.status != "Cancelled"
+    )
+
+    if party_type == 'customer' or direction == 'receivable':
+        vch_query = vch_query.filter(models.Voucher.voucher_type == "Credit Note")
+    elif party_type == 'vendor' or direction == 'payable':
+        vch_query = vch_query.filter(models.Voucher.voucher_type == "Debit Note")
+    else:
+        vch_query = vch_query.filter(
+            models.Voucher.voucher_type.in_(["Receipt", "Payment", "Credit Note", "Debit Note"])
+        )
+
+    vouchers = vch_query.order_by(models.Voucher.date.asc()).all()
+    vch_ids = [v.id for v in vouchers]
+    vch_allocs_map = {}
+    if vch_ids:
+        vch_alloc_records = db.query(
+            models.InvoiceAllocation.target_cn_dn_id,
+            func.sum(models.InvoiceAllocation.allocated_amount)
+        ).filter(
+            models.InvoiceAllocation.target_cn_dn_id.in_(vch_ids)
+        ).group_by(models.InvoiceAllocation.target_cn_dn_id).all()
+        vch_allocs_map = {r[0]: r[1] or Decimal("0") for r in vch_alloc_records}
+
     for vch in vouchers:
-        source_allocs = db.query(func.sum(models.InvoiceAllocation.allocated_amount)).filter(
-            models.InvoiceAllocation.source_voucher_id == vch.id
-        ).scalar() or Decimal("0")
-        
-        cn_dn_allocs = db.query(func.sum(models.InvoiceAllocation.allocated_amount)).filter(
-            models.InvoiceAllocation.target_cn_dn_id == vch.id
-        ).scalar() or Decimal("0")
-        
-        total_allocs = source_allocs + cn_dn_allocs
-        outstanding = Decimal(vch.total_amount) - total_allocs
-        
+        vch_allocs = vch_allocs_map.get(vch.id, Decimal("0"))
+        outstanding = Decimal(vch.total_amount) - vch_allocs
         if outstanding > 0:
+            vch_date = vch.date.date() if isinstance(vch.date, datetime) else vch.date
+            days_overdue = max(0, (today - vch_date).days)
             summaries.append({
                 "id": vch.id,
                 "voucher_number": vch.voucher_number,
                 "date": vch.date,
                 "total_amount": vch.total_amount,
-                "allocated_total": total_allocs,
+                "allocated_total": vch_allocs,
                 "outstanding": outstanding,
-                "document_type": vch.voucher_type
+                "document_type": vch.voucher_type,
+                "party_id": party_id,
+                "party_name": "Open Credit/Debit",
+                "days_overdue": days_overdue
             })
 
     return summaries
+
+
+@router.get("/outstanding", response_model=schemas.OutstandingReportResponse)
+def get_outstanding_report(
+    type: str = Query("receivables", description="'receivables' for customers or 'payables' for vendors"),
+    as_of: Optional[date] = Query(None),
+    search: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Computes real-time debtor/creditor outstanding balances with standard ageing buckets:
+    0-30 days, 31-60 days, 61-90 days, 90+ days overdue (DOC-07 Section 20).
+    """
+    org_id = get_org_id(current_user)
+    as_of_date = as_of or date.today()
+    is_receivables = (type.lower() == "receivables")
+
+    # 1. Fetch relevant parties
+    party_query = db.query(models.Party).filter(
+        models.Party.organization_id == org_id,
+        models.Party.status == "active"
+    )
+    if is_receivables:
+        party_query = party_query.join(models.CustomerProfile)
+    else:
+        cust_sub = db.query(models.CustomerProfile.party_id)
+        party_query = party_query.filter(~models.Party.id.in_(cust_sub))
+
+    if search:
+        party_query = party_query.filter(
+            or_(
+                models.Party.legal_name.ilike(f"%{search}%"),
+                models.Party.trade_name.ilike(f"%{search}%"),
+                models.Party.gst.ilike(f"%{search}%")
+            )
+        )
+    parties = party_query.order_by(models.Party.legal_name).all()
+
+    # 2. Fetch invoices in bulk
+    inv_types = ["sales-bill", "bill", "sales-invoice"] if is_receivables else ["purchase-bill", "purchase", "purchase-invoice"]
+    invoices = db.query(models.Invoice).filter(
+        models.Invoice.organization_id == org_id,
+        models.Invoice.is_active == True,
+        models.Invoice.invoice_type.in_(inv_types)
+    ).all()
+
+    # 3. Fetch allocations in bulk
+    inv_ids = [inv.id for inv in invoices]
+    allocs_map = {}
+    if inv_ids:
+        alloc_records = db.query(
+            models.InvoiceAllocation.target_invoice_id,
+            func.sum(models.InvoiceAllocation.allocated_amount)
+        ).filter(
+            models.InvoiceAllocation.target_invoice_id.in_(inv_ids)
+        ).group_by(models.InvoiceAllocation.target_invoice_id).all()
+        allocs_map = {r[0]: r[1] or Decimal("0") for r in alloc_records}
+
+    # Group invoices by party_id (or fallback by customer_name)
+    invoices_by_party = {}
+    invoices_by_name = {}
+    for inv in invoices:
+        if inv.party_id:
+            invoices_by_party.setdefault(inv.party_id, []).append(inv)
+        if inv.customer_name:
+            invoices_by_name.setdefault(inv.customer_name.strip().lower(), []).append(inv)
+
+    party_summaries = []
+    tot_out = Decimal("0")
+    b0_30 = Decimal("0")
+    b31_60 = Decimal("0")
+    b61_90 = Decimal("0")
+    b90_p = Decimal("0")
+
+    for party in parties:
+        # Match invoices
+        p_invoices = invoices_by_party.get(party.id, [])
+        if not p_invoices and party.legal_name:
+            p_invoices = invoices_by_name.get(party.legal_name.strip().lower(), [])
+
+        p_total_invoiced = Decimal("0")
+        p_total_settled = Decimal("0")
+        p_total_outstanding = Decimal("0")
+        p_b0_30 = Decimal("0")
+        p_b31_60 = Decimal("0")
+        p_b61_90 = Decimal("0")
+        p_b90_p = Decimal("0")
+        p_bills = []
+
+        for inv in p_invoices:
+            inv_total = Decimal(inv.grand_total)
+            alloc = allocs_map.get(inv.id, Decimal("0"))
+            out_amt = inv_total - alloc
+            p_total_invoiced += inv_total
+            p_total_settled += alloc
+
+            if out_amt > 0:
+                p_total_outstanding += out_amt
+                inv_dt = inv.date.date() if isinstance(inv.date, datetime) else inv.date
+                days = max(0, (as_of_date - inv_dt).days)
+
+                if days <= 30:
+                    bucket = "0-30"
+                    p_b0_30 += out_amt
+                elif days <= 60:
+                    bucket = "31-60"
+                    p_b31_60 += out_amt
+                elif days <= 90:
+                    bucket = "61-90"
+                    p_b61_90 += out_amt
+                else:
+                    bucket = "90+"
+                    p_b90_p += out_amt
+
+                p_bills.append(schemas.OutstandingBillItem(
+                    invoice_id=inv.id,
+                    invoice_number=inv.invoice_number,
+                    date=inv_dt,
+                    total_amount=inv_total,
+                    allocated_amount=alloc,
+                    outstanding_amount=out_amt,
+                    days_overdue=days,
+                    ageing_bucket=bucket,
+                    document_type=inv.invoice_type or "Invoice"
+                ))
+
+        if p_total_invoiced > 0 or p_total_outstanding > 0:
+            tot_out += p_total_outstanding
+            b0_30 += p_b0_30
+            b31_60 += p_b31_60
+            b61_90 += p_b61_90
+            b90_p += p_b90_p
+
+            c_limit = None
+            if party.customer_profile and party.customer_profile.credit_limit:
+                c_limit = Decimal(party.customer_profile.credit_limit)
+
+            party_summaries.append(schemas.OutstandingPartySummary(
+                party_id=party.id,
+                party_name=party.legal_name,
+                party_type="customer" if is_receivables else "vendor",
+                gstin=party.gst,
+                credit_limit=c_limit,
+                total_invoiced=p_total_invoiced,
+                total_settled=p_total_settled,
+                total_outstanding=p_total_outstanding,
+                bucket_0_30=p_b0_30,
+                bucket_31_60=p_b31_60,
+                bucket_61_90=p_b61_90,
+                bucket_90_plus=p_b90_p,
+                bills=sorted(p_bills, key=lambda b: b.days_overdue, reverse=True)
+            ))
+
+    return schemas.OutstandingReportResponse(
+        report_type="receivables" if is_receivables else "payables",
+        as_of_date=as_of_date,
+        total_parties=len(party_summaries),
+        total_outstanding=tot_out,
+        total_bucket_0_30=b0_30,
+        total_bucket_31_60=b31_60,
+        total_bucket_61_90=b61_90,
+        total_bucket_90_plus=b90_p,
+        parties=sorted(party_summaries, key=lambda p: p.total_outstanding, reverse=True)
+    )
+
+
+@router.post("/receipt-payment", response_model=schemas.ReceiptPaymentResponse)
+def create_receipt_or_payment(
+    request: schemas.ReceiptPaymentCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Unified high-speed entry for Customer Receipts and Supplier Payments (DOC-24).
+    Atomically posts:
+    1. Balanced double-entry Voucher in General Ledger (Dr Cash/Bank, Cr Debtor or vice versa).
+    2. Document Series sequence locking.
+    3. Bill-by-Bill allocations against open target invoices.
+    4. Floating on-account advance recording for any unallocated remainder.
+    """
+    org_id = get_org_id(current_user)
+    fy = get_active_fiscal_year(db, org_id)
+    if not fy:
+        raise HTTPException(status_code=400, detail="No active fiscal year found.")
+
+    party = db.query(models.Party).filter(
+        models.Party.id == request.party_id,
+        models.Party.organization_id == org_id
+    ).first()
+    if not party:
+        raise HTTPException(status_code=404, detail="Party not found.")
+
+    cash_bank_ledger = db.query(models.Ledger).filter(
+        models.Ledger.id == request.cash_bank_ledger_id,
+        models.Ledger.organization_id == org_id
+    ).first()
+    if not cash_bank_ledger:
+        raise HTTPException(status_code=404, detail="Cash/Bank ledger not found.")
+
+    party_ledger = _resolve_or_create_party_ledger(db, org_id, party, fy.id)
+
+    # Determine Voucher Number
+    v_type = request.voucher_type.capitalize()
+    if v_type not in ["Receipt", "Payment"]:
+        v_type = "Receipt"
+
+    v_number = request.voucher_number
+    if request.series_id:
+        series = db.query(models.DocumentSeries).filter(
+            models.DocumentSeries.id == request.series_id,
+            models.DocumentSeries.organization_id == org_id
+        ).with_for_update().first()
+        if series:
+            if not v_number:
+                v_number = f"{series.prefix or ''}{series.next_number}{series.suffix or ''}"
+            series.next_number += 1
+            db.add(series)
+
+    if not v_number:
+        v_number = _get_next_voucher_number(db, org_id, v_type, fy.id)
+
+    narration = request.narration or f"{v_type} for {party.legal_name} via {request.payment_mode}"
+    if request.reference_number:
+        narration += f" (Ref: {request.reference_number})"
+
+    # Create Voucher
+    db_voucher = models.Voucher(
+        organization_id=org_id,
+        voucher_type=v_type,
+        voucher_number=v_number,
+        date=datetime.combine(request.date, datetime.min.time()),
+        narration=narration,
+        total_amount=request.amount,
+        is_active=True,
+        status='Active',
+        fiscal_year_id=fy.id
+    )
+    db.add(db_voucher)
+    db.flush()
+
+    # Create Double-Entry Postings
+    if v_type == "Receipt":
+        # Dr Cash/Bank, Cr Debtor
+        db.add(models.VoucherEntry(
+            voucher_id=db_voucher.id,
+            ledger_id=cash_bank_ledger.id,
+            cr_dr="Dr",
+            amount=request.amount,
+            ledger_name=cash_bank_ledger.name
+        ))
+        db.add(models.VoucherEntry(
+            voucher_id=db_voucher.id,
+            ledger_id=party_ledger.id,
+            cr_dr="Cr",
+            amount=request.amount,
+            ledger_name=party_ledger.name
+        ))
+        _update_ledger_balance(db, org_id, cash_bank_ledger.id, fy.id, "Dr", request.amount)
+        _update_ledger_balance(db, org_id, party_ledger.id, fy.id, "Cr", request.amount)
+    else:
+        # Dr Creditor, Cr Cash/Bank
+        db.add(models.VoucherEntry(
+            voucher_id=db_voucher.id,
+            ledger_id=party_ledger.id,
+            cr_dr="Dr",
+            amount=request.amount,
+            ledger_name=party_ledger.name
+        ))
+        db.add(models.VoucherEntry(
+            voucher_id=db_voucher.id,
+            ledger_id=cash_bank_ledger.id,
+            cr_dr="Cr",
+            amount=request.amount,
+            ledger_name=cash_bank_ledger.name
+        ))
+        _update_ledger_balance(db, org_id, party_ledger.id, fy.id, "Dr", request.amount)
+        _update_ledger_balance(db, org_id, cash_bank_ledger.id, fy.id, "Cr", request.amount)
+
+    # Allocations Engine (DOC-07)
+    allocated_total = Decimal("0")
+    alloc_count = 0
+
+    if request.auto_allocate_fifo:
+        inv_types = ["sales-bill", "bill", "sales-invoice"] if v_type == "Receipt" else ["purchase-bill", "purchase", "purchase-invoice"]
+        open_invoices = db.query(models.Invoice).filter(
+            models.Invoice.organization_id == org_id,
+            models.Invoice.is_active == True,
+            models.Invoice.party_id == party.id,
+            models.Invoice.invoice_type.in_(inv_types)
+        ).order_by(models.Invoice.date.asc()).all()
+
+        rem_to_alloc = Decimal(request.amount)
+        for inv in open_invoices:
+            if rem_to_alloc <= 0:
+                break
+            prev_alloc = db.query(func.sum(models.InvoiceAllocation.allocated_amount)).filter(
+                models.InvoiceAllocation.target_invoice_id == inv.id
+            ).scalar() or Decimal("0")
+            due = Decimal(inv.grand_total) - prev_alloc
+            if due > 0:
+                chunk = min(rem_to_alloc, due)
+                db.add(models.InvoiceAllocation(
+                    organization_id=org_id,
+                    source_voucher_id=db_voucher.id,
+                    target_invoice_id=inv.id,
+                    allocated_amount=chunk,
+                    is_floating=False,
+                    narration=f"FIFO settlement against {inv.invoice_number}"
+                ))
+                rem_to_alloc -= chunk
+                allocated_total += chunk
+                alloc_count += 1
+    elif request.allocations:
+        for item in request.allocations:
+            if item.allocated_amount and item.allocated_amount > 0:
+                db.add(models.InvoiceAllocation(
+                    organization_id=org_id,
+                    source_voucher_id=db_voucher.id,
+                    target_invoice_id=item.target_invoice_id,
+                    target_cn_dn_id=item.target_cn_dn_id,
+                    allocated_amount=item.allocated_amount,
+                    is_floating=False,
+                    narration=item.narration or f"Allocated from {v_number}"
+                ))
+                allocated_total += item.allocated_amount
+                alloc_count += 1
+
+    floating_balance = max(Decimal("0"), request.amount - allocated_total)
+    if floating_balance > 0:
+        db.add(models.InvoiceAllocation(
+            organization_id=org_id,
+            source_voucher_id=db_voucher.id,
+            target_invoice_id=None,
+            target_cn_dn_id=None,
+            allocated_amount=floating_balance,
+            is_floating=True,
+            narration=f"Floating advance balance on {v_number}"
+        ))
+
+    db.commit()
+
+    return schemas.ReceiptPaymentResponse(
+        voucher_id=db_voucher.id,
+        voucher_number=v_number,
+        voucher_type=v_type,
+        date=request.date,
+        party_id=party.id,
+        party_name=party.legal_name,
+        total_amount=request.amount,
+        allocated_total=allocated_total,
+        floating_balance=floating_balance,
+        allocations_count=alloc_count,
+        narration=narration
+    )
 
 
 @router.post("/allocations", response_model=List[schemas.AllocationRead])
@@ -1466,6 +1991,274 @@ def match_bank_reconciliation(req: schemas.BankReconciliationMatchRequest, db: S
     
     return {"message": "Matched successfully"}
 
+@router.get("/bank-reconciliation/summary/{ledger_id}", response_model=schemas.BankReconciliationSummaryResponse)
+def get_bank_reconciliation_summary(ledger_id: UUID, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    org_id = get_org_id(current_user)
+    
+    ledger = db.query(models.Ledger).filter(
+        models.Ledger.id == ledger_id,
+        models.Ledger.organization_id == org_id
+    ).first()
+    if not ledger:
+        raise HTTPException(status_code=404, detail="Bank ledger not found")
+        
+    book_balance = Decimal(str(ledger.closing_balance or 0.0))
+    
+    # Unreconciled Statement items
+    imports = db.query(models.BankStatementImport.id).filter(
+        models.BankStatementImport.organization_id == org_id,
+        models.BankStatementImport.ledger_id == ledger_id
+    ).subquery()
+    
+    stmt_rows = db.query(models.BankStatementRow).filter(
+        models.BankStatementRow.import_id.in_(imports),
+        models.BankStatementRow.is_reconciled == False
+    ).all()
+    
+    stmt_withdrawal = Decimal('0.00')
+    stmt_deposit = Decimal('0.00')
+    for r in stmt_rows:
+        stmt_withdrawal += Decimal(str(r.withdrawal or 0))
+        stmt_deposit += Decimal(str(r.deposit or 0))
+        
+    # Unreconciled Vouchers
+    matches_subq = db.query(models.BankReconciliationMatch.voucher_id).subquery()
+    entries = db.query(models.VoucherEntry, models.Voucher).join(
+        models.Voucher, models.VoucherEntry.voucher_id == models.Voucher.id
+    ).filter(
+        models.Voucher.organization_id == org_id,
+        models.VoucherEntry.ledger_id == ledger_id,
+        models.Voucher.id.notin_(matches_subq)
+    ).all()
+    
+    voucher_cr = Decimal('0.00') # Payments from bank (unpresented cheques)
+    voucher_dr = Decimal('0.00') # Receipts deposited into bank (uncredited items)
+    for ve, v in entries:
+        amt = Decimal(str(ve.amount or 0))
+        if ve.cr_dr == 'Cr':
+            voucher_cr += amt
+        else:
+            voucher_dr += amt
+            
+    # BRS Formula:
+    # Reconciled Bank Balance = Book Balance + Unpresented Cheques (Cr) - Uncredited Deposits (Dr)
+    reconciled_bank_balance = book_balance + voucher_cr - voucher_dr
+    difference = (stmt_deposit - stmt_withdrawal) - (voucher_dr - voucher_cr)
+    
+    return {
+        "ledger_id": ledger.id,
+        "ledger_name": ledger.name,
+        "book_balance": book_balance,
+        "unreconciled_statement_count": len(stmt_rows),
+        "unreconciled_statement_withdrawal": stmt_withdrawal,
+        "unreconciled_statement_deposit": stmt_deposit,
+        "unreconciled_voucher_count": len(entries),
+        "unreconciled_voucher_cr": voucher_cr,
+        "unreconciled_voucher_dr": voucher_dr,
+        "reconciled_bank_balance": reconciled_bank_balance,
+        "difference": difference
+    }
+
+@router.post("/bank-reconciliation/auto-match/{ledger_id}", response_model=schemas.BankAutoMatchResponse)
+def auto_match_bank_reconciliation(ledger_id: UUID, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    org_id = get_org_id(current_user)
+    
+    # 1. Fetch unreconciled statement rows
+    imports = db.query(models.BankStatementImport.id).filter(
+        models.BankStatementImport.organization_id == org_id,
+        models.BankStatementImport.ledger_id == ledger_id
+    ).subquery()
+    
+    stmt_rows = db.query(models.BankStatementRow).filter(
+        models.BankStatementRow.import_id.in_(imports),
+        models.BankStatementRow.is_reconciled == False
+    ).order_by(models.BankStatementRow.transaction_date.asc()).all()
+    
+    # 2. Fetch unreconciled voucher entries
+    matches_subq = db.query(models.BankReconciliationMatch.voucher_id).subquery()
+    entries = db.query(models.VoucherEntry, models.Voucher).join(
+        models.Voucher, models.VoucherEntry.voucher_id == models.Voucher.id
+    ).filter(
+        models.Voucher.organization_id == org_id,
+        models.VoucherEntry.ledger_id == ledger_id,
+        models.Voucher.id.notin_(matches_subq)
+    ).order_by(models.Voucher.date.asc()).all()
+    
+    matched_count = 0
+    matched_amount = Decimal('0.00')
+    already_matched_vouchers = set()
+    
+    # Phase 1: Reference Match (Cheque / UTR match + amount match)
+    for s_row in stmt_rows:
+        if s_row.is_reconciled:
+            continue
+        ref = (s_row.reference_no or '').strip().lower()
+        s_with = Decimal(str(s_row.withdrawal or 0))
+        s_dep = Decimal(str(s_row.deposit or 0))
+        
+        for ve, v in entries:
+            if v.id in already_matched_vouchers:
+                continue
+            v_amt = Decimal(str(ve.amount or 0))
+            v_num = (v.voucher_number or '').lower()
+            v_narr = (v.narration or '').lower()
+            
+            ref_match = False
+            if ref and len(ref) >= 3 and (ref in v_num or ref in v_narr):
+                ref_match = True
+                
+            amount_match = False
+            if s_with > 0 and ve.cr_dr == 'Cr' and s_with == v_amt:
+                amount_match = True
+            elif s_dep > 0 and ve.cr_dr == 'Dr' and s_dep == v_amt:
+                amount_match = True
+                
+            if ref_match and amount_match:
+                s_row.is_reconciled = True
+                s_row.matched_voucher_id = v.id
+                match_rec = models.BankReconciliationMatch(
+                    statement_row_id=s_row.id,
+                    voucher_id=v.id,
+                    matched_by=current_user.id,
+                    match_type='AUTO'
+                )
+                db.add(match_rec)
+                already_matched_vouchers.add(v.id)
+                matched_count += 1
+                matched_amount += v_amt
+                break
+                
+    # Phase 2: Exact Amount Match within +/- 3 days window
+    for s_row in stmt_rows:
+        if s_row.is_reconciled:
+            continue
+        s_with = Decimal(str(s_row.withdrawal or 0))
+        s_dep = Decimal(str(s_row.deposit or 0))
+        
+        for ve, v in entries:
+            if v.id in already_matched_vouchers:
+                continue
+            v_amt = Decimal(str(ve.amount or 0))
+            
+            amount_match = False
+            if s_with > 0 and ve.cr_dr == 'Cr' and s_with == v_amt:
+                amount_match = True
+            elif s_dep > 0 and ve.cr_dr == 'Dr' and s_dep == v_amt:
+                amount_match = True
+                
+            if amount_match:
+                date_diff = abs((s_row.transaction_date - v.date).days)
+                if date_diff <= 3:
+                    s_row.is_reconciled = True
+                    s_row.matched_voucher_id = v.id
+                    match_rec = models.BankReconciliationMatch(
+                        statement_row_id=s_row.id,
+                        voucher_id=v.id,
+                        matched_by=current_user.id,
+                        match_type='AUTO'
+                    )
+                    db.add(match_rec)
+                    already_matched_vouchers.add(v.id)
+                    matched_count += 1
+                    matched_amount += v_amt
+                    break
+                    
+    db.commit()
+    
+    unmatched_stmt = sum(1 for r in stmt_rows if not r.is_reconciled)
+    unmatched_vouch = len(entries) - len(already_matched_vouchers)
+    
+    return {
+        "matches_count": matched_count,
+        "matched_amount": matched_amount,
+        "unmatched_statements_count": unmatched_stmt,
+        "unmatched_vouchers_count": unmatched_vouch,
+        "message": f"Auto-match completed: {matched_count} transaction(s) reconciled."
+    }
+
+@router.post("/cash-verifications", response_model=schemas.CashVerificationResponse)
+def create_cash_verification(payload: schemas.CashVerificationCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    org_id = get_org_id(current_user)
+    
+    ledger = db.query(models.Ledger).filter(
+        models.Ledger.id == payload.ledger_id,
+        models.Ledger.organization_id == org_id
+    ).first()
+    if not ledger:
+        raise HTTPException(status_code=404, detail="Cash ledger not found")
+        
+    system_balance = Decimal(str(ledger.closing_balance or 0.0))
+    counted_balance = payload.counted_balance
+    variance = counted_balance - system_balance
+    
+    if variance == Decimal('0.00'):
+        status = "BALANCED"
+    elif variance > Decimal('0.00'):
+        status = "SURPLUS"
+    else:
+        status = "SHORTAGE"
+        
+    v_date = payload.verification_date or date.today()
+    
+    verification = models.CashVerification(
+        organization_id=org_id,
+        ledger_id=payload.ledger_id,
+        verification_date=v_date,
+        denominations=payload.denominations,
+        system_balance=system_balance,
+        counted_balance=counted_balance,
+        variance=variance,
+        status=status,
+        remarks=payload.remarks,
+        verified_by=current_user.id
+    )
+    db.add(verification)
+    db.commit()
+    db.refresh(verification)
+    
+    return {
+        "id": verification.id,
+        "organization_id": verification.organization_id,
+        "ledger_id": verification.ledger_id,
+        "ledger_name": ledger.name,
+        "verification_date": verification.verification_date,
+        "denominations": verification.denominations,
+        "system_balance": verification.system_balance,
+        "counted_balance": verification.counted_balance,
+        "variance": verification.variance,
+        "status": verification.status,
+        "remarks": verification.remarks,
+        "created_at": verification.created_at
+    }
+
+@router.get("/cash-verifications", response_model=List[schemas.CashVerificationResponse])
+def list_cash_verifications(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    org_id = get_org_id(current_user)
+    
+    records = db.query(models.CashVerification, models.Ledger.name).join(
+        models.Ledger, models.CashVerification.ledger_id == models.Ledger.id
+    ).filter(
+        models.CashVerification.organization_id == org_id
+    ).order_by(models.CashVerification.created_at.desc()).limit(100).all()
+    
+    res = []
+    for cv, ledger_name in records:
+        res.append({
+            "id": cv.id,
+            "organization_id": cv.organization_id,
+            "ledger_id": cv.ledger_id,
+            "ledger_name": ledger_name,
+            "verification_date": cv.verification_date,
+            "denominations": cv.denominations,
+            "system_balance": cv.system_balance,
+            "counted_balance": cv.counted_balance,
+            "variance": cv.variance,
+            "status": cv.status,
+            "remarks": cv.remarks,
+            "created_at": cv.created_at
+        })
+    return res
+
 @router.put("/vouchers/{voucher_id}", response_model=schemas.VoucherResponse)
 def update_voucher(
     voucher_id: UUID,
@@ -1512,3 +2305,386 @@ def update_voucher(
     db.commit()
     db.refresh(db_voucher)
     return db_voucher
+
+
+# =====================================================================
+# DOC-25: JOURNAL VOUCHER, ADJUSTMENT & ACCRUAL MANAGEMENT ENGINE
+# =====================================================================
+
+def _parse_journal_meta(narration: Optional[str]):
+    import re
+    if not narration:
+        return "Standard Manual Journal", None, None, ""
+    
+    j_type = "Standard Manual Journal"
+    for known in [
+        "Standard Manual Journal", "Accrual Journal", "Provision", 
+        "Prepaid / Deferred Adjustment", "Reclassification / Transfer", 
+        "Opening Balance Adjustment"
+    ]:
+        if f"[{known}]" in narration:
+            j_type = known
+            break
+            
+    ref_match = re.search(r'\[Ref:\s*([^\]]+)\]', narration)
+    ref_num = ref_match.group(1).strip() if ref_match else None
+    
+    rev_match = re.search(r'\[Reversal:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})\]', narration)
+    rev_date = None
+    if rev_match:
+        try:
+            rev_date = date.fromisoformat(rev_match.group(1).strip())
+        except Exception:
+            pass
+            
+    # Clean user narration for display
+    clean_narration = re.sub(r'\[(Standard Manual Journal|Accrual Journal|Provision|Prepaid / Deferred Adjustment|Reclassification / Transfer|Opening Balance Adjustment)\]', '', narration)
+    clean_narration = re.sub(r'\[Ref:\s*[^\]]+\]', '', clean_narration)
+    clean_narration = re.sub(r'\[Reversal:\s*[^\]]+\]', '', clean_narration).strip()
+
+    return j_type, ref_num, rev_date, clean_narration
+
+
+@router.post("/journal", response_model=schemas.JournalVoucherResponse)
+def create_journal_voucher(
+    voucher: schemas.JournalVoucherCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    DOC-25: Creates a strictly balanced multi-leg Journal Voucher.
+    Enforces sum(Debits) == sum(Credits) > 0, updates per-FY Ledger balances,
+    and supports accrual scheduling.
+    """
+    org_id = get_org_id(current_user)
+    
+    # 1. Active Fiscal Year validation
+    fy = get_active_fiscal_year(db, org_id, voucher.fiscal_year_id)
+    if not fy:
+        raise HTTPException(status_code=400, detail="No active fiscal year found. Please configure an active fiscal year.")
+    if fy.is_locked:
+        raise HTTPException(status_code=400, detail=f"Fiscal year {fy.name} is locked. Cannot post journal vouchers.")
+
+    # 2. Multi-leg debit/credit balance verification
+    if not voucher.entries or len(voucher.entries) < 2:
+        raise HTTPException(status_code=400, detail="A journal voucher must contain at least two entry legs.")
+        
+    for idx, e in enumerate(voucher.entries, start=1):
+        if e.amount <= 0:
+            raise HTTPException(status_code=400, detail=f"Entry line {idx} amount must be greater than zero.")
+        if e.cr_dr not in ('Dr', 'Cr'):
+            raise HTTPException(status_code=400, detail=f"Entry line {idx} must specify either 'Dr' or 'Cr'.")
+
+    total_dr = sum(e.amount for e in voucher.entries if e.cr_dr == 'Dr')
+    total_cr = sum(e.amount for e in voucher.entries if e.cr_dr == 'Cr')
+
+    if total_dr != total_cr:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Journal voucher is out of balance. Total Debits (₹{total_dr:,.2f}) != Total Credits (₹{total_cr:,.2f}). Difference: ₹{abs(total_dr - total_cr):,.2f}."
+        )
+
+    # 3. Voucher number generation
+    v_number = voucher.voucher_number
+    if voucher.series_id:
+        series = db.query(models.DocumentSeries).filter(
+            models.DocumentSeries.id == voucher.series_id
+        ).with_for_update().first()
+        if series:
+            import re
+            match = re.search(r'\d+$', v_number) if v_number else None
+            if match:
+                parsed_num = int(match.group())
+                if parsed_num >= series.next_number:
+                    series.next_number = parsed_num + 1
+                    db.add(series)
+
+    if not v_number:
+        v_number = _get_next_voucher_number(db, org_id, "Journal", fy.id)
+
+    # 4. Construct narration with embedded metadata
+    meta_tags = []
+    if voucher.journal_type:
+        meta_tags.append(f"[{voucher.journal_type}]")
+    if voucher.reference_number:
+        meta_tags.append(f"[Ref: {voucher.reference_number}]")
+    if voucher.scheduled_reversal_date:
+        meta_tags.append(f"[Reversal: {voucher.scheduled_reversal_date.isoformat()}]")
+    
+    full_narration = " ".join(meta_tags)
+    if voucher.narration:
+        full_narration = f"{full_narration} {voucher.narration.strip()}".strip()
+
+    # 5. Insert Voucher master
+    db_voucher = models.Voucher(
+        organization_id=org_id,
+        voucher_type="Journal",
+        voucher_number=v_number,
+        date=voucher.date,
+        narration=full_narration,
+        total_amount=total_dr,
+        is_active=True,
+        status="Active",
+        fiscal_year_id=fy.id
+    )
+    db.add(db_voucher)
+    db.flush()
+
+    # 6. Insert lines and update per-FY ledger balances
+    entry_responses = []
+    for entry in voucher.entries:
+        ledger = db.query(models.Ledger).filter(
+            models.Ledger.id == entry.ledger_id,
+            models.Ledger.organization_id == org_id
+        ).first()
+        if not ledger:
+            raise HTTPException(status_code=400, detail=f"Ledger ID {entry.ledger_id} not found in this organization.")
+
+        db_entry = models.VoucherEntry(
+            voucher_id=db_voucher.id,
+            ledger_id=entry.ledger_id,
+            cr_dr=entry.cr_dr,
+            amount=entry.amount,
+            ledger_name=ledger.name
+        )
+        db.add(db_entry)
+        db.flush()
+
+        # Update balance
+        _update_ledger_balance(db, org_id, entry.ledger_id, fy.id, entry.cr_dr, entry.amount)
+
+        entry_responses.append(schemas.JournalEntryLineResponse(
+            id=db_entry.id,
+            voucher_id=db_voucher.id,
+            ledger_id=db_entry.ledger_id,
+            ledger_name=ledger.name,
+            cr_dr=db_entry.cr_dr,
+            amount=db_entry.amount
+        ))
+
+    db.commit()
+    db.refresh(db_voucher)
+
+    j_type, ref_no, rev_date, _ = _parse_journal_meta(db_voucher.narration)
+
+    return schemas.JournalVoucherResponse(
+        id=db_voucher.id,
+        organization_id=db_voucher.organization_id,
+        created_at=db_voucher.created_at,
+        voucher_type=db_voucher.voucher_type,
+        voucher_number=db_voucher.voucher_number,
+        date=db_voucher.date,
+        narration=db_voucher.narration,
+        total_amount=db_voucher.total_amount,
+        journal_type=j_type,
+        reference_number=ref_no,
+        scheduled_reversal_date=rev_date,
+        status=db_voucher.status,
+        fiscal_year_id=db_voucher.fiscal_year_id,
+        reversal_voucher_id=db_voucher.reversal_voucher_id,
+        reversal_voucher_number=None,
+        entries=entry_responses
+    )
+
+
+@router.get("/journals", response_model=List[schemas.JournalVoucherResponse])
+def get_journal_vouchers(
+    journal_type: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    DOC-25: Query journal vouchers with classification filter, date range, and audit links.
+    """
+    org_id = get_org_id(current_user)
+
+    query = db.query(models.Voucher).filter(
+        models.Voucher.organization_id == org_id,
+        models.Voucher.voucher_type == "Journal",
+        models.Voucher.is_active == True
+    )
+
+    if status:
+        query = query.filter(models.Voucher.status == status)
+
+    if start_date:
+        query = query.filter(models.Voucher.date >= datetime.fromisoformat(start_date))
+    if end_date:
+        query = query.filter(models.Voucher.date <= datetime.fromisoformat(end_date))
+
+    if search:
+        search_filter = f"%{search}%"
+        query = query.filter(
+            or_(
+                models.Voucher.voucher_number.ilike(search_filter),
+                models.Voucher.narration.ilike(search_filter)
+            )
+        )
+
+    vouchers = query.order_by(models.Voucher.date.desc(), models.Voucher.created_at.desc()).offset(skip).limit(limit).all()
+
+    # Preload reversal numbers if any
+    rev_ids = [v.reversal_voucher_id for v in vouchers if v.reversal_voucher_id]
+    rev_map = {}
+    if rev_ids:
+        rev_records = db.query(models.Voucher.id, models.Voucher.voucher_number).filter(models.Voucher.id.in_(rev_ids)).all()
+        rev_map = {r[0]: r[1] for r in rev_records}
+
+    results = []
+    for v in vouchers:
+        j_type, ref_no, rev_date, _ = _parse_journal_meta(v.narration)
+        
+        # Filter by journal_type if specified
+        if journal_type and journal_type != "All" and j_type != journal_type:
+            continue
+
+        entries_list = [
+            schemas.JournalEntryLineResponse(
+                id=e.id,
+                voucher_id=e.voucher_id,
+                ledger_id=e.ledger_id,
+                ledger_name=e.ledger_name,
+                cr_dr=e.cr_dr,
+                amount=e.amount
+            ) for e in v.entries
+        ]
+
+        results.append(schemas.JournalVoucherResponse(
+            id=v.id,
+            organization_id=v.organization_id,
+            created_at=v.created_at,
+            voucher_type=v.voucher_type,
+            voucher_number=v.voucher_number,
+            date=v.date,
+            narration=v.narration,
+            total_amount=v.total_amount,
+            journal_type=j_type,
+            reference_number=ref_no,
+            scheduled_reversal_date=rev_date,
+            status=v.status,
+            fiscal_year_id=v.fiscal_year_id,
+            reversal_voucher_id=v.reversal_voucher_id,
+            reversal_voucher_number=rev_map.get(v.reversal_voucher_id),
+            entries=entries_list
+        ))
+
+    return results
+
+
+@router.post("/journal/{voucher_id}/reverse", response_model=schemas.JournalVoucherResponse)
+def reverse_journal_voucher(
+    voucher_id: UUID,
+    payload: schemas.JournalReverseRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    DOC-25: Traceable One-Click Journal Reversal.
+    Creates an inverted double-entry Journal Voucher (Dr -> Cr, Cr -> Dr),
+    updates per-FY ledger balances, and cross-references original & reversal vouchers.
+    """
+    org_id = get_org_id(current_user)
+
+    original = db.query(models.Voucher).filter(
+        models.Voucher.id == voucher_id,
+        models.Voucher.organization_id == org_id,
+        models.Voucher.voucher_type == "Journal"
+    ).first()
+
+    if not original:
+        raise HTTPException(status_code=404, detail="Original journal voucher not found.")
+
+    if original.status != "Active":
+        raise HTTPException(status_code=400, detail=f"Cannot reverse voucher with status '{original.status}'.")
+
+    fy = get_active_fiscal_year(db, org_id, original.fiscal_year_id)
+    if not fy:
+        raise HTTPException(status_code=400, detail="No active fiscal year found.")
+    if fy.is_locked:
+        raise HTTPException(status_code=400, detail=f"Fiscal year {fy.name} is locked. Cannot post reversal.")
+
+    # Generate sequential voucher number for reversal
+    rev_number = _get_next_voucher_number(db, org_id, "Journal", fy.id)
+    reversal_date = payload.reversal_date or datetime.utcnow()
+    reason_note = payload.reason or "Period-end adjustment reversal"
+
+    rev_narration = f"[Reversal of {original.voucher_number}] {reason_note}"
+
+    # Create reversal voucher
+    reversal_voucher = models.Voucher(
+        organization_id=org_id,
+        voucher_type="Journal",
+        voucher_number=rev_number,
+        date=reversal_date,
+        narration=rev_narration,
+        total_amount=original.total_amount,
+        is_active=True,
+        status="Active",
+        fiscal_year_id=fy.id,
+        reversal_voucher_id=original.id
+    )
+    db.add(reversal_voucher)
+    db.flush()
+
+    # Invert each entry and update ledger balances
+    rev_entries = []
+    for orig_entry in original.entries:
+        inverted_cr_dr = "Cr" if orig_entry.cr_dr == "Dr" else "Dr"
+        
+        db_rev_entry = models.VoucherEntry(
+            voucher_id=reversal_voucher.id,
+            ledger_id=orig_entry.ledger_id,
+            cr_dr=inverted_cr_dr,
+            amount=orig_entry.amount,
+            ledger_name=orig_entry.ledger_name
+        )
+        db.add(db_rev_entry)
+        db.flush()
+
+        # Update balance with inverted Cr/Dr
+        _update_ledger_balance(db, org_id, orig_entry.ledger_id, fy.id, inverted_cr_dr, orig_entry.amount)
+
+        rev_entries.append(schemas.JournalEntryLineResponse(
+            id=db_rev_entry.id,
+            voucher_id=reversal_voucher.id,
+            ledger_id=db_rev_entry.ledger_id,
+            ledger_name=db_rev_entry.ledger_name,
+            cr_dr=db_rev_entry.cr_dr,
+            amount=db_rev_entry.amount
+        ))
+
+    # Mark original voucher as Reversed and link to reversal voucher
+    original.status = "Reversed"
+    original.reversal_voucher_id = reversal_voucher.id
+    original.cancelled_at = datetime.utcnow()
+    original.cancelled_by = current_user.id
+    db.add(original)
+
+    db.commit()
+    db.refresh(reversal_voucher)
+
+    return schemas.JournalVoucherResponse(
+        id=reversal_voucher.id,
+        organization_id=reversal_voucher.organization_id,
+        created_at=reversal_voucher.created_at,
+        voucher_type=reversal_voucher.voucher_type,
+        voucher_number=reversal_voucher.voucher_number,
+        date=reversal_voucher.date,
+        narration=reversal_voucher.narration,
+        total_amount=reversal_voucher.total_amount,
+        journal_type="Reversal",
+        reference_number=original.voucher_number,
+        scheduled_reversal_date=None,
+        status=reversal_voucher.status,
+        fiscal_year_id=reversal_voucher.fiscal_year_id,
+        reversal_voucher_id=original.id,
+        reversal_voucher_number=original.voucher_number,
+        entries=rev_entries
+    )
+

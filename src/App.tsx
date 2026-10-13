@@ -80,6 +80,10 @@ import BankReconciliation from './pages/finance/BankReconciliation'
 import AssetCategories from './pages/finance/AssetCategories'
 import FixedAssets from './pages/finance/FixedAssets'
 import ExpenseManagement from './pages/finance/ExpenseManagement'
+import ReceiptPaymentVoucher from './pages/finance/ReceiptPaymentVoucher'
+import OutstandingWorkbench from './pages/finance/OutstandingWorkbench'
+import JournalVoucherEntry from './pages/finance/JournalVoucherEntry'
+import JournalRegister from './pages/finance/JournalRegister'
 
 import CurrentStockPage from './pages/stock/CurrentStock'
 
@@ -169,6 +173,14 @@ function App() {
         <Route path="finance/trial-balance" element={<TrialBalance />} />
         <Route path="finance/profit-loss" element={<ProfitAndLoss />} />
         <Route path="finance/balance-sheet" element={<BalanceSheet />} />
+        <Route path="finance/outstanding" element={<OutstandingWorkbench />} />
+        <Route path="finance/receipt" element={<ReceiptPaymentVoucher type="receipt" />} />
+        <Route path="finance/payment" element={<ReceiptPaymentVoucher type="payment" />} />
+        <Route path="receipt" element={<ReceiptPaymentVoucher type="receipt" />} />
+        <Route path="payment" element={<ReceiptPaymentVoucher type="payment" />} />
+        <Route path="finance/journal" element={<JournalVoucherEntry />} />
+        <Route path="journal" element={<JournalVoucherEntry />} />
+        <Route path="finance/journal-register" element={<JournalRegister />} />
 
         
         {/* Inventory */}
@@ -211,20 +223,22 @@ function App() {
         
         {/* AM Admin Routes */}
         <Route path="clients" element={<ClientManagementPage />} />
+
+        {/* DOC-30 Reports Routes */}
+        <Route path="reports" element={<ReportViewer />} />
+        <Route path="reports/viewer" element={<ReportViewer />} />
+        <Route path="reports/designer" element={<ReportDesigner />} />
       </Route>
 
       {/* ── CATCH-ALL REDIRECT ───────────────────────────────
           Any unknown URL redirects to "/" (dashboard).
           The ProtectedRoute will then redirect to /login if needed.
       ─────────────────────────────────────────────────────── */}
-                <Route path="/inventory-dashboard" element={<ProtectedRoute><InventoryDashboard /></ProtectedRoute>} />
-                              <Route path="/inventory/replenishment" element={<ProtectedRoute><Replenishment /></ProtectedRoute>} />
-          <Route path="/stock-shift" element={<ProtectedRoute><StockShiftVoucher /></ProtectedRoute>} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-    
-          <Route path="/reports/viewer" element={<ReportViewer />} />
-          <Route path="/reports/designer" element={<ReportDesigner />} />
-</Routes>
+      <Route path="/inventory-dashboard" element={<ProtectedRoute><InventoryDashboard /></ProtectedRoute>} />
+      <Route path="/inventory/replenishment" element={<ProtectedRoute><Replenishment /></ProtectedRoute>} />
+      <Route path="/stock-shift" element={<ProtectedRoute><StockShiftVoucher /></ProtectedRoute>} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
     </ThemeProvider>
   )
 }

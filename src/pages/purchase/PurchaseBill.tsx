@@ -1,13 +1,23 @@
-import { apiSaveDraft, apiCreateInvoice, apiGetInvoice, InvoiceCreatePayload } from '../../lib/api';
+import { 
+  apiSaveDraft, 
+  apiCreateInvoice, 
+  apiGetInvoice, 
+  InvoiceCreatePayload,
+  apiGetParties,
+  Party,
+  apiGetPurchaseOrders,
+  apiGetPurchaseOrderById,
+  apiCreateVendorComplaint,
+  PurchaseOrder,
+  apiGetProducts,
+  Product as _Product
+} from '../../lib/api';
 import React, { useState, useEffect, useRef } from 'react';
 import TdsTcsAlertModal from '../../components/TdsTcsAlertModal';
-// { useState, useRef, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { useAuthStore } from '../../store/authStore'
-import { useReturnNavigation } from '../../hooks/useReturnNavigation'
-import { apiGetProducts } from '../../lib/api'
-import type { Product as _Product } from '../../lib/api'
-import PurchaseList from './PurchaseList'
+import { useSearchParams } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
+import { useReturnNavigation } from '../../hooks/useReturnNavigation';
+import PurchaseList from './PurchaseList';
 
 // Increment alphanumeric series: p0053 -> p0054, x9999 -> x10000, abc -> abd, zzz -> zaaa
 const incrementSeries = (str: string): string => {
@@ -301,7 +311,8 @@ export default function PurchaseBill() {
                 purDealQty: '', purDealFree: '', schDeal: '', dealPercent: '',
                 igst: item.igst_percent?.toString() || '',
                 cgst: '', sgst: '', rateA: '', rateB: '', rateC: '', cost: '', hsn: '',
-                schSalesQty: '', schSalesFree: ''
+                schSalesQty: '', schSalesFree: '',
+                disposition: (item.disposition || 'ACCEPTED') as 'ACCEPTED' | 'DAMAGED' | 'SHORT'
               }))
               setGridRows(mappedRows)
             }
@@ -324,15 +335,25 @@ export default function PurchaseBill() {
   
   // Header State
   const [dateStr, setDateStr] = useState(getTodayFormatted())
-  const defaultBillNo = baseType === 'challan' ? 'PC0001' : 'P0001';
+  const defaultBillNo = baseType === 'challan' ? 'PC-0001' : 'PB-0001';
   const billNoKey = baseType === 'challan' ? 'lastPurchaseChallanNo' : 'lastPurchaseBillNo';
   const [billNo, setBillNo] = useState(() => localStorage.getItem(billNoKey) || defaultBillNo);
   const [partyName, setPartyName] = useState('')
+  const [selectedVendor, setSelectedVendor] = useState<Party | null>(null)
   const [partyInvNo, setPartyInvNo] = useState('')
   const [billNoError, setBillNoError] = useState('')
   const [partyInvNoError, setPartyInvNoError] = useState('')
   const [invDateStr, setInvDateStr] = useState(getTodayFormatted())
   const [taxType, setTaxType] = useState('Tax')
+
+  // Inward Mode & PO Matching State (DOC-17)
+  const [inwardMode, setInwardMode] = useState<'DIRECT' | 'AGAINST_PO'>('DIRECT')
+  const [showPoModal, setShowPoModal] = useState(false)
+  const [poList, setPoList] = useState<PurchaseOrder[]>([])
+  const [loadingPo, setLoadingPo] = useState(false)
+  const [selectedPo, setSelectedPo] = useState<PurchaseOrder | null>(null)
+  const [poSelectedIndex, setPoSelectedIndex] = useState(0)
+
   // Post-tax adjustments (TDS, Cash in Hand, Freight, etc.) & Bill Discount
   const [billDiscount, setBillDiscount] = useState('00.00')
   const [ledger1Name, setLedger1Name] = useState('')
@@ -346,7 +367,8 @@ export default function PurchaseBill() {
     id: 0, product: '', pack: '', batch: '', qty: '', free: '', extraSchem: '', prate: '', dis: '', amount: '',
     expiry: '', mrp: '', purDealQty: '', purDealFree: '', schDeal: '', dealPercent: '',
     igst: '', cgst: '', sgst: '', rateA: '', rateB: '', rateC: '', cost: '', hsn: '',
-    schSalesQty: '', schSalesFree: ''
+    schSalesQty: '', schSalesFree: '',
+    disposition: 'ACCEPTED' as 'ACCEPTED' | 'DAMAGED' | 'SHORT'
   }
   const [gridRows, setGridRows] = useState([
       { ...initialRow, id: 1 },
@@ -453,7 +475,7 @@ export default function PurchaseBill() {
   }, [gridRows, partyName]);
 
   useReturnNavigation(
-    showPartyModal || showProductModal || showSaveModal || showBatchModal || showF3BatchModal,
+    showPartyModal || showProductModal || showSaveModal || showBatchModal || showF3BatchModal || showPoModal,
     {
       isDirty: !selectedModifyBill && isDirty,
       fallbackAction: () => {
@@ -468,23 +490,100 @@ export default function PurchaseBill() {
     }
   );
 
+  // Live PostgreSQL Vendors (DOC-10 Party Master)
+  const [vendorsList, setVendorsList] = useState<Party[]>([])
+  const [loadingVendors, setLoadingVendors] = useState(false)
 
-  // Parties / Sundry Creditors List (Merged with localStorage)
-  const defaultParties = [
-    'Sun Pharma Ltd.',
-    'Cipla Pharmaceuticals',
-    'Glenmark Pharma',
-    'Mankind Pharma',
-    'Abbott Healthcare',
-    'Lupin Ltd.',
-    'Dr. Reddys Laboratories',
-    'Torrent Pharmaceuticals',
-    'Alkem Laboratories',
-    'Zydus Healthcare'
-  ]
-  const savedParties = JSON.parse(localStorage.getItem('erp_parties') || '[]')
-  const partiesList = Array.from(new Set([...defaultParties, ...savedParties]))
-  const filteredParties = partiesList.filter(p => p.toLowerCase().includes(partySearch.toLowerCase()))
+  const loadVendors = async () => {
+    setLoadingVendors(true)
+    try {
+      const data = await apiGetParties('vendor')
+      setVendorsList(data)
+    } catch (err) {
+      console.error("Failed to fetch vendors from API:", err)
+    } finally {
+      setLoadingVendors(false)
+    }
+  }
+
+  useEffect(() => {
+    loadVendors()
+  }, [showPartyModal])
+
+  const filteredVendors = vendorsList.filter(v => {
+    const q = partySearch.toLowerCase().trim()
+    if (!q) return true
+    const nameMatch = (v.legal_name || '').toLowerCase().includes(q) || (v.trade_name || '').toLowerCase().includes(q)
+    const gstinMatch = (v.gstin || '').toLowerCase().includes(q)
+    const cityMatch = v.addresses?.some(a => (a.city || '').toLowerCase().includes(q))
+    return nameMatch || gstinMatch || cityMatch
+  })
+
+  // Against Purchase Order (PO) Matcher (DOC-17)
+  const openPoPicker = async () => {
+    if (!selectedVendor) {
+      alert("Please select a Vendor first before choosing a Purchase Order!")
+      setShowPartyModal(true)
+      return
+    }
+    setShowPoModal(true)
+    setLoadingPo(true)
+    try {
+      const orders = await apiGetPurchaseOrders({ vendor_id: selectedVendor.id })
+      setPoList(orders)
+      setPoSelectedIndex(0)
+    } catch (err) {
+      console.error('Failed to fetch POs for vendor', err)
+      alert('Could not fetch POs for this vendor')
+    } finally {
+      setLoadingPo(false)
+    }
+  }
+
+  const selectPo = async (po: PurchaseOrder) => {
+    setShowPoModal(false)
+    setSelectedPo(po)
+    setInwardMode('AGAINST_PO')
+    
+    try {
+      const fullPo = await apiGetPurchaseOrderById(po.id)
+      if (fullPo.items && fullPo.items.length > 0) {
+        const mappedRows = fullPo.items.map((item, i) => {
+          const prodMeta = inventoryProducts.find(p => p.name?.toLowerCase() === item.product_name?.toLowerCase())
+          const remainingQty = Math.max(1, item.quantity - (item.received_qty || 0))
+          const igst = prodMeta?.igst_percent !== undefined ? String(prodMeta.igst_percent) : '12'
+          const rateVal = item.rate || 0
+          const mrpVal = prodMeta?.mrp ? String(prodMeta.mrp) : String(Number((rateVal * 1.3).toFixed(2)))
+          return {
+            ...initialRow,
+            id: i + 1,
+            product: item.product_name,
+            pack: prodMeta?.packing || '10 UNIT',
+            batch: '',
+            qty: String(remainingQty),
+            free: '',
+            prate: String(rateVal),
+            dis: '',
+            amount: (remainingQty * rateVal).toFixed(2),
+            expiry: '',
+            mrp: mrpVal,
+            igst: igst,
+            disposition: 'ACCEPTED' as 'ACCEPTED' | 'DAMAGED' | 'SHORT'
+          }
+        })
+        while (mappedRows.length < 8) {
+          mappedRows.push({ ...initialRow, id: mappedRows.length + 1 })
+        }
+        setGridRows(mappedRows)
+        setActiveRowId(1)
+        setTimeout(() => {
+          document.getElementById('bottom-batch-input')?.focus()
+        }, 100)
+      }
+    } catch (err) {
+      console.error('Failed to load full PO items', err)
+    }
+  }
 
   // Dynamic Inventory Products merged with Built-in Demo Products
   const [inventoryProducts, setInventoryProducts] = useState<any[]>([])
@@ -696,14 +795,16 @@ export default function PurchaseBill() {
       partyRef.current?.focus()
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setPartySelectedIndex(prev => (prev < filteredParties.length - 1 ? prev + 1 : prev))
+      setPartySelectedIndex(prev => (prev < filteredVendors.length - 1 ? prev + 1 : prev))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       setPartySelectedIndex(prev => (prev > 0 ? prev - 1 : 0))
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      if (filteredParties[partySelectedIndex]) {
-        setPartyName(filteredParties[partySelectedIndex])
+      if (filteredVendors[partySelectedIndex]) {
+        const v = filteredVendors[partySelectedIndex]
+        setPartyName(v.legal_name || v.trade_name || 'Vendor')
+        setSelectedVendor(v)
         setShowPartyModal(false)
         setTimeout(() => {
           partyInvRef.current?.focus()
@@ -891,7 +992,7 @@ export default function PurchaseBill() {
         if (!SAVED_PAST_BILLS_REGISTRY[prodKey]) SAVED_PAST_BILLS_REGISTRY[prodKey] = [];
         const newRecord: PurchaseHistoryRecord = {
           party: partyName || 'Cash Purchase',
-          billNo: billNo || 'P0001',
+          billNo: billNo || 'PB-0001',
           date: getTodayFormatted(),
           qty: parseFloat(row.qty) || 0,
           batch: row.batch.trim().toUpperCase(),
@@ -915,11 +1016,12 @@ export default function PurchaseBill() {
     const payload: InvoiceCreatePayload = {
       invoice_type: `purchase-${baseType}`,
       customer_name: partyName || 'Cash Purchase',
+      party_id: selectedVendor?.id || undefined,
       invoice_number: billNo.trim(),
       party_inv_no: partyInvNo.trim(),
       party_inv_date: invDateStr,
       due_date: dateStr,
-      remarks: '',
+      remarks: selectedPo ? `Inward against PO: ${selectedPo.po_number}` : '',
       dispatch_through: '',
       destination: '',
       bill_discount: parseFloat(billDiscount) || 0,
@@ -935,6 +1037,8 @@ export default function PurchaseBill() {
       items: validRows.map(row => ({
          product_name: row.product,
          quantity: parseInt(row.qty) || 0,
+         free_quantity: parseInt(row.free) || 0,
+         disposition: row.disposition || 'ACCEPTED',
          rate: parseFloat(row.prate) || 0,
          igst_percent: parseFloat(row.igst) || 0,
          line_total: parseFloat(row.amount) || 0,
@@ -954,17 +1058,39 @@ export default function PurchaseBill() {
       return;
     }
 
+    // Auto-log Vendor Complaints for DAMAGED or SHORT received items
+    const issueRows = validRows.filter(r => r.disposition === 'DAMAGED' || r.disposition === 'SHORT');
+    if (selectedVendor && issueRows.length > 0) {
+      for (const ir of issueRows) {
+        try {
+          await apiCreateVendorComplaint({
+            complaint_number: `COMP-${Date.now().toString().slice(-6)}`,
+            vendor_id: selectedVendor.id,
+            category: ir.disposition === 'DAMAGED' ? 'DAMAGED_GOODS' : 'SHORT_DELIVERY',
+            status: 'OPEN',
+            severity: 'HIGH',
+            description: `Purchase Inward ${billNo} (Supplier Inv ${partyInvNo}): Item ${ir.product} (Batch: ${ir.batch || 'N/A'}) received with discrepancy ${ir.disposition} (Qty: ${ir.qty}, Free: ${ir.free || 0}).`
+          });
+        } catch (compErr) {
+          console.error("Auto vendor complaint creation failed", compErr);
+        }
+      }
+    }
+
     setShowSaveModal(false)
-    setSaveSuccessMessage(`Purchase Bill [${billNo}] Saved Successfully! Total: ₹${invoiceValue.toFixed(2)}`)
+    const discrepancyNote = issueRows.length > 0 ? ` [${issueRows.length} Vendor Discrepancy Complaints Logged]` : '';
+    setSaveSuccessMessage(`Purchase Bill [${billNo}] Saved Successfully! Stock accrued in PostgreSQL.${discrepancyNote}`)
     
     setTimeout(() => {
       setSaveSuccessMessage('')
-      // Local storage removed
 
       const nextBillNo = incrementSeries(billNo)
       setBillNo(nextBillNo)
       localStorage.setItem(billNoKey, nextBillNo)
       setPartyName('')
+      setSelectedVendor(null)
+      setSelectedPo(null)
+      setInwardMode('DIRECT')
       setPartyInvNo('')
       setBillDiscount('00.00')
       setLedger1Name('')
@@ -987,7 +1113,17 @@ export default function PurchaseBill() {
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'End') {
+      if (e.key === 'F2') {
+        e.preventDefault()
+        openPoPicker()
+      } else if (e.key === 'F3' && !showF3BatchModal) {
+        const activeEl = document.activeElement;
+        if (activeEl?.id !== 'bottom-batch-input') {
+          e.preventDefault()
+          setInwardMode('DIRECT')
+          setSelectedPo(null)
+        }
+      } else if (e.key === 'End') {
         e.preventDefault()
         document.getElementById('bill-discount-input')?.focus()
       } else if (e.ctrlKey && (e.key === 's' || e.key === 'S')) {
@@ -997,7 +1133,7 @@ export default function PurchaseBill() {
     }
     window.addEventListener('keydown', handleGlobalKeyDown)
     return () => window.removeEventListener('keydown', handleGlobalKeyDown)
-  }, [totals.valueOfGoods, billNo])
+  }, [totals.valueOfGoods, billNo, selectedVendor, showF3BatchModal])
 
   // If we are in modify mode and haven't selected a bill yet, show the list view
   if (type.startsWith('modify') && !selectedModifyBill) {
@@ -1018,15 +1154,58 @@ export default function PurchaseBill() {
           <span style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', marginTop: '1px' }}>Voucher Entry</span>
         </div>
 
+        {/* Dual Mode Switcher (DOC-17) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', paddingRight: '10px', borderRight: '1px solid var(--color-border)', flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={() => {
+              setInwardMode('DIRECT');
+              setSelectedPo(null);
+            }}
+            title="Direct Counter Inward (Press F3)"
+            style={{
+              padding: '6px 10px',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              borderRadius: '4px',
+              border: inwardMode === 'DIRECT' ? '1px solid #3b82f6' : '1px solid #334155',
+              backgroundColor: inwardMode === 'DIRECT' ? '#1e3a8a' : '#1e293b',
+              color: inwardMode === 'DIRECT' ? '#93c5fa' : '#94a3b8',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            [F3] Direct Inward
+          </button>
+          <button
+            type="button"
+            onClick={() => openPoPicker()}
+            title="Inward Against Approved Purchase Order (Press F2)"
+            style={{
+              padding: '6px 10px',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              borderRadius: '4px',
+              border: inwardMode === 'AGAINST_PO' ? '1px solid #10b981' : '1px solid #334155',
+              backgroundColor: inwardMode === 'AGAINST_PO' ? '#064e3b' : '#1e293b',
+              color: inwardMode === 'AGAINST_PO' ? '#6ee7b7' : '#94a3b8',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            [F2] Against PO {selectedPo ? `(${selectedPo.po_number})` : ''}
+          </button>
+        </div>
+
         {/* Entry No */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '80px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '90px', flexShrink: 0 }}>
           <label style={{ fontSize: '10px', fontWeight: '600', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
             Entry No.
             {billNoError && <span style={{ color: 'red', marginLeft: '4px', fontSize: '9px', textTransform: 'none' }}>({billNoError})</span>}
           </label>
           <input 
             ref={billNoRef} type="text" value={billNo} onChange={e => { setBillNo(e.target.value); setBillNoError(''); }} onKeyDown={handleBillNoKeyDown}
-            style={{ width: '100%', backgroundColor: '#0b1120', border: `1px solid ${billNoError ? 'red' : 'var(--color-border-strong)'}`, borderRadius: '4px', padding: '8px 12px', fontSize: '14px', height: '36px', color: 'var(--color-primary)', fontWeight: 'bold', outline: 'none' }}
+            style={{ width: '100%', backgroundColor: '#0b1120', border: `1px solid ${billNoError ? 'red' : 'var(--color-border-strong)'}`, borderRadius: '4px', padding: '8px 12px', fontSize: '13px', height: '36px', color: 'var(--color-primary)', fontWeight: 'bold', outline: 'none' }}
             onFocus={e => { e.target.style.borderColor = billNoError ? 'red' : 'var(--color-primary)'; e.target.select(); }}
             onBlur={e => {
               const savedBills = JSON.parse(localStorage.getItem('savedPurchaseBills') || '[]')
@@ -1041,9 +1220,14 @@ export default function PurchaseBill() {
           />
         </div>
 
-        {/* Party Name (F7) - Takes largest flex space */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: '1 1 auto', minWidth: '180px' }}>
-          <label style={{ fontSize: '10px', fontWeight: '600', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Party Name (F7)</label>
+        {/* Vendor / Party Name (F7) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: '1 1 auto', minWidth: '190px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label style={{ fontSize: '10px', fontWeight: '600', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Vendor / Supplier (F7)</label>
+            {selectedVendor?.gstin && (
+              <span style={{ fontSize: '9px', color: '#10b981', fontWeight: 'bold' }}>GSTIN: {selectedVendor.gstin}</span>
+            )}
+          </div>
           <div style={{ position: 'relative' }}>
             <input 
               ref={partyRef} 
@@ -1052,12 +1236,12 @@ export default function PurchaseBill() {
               readOnly 
               onClick={() => setShowPartyModal(true)}
               onKeyDown={handlePartyKeyDown} 
-              placeholder="Select Party from list..."
-              style={{ width: '100%', backgroundColor: '#0b1120', border: '1px solid var(--color-border-strong)', borderRadius: '4px', padding: '3px 24px 3px 8px', fontSize: '12px', color: 'var(--color-text-primary)', outline: 'none', cursor: 'pointer' }}
+              placeholder="Select Vendor from Master (F7)..."
+              style={{ width: '100%', backgroundColor: '#0b1120', border: '1px solid var(--color-border-strong)', borderRadius: '4px', padding: '8px 26px 8px 10px', fontSize: '13px', height: '36px', color: 'var(--color-text-primary)', outline: 'none', cursor: 'pointer', fontWeight: '500' }}
               onFocus={e => { e.target.style.borderColor = 'var(--color-primary)'; }}
               onBlur={e => e.target.style.borderColor = 'var(--color-border-strong)'}
             />
-            <span onClick={() => setShowPartyModal(true)} style={{ position: 'absolute', right: '6px', top: '5px', fontSize: '12px', color: 'var(--color-text-muted)', cursor: 'pointer' }} title="Click to select Ledger (F7)">🔍</span>
+            <span onClick={() => setShowPartyModal(true)} style={{ position: 'absolute', right: '8px', top: '9px', fontSize: '13px', color: 'var(--color-text-muted)', cursor: 'pointer' }} title="Click to select Vendor (F7)">🔍</span>
           </div>
         </div>
 
@@ -1151,16 +1335,16 @@ export default function PurchaseBill() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left", tableLayout: "fixed" }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
               <tr style={{ backgroundColor: 'var(--color-bg-elevated)', color: 'var(--color-text-secondary)', borderBottom: '1px solid var(--color-border-strong)', fontSize: '12px' }}>
-                <th style={{ padding: "12px 8px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '40px', textAlign: 'center' }}>#</th>
+                <th style={{ padding: "12px 8px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '35px', textAlign: 'center' }}>#</th>
                 <th style={{ padding: "12px 8px", fontWeight: '600', borderRight: '1px solid var(--color-border)' }}>PRODUCT</th>
-                <th style={{ padding: "12px 8px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '80px' }}>PACK</th>
-                <th style={{ padding: "12px 8px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '100px' }}>BATCH</th>
-                <th style={{ padding: "12px 8px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '80px' }}>QTY</th>
-                <th style={{ padding: "12px 8px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '80px' }}>FREE</th>
-                <th style={{ padding: "12px 8px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '100px' }}>EXTRA SCHEM</th>
-                <th style={{ padding: "12px 8px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '100px' }}>P.RATE/S</th>
-                <th style={{ padding: "12px 8px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '80px' }}>DIS1%</th>
-                <th style={{ padding: "12px 8px", fontWeight: '600', width: '120px' }}>AMOUNT</th>
+                <th style={{ padding: "12px 8px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '75px' }}>PACK</th>
+                <th style={{ padding: "12px 8px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '90px' }}>BATCH</th>
+                <th style={{ padding: "12px 8px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '70px', textAlign: 'right' }}>QTY</th>
+                <th style={{ padding: "12px 8px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '70px', textAlign: 'right' }}>FREE</th>
+                <th style={{ padding: "12px 8px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '115px', textAlign: 'center' }}>RECEIVING QC</th>
+                <th style={{ padding: "12px 8px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '90px', textAlign: 'right' }}>P.RATE/S</th>
+                <th style={{ padding: "12px 8px", fontWeight: '600', borderRight: '1px solid var(--color-border)', width: '70px', textAlign: 'right' }}>DIS1%</th>
+                <th style={{ padding: "12px 8px", fontWeight: '600', width: '100px', textAlign: 'right' }}>AMOUNT</th>
               </tr>
             </thead>
             <tbody>
@@ -1280,6 +1464,28 @@ export default function PurchaseBill() {
                       style={{ width: '100%', backgroundColor: 'transparent', color: 'var(--color-text-primary)', border: '1px solid transparent', borderRadius: '4px', padding: "8px 8px", outline: 'none', textAlign: 'right' }} 
                       onFocusCapture={e => e.target.style.borderColor = 'var(--color-primary)'} onBlur={e => e.target.style.borderColor = 'transparent'} 
                     />
+                  </td>
+                  <td style={{ padding: "4px", borderRight: '1px solid var(--color-border)', textAlign: 'center' }}>
+                    <select 
+                      value={row.disposition || 'ACCEPTED'} 
+                      onChange={e => handleRowChange(idx, 'disposition', e.target.value)}
+                      style={{ 
+                        width: '100%', 
+                        backgroundColor: row.disposition === 'DAMAGED' ? '#7f1d1d' : row.disposition === 'SHORT' ? '#78350f' : '#064e3b', 
+                        color: row.disposition === 'DAMAGED' ? '#fca5a5' : row.disposition === 'SHORT' ? '#fde68a' : '#6ee7b7', 
+                        border: 'none', 
+                        borderRadius: '4px', 
+                        padding: "6px 4px", 
+                        fontSize: '11px', 
+                        fontWeight: 'bold', 
+                        outline: 'none', 
+                        cursor: 'pointer' 
+                      }}
+                    >
+                      <option value="ACCEPTED">🟢 Accepted</option>
+                      <option value="DAMAGED">🔴 Damaged</option>
+                      <option value="SHORT">🟡 Short</option>
+                    </select>
                   </td>
                   <td style={{ padding: "4px", borderRight: '1px solid var(--color-border)' }}>
                     <input 
@@ -1721,55 +1927,172 @@ export default function PurchaseBill() {
         <button onClick={handleSaveTrigger} style={{ background: '#7f1d1d', color: '#f8fafc', border: '1px solid #991b1b', padding: '2px 12px', cursor: 'pointer', borderRadius: '2px', marginLeft: 'auto', fontWeight: 'bold', fontSize: '11px', letterSpacing: '0.3px' }}>SAVE (End / Ctrl+S)</button>
       </div>
       
-      {/* ── F7 PARTY SELECTION MODAL ── */}
+      {/* ── F7 VENDOR SELECTION MODAL (DOC-10 Live PostgreSQL) ── */}
       {showPartyModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ backgroundColor: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', width: '500px', boxShadow: 'var(--shadow-lg)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ backgroundColor: 'var(--color-primary)', color: '#fff', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: '16px', fontWeight: '600', margin: 0 }}>Select Sundry Creditor / Supplier</h2>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ backgroundColor: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: '12px', width: '560px', boxShadow: 'var(--shadow-2xl)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ backgroundColor: 'var(--color-primary)', color: '#fff', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h2 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0 }}>Select Sundry Creditor / Supplier (F7)</h2>
+                <div style={{ fontSize: '11px', opacity: 0.85, marginTop: '2px' }}>Live PostgreSQL Party Master Registry</div>
+              </div>
               <button onClick={() => setShowPartyModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '18px' }}>✕</button>
             </div>
             
-            <div style={{ padding: '16px' }}>
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--color-border)' }}>
               <input 
                 ref={partySearchRef}
                 type="text"
                 value={partySearch}
                 onChange={e => setPartySearch(e.target.value)}
                 onKeyDown={handlePartyModalKeyDown}
-                placeholder="Search party by name..."
+                placeholder="Search vendor by name, GSTIN, or city..."
                 style={{ width: '100%', backgroundColor: '#0b1120', border: '1px solid var(--color-border-strong)', borderRadius: '6px', padding: '10px 14px', fontSize: '14px', color: 'var(--color-text-primary)', outline: 'none' }}
               />
             </div>
 
-            <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-              {filteredParties.map((party, index) => (
+            <div style={{ maxHeight: '320px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+              {loadingVendors ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading vendors...</div>
+              ) : filteredVendors.map((vendor, index) => (
                 <div 
-                  key={party}
+                  key={vendor.id}
                   ref={index === partySelectedIndex ? (el => el?.scrollIntoView({ block: 'nearest' })) : null}
                   style={{ 
-                    padding: '12px 24px', 
+                    padding: '10px 16px', 
                     cursor: 'pointer', 
                     backgroundColor: index === partySelectedIndex ? 'var(--color-bg-hover)' : 'transparent',
                     borderLeft: index === partySelectedIndex ? '4px solid var(--color-primary)' : '4px solid transparent',
                     color: 'var(--color-text-primary)',
-                    fontSize: '14px'
+                    borderBottom: '1px solid var(--color-border)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
                   }}
                   onClick={() => {
-                    setPartyName(party)
+                    setPartyName(vendor.legal_name || vendor.trade_name || 'Vendor')
+                    setSelectedVendor(vendor)
                     setShowPartyModal(false)
                     setTimeout(() => partyInvRef.current?.focus(), 20)
                   }}
                 >
-                  {party}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
+                      {vendor.legal_name}
+                      {vendor.trade_name && vendor.trade_name !== vendor.legal_name && (
+                        <span style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginLeft: '6px' }}>({vendor.trade_name})</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', display: 'flex', gap: '10px' }}>
+                      {vendor.addresses?.[0]?.city && <span>📍 {vendor.addresses[0].city}</span>}
+                      {vendor.contacts?.[0]?.phone && <span>📞 {vendor.contacts[0].phone}</span>}
+                    </div>
+                  </div>
+                  {vendor.gstin && (
+                    <span style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#10b981', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontFamily: 'monospace' }}>
+                      {vendor.gstin}
+                    </span>
+                  )}
                 </div>
               ))}
-              {filteredParties.length === 0 && (
-                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-muted)' }}>No parties found.</div>
+              {!loadingVendors && filteredVendors.length === 0 && (
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-muted)' }}>No vendors found.</div>
               )}
             </div>
-            <div style={{ padding: '12px 24px', borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-elevated)', color: 'var(--color-text-muted)', fontSize: '12px', textAlign: 'center' }}>
-              Use ↑↓ arrows to navigate. Press <b>Enter</b> to select. Press <b>Esc</b> to close.
+            <div style={{ padding: '10px 16px', borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-elevated)', color: 'var(--color-text-muted)', fontSize: '12px', textAlign: 'center' }}>
+              Use ↑↓ arrows to navigate • Press <b>Enter</b> to select • Press <b>Esc</b> to close
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── PURCHASE ORDER SELECTION MODAL (DOC-17 PO Matcher) ── */}
+      {showPoModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 120 }}>
+          <div style={{ backgroundColor: 'var(--color-bg-surface)', border: '2px solid #10b981', borderRadius: '12px', width: '700px', boxShadow: 'var(--shadow-2xl)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ backgroundColor: '#064e3b', color: '#fff', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #059669' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ backgroundColor: '#10b981', color: '#064e3b', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>F2</span>
+                <h2 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0 }}>Select Purchase Order for Inward</h2>
+              </div>
+              <button onClick={() => setShowPoModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+            </div>
+
+            <div style={{ padding: '12px 20px', backgroundColor: '#0f172a', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+              <div>
+                <span style={{ color: 'var(--color-text-muted)' }}>Vendor: </span>
+                <strong style={{ color: 'var(--color-primary)' }}>{selectedVendor?.legal_name}</strong>
+              </div>
+              <div>
+                <span style={{ color: 'var(--color-text-muted)' }}>GSTIN: </span>
+                <span>{selectedVendor?.gstin || 'N/A'}</span>
+              </div>
+            </div>
+
+            <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+              {loadingPo ? (
+                <div style={{ padding: '30px', textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading purchase orders...</div>
+              ) : poList.length === 0 ? (
+                <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                  <div style={{ fontSize: '24px', marginBottom: '8px' }}>📋</div>
+                  <div style={{ fontWeight: 'bold', color: 'var(--color-text-primary)' }}>No open Purchase Orders found for this vendor.</div>
+                  <div style={{ fontSize: '12px', marginTop: '6px', color: '#94a3b8' }}>You can proceed with <strong>[F3] Direct Counter Inward</strong>.</div>
+                </div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: 'var(--color-bg-elevated)', borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-secondary)', fontSize: '11px', textTransform: 'uppercase' }}>
+                      <th style={{ padding: '10px 16px' }}>PO Number</th>
+                      <th style={{ padding: '10px 16px' }}>Date</th>
+                      <th style={{ padding: '10px 16px' }}>Status</th>
+                      <th style={{ padding: '10px 16px', textAlign: 'right' }}>Total Amount</th>
+                      <th style={{ padding: '10px 16px', textAlign: 'center' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {poList.map((po, index) => (
+                      <tr 
+                        key={po.id}
+                        onClick={() => selectPo(po)}
+                        style={{
+                          cursor: 'pointer',
+                          backgroundColor: index === poSelectedIndex ? '#064e3b33' : 'transparent',
+                          borderLeft: index === poSelectedIndex ? '4px solid #10b981' : '4px solid transparent',
+                          borderBottom: '1px solid var(--color-border)',
+                          transition: 'background-color 0.15s ease'
+                        }}
+                      >
+                        <td style={{ padding: '12px 16px', fontWeight: 'bold', color: '#10b981' }}>{po.po_number}</td>
+                        <td style={{ padding: '12px 16px' }}>{new Date(po.date).toLocaleDateString('en-IN')}</td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <span style={{ backgroundColor: '#1e293b', color: '#60a5fa', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>{po.status}</span>
+                        </td>
+                        <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 'bold', color: 'var(--color-text-primary)' }}>₹{Number(po.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); selectPo(po); }}
+                            style={{ backgroundColor: '#10b981', color: '#064e3b', fontWeight: 'bold', border: 'none', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+                          >
+                            Inward PO ↵
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div style={{ padding: '12px 20px', borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-elevated)', color: 'var(--color-text-muted)', fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Click a PO or press <b>Enter</b> to populate inward items • Press <b>Esc</b> to close</span>
+              <button
+                type="button"
+                onClick={() => { setShowPoModal(false); setInwardMode('DIRECT'); }}
+                style={{ background: 'transparent', border: '1px solid var(--color-border-strong)', color: 'var(--color-text-secondary)', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
+              >
+                Switch to Direct Inward
+              </button>
             </div>
           </div>
         </div>

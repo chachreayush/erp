@@ -42,7 +42,7 @@ export default function PurchaseReturnList({ onSelectBill, type }: PurchaseRetur
   useEffect(() => {
     const fetchBills = async () => {
       try {
-        const data = await apiGetInvoices(`purchase-return-${baseType}`);
+        const data = await apiGetInvoices('purchase-return');
         const mapped = data.map(inv => ({
           entryNo: inv.invoice_number,
           partyName: inv.customer_name,

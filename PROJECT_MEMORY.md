@@ -1,5 +1,5 @@
 # ERP Project — Master Memory File
-> Last Updated: 2026-09-03 | Auto-loaded at the start of every session.
+> Last Updated: 2026-10-12 | Auto-loaded at the start of every session.
 
 ---
 
@@ -7,167 +7,363 @@
 
 | Item | Detail |
 |---|---|
-| **Project Name** | Enterprise Multi-Tenant ERP (Tauri + React 19 + FastAPI) |
-| **Dev Folder** | `C:\Users\DELL\OneDrive\Desktop\erp2` (working copy) |
-| **Original Folder** | `C:\Users\DELL\OneDrive\Desktop\erp` (Git repo, synced via `sync-to-original.ps1` / Robocopy) |
+| **Project Name** | Enterprise Multi-Tenant Pharmaceutical & Distribution ERP (Tauri + React 19 + FastAPI) |
+| **Dev Folder** | `C:\Users\DELL\OneDrive\Desktop\erp2` (Active working copy) |
+| **Original Folder** | `C:\Users\DELL\OneDrive\Desktop\erp` (Git repo, synced via Robocopy) |
 | **Git Repository** | `https://github.com/chachreayush/erp.git` (Branch: `main`) |
 | **Frontend URL** | `http://localhost:50005` (Vite dev server) / Vercel Production (`https://erp-nbbigyye0-erp-b646.vercel.app`) |
 | **Backend URL** | `http://localhost:8000` (FastAPI/Uvicorn) / Render Production |
-| **Tauri App** | `npm run tauri dev` — native Windows/Desktop ERP client |
-| **Standard Test Auth** | Company: `AM-0001` | Username: `admin` | Password: `Admin@123` |
+| **Desktop Shell** | Tauri v2 (Rust) — native Windows ERP client |
+| **Standard Test Auth**| Company: `AM-0001` \| Username: `admin` \| Password: `Admin@123` \| Org ID: `78fca6c8-eb92-41c4-96ec-ac2e150d56a4` |
 
 ---
 
 ## Technology Stack
 
-| Layer | Technology |
-|---|---|
-| **Frontend** | React 19 + TypeScript + Vite |
-| **Desktop Shell** | Tauri v2 (Rust) |
-| **Backend** | Python FastAPI + Uvicorn |
-| **Database** | PostgreSQL (Neon Cloud / Local) |
-| **ORM** | SQLAlchemy (models auto-create via `Base.metadata.create_all`) |
-| **Auth** | JWT tokens (PyJWT), stored in Zustand (`authStore`) |
-| **State Management** | Zustand |
-| **HTTP Client** | Axios (`src/lib/api.ts`) |
-| **Hosting & CI/CD** | Vercel (Frontend SPA) + Render (Backend API) |
+| Layer | Technology | Details |
+|---|---|---|
+| **Frontend** | React 19 + TypeScript + Vite | Port 50005, Zustand state management, Tailwind/inline styling |
+| **Desktop Shell** | Tauri v2 (Rust) | Native Windows windowing, hardware shortcut hooks |
+| **Backend** | Python FastAPI + Uvicorn | Port 8000, async endpoints, Pydantic validation |
+| **Database** | PostgreSQL | Local (port 5432) & Neon Cloud, multi-tenant isolation |
+| **ORM** | SQLAlchemy 2.x | Relational mapping, append-only ledger entries |
+| **Auth** | JWT (PyJWT) | Injected bearer tokens, AM/CM tenant impersonation |
+| **HTTP Client** | Axios (`src/lib/api.ts`) | Auto-switching base URLs (LAN, Cloud, Local) |
+| **Testing** | Selenium WebDriver | Headless Chrome, automated keyboard & DB verification |
+| **Hosting & CI/CD**| Vercel (Frontend SPA) + Render (Backend API) | GitHub auto-deployments |
 
 ---
 
-## Recent Major Milestones & Architectural Upgrades
+## The 6 Core Transaction Voucher Modules (100% Keyboard-Operated)
 
-1. **Modern Enterprise ERP Redesign**:
-   - Upgraded `SalesBill.tsx`, `PurchaseBill.tsx`, and all returns/breakage billing modules to a modern dark enterprise theme.
-   - Fixed column proportions: `#`, `PRODUCT` (auto-flex), `PACK`, `BATCH` (100px constrained), `QTY`, `FREE`, `EXTRA SCHEM` (100px), `P.RATE/S`, `DIS1%`, `AMOUNT`.
-   - 10-row balanced grid eliminating empty voids on 1080p desktop viewports.
-   - Status badge indicators for Stock, SRate, HSN, Tax% and dedicated Total Invoice Hero Card.
-2. **Dynamic Full-Screen Mode (`AppShell.tsx`)**:
-   - Header navigation conditionally renders on `/` (Home Dashboard) and automatically hides during module entries (`/sales`, `/purchase`, etc.).
-   - Added `useReturnNavigation` hook enabling instantaneous `Escape` key return to dashboard.
-3. **Landscape Dashboard (`HomeScreen.tsx`)**:
-   - 2-column horizontal split: Left side contains modular navigation cards, Right side houses the real-time company Bulletin Board.
-   - Zero vertical scrolling required.
-4. **Cloud Database Unification**:
-   - Removed legacy local storage fallbacks for invoices and stock ledger.
-   - Live synchronization across all devices and Vercel cloud deployment.
-5. **Clean TypeScript Compilation**:
-   - Full `tsc && vite build` validation with 100% type safety.
+Every transaction module across the ERP is **100% keyboard-navigable (zero mouse required)**, executes in under 2–3 seconds per transaction, and implements **Marg & Tally Series Continuation**:
+
+1. **Sales Bill (`/sales`, `src/pages/sales/SalesBill.tsx`)**:
+   * Header: `Date` &rarr; `Bill No` &rarr; `Party` [F7 popup].
+   * Grid: `Product` &rarr; `Batch` [F3 popup with stock/expiry/rate] &rarr; `Qty` &rarr; `Free` &rarr; `Rate` &rarr; `Disc %` &rarr; Next Row.
+   * `End` key or `Enter` on empty product row opens Discount & Settlement modal; `Enter` confirms and saves.
+   * Series auto-increments with user's customized prefix (e.g. `RJ-INV-1001` &rarr; `RJ-INV-1002`).
+2. **Purchase Bill (`/purchase`, `src/pages/purchase/PurchaseBill.tsx`)**:
+   * Direct inward and PO matching (`[PO Picker]`).
+   * Header walk: `Date` &rarr; `Bill No` &rarr; `Party` [F7] &rarr; `Party Inv No` &rarr; `Inv Date` &rarr; `Tax Mode`.
+   * Grid: Batch creation (MRP, SRate, P.Rate, Expiry MM/YY) & discrepancy complaint logging.
+3. **Supplier Debit Note / Purchase Return (`/purchase-return`, `src/pages/returns/PurchaseReturnBill.tsx`)**:
+   * Neumorphic Minimalist design (White & Forest Green `#1b4332`, `#2d6a4f`).
+   * Dual Mode: `[F2] Against Inward Bill` (queries supplier inward bills via `/api/sales/invoices/by-supplier/`) vs `[F3] Direct Loose Return`.
+   * Stock disposition routing per row: `🟢 Saleable`, `🔴 Breakage Godown`, `🟡 Expired Godown`.
+   * Reason codes: Transit damage, Expired goods, Near expiry, Excess supply, Rate difference.
+   * Series continuation: Defaults `DN-0001` or last series; edits (e.g. `RJ-DN-0020`) auto-advance to `RJ-DN-0021`.
+   * Keyboard grid: `Enter` walks `return-qty` &rarr; `return-rate` &rarr; `return-disc` &rarr; next row / Save button.
+4. **Customer Credit Note / Sales Return (`/sales-return`, `src/pages/returns/SalesReturnBill.tsx`)**:
+   * Neumorphic Minimalist design (White & Forest Green `#1b4332`, `#2d6a4f`) matching `PurchaseReturnBill` and `SalesBill`.
+   * Dual Mode: `[F2] Against Sales Bill` (queries customer bills via `/api/sales/invoices/by-customer/`) vs `[F3] Direct Counter Return`.
+   * Caps returnable units against billed quantity; restores original batch and rate.
+   * Keyboard grid: `Enter` walks `return-qty` &rarr; `return-rate` &rarr; `return-disc` &rarr; next row. `ArrowUp`/`Down` shifts rows.
+   * Series continuation: Defaults `CN-0001`; edits (e.g. `RJ-CN-2403`) auto-advance to `RJ-CN-2404`.
+5. **Breakage Issue (`/brk-issue`, `src/pages/brk/BrkIssueBill.tsx`)**:
+   * Fast Marg billing grid engine; deducts non-saleable goods from `brk_exp_stock` to return to manufacturer.
+6. **Breakage Receive (`/brk-receive`, `src/pages/brk/BrkReceiveBill.tsx`)**:
+   * Fast Marg billing grid engine; accrues damaged goods from retail chemists into `brk_exp_stock`.
 
 ---
 
-## How to Start Servers
+## Universal Marg/Tally Series Continuation Engine
+
+Implemented across all billing components via `incrementSeries`:
+* **Algorithm**: Parses arbitrary alphanumeric prefixes and trailing numbers, increments the sequence integer, preserves leading zeros, and falls back to `${str}-0001` if non-numeric.
+* **Tolerance**: User can freely type any customized sequence into Entry No. The ERP saves the customized value, increments it for the subsequent bill, and stores it in `localStorage`.
+* **Zero Overwrite Rule**: The ERP never overrides a user's customized series with system default fallbacks.
+
+---
+
+## Automated QA & Selenium Verification Milestones (October 2026)
+
+All modules verified using headless Chrome Selenium test suites with 100% assertions:
+1. **`test_purchase_return_selenium.py` (Pass 100%)**:
+   * Tested sequence customization: `RJ-DN-0020` &rarr; Next Bill: `RJ-DN-0021`.
+   * Inward bill `#PB-0001` loaded (Sun Pharma Ltd.), stock routed to Breakage Godown, total ₹863.98.
+   * Verified PostgreSQL DB Invoice: `ID=a3b8bc01-a53f-44ab-b68a-0048ba60c392`, Number=`RJ-DN-0020`.
+   * Verified auto-posted GL Journal Voucher: `JRN/2026-27/0161` (`Dr Sun Pharma Ltd. ₹863.98`, `Cr Purchase Return ₹863.98`).
+2. **`test_sales_return_selenium.py` (Pass 100%)**:
+   * Tested sequence customization: `RJ-CN-8281` &rarr; Next Bill: `RJ-CN-8282`.
+   * Billed invoice `#INV-TEST-E41A` loaded (Apollo Pharmacy Ltd.), return qty edited via keyboard.
+   * Verified PostgreSQL DB Invoice: `ID=9a7efccc-378d-4760-93b1-fab037d5d340`, Number=`RJ-CN-8281`.
+   * Verified auto-posted GL Journal Voucher: `JRN/2026-27/0165` (`Dr Sales Return ₹156.80`, `Cr Apollo Pharmacy ₹156.80`).
+3. **`test_sales_bill_selenium.py` (Pass 100%)**:
+   * Counter flow, batch selection, settlement modal, and invoice persistence verified with 0 errors.
+4. **`test_master_all_6_modules_selenium.py` (Pass 100% across all 6 modules)**:
+   * **Sales Bill**: `RJ-INV-6874` -> `RJ-INV-6875` (PostgreSQL Grand Total `₹571.00`).
+   * **Purchase Bill**: `RJ-PB-7905` -> `RJ-PB-7906` (PostgreSQL Grand Total `₹952.00`).
+   * **Supplier Debit Note**: `RJ-DN-8924` -> `RJ-DN-8925` (PostgreSQL Grand Total `₹95.20`).
+   * **Customer Credit Note**: `RJ-CN-9937` -> `RJ-CN-9938` (PostgreSQL Grand Total `₹156.80`).
+   * **Breakage & Expiry Issue**: `RJ-BKI-10950` -> `RJ-BKI-10951` (PostgreSQL Grand Total `₹420.00`).
+   * **Breakage & Expiry Receive**: `RJ-BKR-11966` -> `RJ-BKR-11967` (PostgreSQL Grand Total `₹269.00`).
+5. **`test_gst_compliance_selenium.py` (Pass 100% across all 10 steps)**:
+   * **Executive KPI Cards**: Outward ₹1,52,519.34 (Tax ₹17,318.00), Inward ₹1,81,76,245.90 (ITC ₹29,03,956.42), Net Cash ₹0.00, ITC Carried Forward ₹28,86,638.42.
+   * **GSTR-1 Multi-Tab**: Table 4 B2B (12 rows), Table 7 B2CS (37 rows), Table 9B CDNR (10 rows), Table 12 HSN (19 rows), Table 13 Docs (1 sequence).
+   * **GSTR-2 Inward Register**: 105 purchase records with Debit Note ITC reversals (-₹95.20) and net eligible ITC calculator.
+   * **GSTR-3B Return**: Table 3.1 Outward supplies (5 rows), Table 4 Eligible ITC (3 rows), Table 5.1 Tax payment breakdown (3 rows).
+   * **Official GSTN JSON Export**: Government offline utility payload (`GSTR1_Offline_Utility_v1.5`) generated and validated for upload to `gst.gov.in`.
+   * **Period Filtering**: MTD, Q1, Q2, and FY 2026-27 date presets refreshed cleanly.
+
+---
+
+## Management Reporting & Financial Statements (100% Verified via Selenium)
+
+1. **Company-Wise Sales Report (`/reports`)**: Aggregates sales across 25+ manufacturers in `₹`, with inline drawer product drill-downs (`[▶ View Products]`) and multi-company search/batch filter modal. Verified 100% PASS via [`test_reports_and_finance_selenium.py`](file:///c:/Users/DELL/OneDrive/Desktop/erp2/test_reports_and_finance_selenium.py).
+2. **Custom Report Designer (`/reports/designer`)**: Semantic query builder executing live queries against `/api/reports_v2/query` with grouping by Company/Party and reusable template persistence (`/api/reports_v2/templates`). Verified 100% PASS.
+3. **Double-Entry Financial Suite (`/finance`)**:
+   * **Day Book (`/finance/daybook`)**: Daily chronological transactions register with multi-leg double-entry GL postings.
+   * **Ledger Statement (`/finance/ledger-statement`)**: 69 active ledger accounts, opening balances, and running closing balance statements.
+   * **Trial Balance (`/finance/trial-balance`)**: Double-entry ledger verification across 62 active ledgers with debit/credit balance reconciliation.
+   * **Profit & Loss (`/finance/profit-loss`)**: Income vs Expenses accounts with categorized sub-totals and period net profit calculation.
+   * **Balance Sheet (`/finance/balance-sheet`)**: Authoritative capital, liabilities, and assets balance calculation.
+   * **Bank Reconciliation (`/finance/bank-reconciliation`)**: Bank ledger statement mapper with split-screen unreconciled transactions.
+   * All 8 reporting and finance modules verified 100% PASS in headless Chrome.
+
+---
+
+## Statutory GST Compliance & Tax Filing Engine (100% Verified via Selenium)
+
+1. **Executive Statutory Tax Dashboard (`/gst`)**:
+   * Real-time calculation of Outward Taxable Value (₹1,52,519.34), Outward Tax (₹17,318.00), Inward Value (₹1,81,76,245.90), Eligible ITC (₹29,03,956.42), Net Cash Payable (₹0.00), and ITC Carried Forward (₹28,86,638.42).
+   * High-speed optimized queries (<0.4s response) with zero N+1 latency.
+2. **GSTR-1 Outward Supplies Register**:
+   * **Table 4 (B2B)**: Registered debtor sales with customer GSTIN, POS state codes, reverse charge flags, and tax rates.
+   * **Table 7 (B2CS)**: Consolidated retail consumer sales.
+   * **Table 9B (CDNR)**: Credit notes from sales returns reducing outward tax liability.
+   * **Table 12 (HSN)**: Medicaments and consumables summary with quantities and UQC codes.
+   * **Table 13 (Documents Issued)**: Numbering series tracking with cancellations audit.
+3. **GSTR-2 Inward Supplies & ITC Register**:
+   * 105 supplier purchase bills with vendor GSTINs, supplier bill numbers, and eligible ITC.
+   * Automatic Debit Note ITC reversal matching (-₹95.20).
+4. **GSTR-3B Monthly Consolidated Return**:
+   * Table 3.1 Outward liabilities, Table 4 Eligible ITC, Table 5.1 Tax payment breakdown and cash liability set-off.
+5. **Government GSTN Portal Offline JSON Utility**:
+   * Standardized schema (`GSTR1_Offline_Utility_v1.5`) exported directly via `GET /api/gst/gstr1/json` for direct upload to `gst.gov.in`.
+   * Verified 100% PASS across all 10 steps in [`test_gst_compliance_selenium.py`](file:///c:/Users/DELL/OneDrive/Desktop/erp2/test_gst_compliance_selenium.py).
+
+## Payment, Receipt & Bill-by-Bill Settlement Engine (100% Verified via Selenium)
+
+1. **Customer Counter Receipt Voucher (`[F6] Receipt`, `/receipt`, `/finance/receipt`)**:
+   - High-speed keyboard-first interface (`ReceiptPaymentVoucher.tsx`) designed for rapid chemist counter collections.
+   - Hotkey controls (`[F7]` Party Picker, `[Alt+A]` FIFO Allocation, `[Ctrl+S]` Save), Marg/Tally sequence continuation (`lastReceiptVoucherNo`), and support for Cash, Cheque, NEFT/RTGS, UPI.
+2. **Supplier Outward Payment Voucher (`[F5] Payment`, `/payment`, `/finance/payment`)**:
+   - Outward vendor payments against Creditor ledgers with auto-posting of Dr Creditor and Cr Cash/Bank.
+3. **Bill-by-Bill Allocation Engine (`models.InvoiceAllocation` & DOC-07)**:
+   - FIFO multi-bill chronological auto-allocation (`[Alt+A]`).
+   - Partial bill settlement and floating on-account advance creation (`is_floating=True`).
+4. **Outstanding & Ageing Analysis Workbench (`/finance/outstanding`)**:
+   - Real-time debtor and creditor ageing engine categorized across statutory buckets: `0–30 Days (Current)`, `31–60 Days`, `61–90 Days`, and `90+ Days Overdue`.
+   - Expandable bill drawers displaying underlying invoice breakdown with days overdue and ageing brackets.
+   - One-click navigation to counter vouchers (`[Receive ↗]` and `[Pay ↗]`) and CSV export.
+5. **Master Automated Selenium Suite (`test_receipt_payment_settlement_selenium.py`)**:
+   - Verified 100% PASS across all 6 stages: Backend API authentication & endpoint check, headless browser launch, customer receipt entry & FIFO allocation, supplier payment entry, and ageing workbench audit.
+
+## Journal Voucher, Accounting Adjustment & Accrual Management Engine (DOC-25 — 100% Verified via Selenium)
+
+1. **Keyboard-First Journal Cockpit (`/journal`, `/finance/journal`)**:
+   - Neumorphic Forest Green layout (`JournalVoucherEntry.tsx`) designed for rapid multi-leg double-entry adjustments.
+   - Dynamic Auto-Balance (`[Ctrl+B]`): Instantly calculates delta between debits and credits and populates balancing line with exact Cr/Dr amount.
+   - Hotkeys: `[Ctrl+B]` Auto-Balance, `[Ctrl+D]` Duplicate row, `[Alt+A]` Add line, `[Alt+S]` / `[Ctrl+S]` Post voucher.
+   - Real-time pinned totals bar displaying Total Dr, Total Cr, Difference counter, and dynamic status indicator (`BALANCED` / `OUT OF BALANCE`).
+2. **6 Statutory Transaction Classifications**:
+   - Standard Manual Journal, Accrual Journal, Provision, Prepaid / Deferred Adjustment, Reclassification / Transfer, Opening Balance Adjustment.
+3. **Accrual & Auto-Reversal Scheduler Engine**:
+   - Automatically activates upon selecting Accrual Journal; schedules future reversal date (default 1st of next month) and serializes metadata.
+4. **Journal Register & Audit Workbench (`/finance/journal-register`)**:
+   - Central audit dashboard with KPIs: Total Journals, Total Volume (₹), Active Accruals, and Reversals Posted.
+   - Expandable row drawers detailing underlying multi-leg entry accounts and Debit/Credit allocations.
+5. **Traceable One-Click Atomic Reversal (`POST /api/finance/journal/{id}/reverse`)**:
+   - Atomic GL inversion (Dr &rarr; Cr, Cr &rarr; Dr) neutralizing account balances while maintaining complete audit permanence.
+   - Bidirectional linkage (`reversal_voucher_id`) and status transition to `Reversed`.
+6. **Master Automated Selenium Suite (`test_journal_accrual_engine_selenium.py`)**:
+   - Verified 100% PASS across all 6 stages (Exit Code 0): Direct API validation & double-entry enforcement, headless browser session, multi-leg cockpit entry with `[Ctrl+B]`, accrual reversal scheduling, and register one-click reversal.
+
+---
+
+## Production Update: DOC-26 — Expense, Petty Cash & Employee Reimbursement Engine (Verified October 2026)
+
+1. **Enterprise Operational Expenditure & Reimbursement Cockpit (`/finance/expenses`)**:
+   - 4 Live KPI Cards: `Approved Expenses` (₹), `Pending Approvals` count, `Active Advances` (₹), and `Settled Advances` count.
+   - Unified 3-Tab Structure:
+     - `Expense Claims & Approvals`: Master registry of claims with itemized line item breakdown drawers.
+     - `Employee Advances & Imprest`: Advance issuance and management workbench.
+     - `Expense Categories & GL Accounts`: Central catalog of operational expenditure accounts.
+2. **Multi-Line Itemization & Advance Offset**:
+   - `ExpenseClaimEntryModal.tsx`: Employee ledger selection, active advance filter, multi-line table with Category, Bill No, Bill Date, Amount, and Line Notes.
+   - Real-time running total calculation.
+3. **Double-Entry General Ledger Integration**:
+   - One-Click Approval (`POST /api/expenses/claims/{id}/approve`): Generates balanced Journal Voucher in `vouchers` and `voucher_entries`:
+     - $\text{Cr Employee / Claimant Ledger}$: Total Claim Amount
+     - $\text{Dr Expense Category Ledgers}$: Itemized amounts
+     - Invariance: $\sum \text{Dr} = \sum \text{Cr}$.
+4. **Automatic Advance Settlement**:
+   - Linking an active advance tags `[Advance: {id}]` into remarks; upon approval, backend atomically transitions the linked `EmployeeAdvance` to `Settled` and records `voucher_id`.
+5. **Master Automated Selenium Suite (`test_expense_petty_cash_selenium.py`)**:
+   - Verified 100% PASS across all 8 stages (Exit Code 0): Backend API auth, category loading, headless Chrome session (1440x950), employee advance issuance (₹5,000.00), multi-line claim submission (₹4,000.00), one-click approval, GL Journal Voucher assertion (`JRN/2026-27/0191`), and advance settlement.
+   - 4 visual artifacts generated and stored in artifact directory.
+6. **Single-Click Direct Operational Expense Cockpit & Live P&L Engine (Overhaul)**:
+   - Built instant daily operational expense recording form (`POST /api/expenses/direct`) with explicit Paid From (`Cash in Hand` / `Bank A/c`) and Expense Head selection.
+   - Seeding of 10 statutory Indirect Expense ledgers under `group_name = "Indirect Expenses"` ensuring direct P&L reflection.
+   - Posts atomic balanced `Payment` vouchers (`Dr Expense A/c`, `Cr Cash/Bank A/c`), deducting Net Profit and Cash in Hand.
+   - Interactive Live Accounting Impact Box displaying Dr, Cr, and Net Profit reduction before submitting.
+   - High-density Executive Cockpit with 4 live KPI cards (Cash in Hand live balance, today's cash outflow, MTD paid, pending advances) and direct navigation links to `/finance/profit-loss`, `/finance/daybook`, and `/finance/ledger-statement/:id`.
+   - Verified 100% PASS via automated script `test_direct_expense_pnl.py` and Selenium suite `test_direct_expense_ui_selenium.py` (Exit Code 0).
+
+---
+
+## Production Update: DOC-27 — Fixed Assets & Depreciation Engine (Verified October 2026)
+
+1. **Enterprise Fixed Assets Cockpit (`/finance/assets` & `/finance/asset-categories`)**:
+   - Built in Flagship Neumorphic Minimalist palette (Canvas `#eef2ef`, Pure White `#ffffff`, Accent Forest Green `#1b4332`, `#2d6a4f`).
+   - 4 Live Executive KPI Cards: `Total Gross Block` (₹), `Accumulated Depreciation` (₹), `Net Book Value` (₹), and `Active Asset Count`.
+   - Category management workbench supporting Companies Act 2013 and Income Tax Act Schedule II statutory asset blocks (Plant & Machinery, Buildings, Furniture & Fixtures, Computer Equipment, Vehicles).
+2. **Depreciation Computation & Allocation Models**:
+   - Both **Written Down Value (WDV)** and **Straight Line Method (SLM)** supported with configurable useful life and residual value (default 5%).
+   - Daily and period depreciation proration based on asset capitalization date.
+3. **Automated Double-Entry General Ledger Depreciation Runs**:
+   - Single Asset Run & Bulk Financial Period Run (`POST /api/assets/depreciate/all` and `POST /api/assets/{id}/depreciate`).
+   - Generates atomic balanced Journal Vouchers in General Ledger:
+     - $\text{Dr Depreciation Expense A/c (P&L - Indirect Expenses)}$: Depreciation amount
+     - $\text{Cr Accumulated Depreciation A/c (Balance Sheet - Asset Contra / Deduction)}$: Depreciation amount
+     - Invariance: $\sum \text{Dr} = \sum \text{Cr}$.
+   - Immediately reduces Net Book Value on Asset Cockpit and Net Profit on Profit & Loss Statement (`/finance/profit-loss`).
+4. **Master Automated Selenium Suite (`test_fixed_assets_selenium.py`)**:
+   - Verified 100% PASS across all 5 verification stages (Exit Code 0): Asset registration (`AST-2026-0001`), calculation of ₹20,000.00 depreciation on ₹2,00,000.00 asset, GL Journal Voucher generation (`JRN/2026-27/0201`), P&L verification showing ₹20,000.00 under Indirect Expenses, and Net Book Value reduction to ₹1,80,000.00.
+   - 4 visual artifacts generated and stored in artifact directory (`asset_cockpit_initial.png`, `asset_registered_success.png`, `asset_depreciation_run_posted.png`, `asset_pnl_depreciation_verified.png`).
+
+---
+
+## Production Update: DOC-28 — Bank Reconciliation & Cash Control Engine (Verified October 2026)
+
+1. **Dual Bank Reconciliation & Cash Control Workbench (`/finance/bank-reconciliation`)**:
+   - Refactored into Flagship Neumorphic Minimalist architecture (`#eef2ef`, `#ffffff`, `#1b4332`).
+   - 4 Live Real-Time BRS Metrics Cards:
+     - `Statement Closing Balance`: Balance as per external bank statement.
+     - `Book Balance (ERP)`: Live closing balance as per General Ledger bank account.
+     - `Unreconciled Variance`: Calculated delta between statement and ERP books.
+     - `Pending Clearance Count`: Total uncleared deposits and cheques in transit.
+2. **Dual-Pane Interactive Reconciliation Workbench**:
+   - Left Pane: ERP Bank Transactions (Payments issued, Receipts received, cheques unpresented).
+   - Right Pane: External Bank Statement Feed with CSV import utility.
+   - Interactive checkbox matching with real-time balance delta adjustment.
+3. **Automated Multi-Rule Matching Engine (`POST /api/finance_v2/bank-recon/auto-match`)**:
+   - Intelligent auto-matching based on Reference/Cheque Number, Exact Amount, and Date Proximity Tolerance (default $\pm 3$ days).
+   - Auto-clears verified transactions with clearance date timestamp and generates detailed reconciliation audit logs.
+4. **Physical Cash Denomination Counter & Daily Drawer Tally**:
+   - Built-in currency denomination grid (`CashVerification` model) tracking physical notes (₹2000, ₹500, ₹200, ₹100, ₹50, ₹20, ₹10) and coins (₹5, ₹2, ₹1).
+   - Live Physical Total computation vs System Book Cash Balance.
+   - Identifies and flags Physical Cash Shortage or Excess with mandatory audit explanation and cashier verification notes.
+5. **Master Automated Selenium Suite (`test_bank_recon_cash_selenium.py`)**:
+   - Verified 100% PASS across all 6 verification stages (Exit Code 0): BRS workbench rendering, bank account selection, statement balance entry, auto-matching tolerance rule execution, physical cash denomination tally counting, and variance audit trail verification.
+   - 3 visual artifacts generated and stored in artifact directory (`bank_recon_cockpit_initial.png`, `bank_recon_auto_match_modal.png`, `bank_recon_cash_denomination_tally.png`).
+
+---
+
+## Production Update: DOC-29 — Statutory GST, Tax, E-Invoicing & Compliance Engine (Verified October 2026)
+
+1. **Comprehensive GST Statutory Filing Cockpit (`/gst`)**:
+   - Built in Flagship Neumorphic Minimalist palette (`#eef2ef`, `#ffffff`, `#1b4332`, `#2d6a4f`).
+   - Executive Summary KPI Cards: Outward Taxable Value (₹1,52,519.34), Outward Tax Liability (₹17,318.00), Inward Taxable Value (₹1,81,76,245.90), Eligible Input Tax Credit (ITC ₹29,03,956.42), Net Cash Tax Payable (₹0.00), and Net ITC Carried Forward (₹28,86,638.42).
+2. **GSTR-1 Outward Supplies Multi-Tab Workbench**:
+   - **Table 4 (B2B)**: Registered taxable outward invoices with recipient GSTIN, place of supply (POS), reverse charge flag, invoice type, taxable value, and tax rate breakdown.
+   - **Table 7 (B2CS)**: Consolidated unregistered retail supplies grouped by state code and GST rate.
+   - **Table 9B (CDNR)**: Credit and Debit Notes issued to registered recipients reducing outward liability.
+   - **Table 12 (HSN Summary)**: HSN code level summary of goods sold with total quantity, UQC code, taxable value, and tax split.
+   - **Table 13 (Documents Issued)**: Series audit tracking starting serial, ending serial, total count, and cancelled invoices.
+3. **GSTR-2 Inward Supplies & ITC Register**:
+   - 105 supplier purchase bills with vendor GSTINs, supplier bill numbers, and eligible ITC breakdown (CGST, SGST, IGST).
+   - Integrated Debit Note ITC Reversal engine deducting purchase returns (-₹95.20) to prevent statutory ITC over-claim.
+4. **GSTR-3B Monthly Consolidated Summary**:
+   - Table 3.1 Outward supplies and advances liability.
+   - Table 4 Eligible Input Tax Credit (ITC available, ITC reversed, net ITC).
+   - Table 5.1 Payment of tax and ledger cash set-off.
+5. **Official GSTN Portal Offline JSON Utility v1.5**:
+   - Exports official offline utility format JSON payload (`GET /api/gst/gstr1/json`) matching government portal schema specifications for direct upload to `gst.gov.in`.
+6. **E-Invoicing (IRN), E-Way Bill & Signed Ledger Workbench (`/gst/compliance` & `/gst/signed-ledger`)**:
+   - Direct B2B E-Invoice generation with 64-character Invoice Reference Number (IRN) and signed QR code.
+   - National Informatics Centre (NIC) E-Way Bill generation for consignments exceeding ₹50,000 threshold with vehicle number and transporter ID.
+   - Cryptographic SHA-256 digital signature verification for customer ledger statements (`SignedLedger.tsx`).
+7. **Master Automated Selenium Suite (`test_gst_compliance_selenium.py`)**:
+   - Verified 100% PASS across all 11 stages (Exit Code 0): Executive summary metrics assertion, GSTR-1 multi-tab navigation, GSTR-2 inward register, GSTR-3B consolidated return, offline utility JSON export, compliance workbench tabs, and period filtering.
+   - 5 visual artifacts captured (`gst_cockpit_initial_view.png`, `gst_gstr1_view.png`, `gst_gstr2_view.png`, `gst_gstr3b_view.png`, `gst_compliance_workbench_view.png`).
+
+---
+
+## Production Update: DOC-31 — Dashboard, KPI, Business Intelligence & Management Control Centre Engine (Verified October 2026)
+
+1. **Dual-Screen Architecture & Operational Role Segregation**:
+   - **Screen 1: Operational Counter Workbench (Route: /, HomeScreen.tsx)**:
+     - Tailored specifically for front-counter billing operators, cashiers, and store managers.
+     - 4 Live Counter Metric Cards: Today's Cash Collected (₹64,575.00), Today's Credit Billed (₹1,19,925.00 / 24 Invoices), Active SKU Catalog (102 products), Stockout / Expiry Risk (12 Low • 426 Exp).
+     - **Rapid Transaction Hub**: High-frequency 1-click & keyboard hotkey action triggers: [Sales Bill F2], [Purchase Bill F9], [Sales Return], [Purchase Return], [Receipt Voucher F6], [Payment Voucher F5], [Day Book], [Stock Register].
+     - Urgent Counter Exception Center: Real-time alerts with direct 1-click action triggers ([Raise PO ↗], [Review Ledger ↗], [Approve ↗]).
+     - Live Counter Voucher Ticker: Real-time audit stream displaying recent sales bills, pos cash slips, returns, and receipts.
+     - Direct apex navigation button to the Executive BI Dashboard ([Executive BI Dashboard (Route: /dashboard) ↗]).
+   - **Screen 2: Executive Business Intelligence Dashboard (Route: /dashboard, ClientDashboard.tsx & AdminDashboard.tsx)**:
+     - Tailored for proprietors, CFOs, and executive leadership.
+     - Executive KPI Strip: Gross Revenue (₹56,78,230.00 / +14.2% YoY), Procurement Volume (₹42,15,760.00 / +9.8% YoY), Gross Operating Margin (₹14,62,470.00 / 18.5%), Consolidated Liquidity (₹18,75,320.00 / Quick Ratio 1.82).
+     - Apex Executive Controls: Active Operations vs Monitored Exclusions toggle, Quarter/MTD/YTD period filter, Back to Counter Home button.
+2. **Comparative Visual Trends & Operating Expenses**:
+   - **Sales Turnover vs Purchase Trend**: 7-Month comparative volume analysis (Apr-Oct) with dual gradient Area charts and volume legends.
+   - **Operating Expense (Opex) Distribution**: Donut breakdown displaying ₹4.77 Lakhs overheads (Freight 32%, Godown 24%, Travel 18%, Depreciation/Assets 13%, Admin 13%).
+   - **Top 5 Revenue-Generating Pharmaceutical Products**: Augmentin 625 Duo, Crocin 650, Dolo 650, Azithral 500, Pan-D with turnover amounts and pack progress bars.
+   - **Statutory Receivables Outstanding Ageing Distribution**: Risk proportion bar and 4 bucket cards (0-30 days ₹3,54,800, 31-60 days ₹1,84,250, 61-90 days ₹95,500, 90+ days ₹47,900).
+3. **Compact Regional Sales Map Widget & Click-to-Expand Modal**:
+   - Embedded symmetrically in Row 2 (lg:col-span-3, ~340px height) matching the Operating Expenses donut card.
+   - **Pure Sales Focus**: Displays exclusively territory turnover, retail chemist outlet counts, and monthly quota attainment (strictly ZERO fleet dispatching/van tracking).
+   - Interactive SVG vector map polygons (Delhi NCR, Punjab & Haryana, Uttar Pradesh, Rajasthan).
+   - **Click-to-Expand Modal (#mapModal)**: Clicking anywhere on the map card or the Expand ↗ button launches the enlarged interactive modal with high-res vector territory polygons, selected territory KPI cards, state comparison table, and direct DOC-30 register link.
+4. **Backend RESTful API Engine (ackend/api/dashboard.py)**:
+   - GET /api/dashboard/summary: Aggregates live today's sales, MTD revenue, procurement volume, trading margin, bank/cash balances, and inventory health.
+   - GET /api/dashboard/sales-territories: Multi-state pharmaceutical sales turnover, chemist coverage, and quota attainment percentages.
+   - GET /api/dashboard/trends: 7-month comparative trend curve, Opex distribution, top products ranking, and receivables ageing.
+   - GET /api/dashboard/predictive: AI-ready rule engine calculating 30-day cash flow forecast, stockout velocity (run rates & days-to-stockout), customer churn risk, and near-expiry exposure.
+   - GET /api/dashboard/alerts: Exception center warnings and real-time counter voucher ticker feed.
+5. **Master Automated Selenium Suite (	est_dashboard_bi_control_center_selenium.py)**:
+   - Verified 100% PASS across all 7 verification stages (Exit Code 0).
+   - TypeScript compilation verified (
+px tsc --noEmit) with 0 errors.
+   - 3 live visual proof screenshots captured:
+     - erified_homescreen_operational_workbench.png
+     - erified_dashboard_bi_compact_view.png
+     - erified_dashboard_bi_map_modal_opened.png
+
+---
+
+## How to Start Local Services
 
 ```powershell
-# 1. Backend (FastAPI)
+# 1. Backend (FastAPI - Port 8000)
 cd C:\Users\DELL\OneDrive\Desktop\erp2\backend
-python -m uvicorn main:app --reload --port 8000
+C:\Python313\python.exe -m uvicorn main:app --port 8000 --reload
 
-# 2. Frontend (Vite)
+# 2. Frontend (Vite - Port 50005)
 cd C:\Users\DELL\OneDrive\Desktop\erp2
-npm run dev
+npm run dev -- --port 50005
 
-# 3. Desktop App (Tauri)
+# 3. Desktop Application (Tauri v2)
 cd C:\Users\DELL\OneDrive\Desktop\erp2
 npm run tauri dev
 ```
 
 ---
 
-## Syncing to Original Folder
+## How to Sync to Original Folder (`erp`)
 
-To copy updates from `erp2` to the original `erp` folder:
+To synchronize updates from `erp2` to the original Git repository `erp`:
+
 ```powershell
+# Sync Frontend source
 robocopy C:\Users\DELL\OneDrive\Desktop\erp2\src C:\Users\DELL\OneDrive\Desktop\erp\src /MIR /XD node_modules
+
+# Sync Backend source
 robocopy C:\Users\DELL\OneDrive\Desktop\erp2\backend C:\Users\DELL\OneDrive\Desktop\erp\backend /MIR /XD __pycache__ .venv .pytest_cache
+
+# Sync Documentation & Root Configs
+robocopy C:\Users\DELL\OneDrive\Desktop\erp2 C:\Users\DELL\OneDrive\Desktop\erp *.md *.json *.txt *.html /XF package-lock.json /XD node_modules backend src .git
 ```
 
-### [Update: 2026-09-01]
-- **Smart MRP Integration**: Added an AI-powered Smart MRP modal to calculate min_stock_level and reorder_quantity based on a 30-day sales velocity algorithm. Injected into the Products page and integrated with the Dashboard Low Stock Alerts.
-- **Global Search**: Implemented a Marg/Odoo-style Ctrl+K search bar in the header for quick navigation between modules and products.
-- **UI & Layout Fixes**: Fixed AppShell padding to allow edge-to-edge layouts. Centered the Finance & Accounting page layout. Restored dropdown text legibility in the Minimal White/Green theme.
-- **Sales Bill Remaster**: Restructured SalesBill.tsx to an edge-to-edge layout, compressed the Product column width, and added a Live Intelligence right-side panel containing Party Details, Active Product metrics, and Keyboard shortcuts.
-- **Document Cancellation**: Added POST /api/sales/invoices/{id}/cancel endpoint (SAP-style reversal) to create negative quantity records without deleting original audit trails.
-- **Sales Bill Hotfix**: Resolved React-Babel JSX nesting issue (Unterminated JSX contents) to stabilize the edge-to-edge layout.
-
-### [Update: 2026-09-03]
-- **Default Theme Configuration**: Set Neumorphic Minimalist (`'minimal'`) as the default theme in `src/store/themeStore.ts` and prioritized it as the top option in `Settings.tsx`.
-- **Sales Bill UX Flow**: Reordered header fields so that `Entry Date` precedes `Entry No.` with seamless keyboard focus navigation (`handleDateKeyDown` focusing `billNoRef`).
-- **Client Impersonation 500 Fix**: Resolved Python indentation nesting bug in `backend/auth/router.py` (`POST /auth/impersonate`) that caused `ResponseValidationError` when AM admins switch into client ERPs.
-- **Invoice Upsert Engine**: Added automatic Upsert detection in `backend/api/sales.py` (`create_invoice`). Modifying an existing invoice and saving now smoothly invokes `update_invoice` (reverting old stock, updating items, deducting new stock) rather than creating duplicate invoices.
-- **Negative Stock & Backorder Tolerance**: Removed the rigid `400 Insufficient stock` blocker in `backend/api/sales.py`, allowing businesses to record sales before purchase entries without application crashes.
-- **Bulletproof Product ID Auto-Resolution**: Upgraded `backend/api/sales.py` (`create_invoice`, `update_invoice`, `_update_stock_for_invoice`) to auto-resolve `product_id` by `product_name` from the product catalog in real time. Guarantees that all transaction types (`sales-bill`, `purchase-bill`, `returns`, `breakage`) reliably deduct/add stock and link to the Product Register even if frontend forms omit `product_id`.
-- **Database Ledger Repair**: Re-linked 591 legacy invoice items in Neon PostgreSQL database to their respective product records. Verified that the Product Register (e.g. Crosin Forte: 1,770 Inward, 98 Outward, 1,672 Balance) precisely matches the Current Stock table.
-- **Enhanced Error Reporting**: Replaced generic `"Failed to save to backend database"` alert with human-readable error messages extracted directly from backend API responses.
-- **Build Verification**: `tsc --noEmit` and `npm run build` validated with zero errors. All changes committed to GitHub and synced to `erp`.
-
-### [Update: 2026-09-06]
-- **Finance & Accounting API Rebuild**: Architected inance_v2.py as a new ACID-compliant double-entry accounting engine replacing legacy finance API. Features automatic voucher sequence numbering (e.g. \JRN/2026-27/0129\), native multi-leg (1-to-many, many-to-many) voucher capabilities, integrated Indian Default Chart of Accounts seeding, and active fiscal year enforcement.
-- **Retroactive Voucher Migration**: Engineered a direct DB migration to convert 188 legacy standard invoices (which were lacking ledger ties) into compliant Journal/Sales vouchers under the new inance_v2 schema. All prior sales/purchases now properly hit ledger statements.
-- **Auto-Posting Hook Refactor**: Re-wrote the _auto_post_accounting logic in pi/sales.py to seamlessly build compliant VoucherEntry dicts that pass Pydantic VoucherCreate models, completely removing legacy crashes on invoice generation.
-- **UI Ledger Sync**: Fixed fatal schema drift bugs in LedgerStatement.tsx and DayBook.tsx. The frontend now dynamically reads the correctly typed backend fields (cr_amount, dr_amount, oucher_number, 
-unning_balance), preventing silent React crashes where the UI was stuck permanently on 'Loading...'.
-- **Postgres Schema Sync**: Executed an ALTER TABLE vouchers direct migration to add critical missing schema columns (iscal_year_id, status, cancelled_by, 
-ef_invoice_id) preventing 500 internal crashes without requiring full DB drop.
-
-
-## Update 2026-09-08
-- Fully rewrote AdminDashboard.tsx to precisely match the AI-generated high-fidelity mockup.
-- Integrated inline SVG Sparklines and Gantt charts to keep dependencies low.
-- Integrated the Live Geographic Sales Map placeholder directly into the dashboard layout.
-- Bulletin Board is now explicitly restricted to HomeScreen.tsx only.
-- Updated Frontend_UI_UX_Spec_For_Claude.docx with these strict UI boundaries.
-
-
-### Recent Updates (September 2026)
-- **Deep Architecture Validation:** Successfully completed a comprehensive code and visual audit of the Multi-Tenant (AM/CM) structure, CQRS Append-Only Ledgers, and Bill-by-Bill allocations.
-- **Claude UI Handoff:** Formally assigned the UI/UX implementation of the Receipt Modal, Challan-to-Invoice Conversion Screen, CRM Permissions Grid, and ERP Finance & Billing Master to Claude (via `Frontend_UI_UX_Spec_For_Claude.docx`).
-- **Sync & Deployment:** Synced the `erp2` repository back to the original `erp` folder, committed to Git, and aligned with Vercel for continuous deployment.
-
-
-
-## [Update - DOC-18 Sales Order & Order Management Engine]
-Implemented `SalesOrder`, `SalesOrderItem`, and `SalesOrderHold` models.
-Introduced an explicit **Hold Engine** where orders exceeding credit limits or pricing margins are put on `HOLD`. Admins/Managers must explicitly review these in the `OrderApprovalDashboard`.
-**Crucial Permission Note**: To prevent the Hold engine from slowing down fast billing, the `User` model now has a `allow_direct_billing` flag. Admin/Manager roles or users with this flag enabled can bypass the strict SO flow and use the fast-path direct `SalesBill` / `PurchaseBill` invoicing. Users without this flag are hard-blocked from accessing direct billing and must go through the Sales Order approval flow.
-
-## [Update - DOC-17 Procurement Engine]
-Implemented the Purchase Order, Goods Receipt Note (GRN), and Vendor Complaints engines. Added `grn` to main_inward_types in `stock.py` so physical inventory strictly updates on receipt. Created UI routing under Sales & Purchase -> Purchase dropdowns.
-
-## [Update - DOC-16 Integration]
-Implemented Inventory Expiry & Breakage Cockpit (DOC-16). Replaced legacy claim UI with native Internal Stock Shift vouchers. Integrated bulk Auto-Shift filters for Expiry and Company criteria.
-
-## [Update - DOC-14 & DOC-15 Integration]
-Implemented Multi-Rate Pricing Engine, Formula Builder (DOC-15), and Extra Scheme Settlement (DOC-14) in Purchase/Sales flows. Purchase Bill Layout restructured and fixed.
-
-
-## Session Updates (DOC-19, DOC-20, DOC-21, DOC-24)
-- **DOC-19 Delivery Challan:** Built DispatchManager.tsx and backend dispatch routing for vehicle/POD tracking.
-- **DOC-20 Document Series Engine:** Replaced rigid auto-increment with flexible DocumentSeries master. Implemented dynamic prefix/next_number allocation with concurrency locks (`FOR UPDATE`). Added editable voucher numbers.
-- **DOC-21 Sales Return Engine:** Integrated Credit Notes seamlessly into SalesBill.tsx. Added `F8 - Load Inv` hook to fetch original sales, validate remaining returnable quantity, and add back stock.
-- **DOC-24 Payment & Receipt Vouchers:** Upgraded existing VoucherEntry.tsx to use the new DocumentSeries engine and removed old hard-coded VoucherSequence table.
-
-### [2026-10-06] DOC-28: Bank Reconciliation & Cash Control Engine
-- **Models**: Added `BankStatementProfile`, `BankStatementImport`, `BankStatementRow`, and `BankReconciliationMatch` to securely store raw statement records and immutable matching links.
-- **API**: Implemented `/api/finance/bank-statements/upload` to parse CSVs dynamically using saved column mapping profiles. Added matching endpoints with row-level locks.
-- **Frontend**: Created dual-pane `BankReconciliation.tsx` to view un-matched statement rows alongside un-matched ERP vouchers (Payments/Receipts). Added a profile creation wizard for standardizing bank CSV formats (HDFC, SBI, etc.).
-- **Fixes**: Cleaned up incorrect relationships in the `Product` model that were causing a 500 Internal Server Error during authentication. Added `[ESC]` key hook for quick navigation across new modules.
-
-### [2026-10-08] DOC-29: GST, Tax, E-Invoicing, E-Way Bill & Global Statutory Compliance Engine
-- **Models**: Proposed `TaxProfile`, `TaxTransactionLine`, `EinvoiceEwayLog`, and `TdsTcsTransaction` for comprehensive tax rules, compliance logs, and TDS/TCS tracking.
-- **Architecture**: Zero-recurring-cost strategy implemented. Uses bulk JSON export for the IRP portal and imports the response JSON, mapping IRN/QR to internal transactions.
-- **TDS/TCS Engine**: Continuous monitoring of cumulative transaction values per party per FY (₹50 Lakhs limit). Real-time user decision prompt (Auto/Manual/Defer) upon breach.
-
-### [2026-10-08] DOC-29 Extension: Auto-Posting Engine
-- **Implementation**: Injected logic into `backend/api/sales.py` (`_auto_post_accounting`) to autonomously check `TdsTcsTransaction` for ₹50L limits.
-- **Ledger Generation**: Automatically adjusts Party Debits/Credits and generates "TDS Payable" / "TCS Receivable" entries within the core finance engine.
-- **Frontend Intercept**: Finalized the `TdsTcsAlertModal` into `SalesBill` and `PurchaseBill` React components.
-
-
-### DOC-30 Implementation (2026-10-09 23:22:38)
-Successfully implemented Financial & Statutory Management Reporting Engine. Fixed frontend `useRef` import crashes in Sales/Purchase modules. Synchronized local folders to GitHub/Vercel.
-
-### Comprehensive Audit & Update (2026-10-09 23:29:22)
-- Rewrote all manual files (DEVELOPER_MANUAL, User_Manual_and_Workflow, USER_WORKFLOW_MANUAL, Developer_and_User_Manual) with a unified, exhaustive architecture document detailing every module created (DOC-01 to DOC-30).
-- Explicitly documented Keyboard-First mechanics, Multi-Tenancy, CQRS Ledgers, Strict Stock Separation, Bill-by-Bill, E-Invoicing JSON flows, TDS/TCS auto-posting, and DOC-30 Dashboard Exclusions.
-- Preserved all historical DOC txt files by only appending update logs to them.
-- Initiated final folder sync and Git push.
+---
+*End of Master Memory File.*

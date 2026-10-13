@@ -54,7 +54,7 @@ export default function PartyMaster() {
 
   const fetchParties = async () => {
     try {
-      const res = await apiClient.get('/master/parties/')
+      const res = await apiClient.get('/api/parties/')
       setParties(res.data)
     } catch (e) {
       console.error(e)
@@ -63,7 +63,7 @@ export default function PartyMaster() {
 
   const fetchLedgerGroups = async () => {
     try {
-      const res = await apiClient.get('/finance/groups')
+      const res = await apiClient.get('/api/finance/groups')
       setLedgerGroups(res.data.filter((g: any) => g.is_active))
     } catch (e) {
       console.error(e)
@@ -105,7 +105,7 @@ export default function PartyMaster() {
     }
 
     try {
-      await apiClient.post('/master/parties/', payload)
+      await apiClient.post('/api/parties/', payload)
       setIsModalOpen(false)
       fetchParties()
       // reset form
