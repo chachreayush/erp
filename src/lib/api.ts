@@ -2398,4 +2398,237 @@ export async function apiExportEvidencePack(payload: {
   return response.data;
 }
 
+// ==========================================
+// DOC-34: CARGO & CONSIGNMENT MANAGEMENT APIS
+// ==========================================
+
+export interface CargoSummaryKPI {
+  total_consignments: number;
+  active_in_transit: number;
+  delivered_count: number;
+  exceptions_count: number;
+  total_cbm: number;
+  admin_borne_cost: number;
+  pending_pod_count: number;
+}
+
+export interface CargoPackageItem {
+  id?: string;
+  package_type: string;
+  barcode: string;
+  gross_weight: number;
+  tare_weight: number;
+  net_weight: number;
+  length_cm: number;
+  width_cm: number;
+  height_cm: number;
+  cbm: number;
+  is_fragile: boolean;
+  status?: string;
+}
+
+export interface CargoCostItem {
+  id?: string;
+  consignment_number?: string;
+  lr_no?: string;
+  transporter_name?: string;
+  beneficiary_name?: string;
+  cost_type: string;
+  gross_cost: number;
+  recovery_amount: number;
+  net_bearer_cost: number;
+  is_admin_borne: boolean;
+  is_recoverable: boolean;
+  recovery_status: string;
+  created_at?: string;
+}
+
+export interface PodRecordItem {
+  id?: string;
+  received_by: string;
+  received_at: string;
+  accepted_qty: number;
+  short_qty: number;
+  damage_qty: number;
+  status: string;
+  remarks?: string;
+  signature_token?: string;
+}
+
+export interface ConsignmentItem {
+  id: string;
+  consignment_number: string;
+  document_number?: string;
+  lr_no?: string;
+  transporter_name: string;
+  vehicle_no?: string;
+  driver_name?: string;
+  driver_phone?: string;
+  origin_hub: string;
+  destination_hub: string;
+  status: 'PLANNED' | 'READY_FOR_LOADING' | 'LOADING' | 'DISPATCHED' | 'IN_TRANSIT' | 'DELIVERED' | 'EXCEPTION' | 'CLOSED';
+  dispatch_at?: string | null;
+  delivered_at?: string | null;
+  is_admin_funded: boolean;
+  package_count: number;
+  total_cbm: number;
+  total_gross_weight: number;
+  total_cost: number;
+  admin_borne_cost: number;
+  has_pod: boolean;
+  notes?: string;
+  created_at: string;
+}
+
+export interface ConsignmentDetailResponse extends ConsignmentItem {
+  packages: CargoPackageItem[];
+  costs: CargoCostItem[];
+  pod?: PodRecordItem | null;
+}
+
+export interface CargoCostsResponse {
+  summary: {
+    total_gross: number;
+    total_recovered: number;
+    total_net_admin: number;
+    combined_mode: boolean;
+  };
+  costs: CargoCostItem[];
+}
+
+export interface PodExceptionsResponse {
+  pending_pods: {
+    id: string;
+    consignment_number: string;
+    document_number?: string;
+    lr_no?: string;
+    transporter_name: string;
+    destination_hub: string;
+    driver_name?: string;
+    driver_phone?: string;
+    package_count: number;
+    dispatch_at?: string | null;
+    status: string;
+  }[];
+  exceptions: {
+    id: string;
+    consignment_number: string;
+    lr_no?: string;
+    transporter_name: string;
+    destination_hub: string;
+    short_qty: number;
+    damage_qty: number;
+    remarks: string;
+    created_at: string;
+  }[];
+}
+
+export async function apiGetCargoSummary(): Promise<CargoSummaryKPI> {
+  const response = await apiClient.get<CargoSummaryKPI>('/api/cargo/summary');
+  return response.data;
+}
+
+export async function apiGetConsignments(params?: {
+  search?: string;
+  status?: string;
+  transporter?: string;
+  cost_bearer?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ total: number; consignments: ConsignmentItem[] }> {
+  const response = await apiClient.get('/api/cargo/consignments', { params });
+  return response.data;
+}
+
+export async function apiCreateConsignment(payload: {
+  consignment_number?: string;
+  document_number?: string;
+  transporter_name: string;
+  vehicle_no?: string;
+  driver_name?: string;
+  driver_phone?: string;
+  origin_hub: string;
+  destination_hub: string;
+  lr_no?: string;
+  is_admin_funded?: boolean;
+  notes?: string;
+  packages?: {
+    package_type: string;
+    barcode?: string;
+    gross_weight: number;
+    tare_weight: number;
+    net_weight: number;
+    length_cm: number;
+    width_cm: number;
+    height_cm: number;
+    is_fragile: boolean;
+  }[];
+  costs?: {
+    cost_type: string;
+    gross_cost: number;
+    recovery_amount: number;
+    is_admin_borne: boolean;
+    is_recoverable: boolean;
+  }[];
+}): Promise<{ status: string; consignment_id: string; consignment_number: string; message: string }> {
+  const response = await apiClient.post('/api/cargo/consignments', payload);
+  return response.data;
+}
+
+export async function apiGetConsignmentDetail(id: string): Promise<ConsignmentDetailResponse> {
+  const response = await apiClient.get<ConsignmentDetailResponse>(`/api/cargo/consignments/${id}`);
+  return response.data;
+}
+
+export async function apiUpdateConsignmentStatus(
+  id: string,
+  status: string,
+  reason?: string
+): Promise<{ status: string; consignment_id: string; previous_status: string; current_status: string; message: string }> {
+  const response = await apiClient.put(`/api/cargo/consignments/${id}/status`, { status, reason });
+  return response.data;
+}
+
+export async function apiGetCargoCosts(params?: {
+  include_clients?: boolean;
+  cost_type?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<CargoCostsResponse> {
+  const response = await apiClient.get<CargoCostsResponse>('/api/cargo/costs', { params });
+  return response.data;
+}
+
+export async function apiGetPodExceptions(): Promise<PodExceptionsResponse> {
+  const response = await apiClient.get<PodExceptionsResponse>('/api/cargo/pod-exceptions');
+  return response.data;
+}
+
+export async function apiSubmitPod(
+  consignmentId: string,
+  payload: {
+    received_by: string;
+    accepted_qty: number;
+    short_qty?: number;
+    damage_qty?: number;
+    remarks?: string;
+    signature_token?: string;
+  }
+): Promise<{ status: string; pod_id: string; consignment_status: string; message: string }> {
+  const response = await apiClient.post(`/api/cargo/consignments/${consignmentId}/pod`, payload);
+  return response.data;
+}
+
+export async function apiResolveCargoException(
+  consignmentId: string,
+  payload: {
+    resolution_action: string;
+    resolution_remarks: string;
+  }
+): Promise<{ status: string; consignment_id: string; current_status: string; message: string }> {
+  const response = await apiClient.post(`/api/cargo/consignments/${consignmentId}/resolve-exception`, payload);
+  return response.data;
+}
+
+
 

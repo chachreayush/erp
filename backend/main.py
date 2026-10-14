@@ -222,6 +222,10 @@ app.include_router(workflow_router)
 from api.audit import router as audit_router
 app.include_router(audit_router)
 
+# DOC-34: Cargo & Consignment Management Engine
+from api.cargo import router as cargo_router
+app.include_router(cargo_router, prefix="/api/cargo")
+
 # Future routers will be added here as modules are built:
 # app.include_router(hr_router)
 

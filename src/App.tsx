@@ -24,6 +24,9 @@ import WorkflowDesigner from './pages/workflow/WorkflowDesigner';
 import WorkflowMonitor from './pages/workflow/WorkflowMonitor';
 import AuditExplorer from './pages/audit/AuditExplorer';
 import GovernanceConsole from './pages/audit/GovernanceConsole';
+import CargoBoard from './pages/cargo/CargoBoard';
+import CargoCostCenter from './pages/cargo/CargoCostCenter';
+import PodExceptionDesk from './pages/cargo/PodExceptionDesk';
 
 
 // ── STORE ─────────────────────────────────────────────────────
@@ -244,6 +247,12 @@ function App() {
         <Route path="audit" element={<AuditExplorer />} />
         <Route path="audit/explorer" element={<AuditExplorer />} />
         <Route path="audit/governance" element={<GovernanceConsole />} />
+
+        {/* DOC-34 Cargo & Consignment Management Engine Routes */}
+        <Route path="cargo" element={<CargoBoard />} />
+        <Route path="cargo/board" element={<CargoBoard />} />
+        <Route path="cargo/costs" element={<CargoCostCenter />} />
+        <Route path="cargo/pod-exceptions" element={<PodExceptionDesk />} />
       </Route>
 
 

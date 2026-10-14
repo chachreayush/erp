@@ -961,11 +961,90 @@ C:\Python313\python.exe test_audit_governance_selenium.py
     - Tab 3: Clicks `#tab-btn-anomalies`, asserts forensic anomaly detection cards (`#card-anomaly-CHAIN_INTEGRITY`, `MASS_EDITS`, `REPEATED_REVERSALS`, `AFTER_HOURS`).
     - Tab 4: Clicks `#tab-btn-export`, triggers `#btn-console-generate-evidence`.
     - Asserts `#export-result-box` confirms evidence pack generation sealed with cryptographic root hash.
-    - Captures `verified_audit_anomalies_and_evidence.png`.
+---
+
+## 22. Cargo & Consignment Management Engine (DOC-34)
+
+### 22.1 Technical Architecture & Data Topology
+The Cargo & Consignment Management Engine operates as a decoupled logistics sub-system. It segregates physical dispatch packaging and multi-leg carrier movements from sales invoicing and document generation.
+
+#### Database Entities (PostgreSQL via SQLAlchemy):
+* `consignments`:
+  - `id`: UUID (Primary Key)
+  - `company_id`: UUID (Foreign Key to `organizations.id`)
+  - `consignment_number`: VARCHAR(50) (Unique, formatted as `CN-YYYY-XXXX`)
+  - `document_number`: VARCHAR(100) (Optional linkage to Invoice, Challan, or Transfer)
+  - `transporter_name`: VARCHAR(200)
+  - `vehicle_no`: VARCHAR(50)
+  - `driver_name`, `driver_phone`: VARCHAR(100)
+  - `origin_hub`, `destination_hub`: VARCHAR(200)
+  - `lr_no`: VARCHAR(100) (Lorry Receipt / Docket / Bilty number)
+  - `status`: VARCHAR(50) (`PLANNED`, `READY_FOR_LOADING`, `LOADING`, `DISPATCHED`, `IN_TRANSIT`, `DELIVERED`, `EXCEPTION`, `CLOSED`)
+  - `dispatch_at`, `delivered_at`: TIMESTAMP WITH TIME ZONE
+  - `is_admin_funded`: BOOLEAN (True if central Platform Admin finances freight)
+  - `notes`: TEXT
+  - `created_at`, `updated_at`: TIMESTAMP WITH TIME ZONE
+
+* `cargo_packages`:
+  - `id`: UUID (Primary Key)
+  - `consignment_id`: UUID (Foreign Key to `consignments.id` ondelete CASCADE)
+  - `package_type`: VARCHAR(50) (`Carton`, `Box`, `Pallet`, `Drum`, `Bag`, `Crate`)
+  - `barcode`: VARCHAR(100) (Unique, formatted as `PKG-YYYY-XXXX-NN`)
+  - `gross_weight`, `tare_weight`, `net_weight`: NUMERIC(12, 3) (in kg)
+  - `length_cm`, `width_cm`, `height_cm`: NUMERIC(10, 2) (in cm)
+  - `cbm`: NUMERIC(12, 6) (Calculated as $(L \times W \times H) / 1,000,000$)
+  - `is_fragile`: BOOLEAN
+  - `status`: VARCHAR(50) (`INTACT`, `DAMAGED`, `SHORT`, `LOST`)
+
+* `cargo_costs`:
+  - `id`: UUID (Primary Key)
+  - `consignment_id`: UUID (Foreign Key to `consignments.id` ondelete CASCADE)
+  - `beneficiary_company_id`: UUID (Client Company whose goods moved)
+  - `cost_bearer_company_id`: UUID (Platform Admin Company or Client)
+  - `cost_type`: VARCHAR(50) (`FREIGHT`, `LOADING`, `TOLL`, `DRAYAGE`, `HANDLING`, `INSURANCE`)
+  - `gross_cost`: NUMERIC(14, 2)
+  - `recovery_amount`: NUMERIC(14, 2)
+  - `net_bearer_cost`: NUMERIC(14, 2) ($=\text{gross\_cost} - \text{recovery\_amount}$)
+  - `is_admin_borne`: BOOLEAN
+  - `is_recoverable`: BOOLEAN
+  - `recovery_status`: VARCHAR(50) (`UNBILLED`, `BILLED`, `WAIVED`)
+
+* `pod_records`:
+  - `id`: UUID (Primary Key)
+  - `consignment_id`: UUID (Foreign Key to `consignments.id` ondelete CASCADE)
+  - `received_by`: VARCHAR(200)
+  - `received_at`: TIMESTAMP WITH TIME ZONE
+  - `accepted_qty`, `short_qty`, `damage_qty`: NUMERIC(10, 2)
+  - `signature_token`: VARCHAR(255)
+  - `remarks`: TEXT
+  - `status`: VARCHAR(50) (`ACCEPTED`, `DISCREPANCY`, `REJECTED`)
+
+---
+
+### 22.2 Admin-Funded Client Cargo Accounting Separation
+Under DOC-34, when `is_admin_funded` is true:
+1. **Client General Ledger Immunity**: The Client Company General Ledger (DOC-08) is untouched and has zero automated debits.
+2. **Platform Admin Expense Booking**: Central logistics costs are recognized in Admin Company GL under Account 5200 (Freight & Logistics Expense).
+3. **Cross-Tenant MIS Toggle**: Admin executives can toggle `is_admin_funded` cross-client reporting in `CargoCostCenter.tsx` (`GET /api/cargo/costs?combined=true`) to view aggregate expenditure while preserving multi-tenant isolation.
+
+---
+
+### 22.3 Automated Selenium Verification (10/10 Stages - 100% Pass)
+* **Stage 1**: Authenticate via backend API (admin / Admin@123), extract JWT, inject local storage.
+* **Stage 2**: Assert `GET /api/cargo/summary` KPI payload (`total_consignments=5`, `in_transit=2`, `total_cbm=1.32`, `admin_borne_cost=₹11.8k`).
+* **Stage 3**: Assert `GET /api/cargo/consignments` multi-tenant query, verifying 5 seeded shipments.
+* **Stage 4**: Verify volumetric CBM calculation for package `PKG-2026-0045-01`: $(40 \times 35 \times 25)/1,000,000 = 0.035\text{ m}^3$.
+* **Stage 5**: Launch Selenium Headless Chrome (1440x950).
+* **Stage 6**: Assert Counter Workbench launcher tile (`#hub-btn-cargo-management`), capture `verified_cargo_homescreen_launcher.png`.
+* **Stage 7**: Navigate to `/cargo`, assert Top KPI cards, search input, status filters, capture `verified_cargo_board_kanban.png`.
+* **Stage 8**: Open Slide-Over Detail Drawer, verify package hierarchy, CBM, and status advance button, capture `verified_cargo_consignment_drawer.png`.
+* **Stage 9**: Navigate to `/cargo/costs`, assert Admin-borne bifurcation, toggle combined multi-client reporting, export CSV manifest, capture `verified_cargo_cost_allocation_center.png`.
+* **Stage 10**: Navigate to `/cargo/pod-exceptions`, assert Pending Deliveries tab and Active Transit Exceptions tab, capture `verified_cargo_pod_exception_desk.png`.
 
 ---
 
 *End of Developer Manual.*
+
 
 
 

@@ -908,11 +908,93 @@ Access the console via the top header or route `/audit/governance`:
 4. **Auditor Evidence Pack Generator Tab**:
    - Enter statutory audit mandate and click **Generate & Digitally Seal Evidence Pack**.
    - Produces a verifiable JSON package with embedded cryptographic manifest, pack ID, and terminal hash.
-   - The export action is committed to the audit trail as an immutable `AUDIT_EXPORT` record.
+---
+
+## 23. Cargo & Consignment Management Engine (DOC-34)
+
+### 23.1 Overview & Non-Negotiable Architecture
+The Cargo & Consignment Management Engine decouples physical freight movements from document generation and dispatch staging. A consignment represents a distinct, real-world transport commitment possessing its own life cycle, multi-package volumetric hierarchy, and financial allocation rules.
+
+Key architectural tenets:
+1. **Independent Consignment Identity**: Consignments possess an alphanumeric continuation series (`CN-YYYY-XXXX`) completely independent of invoice, challan, or order numbering. Multiple sales invoices or stock transfers can be bundled into a single consignment, or a single large dispatch can be split across multiple consignments.
+2. **Admin-Funded Client Cargo Architecture**:
+   - In centralized distribution setups, Platform Admin bears freight costs on behalf of Client Companies.
+   - **Zero Client GL Auto-Debit**: When `is_admin_funded` is active, the Client Company General Ledger (DOC-08) is **never** debited. The expense is posted solely in the Platform Admin Company General Ledger under Account 5200 (Freight & Logistics Expense).
+   - The Client Company portal displays allocated cargo costs strictly for operational pricing, unit-level profitability, and margin analysis.
+   - **Combined Multi-Client Reporting Toggle**: Platform Admin executives can aggregate cargo movements and total freight spend across multiple client companies without breaching underlying multi-tenant isolation.
+3. **Volumetric CBM Formula**:
+   $$\text{CBM} = \frac{\text{Length (cm)} \times \text{Width (cm)} \times \text{Height (cm)}}{1,000,000}$$
+   Package barcodes (`PKG-YYYY-XXXX-NN`) track tare weight, gross weight, fragility, and volumetric cubic meters.
+4. **Lifecycle State Machine**:
+   $$\text{PLANNED} \longrightarrow \text{READY\_FOR\_LOADING} \longrightarrow \text{LOADING} \longrightarrow \text{DISPATCHED} \longrightarrow \text{IN\_TRANSIT} \longrightarrow \text{DELIVERED} \longrightarrow \text{CLOSED}$$
+   Branching to `EXCEPTION` occurs whenever shortages, damage, or delivery discrepancies are registered.
+
+---
+
+### 23.2 Operating the Cargo Management Board (`/cargo` or `Ctrl+1`)
+
+1. **Accessing the Board**:
+   - Press **`Ctrl+1`** from any screen or click the **Cargo & Consignment** tile on the Counter Workbench (`#hub-btn-cargo-management`).
+2. **Top Operational KPI Strip**:
+   - **Total Consignments**: Lifetime active registry count.
+   - **Active in Transit**: Consignments currently on the road under carrier custody.
+   - **Total Volumetric CBM**: Sum of cubic meters across active shipments.
+   - **Admin-Borne Freight (₹)**: Logistics expenditure funded by Platform Admin.
+   - **Pending POD Deliveries**: Shipments delivered requiring receiver sign-off.
+3. **Registering a New Consignment (`[F6]` or New Consignment Button)**:
+   - Click **+ Register Consignment (`[F6]`)**:
+     - Carrier selection (transporter name, vehicle number, driver name, driver phone).
+     - Route configuration (Origin Hub and Destination Hub).
+     - Document linkage (optional reference to Sales Bill, Dispatch Challan, or Transfer Note).
+     - Volumetric package dimensions (Type: Carton/Box/Pallet, Length, Width, Height in cm, Gross Weight in kg). The system calculates CBM automatically.
+     - Cost Bearer Policy: Check *Admin Company Bears Cargo Cost* to apply central platform funding.
+     - Click **Save & Generate Consignment**. An immutable audit record is committed to DOC-33.
+4. **Inspecting Consignments via Slide-Over Drawer**:
+   - Click any consignment row to open the change and inspection drawer (`#drawer-consignment-detail`).
+   - Displays package barcodes, volumetric dimensions, freight breakdown, and current state.
+   - Click **Confirm Dispatch** or **Mark In-Transit** to advance movement states.
+
+---
+
+### 23.3 Operating the Cargo Cost Center (`/cargo/costs`)
+
+1. **Navigating to Cost Allocation**:
+   - Click **Cargo Costs Allocation** (`[F4]`) from the Cargo Board toolbar or navigate to `/cargo/costs`.
+2. **Combined Multi-Client Reporting Toggle**:
+   - Click **Toggle Combined Admin MIS (`#toggle-combined-reporting`)**:
+     - **Cross-Tenant Admin View**: Aggregates freight liabilities across Jaipur, Delhi, and regional distribution centers.
+     - **Single-Tenant View**: Scopes reporting exclusively to the active operating company.
+3. **Financial Bifurcation Summary**:
+   - Gross Freight Incurred vs Client Recovered (via DOC-35) vs Net Admin-Borne Cost.
+4. **Exporting CSV Manifest**:
+   - Click **Export CSV Manifest (`#btn-export-cost-report`)** to generate auditor-compliant spreadsheets itemizing consignments, LR dockets, carriers, volumetric CBMs, and ledger cost allocations.
+
+---
+
+### 23.4 Operating the POD & Exception Claims Desk (`/cargo/pod-exceptions`)
+
+1. **Accessing the Desk**:
+   - Click **POD & Exception Desk** from the Cargo Board or navigate to `/cargo/pod-exceptions`.
+2. **Tab 1: Pending Deliveries Awaiting POD**:
+   - Lists shipments arrived at destination requiring physical confirmation.
+   - Click **Record Delivery POD ➔**:
+     - Enter Receiver Name.
+     - Verify Accepted Quantity vs Short Quantity vs Damaged Quantity.
+     - Enter Digital Signature Token or Receiver Remarks.
+     - Click **Commit Delivery POD**.
+     - If accepted quantity matches total packages, consignment state automatically transitions to `DELIVERED`.
+     - If damage or shortage is reported, consignment state immediately transitions to `EXCEPTION`.
+3. **Tab 2: Active Transit Exceptions & Claims**:
+   - Lists consignments with recorded shortages or transit carrier damages.
+   - Click **Resolve & Claim ➔**:
+     - Select corrective resolution: Carrier Liability Claim, Demurrage Waiver, or Inventory Write-off.
+     - Enter resolution justification and claim reference number.
+     - Click **Commit Resolution**. Consignment state transitions to `CLOSED` and emits an immutable audit event.
 
 ---
 
 *End of User Workflow Manual.*
+
 
 
 

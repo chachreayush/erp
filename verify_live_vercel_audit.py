@@ -32,11 +32,11 @@ def wait_for_vercel_deployment():
                 bundle_name = match.group(1)
                 bundle_url = f"{url}/assets/{bundle_name}"
                 br = requests.get(bundle_url, timeout=10)
-                if "audit/governance" in br.text or "Audit Explorer" in br.text:
+                if "ev-seed-001" in br.text:
                     log(f"SUCCESS: Vercel DEPLOYED with DOC-33! Active bundle: {bundle_name}")
                     return True
                 else:
-                    log(f"Attempt {attempt}/25: Active bundle {bundle_name} is not yet DOC-33. Waiting 8s...")
+                    log(f"Attempt {attempt}/25: Active bundle {bundle_name} does not yet have ev-seed-001. Waiting 8s...")
             else:
                 log(f"Attempt {attempt}/25: Bundle not found in HTML. Waiting 8s...")
         except Exception as e:

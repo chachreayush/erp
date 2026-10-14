@@ -2006,3 +2006,101 @@ class LegalHold(Base):
     organization = relationship("Organization")
     created_by = relationship("User", foreign_keys=[created_by_id])
 
+
+# ============================================================
+# DOC-34: Cargo & Consignment Management Engine
+# ============================================================
+
+class Consignment(Base):
+    __tablename__ = "consignments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    consignment_number = Column(String(50), nullable=False, unique=True, index=True)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True) # Beneficiary Client
+    cost_bearer_company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True) # Admin or Client cost bearer
+    source_dispatch_id = Column(UUID(as_uuid=True), nullable=True, index=True) # DOC-19 Dispatch / Invoice Link
+    document_number = Column(String(100), nullable=True, index=True) # e.g. RJ-INV-6874 or SO-2026-1140
+    transporter_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    transporter_name = Column(String(200), nullable=False, default="V-Trans Logistics India")
+    vehicle_no = Column(String(50), nullable=True) # e.g. DL-01-AB-4921
+    driver_name = Column(String(100), nullable=True)
+    driver_phone = Column(String(30), nullable=True)
+    origin_hub = Column(String(150), nullable=False, default="Jaipur Central Logistics Park")
+    destination_hub = Column(String(150), nullable=False, default="Delhi South Distribution Center")
+    lr_no = Column(String(80), nullable=True, index=True) # Lorry Receipt / Goods Receipt
+    status = Column(String(30), nullable=False, default="PLANNED", index=True) # PLANNED, READY_FOR_LOADING, LOADING, DISPATCHED, IN_TRANSIT, DELIVERED, EXCEPTION, CLOSED
+    dispatch_at = Column(DateTime, nullable=True)
+    expected_delivery_at = Column(DateTime, nullable=True)
+    delivered_at = Column(DateTime, nullable=True)
+    is_admin_funded = Column(Boolean, default=True, nullable=False)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    beneficiary_company = relationship("Organization", foreign_keys=[company_id])
+    cost_bearer_company = relationship("Organization", foreign_keys=[cost_bearer_company_id])
+    packages = relationship("CargoPackage", back_populates="consignment", cascade="all, delete-orphan")
+    costs = relationship("CargoCost", back_populates="consignment", cascade="all, delete-orphan")
+    pod_records = relationship("PodRecord", back_populates="consignment", cascade="all, delete-orphan")
+
+
+class CargoPackage(Base):
+    __tablename__ = "cargo_packages"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    consignment_id = Column(UUID(as_uuid=True), ForeignKey("consignments.id", ondelete="CASCADE"), nullable=False, index=True)
+    package_type = Column(String(40), nullable=False, default="Carton") # Carton, Box, Pallet, Bag, Drum, Loose
+    barcode = Column(String(100), nullable=False, unique=True, index=True)
+    gross_weight = Column(Numeric(18, 3), nullable=False, default=0.0) # kg
+    tare_weight = Column(Numeric(18, 3), nullable=False, default=0.0) # kg
+    net_weight = Column(Numeric(18, 3), nullable=False, default=0.0) # kg
+    length_cm = Column(Numeric(18, 2), nullable=False, default=0.0)
+    width_cm = Column(Numeric(18, 2), nullable=False, default=0.0)
+    height_cm = Column(Numeric(18, 2), nullable=False, default=0.0)
+    cbm = Column(Numeric(18, 6), nullable=False, default=0.0) # Length * Width * Height / 1,000,000
+    is_fragile = Column(Boolean, default=False, nullable=False)
+    status = Column(String(30), nullable=False, default="INTACT") # INTACT, DAMAGED, SHORT, REPACKED
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    consignment = relationship("Consignment", back_populates="packages")
+
+
+class CargoCost(Base):
+    __tablename__ = "cargo_costs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    consignment_id = Column(UUID(as_uuid=True), ForeignKey("consignments.id", ondelete="CASCADE"), nullable=False, index=True)
+    beneficiary_company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    cost_bearer_company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    cost_type = Column(String(40), nullable=False, index=True) # FREIGHT, LOADING, TOLL, DRAYAGE, HANDLING, INSURANCE
+    gross_cost = Column(Numeric(18, 2), nullable=False, default=0.0)
+    recovery_amount = Column(Numeric(18, 2), nullable=False, default=0.0)
+    net_bearer_cost = Column(Numeric(18, 2), nullable=False, default=0.0)
+    is_admin_borne = Column(Boolean, default=True, nullable=False)
+    is_recoverable = Column(Boolean, default=False, nullable=False)
+    recovery_status = Column(String(30), default="UNBILLED", nullable=False) # UNBILLED, BILLED, RECOVERED, WAIVED
+    accounting_voucher_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    consignment = relationship("Consignment", back_populates="costs")
+    beneficiary_company = relationship("Organization", foreign_keys=[beneficiary_company_id])
+    cost_bearer_company = relationship("Organization", foreign_keys=[cost_bearer_company_id])
+
+
+class PodRecord(Base):
+    __tablename__ = "pod_records"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    consignment_id = Column(UUID(as_uuid=True), ForeignKey("consignments.id", ondelete="CASCADE"), nullable=False, index=True)
+    received_by = Column(String(160), nullable=False)
+    received_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    accepted_qty = Column(Numeric(18, 3), nullable=False, default=0.0)
+    short_qty = Column(Numeric(18, 3), nullable=False, default=0.0)
+    damage_qty = Column(Numeric(18, 3), nullable=False, default=0.0)
+    status = Column(String(30), nullable=False, default="CONFIRMED") # CONFIRMED, DISCREPANCY, PENDING_REVIEW
+    remarks = Column(Text, nullable=True)
+    signature_token = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    consignment = relationship("Consignment", back_populates="pod_records")
+
+

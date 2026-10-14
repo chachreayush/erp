@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { 
   ShoppingCart, Receipt, CreditCard, RotateCcw, BookOpen, 
   Search, AlertTriangle, Clock, ArrowUpRight, BarChart3, 
-  ShieldCheck, Package, ExternalLink, RefreshCw, Zap, CheckCircle2
+  ShieldCheck, Package, ExternalLink, RefreshCw, Zap, CheckCircle2, Truck
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { 
@@ -38,9 +38,12 @@ export default function HomeScreen() {
   useEffect(() => {
     loadData()
 
-    // Global Hotkey Handler for Counter Workbench (F2, F4, F5, F6, F9)
+    // Global Hotkey Handler for Counter Workbench (F2, F4, F5, F6, F9, Ctrl+1)
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F2') {
+      if (e.ctrlKey && e.key === '1') {
+        e.preventDefault()
+        navigate('/cargo')
+      } else if (e.key === 'F2') {
         e.preventDefault()
         navigate('/sales')
       } else if (e.key === 'F4') {
@@ -74,6 +77,7 @@ export default function HomeScreen() {
     { label: 'Sales Bill', hotkey: 'F2', icon: <ShoppingCart size={20} />, path: '/sales', color: '#1b4332' },
     { label: 'Approval Inbox', hotkey: 'F4', icon: <CheckCircle2 size={20} />, path: '/workflow/inbox', color: '#0369a1' },
     { label: 'Audit Trail', hotkey: '', icon: <ShieldCheck size={20} />, path: '/audit', color: '#1b4332' },
+    { id: 'hub-btn-cargo-management', label: 'Cargo & Consignment', hotkey: 'Ctrl+1', icon: <Truck size={20} />, path: '/cargo', color: '#0d9488' },
     { label: 'Purchase Bill', hotkey: 'F9', icon: <Package size={20} />, path: '/sales', color: '#2d6a4f' },
     { label: 'Sales Return', hotkey: '', icon: <RotateCcw size={20} />, path: '/sales', color: '#40916c' },
     { label: 'Purchase Return', hotkey: '', icon: <RotateCcw size={20} />, path: '/purchases/returns', color: '#52b788' },
@@ -301,7 +305,7 @@ export default function HomeScreen() {
           {quickLaunchers.map((btn, idx) => (
             <button
               key={idx}
-              id={`hub-btn-${btn.label.toLowerCase().replace(/\s+/g, '-')}`}
+              id={btn.id || `hub-btn-${btn.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
               onClick={() => navigate(btn.path)}
               style={{
                 display: 'flex',
@@ -377,6 +381,22 @@ export default function HomeScreen() {
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                id="btn-home-cargo-management"
+                onClick={() => navigate('/cargo')}
+                style={{
+                  fontSize: '11px',
+                  backgroundColor: '#0d9488',
+                  color: '#ffffff',
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  fontWeight: 700,
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                Cargo Board ↗
+              </button>
               <button
                 onClick={() => navigate('/workflow/inbox')}
                 style={{

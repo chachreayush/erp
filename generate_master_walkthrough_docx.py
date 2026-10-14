@@ -450,10 +450,29 @@ def create_full_software_walkthrough():
     add_p("• Data Governance Console (/audit/governance): 4-tab control center covering Statutory Retention Policies (MCA/GST 8-year standard / 2,920 days), Legal Litigation Holds (#btn-apply-hold with freeze & unfreeze reasons), Forensic Anomaly Signals (mass edits, repeated reversals, after-hours modifications, chain integrity), and Auditor Evidence Pack Generation.")
 
     # ==========================================
-    # SECTION 12: DATABASE SCHEMA
+    # SECTION 12: CARGO & CONSIGNMENT ENGINE (DOC-34)
     # ==========================================
-    add_h1("12. Relational Database Schema Dictionary (PostgreSQL)")
-    add_p("The database architecture encompasses 21+ high-performance relational tables:")
+    add_h1("12. Cargo & Consignment Management Engine (DOC-34)")
+    add_p("DOC-34 governs physical transport logistics, consignment series management, volumetric CBM calculations, carrier chain-of-custody, four-eyes delivery sign-offs, and Admin-funded cargo cost segregation.")
+
+    add_h2("12.1 Non-Negotiable Architecture & Core Rules")
+    add_p("1. Independent Consignment Identity: First-class consignment series (CN-YYYY-XXXX) decoupled from invoice and challan numbering, supporting 1-to-many and many-to-1 relationships.")
+    add_p("2. Admin-Funded Client Cargo Architecture: In central platform distribution setups where Platform Admin finances freight for Client Companies, the Client Company General Ledger (DOC-08) is NEVER debited automatically. The expense is recognized solely in the Admin Company Ledger under Account 5200 (Freight & Logistics Expense).")
+    add_p("3. Combined Reporting Toggle: Platform Admin executives can toggle aggregate multi-client freight reporting without breaching tenant isolation boundaries.")
+    add_p("4. Volumetric CBM Formula: CBM = (Length (cm) * Width (cm) * Height (cm)) / 1,000,000. Multi-package barcodes (PKG-YYYY-XXXX-NN) track individual tare, gross weight, and fragility.")
+    add_p("5. Movement State Machine: PLANNED -> READY_FOR_LOADING -> LOADING -> DISPATCHED -> IN_TRANSIT -> DELIVERED -> CLOSED (with EXCEPTION branching).")
+    add_p("6. Proof of Delivery (POD) & Exception Desk: Four-eyes physical delivery validation tracking accepted vs damaged/short quantities and carrier liability claims.")
+
+    add_h2("12.2 Operational Cockpits & Launchers")
+    add_p("• Cargo Board (/cargo, [Ctrl+1]): Top KPI strip, visual status matrix, new consignment creation modal ([F6]), slide-over detail drawer, and status progression buttons.")
+    add_p("• Cargo Cost Center (/cargo/costs, [F4]): Admin-borne vs Client-borne financial bifurcation, combined multi-client reporting toggle, and CSV manifest exporter.")
+    add_p("• POD & Exception Desk (/cargo/pod-exceptions): Pending delivery receiving queue with 4-eyes validation, accepted vs short/damaged quantities, and transit claims resolution desk.")
+
+    # ==========================================
+    # SECTION 13: DATABASE SCHEMA
+    # ==========================================
+    add_h1("13. Relational Database Schema Dictionary (PostgreSQL)")
+    add_p("The database architecture encompasses 25+ high-performance relational tables:")
 
     schema_table = doc.add_table(rows=1, cols=3)
     schema_headers = ["Table Name", "Primary Keys & Constraints", "Functional Purpose & Key Columns"]
@@ -478,16 +497,21 @@ def create_full_software_walkthrough():
         ["workflow_audit_logs", "id UUID (PK), instance_id (FK)", "Regulatory audit timeline. Columns: action_type, actor_id, previous_state, new_state, remarks."],
         ["audit_events", "id UUID (PK), prev_hash VARCHAR(64)", "Immutable cryptographically chained audit events. Columns: company_id, actor_name, event_type, object_type, before_payload JSONB, after_payload JSONB, event_hash."],
         ["retention_policies", "id UUID (PK), company_id (FK)", "Statutory retention policies. Columns: object_type, retention_days (2920 days / 8 yrs), legal_hold_allowed, effective_from."],
-        ["legal_holds", "id UUID (PK), company_id (FK)", "Statutory litigation/inquiry holds. Columns: scope_type, scope_description, reason, created_by_id, released_at, release_reason."]
+        ["legal_holds", "id UUID (PK), company_id (FK)", "Statutory litigation/inquiry holds. Columns: scope_type, scope_description, reason, created_by_id, released_at, release_reason."],
+        ["consignments", "id UUID (PK), consignment_number UNIQUE", "Decoupled freight shipment. Columns: company_id, document_number, transporter_name, vehicle_no, driver_name, origin_hub, destination_hub, lr_no, status, is_admin_funded."],
+        ["cargo_packages", "id UUID (PK), consignment_id (FK)", "Multi-package volumetric hierarchy. Columns: package_type, barcode UNIQUE, gross_weight, tare_weight, net_weight, length_cm, width_cm, height_cm, cbm, is_fragile, status."],
+        ["cargo_costs", "id UUID (PK), consignment_id (FK)", "Bifurcated freight expenditure. Columns: beneficiary_company_id, cost_bearer_company_id, cost_type, gross_cost, recovery_amount, net_bearer_cost, is_admin_borne, recovery_status."],
+        ["pod_records", "id UUID (PK), consignment_id (FK)", "Proof of delivery & discrepancy record. Columns: received_by, received_at, accepted_qty, short_qty, damage_qty, signature_token, remarks, status."]
     ]
     style_table(schema_table, [1.5, 2.0, 3.0], schema_headers, schema_data)
     doc.add_paragraph().paragraph_format.space_after = Pt(8)
 
     # ==========================================
-    # SECTION 13: REST API DIRECTORY
     # ==========================================
-    add_h1("13. RESTful API Directory & Endpoint Specifications")
-    add_p("The backend exposes a high-speed, asynchronous RESTful API layer organized by domain:")
+    # SECTION 14: REST API DIRECTORY
+    # ==========================================
+    add_h1("14. RESTful API Directory & Endpoint Specifications")
+    add_p("The backend exposes a high-speed, asynchronous RESTful API layer organized by domain (40+ endpoints):")
 
     api_table = doc.add_table(rows=1, cols=3)
     api_headers = ["Endpoint Route", "HTTP Method", "Functional Scope & Payload Description"]
@@ -522,16 +546,24 @@ def create_full_software_walkthrough():
         ["/api/audit/legal-holds", "GET / POST", "Applies and lists statutory inquiry/litigation holds freezing records."],
         ["/api/audit/legal-holds/{id}/release", "POST", "Releases legal hold with mandatory justification audit reason."],
         ["/api/audit/anomalies", "GET", "Scans for velocity spikes, repeated cancellations, after-hours edits, and chain tampering."],
-        ["/api/audit/evidence-pack", "POST", "Produces cryptographically sealed audit evidence package with SHA-256 root hash."]
+        ["/api/audit/evidence-pack", "POST", "Produces cryptographically sealed audit evidence package with SHA-256 root hash."],
+        ["/api/cargo/summary", "GET", "Aggregates total consignments, in-transit, volumetric CBM, Admin-borne cost, pending POD."],
+        ["/api/cargo/consignments", "GET / POST", "Multi-tenant search & list / Creates new consignment with series CN-YYYY-XXXX continuation."],
+        ["/api/cargo/consignments/{id}", "GET", "Comprehensive consignment detail with multi-package CBM calculations and costs."],
+        ["/api/cargo/consignments/{id}/status", "PUT", "State machine progression (LOADING -> DISPATCHED -> IN_TRANSIT -> DELIVERED)."],
+        ["/api/cargo/costs", "GET", "Admin-borne cost bifurcation with combined cross-client reporting toggle."],
+        ["/api/cargo/pod-exceptions", "GET", "Pending delivery receiving queue and active transit exception claims desk."],
+        ["/api/cargo/consignments/{id}/pod", "POST", "Submits delivery POD with accepted vs short/damaged quantities & exception branch."],
+        ["/api/cargo/consignments/{id}/resolve-exception", "POST", "Commits corrective resolution action (Carrier Claim / Demurrage Waiver) with audit log."]
     ]
     style_table(api_table, [2.2, 0.9, 3.4], api_headers, api_data)
     doc.add_paragraph().paragraph_format.space_after = Pt(8)
 
     # ==========================================
-    # SECTION 14: QA VERIFICATION & DEPLOYMENT
+    # SECTION 15: QA VERIFICATION & DEPLOYMENT
     # ==========================================
-    add_h1("14. Automated Selenium QA Matrix & Production Deployment")
-    add_p("The codebase maintains 100% automated test coverage across headless Chrome Selenium suites:")
+    add_h1("15. Automated Selenium QA Matrix & Production Deployment")
+    add_p("The codebase maintains 100% automated test coverage across 12 headless Chrome Selenium suites:")
 
     qa_table = doc.add_table(rows=1, cols=3)
     qa_headers = ["Automated Test Suite", "Stages Verified", "Assertion Target & Status"]
@@ -546,12 +578,13 @@ def create_full_software_walkthrough():
         ["test_bank_recon_cash_selenium.py", "6 Stages", "100% PASS: BRS workbench, tolerance auto-matching, cash denomination tally counting, discrepancy audit."],
         ["test_dashboard_bi_control_center_selenium.py", "7 Stages", "100% PASS: Counter workbench, Executive BI strip, area trends, Opex donut, vector map modal."],
         ["test_workflow_approval_automation_selenium.py", "10 Stages", "100% PASS: Universal trigger, [F4] Inbox, Maker-Checker 403 enforcement, rejection modal, designer simulator, SLA monitor."],
-        ["test_audit_governance_selenium.py", "10 Stages", "100% PASS: Cryptographic SHA-256 hash chaining, diff drawer, seal validation, retention policies, legal holds, forensic anomalies, evidence pack."]
+        ["test_audit_governance_selenium.py", "10 Stages", "100% PASS: Cryptographic SHA-256 hash chaining, diff drawer, seal validation, retention policies, legal holds, forensic anomalies, evidence pack."],
+        ["test_cargo_consignment_selenium.py", "10 Stages", "100% PASS: Consignment registry, volumetric CBM, [Ctrl+1] Board, drawer inspection, cost center combined toggle, 4-eyes POD & exception claims."]
     ]
     style_table(qa_table, [2.3, 1.0, 3.2], qa_headers, qa_data)
     doc.add_paragraph().paragraph_format.space_after = Pt(8)
 
-    add_h2("14.1 Production Deployment & Synchronization Commands")
+    add_h2("15.1 Production Deployment & Synchronization Commands")
     add_p("To run or synchronize the software across development and production environments:")
     
     add_callout(

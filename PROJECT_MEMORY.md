@@ -416,6 +416,37 @@ px tsc --noEmit) with 0 errors.
 
 ---
 
+## Cargo & Consignment Management Engine (DOC-34)
+
+Implemented and verified complete Cargo & Consignment Management Engine:
+1. **Decoupled Freight Entity**: First-class consignment series continuation (`CN-YYYY-XXXX`) independent of invoice or dispatch numbering. Links 1-to-many and many-to-1 with sales bills, transfers, and dispatches.
+2. **Admin-Funded Client Cargo Architecture**:
+   - Zero-Debit Rule: Client Company General Ledger (DOC-08) is never automatically debited.
+   - Cost Bearer Recognition: Freight cost recognized strictly in Platform Admin GL under Account 5200 (Central Freight & Logistics Expense).
+   - Combined Reporting: Admin MIS aggregates cross-client freight expenditure (`GET /api/cargo/costs?combined=true`) without compromising multi-tenant isolation.
+3. **Volumetric CBM & Package Barcodes**:
+   - Barcoding standard: `PKG-YYYY-XXXX-NN`.
+   - Volumetric dimensions: $(L \times W \times H) / 1,000,000$ in cubic meters ($m^3$).
+4. **State Machine & Controlled POD**:
+   - States: `PLANNED` -> `READY_FOR_LOADING` -> `LOADING` -> `DISPATCHED` -> `IN_TRANSIT` -> `DELIVERED` -> `CLOSED` (with `EXCEPTION` branching).
+   - Four-eyes delivery sign-off with accepted vs short/damaged quantities and claim resolution desk.
+5. **UI Cockpits & Launchers**:
+   - `CargoBoard.tsx` (`/cargo` or `Ctrl+1`): KPI strip, Kanban status matrix, consignment registration modal (`[F6]`), slide-over detail drawer with volumetric calculation and status advance.
+   - `CargoCostCenter.tsx` (`/cargo/costs` or `[F4]`): Admin-borne vs Client-borne bifurcation, combined multi-client reporting toggle, CSV manifest export.
+   - `PodExceptionDesk.tsx` (`/cargo/pod-exceptions`): Pending POD queue, 4-eyes physical delivery sign-off, and active transit exception claims desk.
+   - `HomeScreen.tsx`: Launcher tile (`#hub-btn-cargo-management`) and Urgent Exceptions shortcut button (`#btn-home-cargo-management`).
+   - `MargAppShell.tsx` & `Header.tsx`: Navigation links and global `Ctrl+1` hotkey.
+6. **Selenium Verification (`test_cargo_consignment_selenium.py`)**:
+   - 10/10 Stages PASSED (Exit Code 0).
+   - 5 screenshots captured:
+     - `verified_cargo_homescreen_launcher.png`
+     - `verified_cargo_board_kanban.png`
+     - `verified_cargo_consignment_drawer.png`
+     - `verified_cargo_cost_allocation_center.png`
+     - `verified_cargo_pod_exception_desk.png`
+
+---
+
 ## Enterprise Master Documentation: Complete Software Walkthrough (.docx)
 
 An exhaustive, publication-grade master reference manual has been created as an editable Microsoft Word document:
@@ -434,9 +465,10 @@ An exhaustive, publication-grade master reference manual has been created as an 
   10. Management Reporting & Executive BI (Company Sales Drill-downs, Custom Report Designer, Predictive Risk Signals).
   11. Workflow, Approval, Alert & Business Automation Engine (DOC-32: Inbox `[F4]`, Maker-Checker 403, Designer with Sandbox Simulator, SLA Monitor).
   12. Audit Trail, Data Governance & Compliance Control Engine (DOC-33: Cryptographic SHA-256 Hash Chain, Tamper Detection, Before/After Diff Drawer, Legal Holds, Retention Policies, Auditor Evidence Packs).
-  13. Relational Database Schema Dictionary (21+ PostgreSQL models).
-  14. RESTful API Directory (32+ core endpoints).
-  15. Automated Selenium QA Verification Matrix (11 test suites, 100% assertions) & Production Deployment guide.
+  13. Cargo & Consignment Management Engine (DOC-34: Independent Series `CN-YYYY-XXXX`, Admin-Funded Client Cargo Architecture, Zero Client GL Auto-Debit, Volumetric CBM, 4-Eyes POD & Discrepancy Desk).
+  14. Relational Database Schema Dictionary (25+ PostgreSQL models).
+  15. RESTful API Directory (40+ core endpoints).
+  16. Automated Selenium QA Verification Matrix (12 test suites, 100% assertions) & Production Deployment guide.
 
 ---
 
