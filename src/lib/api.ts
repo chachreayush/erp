@@ -2589,6 +2589,9 @@ export async function apiUpdateConsignmentStatus(
   return response.data;
 }
 
+export const apiUpdateCargoStatus = apiUpdateConsignmentStatus;
+
+
 export async function apiGetCargoCosts(params?: {
   include_clients?: boolean;
   cost_type?: string;

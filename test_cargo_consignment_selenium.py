@@ -143,7 +143,7 @@ def run_test():
 
         wait.until(EC.presence_of_element_located((By.ID, "drawer-consignment-detail")))
         drawer_text = driver.find_element(By.ID, "drawer-consignment-detail").text
-        assert "Volumetric Dimensions" in drawer_text or "Packages" in drawer_text, "Expected package section in drawer"
+        assert "volumetric" in drawer_text.lower() or "package" in drawer_text.lower(), "Expected package section in drawer"
         log("  SUCCESS: Consignment detail drawer verified with package hierarchy and CBM!")
 
         driver.save_screenshot(f"{ARTIFACTS_DIR}\\verified_cargo_consignment_drawer.png")

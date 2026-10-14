@@ -1,152 +1,44 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  Truck, Package, Box, AlertTriangle, CheckCircle2, Clock,
+  ArrowRight, Search, Filter, Plus, Download, RefreshCw,
+  ShieldCheck, Layers, ExternalLink, FileText, X, ChevronRight,
+  Info, Calendar, User, Phone, MapPin, DollarSign, Activity
+} from 'lucide-react';
+import {
   apiGetCargoSummary,
   apiGetConsignments,
   apiCreateConsignment,
   apiGetConsignmentDetail,
-  apiUpdateConsignmentStatus,
+  apiUpdateCargoStatus,
   CargoSummaryKPI,
   ConsignmentItem,
   ConsignmentDetailResponse
 } from '../../lib/api';
 
-const FALLBACK_SUMMARY: CargoSummaryKPI = {
-  total_consignments: 5,
-  active_in_transit: 2,
-  delivered_count: 1,
-  exceptions_count: 1,
-  total_cbm: 1.3196,
-  admin_borne_cost: 11840.0,
-  pending_pod_count: 2
-};
-
-const FALLBACK_CONSIGNMENTS: ConsignmentItem[] = [
-  {
-    id: 'c-seed-01',
-    consignment_number: 'CN-2026-0041',
-    document_number: 'RJ-INV-6870',
-    lr_no: 'LR-VT-98241',
-    transporter_name: 'V-Trans Logistics India Ltd.',
-    vehicle_no: 'RJ-14-GA-7821',
-    driver_name: 'Mukesh Sharma',
-    driver_phone: '9829012345',
-    origin_hub: 'Jaipur Central Logistics Hub',
-    destination_hub: 'Delhi South Distribution Center',
-    status: 'DELIVERED',
-    dispatch_at: new Date(Date.now() - 72 * 3600000).toISOString(),
-    delivered_at: new Date(Date.now() - 24 * 3600000).toISOString(),
-    is_admin_funded: true,
-    package_count: 2,
-    total_cbm: 0.0773,
-    total_gross_weight: 26.5,
-    total_cost: 1970.0,
-    admin_borne_cost: 1970.0,
-    has_pod: true,
-    created_at: new Date(Date.now() - 72 * 3600000).toISOString()
-  },
-  {
-    id: 'c-seed-02',
-    consignment_number: 'CN-2026-0042',
-    document_number: 'RJ-INV-6874',
-    lr_no: 'LR-GATI-11092',
-    transporter_name: 'Gati KWE Express Cargo',
-    vehicle_no: 'HR-26-BR-4902',
-    driver_name: 'Satish Kumar',
-    driver_phone: '9811098765',
-    origin_hub: 'Jaipur Central Logistics Hub',
-    destination_hub: 'Gurugram Healthcare Depot',
-    status: 'IN_TRANSIT',
-    dispatch_at: new Date(Date.now() - 16 * 3600000).toISOString(),
-    delivered_at: null,
-    is_admin_funded: true,
-    package_count: 3,
-    total_cbm: 0.1033,
-    total_gross_weight: 35.7,
-    total_cost: 2350.0,
-    admin_borne_cost: 1850.0,
-    has_pod: false,
-    created_at: new Date(Date.now() - 16 * 3600000).toISOString()
-  },
-  {
-    id: 'c-seed-03',
-    consignment_number: 'CN-2026-0043',
-    document_number: 'SO-2026-1140',
-    lr_no: 'LR-TCI-55420',
-    transporter_name: 'TCI Freight Express',
-    vehicle_no: 'DL-01-AB-4921',
-    driver_name: 'Gurpreet Singh',
-    driver_phone: '9876543210',
-    origin_hub: 'Jaipur Cold-Chain Godown',
-    destination_hub: 'Noida Industrial Hub',
-    status: 'DISPATCHED',
-    dispatch_at: new Date(Date.now() - 4 * 3600000).toISOString(),
-    delivered_at: null,
-    is_admin_funded: true,
-    package_count: 1,
-    total_cbm: 0.9600,
-    total_gross_weight: 120.0,
-    total_cost: 4250.0,
-    admin_borne_cost: 4250.0,
-    has_pod: false,
-    created_at: new Date(Date.now() - 4 * 3600000).toISOString()
-  },
-  {
-    id: 'c-seed-04',
-    consignment_number: 'CN-2026-0044',
-    document_number: 'RJ-INV-6878',
-    lr_no: 'LR-SAFE-77192',
-    transporter_name: 'Safexpress Logistics Ltd.',
-    vehicle_no: 'RJ-02-CB-1920',
-    driver_name: 'Dinesh Yadav',
-    driver_phone: '9828112233',
-    origin_hub: 'Jaipur Central Logistics Hub',
-    destination_hub: 'Alwar Regional Pharma Center',
-    status: 'EXCEPTION',
-    dispatch_at: new Date(Date.now() - 36 * 3600000).toISOString(),
-    delivered_at: new Date(Date.now() - 12 * 3600000).toISOString(),
-    is_admin_funded: true,
-    package_count: 2,
-    total_cbm: 0.1440,
-    total_gross_weight: 43.5,
-    total_cost: 2170.0,
-    admin_borne_cost: 2170.0,
-    has_pod: true,
-    created_at: new Date(Date.now() - 36 * 3600000).toISOString()
-  },
-  {
-    id: 'c-seed-05',
-    consignment_number: 'CN-2026-0045',
-    document_number: 'PO-2026-0891',
-    lr_no: 'LR-VT-98310',
-    transporter_name: 'V-Trans Logistics India Ltd.',
-    vehicle_no: 'RJ-14-GA-9912',
-    driver_name: 'Ramesh Chandra',
-    driver_phone: '9829445566',
-    origin_hub: 'Jaipur Central Logistics Hub',
-    destination_hub: 'Chandigarh Distribution Depot',
-    status: 'PLANNED',
-    dispatch_at: null,
-    delivered_at: null,
-    is_admin_funded: true,
-    package_count: 1,
-    total_cbm: 0.0350,
-    total_gross_weight: 15.0,
-    total_cost: 1600.0,
-    admin_borne_cost: 1600.0,
-    has_pod: false,
-    created_at: new Date().toISOString()
-  }
-];
-
 export default function CargoBoard() {
   const navigate = useNavigate();
-  const [summary, setSummary] = useState<CargoSummaryKPI>(FALLBACK_SUMMARY);
-  const [consignments, setConsignments] = useState<ConsignmentItem[]>(FALLBACK_CONSIGNMENTS);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Data states
+  const [summary, setSummary] = useState<CargoSummaryKPI>({
+    total_consignments: 5,
+    active_in_transit: 2,
+    delivered_count: 1,
+    exceptions_count: 1,
+    total_cbm: 1.320,
+    admin_borne_cost: 11840.0,
+    pending_pod_count: 2
+  });
+
+  const [consignments, setConsignments] = useState<ConsignmentItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [search, setSearch] = useState<string>('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
-  const [selectedCostBearer, setSelectedCostBearer] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [costBearerFilter, setCostBearerFilter] = useState<string>('ALL');
+
+  // Inspection Drawer
   const [selectedConsignmentId, setSelectedConsignmentId] = useState<string | null>(null);
   const [detailData, setDetailData] = useState<ConsignmentDetailResponse | null>(null);
   const [loadingDetail, setLoadingDetail] = useState<boolean>(false);
@@ -155,42 +47,163 @@ export default function CargoBoard() {
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [formData, setFormData] = useState({
     transporter_name: 'V-Trans Logistics India Ltd.',
-    document_number: '',
-    vehicle_no: '',
-    driver_name: '',
-    driver_phone: '',
+    document_number: 'RJ-INV-6880',
+    vehicle_no: 'DL-01-AB-4921',
+    driver_name: 'Ramesh Kumar',
+    driver_phone: '9876543210',
     origin_hub: 'Jaipur Central Logistics Hub',
     destination_hub: 'Delhi South Distribution Center',
-    lr_no: '',
+    lr_no: 'LR-VT-98421',
     is_admin_funded: true,
+    freight_cost: 2400.0,
     package_type: 'Carton',
-    length_cm: 45,
-    width_cm: 35,
-    height_cm: 30,
-    gross_weight: 15.0,
-    freight_cost: 1850.0
+    length_cm: 50.0,
+    width_cm: 40.0,
+    height_cm: 30.0,
+    gross_weight: 12.5,
+    notes: 'Urgent pharmaceutical consignment with cold-chain priority'
   });
 
-  const [notification, setNotification] = useState<string | null>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  // Fallback realistic seed data for standalone / offline resilience
+  const FALLBACK_CONSIGNMENTS: ConsignmentItem[] = [
+    {
+      id: 'cn-seed-001',
+      consignment_number: 'CN-2026-0041',
+      document_number: 'RJ-INV-6870',
+      lr_no: 'LR-VT-98241',
+      transporter_name: 'V-Trans Logistics India Ltd.',
+      vehicle_no: 'RJ-14-GA-7821',
+      driver_name: 'Mukesh Sharma',
+      driver_phone: '9829012345',
+      origin_hub: 'Jaipur Central Logistics Hub',
+      destination_hub: 'Delhi South Distribution Center',
+      status: 'DELIVERED',
+      dispatch_at: new Date(Date.now() - 72 * 3600000).toISOString(),
+      delivered_at: new Date(Date.now() - 24 * 3600000).toISOString(),
+      is_admin_funded: true,
+      package_count: 2,
+      total_cbm: 0.077,
+      total_gross_weight: 24.5,
+      total_cost: 1970.0,
+      admin_borne_cost: 1970.0,
+      has_pod: true,
+      created_at: new Date(Date.now() - 72 * 3600000).toISOString()
+    },
+    {
+      id: 'cn-seed-002',
+      consignment_number: 'CN-2026-0042',
+      document_number: 'RJ-INV-6874',
+      lr_no: 'LR-GATI-11092',
+      transporter_name: 'Gati KWE Express Cargo',
+      vehicle_no: 'HR-26-BR-4902',
+      driver_name: 'Satish Kumar',
+      driver_phone: '9811098765',
+      origin_hub: 'Jaipur Central Logistics Hub',
+      destination_hub: 'Gurugram Healthcare Depot',
+      status: 'IN_TRANSIT',
+      dispatch_at: new Date(Date.now() - 36 * 3600000).toISOString(),
+      delivered_at: null,
+      is_admin_funded: true,
+      package_count: 3,
+      total_cbm: 0.103,
+      total_gross_weight: 38.0,
+      total_cost: 2350.0,
+      admin_borne_cost: 2350.0,
+      has_pod: false,
+      created_at: new Date(Date.now() - 36 * 3600000).toISOString()
+    },
+    {
+      id: 'cn-seed-003',
+      consignment_number: 'CN-2026-0043',
+      document_number: 'SO-2026-1140',
+      lr_no: 'LR-TCI-55420',
+      transporter_name: 'TCI Freight Express',
+      vehicle_no: 'DL-01-AB-4921',
+      driver_name: 'Gurpreet Singh',
+      driver_phone: '9818812345',
+      origin_hub: 'Jaipur Cold-Chain Godown',
+      destination_hub: 'Noida Industrial Hub',
+      status: 'DISPATCHED',
+      dispatch_at: new Date(Date.now() - 12 * 3600000).toISOString(),
+      delivered_at: null,
+      is_admin_funded: true,
+      package_count: 1,
+      total_cbm: 0.960,
+      total_gross_weight: 120.0,
+      total_cost: 4250.0,
+      admin_borne_cost: 4250.0,
+      has_pod: false,
+      created_at: new Date(Date.now() - 12 * 3600000).toISOString()
+    },
+    {
+      id: 'cn-seed-004',
+      consignment_number: 'CN-2026-0044',
+      document_number: 'RJ-INV-6878',
+      lr_no: 'LR-SAFE-77192',
+      transporter_name: 'Safexpress Logistics Ltd.',
+      vehicle_no: 'RJ-02-CB-1920',
+      driver_name: 'Dinesh Yadav',
+      driver_phone: '9414055667',
+      origin_hub: 'Jaipur Central Logistics Hub',
+      destination_hub: 'Alwar Regional Pharma Center',
+      status: 'EXCEPTION',
+      dispatch_at: new Date(Date.now() - 48 * 3600000).toISOString(),
+      delivered_at: new Date(Date.now() - 6 * 3600000).toISOString(),
+      is_admin_funded: true,
+      package_count: 2,
+      total_cbm: 0.144,
+      total_gross_weight: 42.0,
+      total_cost: 2170.0,
+      admin_borne_cost: 2170.0,
+      has_pod: true,
+      created_at: new Date(Date.now() - 48 * 3600000).toISOString()
+    },
+    {
+      id: 'cn-seed-005',
+      consignment_number: 'CN-2026-0045',
+      document_number: 'PO-2026-0891',
+      lr_no: 'LR-VT-98310',
+      transporter_name: 'V-Trans Logistics India Ltd.',
+      vehicle_no: 'RJ-14-GA-9912',
+      driver_name: 'Ramesh Chandra',
+      driver_phone: '9828822334',
+      origin_hub: 'Jaipur Central Logistics Hub',
+      destination_hub: 'Chandigarh Distribution Depot',
+      status: 'PLANNED',
+      dispatch_at: null,
+      delivered_at: null,
+      is_admin_funded: true,
+      package_count: 1,
+      total_cbm: 0.035,
+      total_gross_weight: 15.0,
+      total_cost: 1600.0,
+      admin_borne_cost: 1600.0,
+      has_pod: false,
+      created_at: new Date(Date.now() - 4 * 3600000).toISOString()
+    }
+  ];
 
+  // Fetch summary and consignments
   const loadData = async () => {
     try {
       setLoading(true);
       const [sumRes, listRes] = await Promise.all([
         apiGetCargoSummary(),
         apiGetConsignments({
-          search: search.trim() || undefined,
-          status: selectedStatus !== 'ALL' ? selectedStatus : undefined,
-          cost_bearer: selectedCostBearer !== 'ALL' ? selectedCostBearer : undefined,
-          limit: 100
+          search: search || undefined,
+          status: statusFilter !== 'ALL' ? statusFilter : undefined,
+          cost_bearer: costBearerFilter !== 'ALL' ? costBearerFilter : undefined
         })
       ]);
-      setSummary(sumRes || FALLBACK_SUMMARY);
-      setConsignments(listRes && listRes.consignments ? listRes.consignments : FALLBACK_CONSIGNMENTS);
+
+      if (sumRes) setSummary(sumRes);
+      if (listRes && listRes.consignments) {
+        setConsignments(listRes.consignments);
+      } else {
+        setConsignments(FALLBACK_CONSIGNMENTS);
+      }
     } catch (err) {
-      console.error('Failed to load cargo data, using demo fallback:', err);
-      setSummary(FALLBACK_SUMMARY);
+      console.warn('Backend not reached, utilizing resilient fallback cargo fixtures:', err);
       setConsignments(FALLBACK_CONSIGNMENTS);
     } finally {
       setLoading(false);
@@ -199,118 +212,121 @@ export default function CargoBoard() {
 
   useEffect(() => {
     loadData();
-  }, [selectedStatus, selectedCostBearer]);
+  }, [statusFilter, costBearerFilter]);
 
-  // Keyboard navigation: F6 Create, F4 Costs, Ctrl+1 Board
+  // Global Hotkeys (F6 for New Consignment, Ctrl+F for Search)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'F6') {
         e.preventDefault();
         setShowCreateModal(true);
-      } else if (e.key === 'F4') {
-        e.preventDefault();
-        navigate('/cargo/costs');
-      } else if (e.ctrlKey && e.key.toLowerCase() === 'f') {
+      } else if (e.ctrlKey && e.key === 'f') {
         e.preventDefault();
         searchInputRef.current?.focus();
-      } else if (e.key === 'Escape') {
-        if (showCreateModal) setShowCreateModal(false);
-        else if (selectedConsignmentId) {
-          setSelectedConsignmentId(null);
-          setDetailData(null);
-        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showCreateModal, selectedConsignmentId, navigate]);
+  }, []);
 
+  // Inspect Consignment
   const handleInspect = async (id: string) => {
-    setSelectedConsignmentId(id);
-    setLoadingDetail(true);
     try {
-      const res = await apiGetConsignmentDetail(id);
-      setDetailData(res);
+      setSelectedConsignmentId(id);
+      setLoadingDetail(true);
+      const detail = await apiGetConsignmentDetail(id);
+      if (detail) {
+        setDetailData(detail);
+      } else {
+        const item = consignments.find(c => c.id === id) || FALLBACK_CONSIGNMENTS[0];
+        setDetailData({
+          ...item,
+          notes: 'Standard pharmaceutical cold-chain movement.',
+          packages: [
+            {
+              id: 'p-1',
+              package_type: 'Carton',
+              barcode: `PKG-${item.consignment_number}-01`,
+              gross_weight: item.total_gross_weight,
+              tare_weight: 1.2,
+              net_weight: item.total_gross_weight - 1.2,
+              length_cm: 40.0,
+              width_cm: 35.0,
+              height_cm: 25.0,
+              cbm: item.total_cbm,
+              is_fragile: false,
+              status: 'INTACT'
+            }
+          ],
+          costs: [
+            {
+              id: 'c-1',
+              cost_type: 'FREIGHT',
+              gross_cost: item.total_cost,
+              recovery_amount: 0.0,
+              net_bearer_cost: item.total_cost,
+              is_admin_borne: item.is_admin_funded,
+              is_recoverable: false,
+              recovery_status: 'UNBILLED'
+            }
+          ],
+          pod: item.has_pod ? {
+            id: 'pod-1',
+            received_by: 'Harish Sharma (Warehouse Lead)',
+            received_at: item.delivered_at || new Date().toISOString(),
+            accepted_qty: item.package_count,
+            short_qty: item.status === 'EXCEPTION' ? 1.0 : 0.0,
+            damage_qty: item.status === 'EXCEPTION' ? 1.0 : 0.0,
+            status: item.status === 'EXCEPTION' ? 'DISCREPANCY' : 'ACCEPTED',
+            remarks: item.status === 'EXCEPTION' ? 'Carton damaged during transit' : 'Delivered intact with seal intact',
+            signature_token: 'SIG-VERIFIED-9812'
+          } : null
+        });
+      }
     } catch (err) {
-      console.error('Failed to load detail, using fallback:', err);
-      const c = consignments.find(item => item.id === id) || FALLBACK_CONSIGNMENTS[0];
-      setDetailData({
-        ...c,
-        packages: [
-          {
-            package_type: 'Carton',
-            barcode: `PKG-${c.consignment_number}-01`,
-            gross_weight: 15.0,
-            tare_weight: 1.2,
-            net_weight: 13.8,
-            length_cm: 45,
-            width_cm: 35,
-            height_cm: 30,
-            cbm: 0.04725,
-            is_fragile: false,
-            status: 'INTACT'
-          }
-        ],
-        costs: [
-          {
-            cost_type: 'FREIGHT',
-            gross_cost: c.total_cost || 1850.0,
-            recovery_amount: 0.0,
-            net_bearer_cost: c.admin_borne_cost || 1850.0,
-            is_admin_borne: c.is_admin_funded,
-            is_recoverable: false,
-            recovery_status: 'UNBILLED'
-          }
-        ],
-        pod: c.has_pod ? {
-          received_by: 'Authorized Receiver',
-          received_at: c.delivered_at || new Date().toISOString(),
-          accepted_qty: 1,
-          short_qty: 0,
-          damage_qty: 0,
-          status: 'CONFIRMED'
-        } : null
-      });
+      console.error('Error fetching consignment detail:', err);
     } finally {
       setLoadingDetail(false);
     }
   };
 
-  const handleAdvanceStatus = async (targetStatus: string) => {
+  // Status Advance
+  const handleAdvanceStatus = async (newStatus: string) => {
     if (!selectedConsignmentId) return;
     try {
-      const res = await apiUpdateConsignmentStatus(selectedConsignmentId, targetStatus);
-      setNotification(`Status updated: ${res.current_status}`);
+      await apiUpdateCargoStatus(selectedConsignmentId, newStatus, `Advanced to ${newStatus} via Cargo Board.`);
+      if (detailData) {
+        setDetailData({ ...detailData, status: newStatus });
+      }
       loadData();
-      handleInspect(selectedConsignmentId);
-      setTimeout(() => setNotification(null), 3000);
     } catch (err) {
       console.error('Failed to advance status:', err);
-      setNotification(`Demo Status updated to: ${targetStatus}`);
-      setTimeout(() => setNotification(null), 3000);
+      if (detailData) {
+        setDetailData({ ...detailData, status: newStatus });
+      }
+      setConsignments(prev => prev.map(c => c.id === selectedConsignmentId ? { ...c, status: newStatus } : c));
     }
   };
 
+  // Create Consignment Submit
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const cbmCalc = (formData.length_cm * formData.width_cm * formData.height_cm) / 1000000.0;
-      const res = await apiCreateConsignment({
+      const payload = {
         transporter_name: formData.transporter_name,
-        document_number: formData.document_number || undefined,
-        vehicle_no: formData.vehicle_no || undefined,
-        driver_name: formData.driver_name || undefined,
-        driver_phone: formData.driver_phone || undefined,
+        document_number: formData.document_number,
+        vehicle_no: formData.vehicle_no,
+        driver_name: formData.driver_name,
+        driver_phone: formData.driver_phone,
         origin_hub: formData.origin_hub,
         destination_hub: formData.destination_hub,
-        lr_no: formData.lr_no || undefined,
+        lr_no: formData.lr_no,
         is_admin_funded: formData.is_admin_funded,
+        notes: formData.notes,
         packages: [
           {
             package_type: formData.package_type,
             gross_weight: formData.gross_weight,
-            tare_weight: 1.0,
-            net_weight: Math.max(0, formData.gross_weight - 1.0),
             length_cm: formData.length_cm,
             width_cm: formData.width_cm,
             height_cm: formData.height_cm,
@@ -326,384 +342,770 @@ export default function CargoBoard() {
             is_recoverable: false
           }
         ]
-      });
-      setNotification(res.message);
+      };
+
+      const res = await apiCreateConsignment(payload);
       setShowCreateModal(false);
       loadData();
-      setTimeout(() => setNotification(null), 3500);
     } catch (err) {
-      console.error('Create failed, simulating demo creation:', err);
-      const newNum = `CN-2026-00${consignments.length + 41}`;
-      const newCons: ConsignmentItem = {
-        id: `c-demo-${Date.now()}`,
-        consignment_number: newNum,
-        document_number: formData.document_number || 'RJ-INV-6880',
-        lr_no: formData.lr_no || `LR-${newNum.replace('CN-', '')}`,
+      console.warn('Backend create failed, simulating optimistic addition:', err);
+      const newCn: ConsignmentItem = {
+        id: `cn-${Date.now()}`,
+        consignment_number: `CN-2026-${String(consignments.length + 42).padStart(4, '0')}`,
+        document_number: formData.document_number,
+        lr_no: formData.lr_no,
         transporter_name: formData.transporter_name,
-        vehicle_no: formData.vehicle_no || 'RJ-14-GA-9999',
-        driver_name: formData.driver_name || 'Rajesh Pilot',
-        driver_phone: formData.driver_phone || '9829000000',
+        vehicle_no: formData.vehicle_no,
+        driver_name: formData.driver_name,
+        driver_phone: formData.driver_phone,
         origin_hub: formData.origin_hub,
         destination_hub: formData.destination_hub,
         status: 'PLANNED',
+        dispatch_at: null,
+        delivered_at: null,
         is_admin_funded: formData.is_admin_funded,
         package_count: 1,
-        total_cbm: (formData.length_cm * formData.width_cm * formData.height_cm) / 1000000.0,
+        total_cbm: Number(((formData.length_cm * formData.width_cm * formData.height_cm) / 1000000.0).toFixed(4)),
         total_gross_weight: formData.gross_weight,
         total_cost: formData.freight_cost,
-        admin_borne_cost: formData.is_admin_funded ? formData.freight_cost : 0.0,
+        admin_borne_cost: formData.is_admin_funded ? formData.freight_cost : 0,
         has_pod: false,
         created_at: new Date().toISOString()
       };
-      setConsignments([newCons, ...consignments]);
-      setNotification(`Consignment ${newNum} created successfully! (Admin-Borne Cost Active)`);
+      setConsignments([newCn, ...consignments]);
       setShowCreateModal(false);
-      setTimeout(() => setNotification(null), 3500);
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PLANNED':
-        return <span className="bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded border border-slate-300">PLANNED</span>;
-      case 'READY_FOR_LOADING':
-        return <span className="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded border border-indigo-200">READY</span>;
-      case 'LOADING':
-        return <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-200">LOADING</span>;
+        return (
+          <span style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '3px 9px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb' }}></span>
+            PLANNED
+          </span>
+        );
       case 'DISPATCHED':
-        return <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-200">DISPATCHED</span>;
+        return (
+          <span style={{ backgroundColor: '#e0e7ff', color: '#3730a3', border: '1px solid #c7d2fe', padding: '3px 9px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#4f46e5' }}></span>
+            DISPATCHED
+          </span>
+        );
       case 'IN_TRANSIT':
-        return <span className="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded border border-purple-200 animate-pulse">IN TRANSIT</span>;
+        return (
+          <span style={{ backgroundColor: '#f3e8ff', color: '#6b21a8', border: '1px solid #e9d5ff', padding: '3px 9px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#9333ea' }}></span>
+            IN TRANSIT
+          </span>
+        );
       case 'DELIVERED':
-        return <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-200">DELIVERED</span>;
+        return (
+          <span style={{ backgroundColor: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', padding: '3px 9px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <CheckCircle2 size={12} color="#059669" />
+            DELIVERED
+          </span>
+        );
       case 'EXCEPTION':
-        return <span className="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded border border-rose-300 animate-bounce">EXCEPTION</span>;
+        return (
+          <span style={{ backgroundColor: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', padding: '3px 9px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <AlertTriangle size={12} color="#dc2626" />
+            EXCEPTION
+          </span>
+        );
       default:
-        return <span className="bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded">{status}</span>;
+        return (
+          <span style={{ backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', padding: '3px 9px', borderRadius: '6px', fontSize: '11px', fontWeight: 700 }}>
+            {status}
+          </span>
+        );
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f7f5] text-slate-800 p-4 md:p-6 font-sans">
-      {/* ── APEX HEADER ────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between pb-5 border-b border-slate-200 gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <span className="bg-[#1b4332] text-white text-xs font-bold px-2.5 py-1 rounded tracking-wider uppercase">
-              DOC-34 Engine
-            </span>
-            <h1 className="text-2xl font-black text-[#1b4332] tracking-tight">
+    <div
+      id="cargo-board-root"
+      style={{
+        backgroundColor: '#eef2ef',
+        minHeight: '100%',
+        padding: '24px 32px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px',
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        color: '#111827'
+      }}
+    >
+      {/* ── APEX OPERATIONAL HEADER ── */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          padding: '20px 24px',
+          border: '1px solid #d8e2dc',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)',
+          flexWrap: 'wrap',
+          gap: '16px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div
+            style={{
+              backgroundColor: '#1b4332',
+              color: '#ffffff',
+              borderRadius: '10px',
+              padding: '6px 14px',
+              fontSize: '11px',
+              fontWeight: 800,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <Truck size={14} />
+            DOC-34 ENGINE
+          </div>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: '#111827', letterSpacing: '-0.02em' }}>
               Cargo & Consignment Operations Board
             </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', fontSize: '12px', color: '#52796f', fontWeight: 500 }}>
+              <span>Authoritative Movement Layer</span>
+              <span style={{ color: '#d8e2dc' }}>•</span>
+              <span>Alphanumeric Series Continuation (`CN-YYYY-XXXX`)</span>
+              <span style={{ color: '#d8e2dc' }}>•</span>
+              <span style={{ backgroundColor: '#ecfdf5', color: '#065f46', padding: '1px 8px', borderRadius: '4px', fontWeight: 700 }}>
+                Admin-Borne Funding Policy Active
+              </span>
+            </div>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Authoritative Cargo Layer • LR/GR & Transport Milestones • Volumetric CBM • Admin-Borne Client Cargo Architecture
-          </p>
         </div>
 
         {/* Global Action Toolbar */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <button
             id="btn-create-consignment"
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-3.5 py-2 bg-[#1b4332] hover:bg-[#2d6a4f] text-white text-xs font-bold rounded shadow transition-all cursor-pointer"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              backgroundColor: '#1b4332',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '13px',
+              boxShadow: '0 4px 12px rgba(27, 67, 50, 0.2)',
+              transition: 'all 0.15s ease'
+            }}
           >
-            <span>+ New Consignment</span>
-            <span className="bg-black/30 px-1.5 py-0.5 rounded text-[10px] font-mono">[F6]</span>
+            <Plus size={16} />
+            <span>New Consignment</span>
+            <span style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 800 }}>[F6]</span>
           </button>
 
           <button
             id="btn-nav-costs"
             onClick={() => navigate('/cargo/costs')}
-            className="flex items-center gap-2 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded border border-slate-300 shadow-sm transition-colors cursor-pointer"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              backgroundColor: '#ffffff',
+              color: '#1b4332',
+              border: '1px solid #1b4332',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '13px'
+            }}
           >
+            <DollarSign size={15} />
             <span>Cost Allocation Center</span>
-            <span className="bg-slate-200 px-1.5 py-0.5 rounded text-[10px] font-mono">[F4]</span>
+            <span style={{ backgroundColor: '#eef2ef', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 800 }}>[F4]</span>
           </button>
 
           <button
             id="btn-nav-pod"
             onClick={() => navigate('/cargo/pod-exceptions')}
-            className="flex items-center gap-2 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded border border-slate-300 shadow-sm transition-colors cursor-pointer"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              backgroundColor: '#ffffff',
+              color: '#b91c1c',
+              border: '1px solid #fecaca',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '13px'
+            }}
           >
+            <ShieldCheck size={15} />
             <span>POD & Exception Desk</span>
           </button>
         </div>
       </div>
 
-      {/* ── NOTIFICATION TOAST ─────────────────────────────────── */}
-      {notification && (
-        <div className="my-3 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold rounded flex items-center justify-between shadow-sm animate-fade-in">
-          <span>✓ {notification}</span>
-          <button onClick={() => setNotification(null)} className="text-emerald-700 hover:text-emerald-900 font-bold">×</button>
-        </div>
-      )}
-
-      {/* ── TOP KPI METRIC STRIP ───────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5 my-5">
-        <div className="bg-white rounded-lg p-3.5 border border-slate-200 shadow-sm">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Consignments</div>
-          <div id="stat-total-consignments" className="text-2xl font-black text-[#1b4332] mt-1">
-            {summary.total_consignments}
-          </div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Authoritative Movement Records</div>
-        </div>
-
-        <div className="bg-white rounded-lg p-3.5 border border-slate-200 shadow-sm">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">In-Transit Cargo</div>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-purple-500 animate-pulse"></span>
-            <span id="stat-active-transit" className="text-2xl font-black text-purple-700">
-              {summary.active_in_transit}
+      {/* ── 5 PREMIUM KPI SUMMARY CARDS ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
+        {/* Card 1: Total Consignments */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '14px',
+            padding: '18px 20px',
+            border: '1px solid #d8e2dc',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#52796f' }}>
+              Total Consignments
+            </span>
+            <span style={{ backgroundColor: '#ecfdf5', color: '#065f46', padding: '4px 8px', borderRadius: '6px' }}>
+              <Package size={14} />
             </span>
           </div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Active Linehaul Vehicles</div>
-        </div>
-
-        <div className="bg-white rounded-lg p-3.5 border border-slate-200 shadow-sm">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Volume (CBM)</div>
-          <div id="stat-total-cbm" className="text-2xl font-black text-slate-700 mt-1">
-            {Number(summary.total_cbm).toFixed(3)} <span className="text-xs font-semibold text-slate-400">m³</span>
+          <div id="stat-total-consignments" style={{ fontSize: '28px', fontWeight: 800, color: '#1b4332', marginTop: '10px' }}>
+            {summary.total_consignments}
           </div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Volumetric Occupancy</div>
+          <div style={{ fontSize: '11px', color: '#40916c', marginTop: '4px', fontWeight: 600 }}>
+            Authoritative Movement Records
+          </div>
         </div>
 
-        <div className="bg-white rounded-lg p-3.5 border border-slate-200 shadow-sm">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Admin-Borne Cost</div>
-          <div id="stat-admin-borne-cost" className="text-2xl font-black text-emerald-700 mt-1">
+        {/* Card 2: Active In-Transit */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '14px',
+            padding: '18px 20px',
+            border: '1px solid #d8e2dc',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#6366f1' }}>
+              Active In-Transit
+            </span>
+            <span style={{ backgroundColor: '#eef2ff', color: '#4f46e5', padding: '4px 8px', borderRadius: '6px' }}>
+              <Truck size={14} />
+            </span>
+          </div>
+          <div id="stat-active-transit" style={{ fontSize: '28px', fontWeight: 800, color: '#4338ca', marginTop: '10px' }}>
+            {summary.active_in_transit}
+          </div>
+          <div style={{ fontSize: '11px', color: '#6366f1', marginTop: '4px', fontWeight: 600 }}>
+            On-Road Carrier Custody
+          </div>
+        </div>
+
+        {/* Card 3: Volumetric CBM */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '14px',
+            padding: '18px 20px',
+            border: '1px solid #d8e2dc',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#0d9488' }}>
+              Volumetric CBM
+            </span>
+            <span style={{ backgroundColor: '#f0fdfa', color: '#0f766e', padding: '4px 8px', borderRadius: '6px' }}>
+              <Box size={14} />
+            </span>
+          </div>
+          <div id="stat-total-cbm" style={{ fontSize: '28px', fontWeight: 800, color: '#0f766e', marginTop: '10px' }}>
+            {Number(summary.total_cbm).toFixed(3)} <span style={{ fontSize: '14px', color: '#64748b' }}>m³</span>
+          </div>
+          <div style={{ fontSize: '11px', color: '#0d9488', marginTop: '4px', fontWeight: 600 }}>
+            Aggregate Cargo Displacement
+          </div>
+        </div>
+
+        {/* Card 4: Admin-Borne Freight */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '14px',
+            padding: '18px 20px',
+            border: '1px solid #d8e2dc',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#059669' }}>
+              Admin-Borne Freight
+            </span>
+            <span style={{ backgroundColor: '#ecfdf5', color: '#059669', padding: '4px 8px', borderRadius: '6px' }}>
+              <ShieldCheck size={14} />
+            </span>
+          </div>
+          <div id="stat-admin-borne-cost" style={{ fontSize: '28px', fontWeight: 800, color: '#065f46', marginTop: '10px' }}>
             ₹{summary.admin_borne_cost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Funded for Client Companies</div>
+          <div style={{ fontSize: '11px', color: '#059669', marginTop: '4px', fontWeight: 600 }}>
+            Funded via Admin GL (DOC-08)
+          </div>
         </div>
 
-        <div className="bg-white rounded-lg p-3.5 border border-slate-200 shadow-sm">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending PODs</div>
-          <div id="stat-pending-pod" className="text-2xl font-black text-amber-600 mt-1">
+        {/* Card 5: Pending Delivery PODs */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '14px',
+            padding: '18px 20px',
+            border: '1px solid #d8e2dc',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#d97706' }}>
+              Pending Delivery PODs
+            </span>
+            <span style={{ backgroundColor: '#fffbeb', color: '#b45309', padding: '4px 8px', borderRadius: '6px' }}>
+              <Clock size={14} />
+            </span>
+          </div>
+          <div id="stat-pending-pod" style={{ fontSize: '28px', fontWeight: 800, color: '#b45309', marginTop: '10px' }}>
             {summary.pending_pod_count}
           </div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Awaiting Receipt Evidence</div>
+          <div style={{ fontSize: '11px', color: '#d97706', marginTop: '4px', fontWeight: 600 }}>
+            Awaiting Physical Sign-Off
+          </div>
         </div>
       </div>
 
-      {/* ── FILTER & SEARCH TOOLBAR ────────────────────────────── */}
-      <div className="bg-white rounded-lg p-3.5 border border-slate-200 shadow-sm mb-5 flex flex-col md:flex-row md:items-center justify-between gap-3">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <input
-            id="input-cargo-search"
-            ref={searchInputRef}
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && loadData()}
-            placeholder="Search Consignment No, LR No, Transporter, Destination... [Ctrl+F]"
-            className="w-full text-xs font-medium pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#1b4332]"
-          />
-          <span className="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
+      {/* ── UNIFIED FILTER & SEARCH BAR ── */}
+      <div
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '14px',
+          padding: '14px 20px',
+          border: '1px solid #d8e2dc',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '16px',
+          flexWrap: 'wrap'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '320px' }}>
+          <div style={{ position: 'relative', width: '100%' }}>
+            <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '11px' }} />
+            <input
+              id="input-cargo-search"
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search Consignment No, LR / Docket, Carrier, Origin, Destination (Ctrl+F)..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && loadData()}
+              style={{
+                width: '100%',
+                padding: '9px 12px 9px 38px',
+                backgroundColor: '#f8faf9',
+                border: '1px solid #d8e2dc',
+                borderRadius: '8px',
+                fontSize: '13px',
+                color: '#111827',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <select
-            id="select-cargo-status"
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="text-xs font-semibold px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded text-slate-700 focus:outline-none"
-          >
-            <option value="ALL">All Lifecycle States</option>
-            <option value="PLANNED">PLANNED</option>
-            <option value="READY_FOR_LOADING">READY FOR LOADING</option>
-            <option value="LOADING">LOADING</option>
-            <option value="DISPATCHED">DISPATCHED</option>
-            <option value="IN_TRANSIT">IN TRANSIT</option>
-            <option value="DELIVERED">DELIVERED</option>
-            <option value="EXCEPTION">EXCEPTION</option>
-          </select>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {/* Status filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#52796f' }}>Status:</span>
+            <select
+              id="select-cargo-status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                backgroundColor: '#f8faf9',
+                border: '1px solid #d8e2dc',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#111827',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="ALL">All Lifecycle States</option>
+              <option value="PLANNED">Planned (Ready)</option>
+              <option value="DISPATCHED">Dispatched (Origin Departed)</option>
+              <option value="IN_TRANSIT">In Transit (Linehaul)</option>
+              <option value="DELIVERED">Delivered (Completed)</option>
+              <option value="EXCEPTION">Exception (Discrepancy)</option>
+            </select>
+          </div>
 
-          <select
-            id="select-cost-bearer"
-            value={selectedCostBearer}
-            onChange={(e) => setSelectedCostBearer(e.target.value)}
-            className="text-xs font-semibold px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded text-slate-700 focus:outline-none"
-          >
-            <option value="ALL">All Cost Bearers</option>
-            <option value="ADMIN">Admin-Borne Cargo Only</option>
-            <option value="CLIENT">Client-Borne Cargo Only</option>
-          </select>
+          {/* Cost Bearer filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#52796f' }}>Bearer:</span>
+            <select
+              id="select-cost-bearer"
+              value={costBearerFilter}
+              onChange={(e) => setCostBearerFilter(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                backgroundColor: '#f8faf9',
+                border: '1px solid #d8e2dc',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#111827',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="ALL">All Cost Bearers</option>
+              <option value="ADMIN">Admin-Borne (Subsidized)</option>
+              <option value="CLIENT">Client-Borne (Billable)</option>
+            </select>
+          </div>
 
           <button
-            onClick={loadData}
-            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded transition-colors cursor-pointer"
+            onClick={() => loadData()}
+            title="Refresh Consignments"
+            style={{
+              padding: '8px 14px',
+              backgroundColor: '#f8faf9',
+              border: '1px solid #d8e2dc',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              color: '#2d6a4f',
+              fontWeight: 700,
+              fontSize: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
           >
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
             Refresh
           </button>
         </div>
       </div>
 
-      {/* ── CONSIGNMENT GRID / TABLE ───────────────────────────── */}
-      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+      {/* ── CONSIGNMENT REGISTRY TABLE ── */}
+      <div
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          border: '1px solid #d8e2dc',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
+          overflow: 'hidden'
+        }}
+      >
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12.5px' }}>
             <thead>
-              <tr className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200 uppercase tracking-wider text-[11px]">
-                <th className="py-3 px-4">Consignment #</th>
-                <th className="py-3 px-3">Doc / LR No</th>
-                <th className="py-3 px-3">Transporter & Vehicle</th>
-                <th className="py-3 px-3">Origin ➔ Destination</th>
-                <th className="py-3 px-3 text-center">Pkgs / CBM</th>
-                <th className="py-3 px-3 text-right">Freight Cost (₹)</th>
-                <th className="py-3 px-3">Cost Bearer</th>
-                <th className="py-3 px-3 text-center">Status</th>
-                <th className="py-3 px-4 text-center">Action</th>
+              <tr style={{ backgroundColor: '#1b4332', color: '#ffffff', fontWeight: 700, textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.04em' }}>
+                <th style={{ padding: '14px 18px' }}>Consignment #</th>
+                <th style={{ padding: '14px 14px' }}>Doc / LR No</th>
+                <th style={{ padding: '14px 16px' }}>Transporter & Vehicle</th>
+                <th style={{ padding: '14px 16px' }}>Origin ➔ Destination</th>
+                <th style={{ padding: '14px 14px', textAlign: 'center' }}>Pkgs / CBM</th>
+                <th style={{ padding: '14px 16px', textAlign: 'right' }}>Freight (₹)</th>
+                <th style={{ padding: '14px 14px' }}>Cost Bearer</th>
+                <th style={{ padding: '14px 14px', textAlign: 'center' }}>Status</th>
+                <th style={{ padding: '14px 18px', textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              {consignments.map((c) => (
+            <tbody>
+              {consignments.map((c, idx) => (
                 <tr
                   key={c.id}
                   id={`consignment-row-${c.id}`}
                   onClick={() => handleInspect(c.id)}
-                  className="hover:bg-emerald-50/40 transition-colors cursor-pointer group"
+                  style={{
+                    borderBottom: '1px solid #eef2ef',
+                    backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafcfb',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#ecfdf5'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = idx % 2 === 0 ? '#ffffff' : '#fafcfb'}
                 >
-                  <td className="py-3 px-4">
-                    <div className="font-bold text-[#1b4332] group-hover:underline">
+                  <td style={{ padding: '14px 18px' }}>
+                    <div style={{ fontWeight: 800, color: '#1b4332', fontFamily: 'monospace', fontSize: '13px' }}>
                       {c.consignment_number}
                     </div>
-                    <div className="text-[10px] text-slate-400">
+                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
                       {new Date(c.created_at).toLocaleDateString('en-GB')}
                     </div>
                   </td>
-                  <td className="py-3 px-3">
-                    <div className="font-mono text-slate-900 font-bold">{c.lr_no || 'Pending LR'}</div>
-                    <div className="text-[10px] text-slate-500">{c.document_number || 'Direct Cargo'}</div>
+
+                  <td style={{ padding: '14px 14px' }}>
+                    <div style={{ fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>
+                      {c.lr_no || 'Pending LR'}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                      {c.document_number || 'Direct Cargo'}
+                    </div>
                   </td>
-                  <td className="py-3 px-3">
-                    <div className="font-semibold text-slate-800">{c.transporter_name}</div>
-                    <div className="text-[10px] text-slate-500 flex items-center gap-1 font-mono">
+
+                  <td style={{ padding: '14px 16px' }}>
+                    <div style={{ fontWeight: 700, color: '#1e293b' }}>
+                      {c.transporter_name}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', fontFamily: 'monospace' }}>
                       <span>🚚 {c.vehicle_no || 'Unassigned'}</span>
                       {c.driver_name && <span>• {c.driver_name}</span>}
                     </div>
                   </td>
-                  <td className="py-3 px-3">
-                    <div className="text-[11px] text-slate-900 font-semibold">{c.destination_hub}</div>
-                    <div className="text-[10px] text-slate-400">From: {c.origin_hub}</div>
+
+                  <td style={{ padding: '14px 16px' }}>
+                    <div style={{ fontWeight: 700, color: '#0f172a' }}>
+                      {c.destination_hub}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                      From: {c.origin_hub}
+                    </div>
                   </td>
-                  <td className="py-3 px-3 text-center">
-                    <div className="font-bold">{c.package_count} pkgs</div>
-                    <div className="text-[10px] text-slate-500 font-mono">{Number(c.total_cbm).toFixed(3)} m³</div>
+
+                  <td style={{ padding: '14px 14px', textAlign: 'center' }}>
+                    <div style={{ fontWeight: 800, color: '#1e293b' }}>
+                      {c.package_count} pkgs
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#059669', fontFamily: 'monospace', fontWeight: 700 }}>
+                      {Number(c.total_cbm).toFixed(3)} m³
+                    </div>
                   </td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">
+
+                  <td style={{ padding: '14px 16px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 800, color: '#0f172a' }}>
                     ₹{c.total_cost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
-                  <td className="py-3 px-3">
+
+                  <td style={{ padding: '14px 14px' }}>
                     {c.is_admin_funded ? (
-                      <span className="bg-emerald-50 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-200">
+                      <span style={{ backgroundColor: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700 }}>
                         Admin-Borne
                       </span>
                     ) : (
-                      <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200">
+                      <span style={{ backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700 }}>
                         Client-Borne
                       </span>
                     )}
                   </td>
-                  <td className="py-3 px-3 text-center">
+
+                  <td style={{ padding: '14px 14px', textAlign: 'center' }}>
                     {getStatusBadge(c.status)}
                   </td>
-                  <td className="py-3 px-4 text-center">
+
+                  <td style={{ padding: '14px 18px', textAlign: 'center' }}>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleInspect(c.id);
                       }}
-                      className="px-2.5 py-1 bg-slate-100 hover:bg-[#1b4332] hover:text-white text-slate-700 text-[10px] font-bold rounded transition-colors cursor-pointer"
+                      style={{
+                        padding: '6px 14px',
+                        backgroundColor: '#f1f5f9',
+                        color: '#1e293b',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        fontWeight: 700,
+                        fontSize: '11px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#1b4332';
+                        e.currentTarget.style.color = '#ffffff';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#f1f5f9';
+                        e.currentTarget.style.color = '#1e293b';
+                      }}
                     >
                       Inspect ↗
                     </button>
                   </td>
                 </tr>
               ))}
+              {consignments.length === 0 && (
+                <tr>
+                  <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                    No consignments found matching your active filter criteria.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* ── SLIDE-OVER CONSIGNMENT DETAIL DRAWER ────────────────── */}
+      {/* ── SLIDE-OVER DETAIL & INSPECTION DRAWER ── */}
       {selectedConsignmentId && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex justify-end z-50 animate-fade-in">
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.4)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            zIndex: 1000
+          }}
+          onClick={() => setSelectedConsignmentId(null)}
+        >
           <div
             id="drawer-consignment-detail"
-            className="w-full max-w-xl bg-white h-full shadow-2xl p-6 overflow-y-auto flex flex-col justify-between"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '580px',
+              maxWidth: '100vw',
+              backgroundColor: '#ffffff',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '-8px 0 32px rgba(0, 0, 0, 0.15)',
+              overflowY: 'auto'
+            }}
           >
-            <div>
-              {/* Drawer Apex Header */}
-              <div className="flex items-start justify-between pb-4 border-b border-slate-200">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-lg font-black text-[#1b4332]">
-                      {detailData?.consignment_number}
-                    </span>
-                    {detailData && getStatusBadge(detailData.status)}
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1">
-                    LR: <strong className="font-mono text-slate-800">{detailData?.lr_no}</strong> • Ref: {detailData?.document_number || 'Direct Consignment'}
-                  </div>
+            {/* Drawer Header */}
+            <div
+              style={{
+                padding: '20px 24px',
+                borderBottom: '1px solid #e2e8f0',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                backgroundColor: '#f8fafc'
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1b4332', fontFamily: 'monospace' }}>
+                    {detailData?.consignment_number || 'Consignment Details'}
+                  </h2>
+                  {detailData && getStatusBadge(detailData.status)}
                 </div>
-                <button
-                  id="btn-close-drawer"
-                  onClick={() => {
-                    setSelectedConsignmentId(null);
-                    setDetailData(null);
-                  }}
-                  className="text-slate-400 hover:text-slate-700 text-xl font-bold p-1 cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Movement & Transport Details */}
-              <div className="my-4 p-3.5 bg-slate-50 rounded-lg border border-slate-200 text-xs">
-                <div className="font-bold text-slate-700 mb-2 uppercase tracking-wider text-[10px]">
-                  Transport & Linehaul Movement
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-slate-600">
-                  <div>Transporter: <strong className="text-slate-800">{detailData?.transporter_name}</strong></div>
-                  <div>Vehicle: <strong className="font-mono text-slate-800">{detailData?.vehicle_no || 'Not Assigned'}</strong></div>
-                  <div>Driver: <strong className="text-slate-800">{detailData?.driver_name || 'N/A'}</strong></div>
-                  <div>Phone: <strong className="font-mono text-slate-800">{detailData?.driver_phone || 'N/A'}</strong></div>
-                  <div>Origin: <strong className="text-slate-800">{detailData?.origin_hub}</strong></div>
-                  <div>Destination: <strong className="text-slate-800">{detailData?.destination_hub}</strong></div>
+                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                  Created on {detailData ? new Date(detailData.created_at).toLocaleDateString('en-GB') : '...'} • LR: {detailData?.lr_no || 'Unassigned'}
                 </div>
               </div>
 
-              {/* Packages & Volumetric CBM Calculation */}
-              <div className="my-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
-                    Cargo Packages & Volumetrics
+              <button
+                id="btn-close-drawer"
+                onClick={() => setSelectedConsignmentId(null)}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#64748b',
+                  fontWeight: 700
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Drawer Body Content */}
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
+              {/* Carrier & Route Card */}
+              <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '10px' }}>
+                  Carrier & Route Manifest
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', fontSize: '12px' }}>
+                  <div>
+                    <span style={{ color: '#94a3b8' }}>Transporter:</span>
+                    <div style={{ fontWeight: 700, color: '#0f172a' }}>{detailData?.transporter_name}</div>
                   </div>
-                  <span className="text-[10px] text-slate-500 font-mono">
+                  <div>
+                    <span style={{ color: '#94a3b8' }}>Vehicle & Driver:</span>
+                    <div style={{ fontWeight: 700, color: '#0f172a' }}>{detailData?.vehicle_no} • {detailData?.driver_name}</div>
+                  </div>
+                  <div>
+                    <span style={{ color: '#94a3b8' }}>Origin Hub:</span>
+                    <div style={{ fontWeight: 700, color: '#0f172a' }}>{detailData?.origin_hub}</div>
+                  </div>
+                  <div>
+                    <span style={{ color: '#94a3b8' }}>Destination Hub:</span>
+                    <div style={{ fontWeight: 700, color: '#0f172a' }}>{detailData?.destination_hub}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Package & Volumetric Dimensions */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: '#1e293b', textTransform: 'uppercase' }}>
+                    Packages & Volumetric Dimensions ({detailData?.packages?.length || 1} Pkgs)
+                  </div>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: '#059669', fontFamily: 'monospace' }}>
                     Total CBM: {Number(detailData?.total_cbm || 0).toFixed(4)} m³
-                  </span>
+                  </div>
                 </div>
-                <div className="border border-slate-200 rounded-lg overflow-hidden text-xs">
-                  <table className="w-full text-left">
-                    <thead className="bg-slate-100 text-slate-600 text-[10px] font-bold uppercase">
-                      <tr>
-                        <th className="py-2 px-3">Barcode</th>
-                        <th className="py-2 px-2">Type</th>
-                        <th className="py-2 px-2">L×W×H (cm)</th>
-                        <th className="py-2 px-2 text-right">Gross (kg)</th>
-                        <th className="py-2 px-2 text-right">CBM (m³)</th>
+
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', fontSize: '11.5px', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f1f5f9', color: '#475569', fontWeight: 700, borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ padding: '8px 12px' }}>Barcode</th>
+                        <th style={{ padding: '8px 8px' }}>Type</th>
+                        <th style={{ padding: '8px 8px' }}>L × W × H (cm)</th>
+                        <th style={{ padding: '8px 8px' }}>Gross Wt</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'right' }}>CBM</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
-                      {detailData?.packages.map((pkg, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50">
-                          <td className="py-2 px-3 font-bold text-[#1b4332]">{pkg.barcode}</td>
-                          <td className="py-2 px-2 text-slate-700">{pkg.package_type}</td>
-                          <td className="py-2 px-2 text-slate-600">{pkg.length_cm}×{pkg.width_cm}×{pkg.height_cm}</td>
-                          <td className="py-2 px-2 text-right font-bold text-slate-800">{pkg.gross_weight}</td>
-                          <td className="py-2 px-2 text-right font-bold text-emerald-700">{Number(pkg.cbm).toFixed(4)}</td>
+                    <tbody>
+                      {detailData?.packages?.map((pkg, i) => (
+                        <tr key={pkg.id || i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#1b4332' }}>
+                            {pkg.barcode}
+                          </td>
+                          <td style={{ padding: '8px 8px' }}>{pkg.package_type}</td>
+                          <td style={{ padding: '8px 8px', fontFamily: 'monospace' }}>
+                            {pkg.length_cm} × {pkg.width_cm} × {pkg.height_cm}
+                          </td>
+                          <td style={{ padding: '8px 8px', fontWeight: 700 }}>{pkg.gross_weight} kg</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 800, color: '#059669', fontFamily: 'monospace' }}>
+                            {Number(pkg.cbm).toFixed(4)}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -711,167 +1113,208 @@ export default function CargoBoard() {
                 </div>
               </div>
 
-              {/* Economic Cost Allocation & Admin-Borne Badge */}
-              <div className="my-4 p-3.5 bg-emerald-50/60 rounded-lg border border-emerald-200 text-xs">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="font-bold text-emerald-900 text-[11px] uppercase tracking-wider">
-                    Economic Cost Allocation
+              {/* Admin-Funded Cargo Cost Box */}
+              <div style={{ backgroundColor: '#ecfdf5', padding: '16px', borderRadius: '12px', border: '1px solid #a7f3d0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 800, color: '#065f46' }}>
+                    DOC-34 Admin-Funded Cargo Separation
                   </span>
-                  <span className="bg-emerald-700 text-white text-[10px] font-bold px-2 py-0.5 rounded">
+                  <span style={{ backgroundColor: '#059669', color: '#ffffff', fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '4px' }}>
                     Admin-Borne Active
                   </span>
                 </div>
-                <div className="text-slate-600 space-y-1">
-                  <div className="flex justify-between">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: '#1e293b' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>Gross Freight Incurred:</span>
-                    <strong className="font-mono text-slate-900">₹{(detailData?.total_cost ?? 0).toFixed(2)}</strong>
+                    <strong style={{ fontFamily: 'monospace' }}>₹{(detailData?.total_cost ?? 0).toFixed(2)}</strong>
                   </div>
-                  <div className="flex justify-between text-emerald-800">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#065f46' }}>
                     <span>Borne by Platform Admin (DOC-08 GL):</span>
-                    <strong className="font-mono">₹{(detailData?.admin_borne_cost ?? 0).toFixed(2)}</strong>
+                    <strong style={{ fontFamily: 'monospace' }}>₹{(detailData?.admin_borne_cost ?? 0).toFixed(2)}</strong>
                   </div>
-                  <div className="text-[10px] text-slate-500 pt-1 border-t border-emerald-200">
+                  <div style={{ fontSize: '11px', color: '#059669', paddingTop: '6px', borderTop: '1px solid #a7f3d0', marginTop: '4px' }}>
                     Client company ledger is not debited. Cost appears as analytical MIS allocation.
                   </div>
                 </div>
               </div>
 
-              {/* POD Status Section */}
-              {detailData?.pod && (
-                <div className="my-4 p-3 bg-purple-50 rounded-lg border border-purple-200 text-xs">
-                  <div className="font-bold text-purple-900 mb-1 flex items-center justify-between">
-                    <span>✓ Proof of Delivery Recorded</span>
-                    <span className="font-mono text-[10px]">{detailData.pod.signature_token}</span>
-                  </div>
-                  <div className="text-slate-700">
-                    Received by: <strong>{detailData.pod.received_by}</strong> on {new Date(detailData.pod.received_at).toLocaleDateString()}
-                  </div>
-                  {detailData.pod.damage_qty > 0 && (
-                    <div className="text-rose-700 font-bold mt-1">
-                      ⚠️ Damage Reported: {detailData.pod.damage_qty} packages ({detailData.pod.remarks})
-                    </div>
+              {/* Movement State Machine Action Buttons */}
+              <div style={{ paddingTop: '16px', borderTop: '1px solid #e2e8f0', marginTop: 'auto' }}>
+                <div style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: '10px' }}>
+                  Advance Movement State Machine:
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  {detailData?.status === 'PLANNED' && (
+                    <button
+                      id="btn-advance-status-dispatched"
+                      onClick={() => handleAdvanceStatus('DISPATCHED')}
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        backgroundColor: '#2563eb',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontWeight: 700,
+                        fontSize: '13px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Confirm Dispatch
+                    </button>
+                  )}
+                  {detailData?.status === 'DISPATCHED' && (
+                    <button
+                      id="btn-advance-status-transit"
+                      onClick={() => handleAdvanceStatus('IN_TRANSIT')}
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        backgroundColor: '#7c3aed',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontWeight: 700,
+                        fontSize: '13px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Mark In-Transit
+                    </button>
+                  )}
+                  {detailData?.status === 'IN_TRANSIT' && (
+                    <button
+                      id="btn-advance-to-pod"
+                      onClick={() => navigate('/cargo/pod-exceptions')}
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        backgroundColor: '#059669',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontWeight: 700,
+                        fontSize: '13px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Record Delivery POD ➔
+                    </button>
+                  )}
+                  {detailData?.status === 'EXCEPTION' && (
+                    <button
+                      id="btn-advance-to-resolve"
+                      onClick={() => navigate('/cargo/pod-exceptions')}
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        backgroundColor: '#dc2626',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontWeight: 700,
+                        fontSize: '13px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Resolve Discrepancy ➔
+                    </button>
                   )}
                 </div>
-              )}
-            </div>
-
-            {/* Lifecycle Status Advance Actions */}
-            <div className="pt-4 border-t border-slate-200">
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-                Advance Movement State Machine:
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {detailData?.status === 'PLANNED' && (
-                  <button
-                    id="btn-advance-status-dispatched"
-                    onClick={() => handleAdvanceStatus('DISPATCHED')}
-                    className="flex-1 px-3 py-2 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded shadow transition-colors cursor-pointer"
-                  >
-                    Confirm Dispatch
-                  </button>
-                )}
-                {detailData?.status === 'DISPATCHED' && (
-                  <button
-                    id="btn-advance-status-transit"
-                    onClick={() => handleAdvanceStatus('IN_TRANSIT')}
-                    className="flex-1 px-3 py-2 bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold rounded shadow transition-colors cursor-pointer"
-                  >
-                    Mark In-Transit
-                  </button>
-                )}
-                {detailData?.status === 'IN_TRANSIT' && (
-                  <button
-                    id="btn-advance-to-pod"
-                    onClick={() => navigate('/cargo/pod-exceptions')}
-                    className="flex-1 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded shadow transition-colors cursor-pointer"
-                  >
-                    Record Delivery POD ➔
-                  </button>
-                )}
-                {detailData?.status === 'EXCEPTION' && (
-                  <button
-                    id="btn-advance-to-resolve"
-                    onClick={() => navigate('/cargo/pod-exceptions')}
-                    className="flex-1 px-3 py-2 bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold rounded shadow transition-colors cursor-pointer"
-                  >
-                    Resolve Discrepancy ➔
-                  </button>
-                )}
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── CREATE NEW CONSIGNMENT MODAL ───────────────────────── */}
+      {/* ── CREATE NEW CONSIGNMENT MODAL ── */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            zIndex: 1100
+          }}
+        >
           <div
             id="modal-new-consignment"
-            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 border border-slate-200"
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)',
+              maxWidth: '680px',
+              width: '100%',
+              padding: '28px',
+              border: '1px solid #e2e8f0'
+            }}
           >
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '16px', borderBottom: '1px solid #e2e8f0' }}>
               <div>
-                <h3 className="text-lg font-black text-[#1b4332]">
+                <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#1b4332' }}>
                   Register New Cargo Consignment
                 </h3>
-                <p className="text-xs text-slate-500">
-                  Universal Alphanumeric Continuation (CN-YYYY-XXXX) • Volumetric CBM
+                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748b' }}>
+                  Series Continuation (CN-YYYY-XXXX) • Volumetric CBM • Multi-Package Tracking
                 </p>
               </div>
               <button
+                id="btn-cancel-modal"
                 onClick={() => setShowCreateModal(false)}
-                className="text-slate-400 hover:text-slate-700 font-bold text-xl cursor-pointer"
+                style={{ border: 'none', backgroundColor: 'transparent', fontSize: '20px', cursor: 'pointer', color: '#94a3b8', fontWeight: 700 }}
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleCreateSubmit} className="mt-4 space-y-4">
-              <div className="grid grid-cols-2 gap-3 text-xs">
+            <form onSubmit={handleCreateSubmit} style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px', fontSize: '12px' }}>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Transporter Name *</label>
+                  <label style={{ display: 'block', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Transporter Name *</label>
                   <input
                     id="input-transporter-name"
                     type="text"
                     required
                     value={formData.transporter_name}
                     onChange={(e) => setFormData({ ...formData, transporter_name: e.target.value })}
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded focus:bg-white"
+                    style={{ width: '100%', padding: '9px 12px', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }}
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Source Doc / Invoice Ref</label>
+                  <label style={{ display: 'block', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Source Doc / Invoice Ref</label>
                   <input
                     id="input-source-doc"
                     type="text"
-                    placeholder="e.g. RJ-INV-6880"
                     value={formData.document_number}
                     onChange={(e) => setFormData({ ...formData, document_number: e.target.value })}
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded focus:bg-white font-mono"
+                    style={{ width: '100%', padding: '9px 12px', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', fontFamily: 'monospace', boxSizing: 'border-box' }}
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Vehicle Number</label>
+                  <label style={{ display: 'block', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Vehicle Number</label>
                   <input
                     id="input-vehicle-no"
                     type="text"
-                    placeholder="e.g. DL-01-AB-4921"
                     value={formData.vehicle_no}
                     onChange={(e) => setFormData({ ...formData, vehicle_no: e.target.value })}
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded focus:bg-white font-mono"
+                    style={{ width: '100%', padding: '9px 12px', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', fontFamily: 'monospace', boxSizing: 'border-box' }}
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Driver Name & Phone</label>
-                  <div className="flex gap-2">
+                  <label style={{ display: 'block', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Driver Name & Phone</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
                     <input
                       id="input-driver-name"
                       type="text"
                       placeholder="Driver Name"
                       value={formData.driver_name}
                       onChange={(e) => setFormData({ ...formData, driver_name: e.target.value })}
-                      className="w-1/2 p-2 bg-slate-50 border border-slate-300 rounded focus:bg-white"
+                      style={{ width: '50%', padding: '9px 12px', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }}
                     />
                     <input
                       id="input-driver-phone"
@@ -879,136 +1322,134 @@ export default function CargoBoard() {
                       placeholder="Phone"
                       value={formData.driver_phone}
                       onChange={(e) => setFormData({ ...formData, driver_phone: e.target.value })}
-                      className="w-1/2 p-2 bg-slate-50 border border-slate-300 rounded focus:bg-white font-mono"
+                      style={{ width: '50%', padding: '9px 12px', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', fontFamily: 'monospace', boxSizing: 'border-box' }}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Origin Hub</label>
+                  <label style={{ display: 'block', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Origin Hub</label>
                   <input
                     id="input-origin-hub"
                     type="text"
                     value={formData.origin_hub}
                     onChange={(e) => setFormData({ ...formData, origin_hub: e.target.value })}
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded focus:bg-white"
+                    style={{ width: '100%', padding: '9px 12px', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }}
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Destination Hub *</label>
+                  <label style={{ display: 'block', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Destination Hub *</label>
                   <input
                     id="input-destination-hub"
                     type="text"
                     required
                     value={formData.destination_hub}
                     onChange={(e) => setFormData({ ...formData, destination_hub: e.target.value })}
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded focus:bg-white"
+                    style={{ width: '100%', padding: '9px 12px', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }}
                   />
                 </div>
               </div>
 
-              {/* Volumetric Package Inputs */}
-              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="text-[11px] font-bold text-slate-700 uppercase mb-2">
+              {/* Volumetric Package Dimensions */}
+              <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '12px', fontWeight: 800, color: '#1e293b', textTransform: 'uppercase', marginBottom: '10px' }}>
                   Initial Package & Volumetric Dimensions
                 </div>
-                <div className="grid grid-cols-4 gap-2 text-xs">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', fontSize: '12px' }}>
                   <div>
-                    <label className="block text-slate-500 text-[10px]">Type</label>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '11px', marginBottom: '4px' }}>Package Type</label>
                     <select
                       value={formData.package_type}
                       onChange={(e) => setFormData({ ...formData, package_type: e.target.value })}
-                      className="w-full p-1.5 bg-white border border-slate-300 rounded font-semibold"
+                      style={{ width: '100%', padding: '8px', backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '6px', fontWeight: 700 }}
                     >
                       <option value="Carton">Carton</option>
                       <option value="Box">Box</option>
                       <option value="Pallet">Pallet</option>
-                      <option value="Bag">Bag</option>
                       <option value="Drum">Drum</option>
+                      <option value="Bag">Bag</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-slate-500 text-[10px]">L × W × H (cm)</label>
-                    <div className="flex gap-1 font-mono">
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '11px', marginBottom: '4px' }}>L × W × H (cm)</label>
+                    <div style={{ display: 'flex', gap: '4px' }}>
                       <input
                         type="number"
                         value={formData.length_cm}
                         onChange={(e) => setFormData({ ...formData, length_cm: Number(e.target.value) })}
-                        className="w-1/3 p-1 bg-white border border-slate-300 rounded text-center"
+                        style={{ width: '33%', padding: '6px', textAlign: 'center', backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '12px', boxSizing: 'border-box' }}
                       />
                       <input
                         type="number"
                         value={formData.width_cm}
                         onChange={(e) => setFormData({ ...formData, width_cm: Number(e.target.value) })}
-                        className="w-1/3 p-1 bg-white border border-slate-300 rounded text-center"
+                        style={{ width: '33%', padding: '6px', textAlign: 'center', backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '12px', boxSizing: 'border-box' }}
                       />
                       <input
                         type="number"
                         value={formData.height_cm}
                         onChange={(e) => setFormData({ ...formData, height_cm: Number(e.target.value) })}
-                        className="w-1/3 p-1 bg-white border border-slate-300 rounded text-center"
+                        style={{ width: '33%', padding: '6px', textAlign: 'center', backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '12px', boxSizing: 'border-box' }}
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-slate-500 text-[10px]">Gross Wt (kg)</label>
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '11px', marginBottom: '4px' }}>Gross Wt (kg)</label>
                     <input
                       type="number"
                       step="0.1"
                       value={formData.gross_weight}
                       onChange={(e) => setFormData({ ...formData, gross_weight: Number(e.target.value) })}
-                      className="w-full p-1.5 bg-white border border-slate-300 rounded font-mono font-bold"
+                      style={{ width: '100%', padding: '8px', backgroundColor: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '6px', fontWeight: 700, boxSizing: 'border-box' }}
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-500 text-[10px]">Calculated CBM</label>
-                    <div className="p-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 font-mono font-bold rounded text-center">
+                    <label style={{ display: 'block', color: '#64748b', fontSize: '11px', marginBottom: '4px' }}>Calculated CBM</label>
+                    <div style={{ padding: '8px', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', color: '#065f46', fontWeight: 800, textAlign: 'center', borderRadius: '6px', fontFamily: 'monospace' }}>
                       {((formData.length_cm * formData.width_cm * formData.height_cm) / 1000000.0).toFixed(4)} m³
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Cost Bearer Settings */}
-              <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-lg flex items-center justify-between text-xs">
+              {/* Admin Cost Bearer Option */}
+              <div style={{ backgroundColor: '#ecfdf5', padding: '14px 18px', borderRadius: '12px', border: '1px solid #a7f3d0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <label className="flex items-center gap-2 font-bold text-emerald-950 cursor-pointer">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800, color: '#065f46', cursor: 'pointer', fontSize: '13px' }}>
                     <input
                       type="checkbox"
                       checked={formData.is_admin_funded}
                       onChange={(e) => setFormData({ ...formData, is_admin_funded: e.target.checked })}
-                      className="rounded text-[#1b4332]"
                     />
-                    <span>Admin Company Bears Cargo Cost (DOC-34 Policy)</span>
+                    <span>Admin Company Bears Cargo Cost (DOC-34 Central Policy)</span>
                   </label>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Operational cost is analytical for client; booked as expense only in Admin ledger.
-                  </p>
+                  <div style={{ fontSize: '11px', color: '#059669', marginTop: '2px' }}>
+                    Client company ledger is untouched; booked in Admin General Ledger.
+                  </div>
                 </div>
-                <div className="text-right">
-                  <label className="block text-[10px] text-slate-500">Freight Charge (₹)</label>
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#64748b', marginBottom: '2px' }}>Freight Cost (₹)</label>
                   <input
                     type="number"
                     value={formData.freight_cost}
                     onChange={(e) => setFormData({ ...formData, freight_cost: Number(e.target.value) })}
-                    className="p-1 bg-white border border-emerald-300 rounded font-mono font-bold text-slate-900 w-28 text-right"
+                    style={{ width: '110px', padding: '6px 10px', textAlign: 'right', fontWeight: 800, fontFamily: 'monospace', backgroundColor: '#ffffff', border: '1px solid #a7f3d0', borderRadius: '6px' }}
                   />
                 </div>
               </div>
 
               {/* Modal Buttons */}
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
                 <button
-                  id="btn-cancel-modal"
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded cursor-pointer"
+                  style={{ padding: '10px 18px', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}
                 >
                   Cancel
                 </button>
                 <button
                   id="btn-submit-consignment"
                   type="submit"
-                  className="px-5 py-2 bg-[#1b4332] hover:bg-[#2d6a4f] text-white text-xs font-bold rounded shadow transition-all cursor-pointer"
+                  style={{ padding: '10px 22px', backgroundColor: '#1b4332', color: '#ffffff', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '13px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(27,67,50,0.2)' }}
                 >
                   Save & Generate Consignment
                 </button>
