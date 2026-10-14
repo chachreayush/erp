@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Activity, CheckCircle2, Clock, AlertTriangle, ShieldCheck,
-  RefreshCw, ArrowLeft, Layers, Sparkles, Filter, Hash, RotateCcw
+  RefreshCw, ArrowLeft, Layers, Sparkles, Filter, Hash, RotateCcw, Truck
 } from 'lucide-react'
 import {
   apiGetWorkflowInstances, apiRetryWorkflowInstance, apiGetWorkflowAnalytics,
@@ -127,7 +127,16 @@ export default function WorkflowMonitor() {
 
   useEffect(() => {
     loadData()
-  }, [filterModule, filterStatus])
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) return
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        navigate('/workflow/inbox')
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [filterModule, filterStatus, navigate])
 
   const handleRetry = async (inst: WorkflowInstanceItem) => {
     try {
@@ -201,8 +210,8 @@ export default function WorkflowMonitor() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '4px',
-              padding: '6px 10px',
+              gap: '6px',
+              padding: '7px 12px',
               backgroundColor: '#f8faf9',
               border: '1px solid #d8e2dc',
               borderRadius: '8px',
@@ -212,7 +221,9 @@ export default function WorkflowMonitor() {
               fontSize: '12px'
             }}
           >
-            <ArrowLeft size={14} /> Back to Inbox
+            <ArrowLeft size={14} />
+            <span>Back to Inbox</span>
+            <span style={{ backgroundColor: '#e2e8f0', padding: '1px 5px', borderRadius: '4px', fontSize: '10px' }}>Esc</span>
           </button>
           <div>
             <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#111827', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -226,6 +237,27 @@ export default function WorkflowMonitor() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            id="btn-nav-cargo-consignment"
+            onClick={() => navigate('/cargo')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              backgroundColor: '#ecfdf5',
+              border: '1px solid #a7f3d0',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              color: '#065f46',
+              fontWeight: 700,
+              fontSize: '13px'
+            }}
+          >
+            <Truck size={15} color="#059669" />
+            Cargo & Consignments ↗
+          </button>
+
           <button
             onClick={() => loadData()}
             title="Refresh Monitor Feed"

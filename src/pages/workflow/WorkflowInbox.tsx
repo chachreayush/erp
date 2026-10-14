@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Inbox, CheckCircle2, XCircle, Clock, AlertTriangle, ShieldCheck,
   ChevronRight, RefreshCw, UserCheck, ArrowUpRight, Search, Filter,
-  Share2, FileText, Check, X, ShieldAlert, Sparkles, Layers
+  Share2, FileText, Check, X, ShieldAlert, Sparkles, Layers, Truck, ArrowLeft
 } from 'lucide-react'
 import {
   apiGetWorkflowInbox, apiPerformWorkflowAction,
@@ -169,12 +169,21 @@ export default function WorkflowInbox() {
           e.preventDefault()
           setShowDelegateModal(true)
         }
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        if (showRejectModal) {
+          setShowRejectModal(false)
+        } else if (showDelegateModal) {
+          setShowDelegateModal(false)
+        } else {
+          navigate('/')
+        }
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [filterStatus, selectedTask])
+  }, [filterStatus, selectedTask, showRejectModal, showDelegateModal, navigate])
 
   const handleApprove = async (task: WorkflowTaskItem) => {
     if (task.maker_checker_blocked) {
@@ -348,6 +357,27 @@ export default function WorkflowInbox() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
+            id="btn-nav-cargo-consignment"
+            onClick={() => navigate('/cargo')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              backgroundColor: '#ecfdf5',
+              border: '1px solid #a7f3d0',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              color: '#065f46',
+              fontWeight: 700,
+              fontSize: '13px'
+            }}
+          >
+            <Truck size={15} color="#059669" />
+            Cargo & Consignments ↗
+          </button>
+
+          <button
             id="btn-nav-designer"
             onClick={() => navigate('/workflow/designer')}
             style={{
@@ -408,6 +438,28 @@ export default function WorkflowInbox() {
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             Refresh
+          </button>
+
+          <button
+            onClick={() => navigate('/')}
+            title="Exit to Counter Workbench [Esc]"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              backgroundColor: '#f1f5f9',
+              border: '1px solid #cbd5e1',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              color: '#475569',
+              fontWeight: 700,
+              fontSize: '13px'
+            }}
+          >
+            <ArrowLeft size={14} />
+            <span>Counter</span>
+            <span style={{ backgroundColor: '#e2e8f0', padding: '1px 5px', borderRadius: '4px', fontSize: '10px' }}>Esc</span>
           </button>
         </div>
       </div>

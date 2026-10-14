@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Truck, Package, Box, AlertTriangle, CheckCircle2, Clock,
-  ArrowRight, Search, Filter, Plus, Download, RefreshCw,
+  ArrowRight, ArrowLeft, Search, Filter, Plus, Download, RefreshCw,
   ShieldCheck, Layers, ExternalLink, FileText, X, ChevronRight,
   Info, Calendar, User, Phone, MapPin, DollarSign, Activity
 } from 'lucide-react';
@@ -214,10 +214,19 @@ export default function CargoBoard() {
     loadData();
   }, [statusFilter, costBearerFilter]);
 
-  // Global Hotkeys (F6 for New Consignment, Ctrl+F for Search)
+  // Global Hotkeys (F6 for New Consignment, Ctrl+F for Search, Escape to exit/close)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F6') {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (showCreateModal) {
+          setShowCreateModal(false);
+        } else if (selectedConsignmentId) {
+          setSelectedConsignmentId(null);
+        } else {
+          navigate('/');
+        }
+      } else if (e.key === 'F6') {
         e.preventDefault();
         setShowCreateModal(true);
       } else if (e.ctrlKey && e.key === 'f') {
@@ -227,7 +236,7 @@ export default function CargoBoard() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [showCreateModal, selectedConsignmentId, navigate]);
 
   // Inspect Consignment
   const handleInspect = async (id: string) => {
@@ -554,6 +563,29 @@ export default function CargoBoard() {
           >
             <ShieldCheck size={15} />
             <span>POD & Exception Desk</span>
+          </button>
+
+          <button
+            id="btn-back-to-counter"
+            onClick={() => navigate('/')}
+            title="Return to Operational Counter Workbench [Esc]"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '10px 14px',
+              backgroundColor: '#f8faf9',
+              color: '#374151',
+              border: '1px solid #d1d5db',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '13px'
+            }}
+          >
+            <ArrowLeft size={15} />
+            <span>Counter</span>
+            <span style={{ backgroundColor: '#e5e7eb', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 800 }}>[Esc]</span>
           </button>
         </div>
       </div>

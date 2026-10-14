@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import {
   apiGetRetentionPolicies,
   apiUpsertRetentionPolicy,
@@ -13,6 +15,7 @@ import {
 } from '../../lib/api';
 
 export default function GovernanceConsole() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'policies' | 'holds' | 'anomalies' | 'export'>('policies');
 
   // Retention Policies
@@ -94,6 +97,25 @@ export default function GovernanceConsole() {
   useEffect(() => {
     loadAll();
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (editingPolicy) {
+          setEditingPolicy(null);
+        } else if (showApplyHoldModal) {
+          setShowApplyHoldModal(false);
+        } else if (releasingHoldId) {
+          setReleasingHoldId(null);
+        } else {
+          navigate('/audit');
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editingPolicy, showApplyHoldModal, releasingHoldId, navigate]);
 
   // Save Policy Change
   const handleSavePolicy = async () => {
@@ -197,43 +219,56 @@ export default function GovernanceConsole() {
           </p>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200 shadow-sm text-xs font-bold">
+        {/* Navigation Tabs & Actions */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200 shadow-sm text-xs font-bold">
+            <button
+              id="tab-btn-policies"
+              onClick={() => setActiveTab('policies')}
+              className={`px-3 py-1.5 rounded transition-colors ${
+                activeTab === 'policies' ? 'bg-[#1b4332] text-white' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Retention Policies
+            </button>
+            <button
+              id="tab-btn-holds"
+              onClick={() => setActiveTab('holds')}
+              className={`px-3 py-1.5 rounded transition-colors ${
+                activeTab === 'holds' ? 'bg-[#1b4332] text-white' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Legal Holds ({holds.filter(h => h.is_active).length})
+            </button>
+            <button
+              id="tab-btn-anomalies"
+              onClick={() => setActiveTab('anomalies')}
+              className={`px-3 py-1.5 rounded transition-colors ${
+                activeTab === 'anomalies' ? 'bg-[#1b4332] text-white' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Anomaly Signals
+            </button>
+            <button
+              id="tab-btn-export"
+              onClick={() => setActiveTab('export')}
+              className={`px-3 py-1.5 rounded transition-colors ${
+                activeTab === 'export' ? 'bg-[#1b4332] text-white' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Auditor Evidence
+            </button>
+          </div>
+
           <button
-            id="tab-btn-policies"
-            onClick={() => setActiveTab('policies')}
-            className={`px-3 py-1.5 rounded transition-colors ${
-              activeTab === 'policies' ? 'bg-[#1b4332] text-white' : 'text-slate-600 hover:bg-slate-100'
-            }`}
+            id="btn-back-to-audit"
+            onClick={() => navigate('/audit')}
+            title="Return to Audit Trail & Cryptographic Evidence Explorer [Esc]"
+            className="flex items-center gap-1.5 px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded shadow transition-colors"
           >
-            Retention Policies
-          </button>
-          <button
-            id="tab-btn-holds"
-            onClick={() => setActiveTab('holds')}
-            className={`px-3 py-1.5 rounded transition-colors ${
-              activeTab === 'holds' ? 'bg-[#1b4332] text-white' : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            Legal Holds ({holds.filter(h => h.is_active).length})
-          </button>
-          <button
-            id="tab-btn-anomalies"
-            onClick={() => setActiveTab('anomalies')}
-            className={`px-3 py-1.5 rounded transition-colors ${
-              activeTab === 'anomalies' ? 'bg-[#1b4332] text-white' : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            Anomaly Signals
-          </button>
-          <button
-            id="tab-btn-export"
-            onClick={() => setActiveTab('export')}
-            className={`px-3 py-1.5 rounded transition-colors ${
-              activeTab === 'export' ? 'bg-[#1b4332] text-white' : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            Auditor Evidence
+            <ArrowLeft size={13} />
+            <span>Audit Trail</span>
+            <span className="bg-slate-300 px-1.5 py-0.5 rounded text-[10px] font-bold">[Esc]</span>
           </button>
         </div>
       </div>

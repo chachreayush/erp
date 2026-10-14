@@ -257,7 +257,11 @@ function Header() {
   const workflowMenuItems: MenuItem[] = [
     { label: 'Approval Inbox [F4]', path: '/workflow/inbox' },
     { label: 'Rule Designer', path: '/workflow/designer' },
-    { label: 'Execution & SLA Monitor', path: '/workflow/monitor' }
+    { label: 'Execution & SLA Monitor', path: '/workflow/monitor' },
+    { isSeparator: true },
+    { label: 'Cargo & Consignment Board', path: '/cargo' },
+    { label: 'Cargo Cost Allocation Center', path: '/cargo/costs' },
+    { label: 'POD & Transit Exception Desk', path: '/cargo/pod-exceptions' }
   ]
 
   // Build CRM menu items dynamically based on role
@@ -640,12 +644,18 @@ function Header() {
   const handleWorkflowParentDropdownKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      const nextIndex = (index + 1) % workflowMenuItems.length
+      let nextIndex = (index + 1) % workflowMenuItems.length
+      while (workflowMenuItems[nextIndex]?.isSeparator) {
+        nextIndex = (nextIndex + 1) % workflowMenuItems.length
+      }
       setFocusedWorkflowParentIndex(nextIndex)
       workflowParentRefs.current[nextIndex]?.focus()
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      const prevIndex = (index - 1 + workflowMenuItems.length) % workflowMenuItems.length
+      let prevIndex = (index - 1 + workflowMenuItems.length) % workflowMenuItems.length
+      while (workflowMenuItems[prevIndex]?.isSeparator) {
+        prevIndex = (prevIndex - 1 + workflowMenuItems.length) % workflowMenuItems.length
+      }
       setFocusedWorkflowParentIndex(prevIndex)
       workflowParentRefs.current[prevIndex]?.focus()
     } else if (e.key === 'Enter') {
@@ -773,7 +783,7 @@ function Header() {
           return (
             <div key={item.path} style={{ position: 'relative', display: 'inline-block' }}>
               <button
-                id={`nav-${item.label.toLowerCase().replace(/[^a-z]/g, '')}`}
+                id={isWorkflow ? 'parent-menu-btn-workflows' : `nav-${item.label.toLowerCase().replace(/[^a-z]/g, '')}`}
                 ref={el => { mainItemRefs.current[index] = el }}
                 onClick={() => {
                   if (isSalesPurchase) {
@@ -1367,10 +1377,19 @@ function Header() {
                   gap: '2px'
                 }}>
                   {workflowMenuItems.map((wfItem, idx) => {
+                    if (wfItem.isSeparator) {
+                      return (
+                        <div
+                          key={`wf-sep-${idx}`}
+                          style={{ height: '1px', backgroundColor: 'var(--color-border)', margin: '4px 0' }}
+                        />
+                      )
+                    }
                     const isParentFocused = focusedWorkflowParentIndex === idx
                     return (
                       <div key={wfItem.label || `wf-${idx}`} style={{ position: 'relative' }}>
                         <button
+                          id={wfItem.path ? `workflow-item-${wfItem.path.replace(/^\//, '').replace(/\//g, '-')}` : `workflow-item-${idx}`}
                           ref={el => { workflowParentRefs.current[idx] = el }}
                           onKeyDown={e => handleWorkflowParentDropdownKeyDown(e, idx)}
                           onClick={() => {

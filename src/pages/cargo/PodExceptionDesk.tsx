@@ -103,6 +103,23 @@ export default function PodExceptionDesk() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (selectedForPod) {
+          setSelectedForPod(null);
+        } else if (selectedForResolution) {
+          setSelectedForResolution(null);
+        } else {
+          navigate('/cargo');
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedForPod, selectedForResolution, navigate]);
+
   const handleOpenPodModal = (c: any) => {
     setSelectedForPod(c);
     setAcceptedQty(c.package_count || 1);
@@ -221,6 +238,7 @@ export default function PodExceptionDesk() {
         {/* Global Toolbar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
+            id="btn-back-to-cargo"
             onClick={() => navigate('/cargo')}
             style={{
               display: 'flex',
@@ -240,6 +258,7 @@ export default function PodExceptionDesk() {
           >
             <ArrowLeft size={14} />
             <span>Back to Cargo Board</span>
+            <span style={{ backgroundColor: '#e2e8f0', padding: '1px 5px', borderRadius: '4px', fontSize: '10px', fontWeight: 800 }}>[Esc]</span>
           </button>
         </div>
       </div>

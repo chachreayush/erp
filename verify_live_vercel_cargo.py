@@ -32,11 +32,11 @@ def wait_for_vercel_deployment():
                 bundle_name = match.group(1)
                 bundle_url = f"{url}/assets/{bundle_name}"
                 br = requests.get(bundle_url, timeout=10)
-                if "ADMIN FREIGHT ABSORPTION" in br.text or "DOC-34 COST CENTER" in br.text:
-                    log(f"SUCCESS: Vercel DEPLOYED with new luxury styling! Active bundle: {bundle_name}")
+                if ("ADMIN FREIGHT ABSORPTION" in br.text or "DOC-34 COST CENTER" in br.text) and bundle_name != "index-ClZiCI_K.js":
+                    log(f"SUCCESS: Vercel DEPLOYED with commit 5181112! Active bundle: {bundle_name}")
                     return True
                 else:
-                    log(f"Attempt {attempt}/30: Active bundle {bundle_name} does not yet have new luxury styling. Waiting 8s...")
+                    log(f"Attempt {attempt}/30: Active bundle {bundle_name} is still deploying commit 5181112. Waiting 8s...")
             else:
                 log(f"Attempt {attempt}/30: Bundle not found in HTML. Waiting 8s...")
         except Exception as e:

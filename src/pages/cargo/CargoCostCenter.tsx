@@ -152,6 +152,17 @@ export default function CargoCostCenter() {
     loadCosts();
   }, [combinedMode, selectedCostType]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        navigate('/cargo');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate]);
+
   const handleExport = () => {
     setExportNotice("Exporting authenticated MIS manifest to CSV (SHA-256 sealed)...");
     setTimeout(() => {
@@ -283,6 +294,7 @@ export default function CargoCostCenter() {
           </button>
 
           <button
+            id="btn-back-to-cargo"
             onClick={() => navigate('/cargo')}
             style={{
               display: 'flex',
@@ -301,6 +313,7 @@ export default function CargoCostCenter() {
           >
             <ArrowLeft size={14} />
             <span>Back to Cargo Board</span>
+            <span style={{ backgroundColor: '#cbd5e1', padding: '1px 5px', borderRadius: '4px', fontSize: '10px', fontWeight: 800 }}>[Esc]</span>
           </button>
         </div>
       </div>

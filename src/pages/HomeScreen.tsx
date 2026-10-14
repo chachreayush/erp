@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { 
   ShoppingCart, Receipt, CreditCard, RotateCcw, BookOpen, 
   Search, AlertTriangle, Clock, ArrowUpRight, BarChart3, 
-  ShieldCheck, Package, ExternalLink, RefreshCw, Zap, CheckCircle2, Truck
+  ShieldCheck, Package, ExternalLink, RefreshCw, Zap, CheckCircle2, Truck, LogOut, X
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { 
@@ -14,10 +14,17 @@ import {
 export default function HomeScreen() {
   const navigate = useNavigate()
   const user = useAuthStore(state => state.user)
+  const logout = useAuthStore(state => state.logout)
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [alertsData, setAlertsData] = useState<DashboardAlertsResponse | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
+  const [showExitModal, setShowExitModal] = useState<boolean>(false)
+
+  const handleConfirmExit = () => {
+    logout()
+    navigate('/login')
+  }
 
   const loadData = async () => {
     try {
@@ -38,9 +45,15 @@ export default function HomeScreen() {
   useEffect(() => {
     loadData()
 
-    // Global Hotkey Handler for Counter Workbench (F2, F4, F5, F6, F9, Ctrl+1)
+    // Global Hotkey Handler for Counter Workbench (F2, F4, F5, F6, F9, Ctrl+1, Escape)
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === '1') {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setShowExitModal(prev => !prev)
+      } else if (e.key === 'Enter' && showExitModal) {
+        e.preventDefault()
+        handleConfirmExit()
+      } else if (e.ctrlKey && e.key === '1') {
         e.preventDefault()
         navigate('/cargo')
       } else if (e.key === 'F2') {
@@ -63,7 +76,7 @@ export default function HomeScreen() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [navigate])
+  }, [navigate, showExitModal])
 
   const formatCurrency = (amt?: number) => {
     return (amt ?? 0).toLocaleString('en-IN', {
@@ -166,6 +179,28 @@ export default function HomeScreen() {
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             Refresh
+          </button>
+
+          <button
+            id="btn-home-exit"
+            onClick={() => setShowExitModal(true)}
+            title="Exit Application / Logout [Esc]"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              backgroundColor: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              color: '#991b1b',
+              fontWeight: 700,
+              fontSize: '13px'
+            }}
+          >
+            <LogOut size={14} />
+            Exit [Esc]
           </button>
 
           <button
@@ -585,6 +620,115 @@ export default function HomeScreen() {
           </div>
         </div>
       </div>
+
+      {/* ── EXIT APPLICATION / LOGOUT MODAL [ESC] ── */}
+      {showExitModal && (
+        <div 
+          id="modal-exit-application"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowExitModal(false)
+          }}
+        >
+          <div 
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '440px',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)',
+              border: '1px solid #d8e2dc',
+              overflow: 'hidden'
+            }}
+          >
+            <div 
+              style={{
+                backgroundColor: '#991b1b',
+                color: '#ffffff',
+                padding: '16px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <LogOut size={20} />
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Exit Counter Workbench</h3>
+              </div>
+              <button 
+                onClick={() => setShowExitModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  padding: '4px'
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ padding: '24px' }}>
+              <p style={{ margin: '0 0 8px 0', fontSize: '15px', fontWeight: 600, color: '#111827' }}>
+                Are you sure you want to exit the application?
+              </p>
+              <p style={{ margin: '0 0 24px 0', fontSize: '13px', color: '#6b7280' }}>
+                Active session for <strong>{user?.name || user?.username || 'Operator'}</strong> will be logged out.
+              </p>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  id="btn-cancel-exit"
+                  onClick={() => setShowExitModal(false)}
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    backgroundColor: '#ffffff',
+                    color: '#374151',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel [Esc]
+                </button>
+                <button
+                  id="btn-confirm-exit"
+                  onClick={handleConfirmExit}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    backgroundColor: '#dc2626',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(220, 38, 38, 0.3)'
+                  }}
+                >
+                  Exit / Logout [Enter]
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

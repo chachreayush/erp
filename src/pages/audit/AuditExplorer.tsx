@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import {
   apiGetAuditEvents,
   apiGetAuditDiff,
@@ -10,6 +12,7 @@ import {
 } from '../../lib/api';
 
 export default function AuditExplorer() {
+  const navigate = useNavigate();
   const [events, setEvents] = useState<AuditEventItem[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [latestHash, setLatestHash] = useState<string>('');
@@ -241,12 +244,14 @@ export default function AuditExplorer() {
         searchInputRef.current?.focus();
         return;
       }
-      // Esc -> Close Drawer or Modal
+      // Esc -> Close Drawer or Modal or Return to Counter
       if (e.key === 'Escape') {
         if (showExportModal) {
           setShowExportModal(false);
         } else if (selectedEventId) {
           handleCloseDrawer();
+        } else {
+          navigate('/');
         }
         return;
       }
@@ -274,7 +279,7 @@ export default function AuditExplorer() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [events, selectedIndex, selectedEventId, showExportModal]);
+  }, [events, selectedIndex, selectedEventId, showExportModal, navigate]);
 
   return (
     <div className="min-h-screen bg-[#f4f7f5] text-slate-800 p-4 md:p-6 font-sans">
@@ -313,6 +318,17 @@ export default function AuditExplorer() {
           >
             <span>Export Evidence Pack</span>
             <span className="bg-black/30 px-1.5 py-0.5 rounded text-[10px]">[E]</span>
+          </button>
+
+          <button
+            id="btn-back-to-counter"
+            onClick={() => navigate('/')}
+            title="Return to Operational Counter Workbench [Esc]"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded shadow transition-colors"
+          >
+            <ArrowLeft size={13} />
+            <span>Counter</span>
+            <span className="bg-slate-300 px-1.5 py-0.5 rounded text-[10px] font-bold">[Esc]</span>
           </button>
         </div>
       </div>
