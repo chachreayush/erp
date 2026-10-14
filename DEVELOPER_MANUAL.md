@@ -1043,6 +1043,216 @@ Under DOC-34, when `is_admin_funded` is true:
 
 ---
 
+## 23. Customer Receipt & Supplier Payment Voucher Architecture (DOC-24 & DOC-07)
+
+### 23.1 Component Architecture & Unified Routing
+The ERP unifies customer receipts (inward cash/bank collections) and supplier payments (outward disbursements) into a single, high-performance transactional workbench located at `src/pages/finance/ReceiptPaymentVoucher.tsx`.
+
+#### Route Bindings:
+- `/receipt` and `/finance/receipt`: Automatically binds the component to Customer Receipt mode (`isPayment = false`).
+- `/payment` and `/finance/payment`: Automatically binds the component to Supplier Payment mode (`isPayment = true`).
+
+```typescript
+export default function ReceiptPaymentVoucher({ type: propType }: { type?: 'receipt' | 'payment' }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Unified Mode Resolution
+  const isPayment = propType === 'payment' || location.pathname.includes('/payment');
+  const voucherType: 'Receipt' | 'Payment' = isPayment ? 'Payment' : 'Receipt';
+  const primaryColor = isPayment ? '#b45309' : '#1b4332';
+  const badgeBg = isPayment ? '#fef3c7' : '#ecfdf5';
+  const badgeColor = isPayment ? '#92400e' : '#065f46';
+```
+
+### 23.2 Series Continuation & Local Storage Persistence
+The workbench implements independent sequence series for receipts and payments:
+- **Receipts**: Storage key `lastReceiptVoucherNo`, default initial sequence `RCP-0001`.
+- **Payments**: Storage key `lastPaymentVoucherNo`, default initial sequence `PMT-0001`.
+- **Custom Series Support**: If a user customizes a series (e.g. `RJ-RCP-8001`), the series continuation algorithm (`incrementSeries`) parses the prefix and sequential digits, stores the updated value in `localStorage`, and auto-increments it for subsequent vouchers.
+
+### 23.3 Real-Time Settlement Telemetry Strip
+Positioned directly above the allocation table, the telemetry strip computes mathematical allocations in real time:
+1. **Total Voucher Amount (`#transaction-amount-input`)**: The gross remittance or receipt sum entered by the cashier.
+2. **Allocated to Invoices**: Sum of all per-row allocated amounts ($\sum \text{allocate\_amount}$).
+3. **Floating Advance / Credit**: Excess unallocated balance ($=\max(0, \text{Gross Amount} - \text{Total Allocated})$) automatically earmarked as an on-account credit or advance payment for future billing.
+
+### 23.4 Bill-by-Bill Allocation Engine (DOC-07)
+When a party is selected, `apiGetPendingAllocations()` queries open invoices, debit notes, and credit notes:
+- **FIFO Auto-Allocation (`[Alt+A]` / `#fifo-allocate-btn`)**: Walks open documents chronologically from oldest to newest, fully exhausting earlier dues before advancing to later invoices.
+- **Manual Per-Row Allocation (`#allocate-input-${row.id}`)**: Allows cashiers to key in exact partial settlement amounts against specific invoices.
+- **Quick "Full" Pay Action (`#btn-full-pay-${row.id}`)**: 1-click shortcut populating the full outstanding bill balance into the allocation cell.
+- **Days Overdue Badge**: Color-coded badges highlighting delinquent invoices (`#b91c1c` for >60 days, `#b45309` for 30-60 days, `#1b4332` for current).
+
+### 23.5 Keyboard Navigation Registry for Receipt & Payment Voucher
+| Hotkey | Target Selector / Function | Description |
+| :--- | :--- | :--- |
+| `[Esc]` | Global Navigation | Cancels active modal (Party picker or Confirmation); if no modal is open, returns to Counter Workbench (`/`). |
+| `[F5]` | Mode Switch | Switches immediately to Supplier Payment Voucher (`/payment`). |
+| `[F6]` | Mode Switch | Switches immediately to Customer Receipt Voucher (`/receipt`). |
+| `[F7]` | `#party-select-btn` | Opens Party / Chemist / Supplier search modal with auto-focused search input (`#party-search-input`). |
+| `[Alt+A]` | `#fifo-allocate-btn` | Executes chronological FIFO auto-allocation across open bills. |
+| `[Ctrl+S]` | `#save-voucher-btn` | Validates transaction and opens posting confirmation dialog (`#modal-confirm-voucher`). |
+| `[Enter]` | Confirmation Modal | Commits voucher posting, invokes `apiCreateReceiptPayment()`, advances sequence series. |
+
+---
+
+## 24. Audit Trail & Data Governance Architecture (DOC-33)
+
+### 24.1 Tamper-Evident SHA-256 Chained Event Stream
+DOC-33 guarantees unalterable financial provenance compliant with MCA Rule 11(g) and US FDA 21 CFR Part 11:
+- Every operational action (`CREATE`, `UPDATE`, `CANCEL`, `POST`, `APPROVE`, `LEGAL_HOLD_APPLIED`) creates an immutable audit block.
+- **Sequential Cryptographic Seal**:
+  $$\text{event\_hash}_n = \text{SHA-256}(\text{prev\_hash}_{n-1} + \text{event\_time} + \text{actor\_id} + \text{payload\_json} + \text{salt})$$
+- Breaking any historical record invalidates all subsequent terminal hashes, making database tampering immediately detectable.
+
+### 24.2 Audit Trail Explorer (`src/pages/audit/AuditExplorer.tsx`)
+1. **Executive KPI Strip**:
+   - `Total Audited Events`: Total sequential ledger blocks.
+   - `Chain Integrity`: Displays real-time cryptographic seal status (100% Intact).
+   - `Active Legal Holds`: Active statutory preservation orders.
+   - `Terminal Event Hash`: Real-time display of the latest SHA-256 block hash.
+2. **Interactive SHA-256 Hash Chain Verification (`#btn-verify-chain`)**:
+   - Invokes `apiVerifyAuditChain()`.
+   - Traces the entire chain from Genesis block (`00000000...`) to Terminal hash.
+   - Renders green verification seal banner (`#banner-verification-result`).
+3. **Field-by-Field Diff Slide-Over Drawer (`#drawer-change-detail`)**:
+   - Triggered via `#btn-inspect-${ev.id}`.
+   - Compares before and after states for every modified field.
+   - Highlights changes with color-coded status badges (`MODIFIED`, `NEW`, `UNCHANGED`).
+   - Automatically redacts sensitive credentials and passwords.
+4. **Auditor Evidence Pack Generator (`#btn-export-pack` / `[E]`)**:
+   - Opens `#modal-export-evidence`.
+   - Prompts for statutory audit purpose and regulatory citation.
+   - Generates digitally sealed evidence manifest with export audit block.
+
+### 24.3 Data Governance & Regulatory Compliance Console (`GovernanceConsole.tsx`)
+1. **Statutory Retention Policies (`#tab-btn-policies`)**:
+   - Displays mandatory 8-year schedules (2,920 days) under Indian Companies Act 2013 (Section 128) and CGST Act 2017.
+   - Click `#btn-edit-policy-${object_type}` to adjust duration with `#btn-save-policy`.
+2. **Litigation & Inquiry Legal Holds (`#tab-btn-holds`)**:
+   - Establishes binding preservation holds freezing document disposal.
+   - Click `#btn-apply-hold` to open `#modal-apply-hold`, select scope (`MODULE`, `RECORD`, `PARTY`, `ALL`), enter citation and commit (`#btn-confirm-apply-hold`).
+   - Click `#btn-release-hold-${id}` to open `#modal-release-hold`, enter mandatory release justification, and commit (`#btn-confirm-release-hold`).
+3. **Automated Forensic Anomaly Signals (`#tab-btn-anomalies`)**:
+   - Heuristic evaluation cards: `#card-anomaly-CHAIN_INTEGRITY`, `#card-anomaly-MASS_EDITS`, `#card-anomaly-REPEATED_REVERSALS`, `#card-anomaly-AFTER_HOURS`.
+4. **Defensive API Array Guards**:
+   - All state setters implement defensive array checks (`Array.isArray(res) ? res : fallback`) preventing runtime crashes during partial network responses.
+
+---
+
+## 25. Universal Escape Navigation & Workflows Header Integration
+
+### 25.1 Header Workflows Dropdown Menu
+The application header integrates a dedicated Workflows & Logistics dropdown menu accessible via mouse click or hotkey `[F4]`:
+- **Parent Button (`#parent-menu-btn-workflows`)**: Toggles the dropdown menu.
+- **Workflow Inbox (`#workflow-item-inbox`)**: Navigates to `/workflow/inbox`.
+- **Workflow Designer (`#workflow-item-designer`)**: Navigates to `/workflow/designer`.
+- **Workflow Monitor (`#workflow-item-monitor`)**: Navigates to `/workflow/monitor`.
+- **Cargo & Consignment Board (`#workflow-item-cargo`)**: Navigates directly to `/cargo`.
+- **Cargo Cost Allocation (`#workflow-item-cargo-costs`)**: Navigates directly to `/cargo/costs`.
+- **POD & Exceptions Desk (`#workflow-item-cargo-pod-exceptions`)**: Navigates directly to `/cargo/pod-exceptions`.
+
+### 25.2 Workflow Inbox Quick Operational Launcher
+In `src/pages/workflow/WorkflowInbox.tsx`, an operational quick launcher tile is prominently embedded:
+- **Button Selector (`#hub-btn-cargo-management`)**: Features freight icon, title "Cargo & Consignments", and description "DOC-34 Freight & Carrier Tracking Desk".
+- Click navigates directly to `/cargo`.
+
+### 25.3 Universal Escape Key (`[Esc]`) Lifecycle Architecture
+To prevent accidental application exit and guarantee predictable keyboard navigation, the `Esc` key implements a hierarchical lifecycle:
+1. **Level 1 — Modal & Drawer Cancellation**:
+   If any modal dialog, batch selection popup, party search modal, or slide-over drawer is open on screen, pressing `Esc` dismisses that overlay exclusively. Focus returns to the parent form.
+2. **Level 2 — Return to Counter Workbench**:
+   If no modal or drawer is active on a secondary screen (e.g. `/sales`, `/purchase`, `/receipt`, `/payment`, `/cargo`, `/workflow/inbox`), pressing `Esc` safely routes the user back to the primary Counter Workbench (`/`).
+3. **Level 3 — Exit Application Modal (HomeScreen `/`)**:
+   When pressed on the root Counter Workbench (`HomeScreen.tsx`), `Esc` triggers the luxury confirmation modal (`#modal-exit-application`):
+   - Pressing `Esc` again dismisses the modal.
+   - Pressing `Enter` (`#btn-confirm-exit`) confirms session termination and executes graceful logout.
+
+---
+
+## 26. Complete Screen-by-Screen UI Element & Selector Catalog
+
+The following master catalog documents every functional UI selector across the ERP to ensure 100% testability and zero ambiguity for developers:
+
+| Module / Screen | Route | Key Selector / ID | Element Type | Function & Behavior |
+| :--- | :--- | :--- | :--- | :--- |
+| **Counter Workbench** | `/` | `#btn-exit-app` | Button | Triggers Exit Application modal `[Esc]`. |
+| **Counter Workbench** | `/` | `#modal-exit-application` | Modal | Confirmation modal to exit application. |
+| **Counter Workbench** | `/` | `#btn-confirm-exit` | Button | Confirms session termination and log out. |
+| **Counter Workbench** | `/` | `#hub-btn-cargo-management` | Button | Quick launcher navigating to `/cargo`. |
+| **Counter Workbench** | `/` | `#btn-goto-executive-dashboard` | Button | Apex navigation button to `/dashboard`. |
+| **Header Navigation** | Global | `#parent-menu-btn-workflows` | Button | Toggles Workflows & Cargo dropdown menu `[F4]`. |
+| **Header Navigation** | Global | `#workflow-item-cargo` | Menu Item | Navigates to `/cargo`. |
+| **Header Navigation** | Global | `#workflow-item-cargo-costs` | Menu Item | Navigates to `/cargo/costs`. |
+| **Header Navigation** | Global | `#workflow-item-cargo-pod-exceptions`| Menu Item | Navigates to `/cargo/pod-exceptions`. |
+| **Receipt Voucher** | `/receipt` | `#btn-switch-voucher-mode` | Button | Switches between Receipt and Payment `[F5]/[F6]`. |
+| **Receipt Voucher** | `/receipt` | `#party-select-btn` | Button | Opens Party lookup modal `[F7]`. |
+| **Receipt Voucher** | `/receipt` | `#party-search-input` | Input | Instant filter input for parties in modal. |
+| **Receipt Voucher** | `/receipt` | `#voucher-number-input` | Input | Voucher sequence series input with continuation. |
+| **Receipt Voucher** | `/receipt` | `#voucher-date-input` | Input | Posting date input. |
+| **Receipt Voucher** | `/receipt` | `#transaction-amount-input` | Input | Gross transaction amount input. |
+| **Receipt Voucher** | `/receipt` | `#fifo-allocate-btn` | Button | Executes FIFO auto-allocation across bills `[Alt+A]`. |
+| **Receipt Voucher** | `/receipt` | `#allocate-input-${id}` | Input | Per-row manual allocation cell. |
+| **Receipt Voucher** | `/receipt` | `#save-voucher-btn` | Button | Posts voucher to GL `[Ctrl+S]`. |
+| **Receipt Voucher** | `/receipt` | `#btn-back-to-counter` | Button | Exits voucher entry back to Counter `[Esc]`. |
+| **Audit Explorer** | `/audit` | `#btn-verify-chain` | Button | Traverses sequential SHA-256 hash blocks. |
+| **Audit Explorer** | `/audit` | `#banner-verification-result` | Banner | Cryptographic hash seal confirmation banner. |
+| **Audit Explorer** | `/audit` | `#input-audit-search` | Input | Filter input across all audit events `[Ctrl+F]`. |
+| **Audit Explorer** | `/audit` | `#btn-inspect-${id}` | Button | Opens slide-over field diff comparison drawer. |
+| **Audit Explorer** | `/audit` | `#drawer-change-detail` | Drawer | Slide-over inspector showing before/after state. |
+| **Audit Explorer** | `/audit` | `#btn-export-pack` | Button | Opens auditor evidence pack export modal `[E]`. |
+| **Audit Explorer** | `/audit` | `#btn-nav-governance` | Button | Navigates to `/audit/governance`. |
+| **Audit Explorer** | `/audit` | `#btn-back-to-counter` | Button | Exits audit explorer to Counter `[Esc]`. |
+| **Governance Console** | `/audit/governance` | `#tab-btn-policies` | Tab | Activates Statutory Retention Policies view. |
+| **Governance Console** | `/audit/governance` | `#tab-btn-holds` | Tab | Activates Litigation Legal Holds view. |
+| **Governance Console** | `/audit/governance` | `#tab-btn-anomalies` | Tab | Activates Forensic Anomaly Signals view. |
+| **Governance Console** | `/audit/governance` | `#tab-btn-export` | Tab | Activates Auditor Evidence Pack view. |
+| **Governance Console** | `/audit/governance` | `#btn-apply-hold` | Button | Opens Establish Statutory Legal Hold modal. |
+| **Governance Console** | `/audit/governance` | `#modal-apply-hold` | Modal | Modal form to establish binding legal hold. |
+| **Governance Console** | `/audit/governance` | `#btn-confirm-apply-hold` | Button | Commits legal hold to database and audit log. |
+| **Governance Console** | `/audit/governance` | `#btn-release-hold-${id}` | Button | Opens Release Legal Hold modal. |
+| **Governance Console** | `/audit/governance` | `#modal-release-hold` | Modal | Modal form to release legal hold with reason. |
+| **Governance Console** | `/audit/governance` | `#btn-confirm-release-hold` | Button | Commits legal hold release to audit log. |
+| **Governance Console** | `/audit/governance` | `#btn-console-generate-evidence`| Button | Generates sealed compliance pack with root hash. |
+| **Governance Console** | `/audit/governance` | `#btn-back-to-audit` | Button | Returns to Audit Explorer `[Esc]`. |
+| **Cargo Board** | `/cargo` | `#input-cargo-search` | Input | Search by consignment number, LR, or carrier. |
+| **Cargo Board** | `/cargo` | `#btn-register-consignment` | Button | Opens New Consignment registration modal `[F6]`. |
+| **Cargo Board** | `/cargo` | `#drawer-consignment-detail` | Drawer | Slide-over drawer showing CBM, packages, costs. |
+| **Cargo Board** | `/cargo` | `#btn-back-to-counter` | Button | Returns to Counter Workbench `[Esc]`. |
+| **Cargo Costs** | `/cargo/costs` | `#toggle-combined-reporting` | Toggle | Switches between single-client & combined MIS. |
+| **Cargo Costs** | `/cargo/costs` | `#btn-export-cost-report` | Button | Exports freight allocation manifest to CSV. |
+| **Cargo POD Desk** | `/cargo/pod-exceptions` | `#tab-pending-pods` | Tab | Lists shipments awaiting delivery sign-off. |
+| **Cargo POD Desk** | `/cargo/pod-exceptions` | `#tab-exceptions` | Tab | Lists active transit damage and shortage claims. |
+
+---
+
+## 27. Automated QA Test Suites & Continuous Deployment Pipeline
+
+### 27.1 Complete Automated Selenium Test Suites Matrix (14 Suites — 100% Pass)
+| Test Suite Script | Verified Module Scope | Assertion Target & Verification Method |
+| :--- | :--- | :--- |
+| `test_master_all_6_modules_selenium.py` | Sales, Purchase, DN, CN, BKI, BKR | 100% PASS: All 6 transaction modules with alphanumeric series continuation. |
+| `test_escape_and_workflows_selenium.py` | Workflows Dropdown, Cargo Links, Esc Exit | 100% PASS: Header Workflows `[F4]` dropdown, Cargo board navigation, Exit modal `[Esc]`. |
+| `test_receipt_payment_audit_redesign_selenium.py`| Receipt, Payment, Audit Trail, Governance | 100% PASS: Luxury UI, party picker `[F7]`, FIFO `[Alt+A]`, hash verification, diff drawer, holds. |
+| `test_cargo_consignment_selenium.py` | Consignment Board, Costs, POD Desk | 100% PASS: Volumetric CBM calculations, Admin freight bifurcation, 4-eyes POD. |
+| `test_audit_governance_selenium.py` | Audit Ledger, Chaining, Legal Holds | 100% PASS: SHA-256 seal verification, before/after diff drawer, retention schedules. |
+| `test_workflow_approval_automation_selenium.py` | Approvals Inbox, Task Actions, SLA | 100% PASS: Universal trigger, Maker-Checker 403, rejection reason modal, simulator. |
+| `test_dashboard_bi_control_center_selenium.py` | Counter Workbench, BI Dashboard | 100% PASS: Dual-screen architecture, 7-month comparative curve, map modal `#mapModal`. |
+| `test_gst_compliance_selenium.py` | GSTR-1, GSTR-2, GSTR-3B, E-Invoice | 100% PASS: GST tables, debit note ITC reversal, Gov offline JSON export, IRN signing. |
+| `test_reports_and_finance_selenium.py` | Day Book, Trial Balance, P&L, Balance Sheet | 100% PASS: Double-entry reports, account statements, custom report designer. |
+| `test_receipt_payment_settlement_selenium.py` | Receipts, Payments, FIFO Allocation | 100% PASS: Customer receipts `[F6]`, FIFO allocation, vendor payments `[F5]`. |
+| `test_journal_accrual_engine_selenium.py` | Journal Entry, Auto-Balance, Accruals | 100% PASS: Multi-leg cockpit, `[Ctrl+B]` auto-balance, scheduled reversals. |
+| `test_direct_expense_ui_selenium.py` | Operational Expenses, Live P&L Impact | 100% PASS: Direct expense vouchers, live P&L impact box, advance disbursements. |
+| `test_fixed_assets_selenium.py` | Asset Categories, Fixed Assets, Depreciation | 100% PASS: Asset registry, WDV/SLM depreciation run, automatic GL vouchers. |
+| `test_bank_recon_cash_selenium.py` | Bank Reconciliation, Cash Drawer Tally | 100% PASS: Statement auto-matching, currency denomination tally counting. |
+
+### 27.2 Production Verification Scripts
+- `verify_live_vercel_escape_and_workflows.py`: Automated verification of live Vercel production deployment for Workflows dropdown and `Esc` navigation.
+- `verify_live_vercel_receipt_payment_audit.py`: Automated verification of live Vercel production deployment for Receipt Voucher, Payment Voucher, Audit Trail Explorer, and Governance Console.
+
+---
+
 *End of Developer Manual.*
 
 

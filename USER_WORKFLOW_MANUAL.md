@@ -993,7 +993,161 @@ Key architectural tenets:
 
 ---
 
+## 24. Customer Receipt & Supplier Payment Luxury Architecture
+
+The Receipt (`/receipt`) and Payment (`/payment`) voucher modules provide a high-density, Marg-inspired luxury interface with real-time financial telemetry, party lookup modals, FIFO bill-by-bill allocation, and sequential series continuation.
+
+```
++---------------------------------------------------------------------------------------------------------+
+|                                    RECEIPT & PAYMENT VOUCHER COCKPIT                                    |
++------------------------------------+------------------------------------+-------------------------------+
+|  Active Ledger Balance             |  Total Settlement Allocation       |  Unallocated Floating Credit |
+|  ₹1,24,500.00 (Debtor / Creditor)  |  ₹50,000.00 (Allocated)            |  ₹0.00 (Advance / Surplus)    |
++------------------------------------+------------------------------------+-------------------------------+
+| Header: [Series: REC-2026-0001] | [Date: 15/10/2026] | [Party F7: Apollo Pharmacy] | [Mode: Bank/NEFT]   |
+| Settlement Grid: [Alt+A] Auto-Allocate FIFO | Bill-by-Bill Outstanding List | Per-Row Allocation Inputs  |
+| Footer: [Ctrl+S] Post Voucher | [Esc] Exit to Counter Workbench                                         |
++---------------------------------------------------------------------------------------------------------+
+```
+
+### 24.1 3-Card Financial Telemetry Strip
+Positioned immediately above the voucher entry card, the 3-card telemetry strip delivers real-time situational awareness:
+1. **Active Ledger Balance (`#kpi-active-balance`)**:
+   - Updates instantaneously when a Debtor or Creditor is selected.
+   - Shows the net running balance from the General Ledger (DOC-08), clearly indicating Dr (Receivable) or Cr (Payable).
+2. **Total Settlement Allocation (`#kpi-total-allocated`)**:
+   - Calculates the dynamic running sum of all amounts allocated across unpaid invoices in the grid.
+   - Highlights in green when the allocated sum exactly matches the voucher amount.
+3. **Unallocated Floating Credit (`#kpi-unallocated-credit`)**:
+   - Computes $\text{Voucher Amount} - \text{Total Allocated Amount}$.
+   - Any positive surplus remains unallocated as an on-account customer advance or supplier credit balance.
+
+---
+
+### 24.2 Step-by-Step Cashier Operation
+1. **Initiate Voucher**:
+   - From Counter Workbench (`/`), press **`[F6]`** for Customer Receipt or **`[F5]`** for Supplier Payment (or click the corresponding launcher tile).
+2. **Review Series & Date**:
+   - The series field (`#voucher-series-input`) automatically displays the next sequential number (e.g. `REC-2026-0001` or `PAY-2026-0001`). Operators can customize this prefix, and the system retains and increments it sequentially.
+   - Date defaults to current business date. Press `Enter` to advance.
+3. **Select Party (`[F7]`)**:
+   - Press **`[F7]`** or click the party search button to open the Party Lookup Modal (`#modal-party-picker`).
+   - Type customer or supplier name/code. The list filters instantly with live balance, GSTIN, and contact details.
+   - Use `[ArrowUp]` / `[ArrowDown]` to highlight and press `Enter` to select.
+   - Pending unpaid invoices are immediately retrieved via `/api/sales/invoices/by-customer/{id}` or `/api/sales/invoices/by-supplier/{id}`.
+4. **Enter Voucher Amount & Payment Mode**:
+   - Enter the total collection or payment amount in `#voucher-amount-input`.
+   - Select Payment Mode: **Cash**, **Cheque**, **Bank Transfer (NEFT/RTGS)**, or **UPI**.
+   - If Cheque or Bank Transfer is chosen, enter Reference/Cheque Number (`#voucher-ref-no`) and Date.
+5. **Bill-by-Bill Allocation Engine (`[Alt+A]`)**:
+   - **1-Click FIFO Auto-Allocation**: Press **`[Alt+A]`** or click **Auto-Allocate (FIFO)** (`#btn-auto-allocate-fifo`). The engine automatically distributes the voucher amount chronologically from the oldest outstanding bill to the newest.
+   - **Manual Adjustments**: Cashiers can navigate into individual invoice rows to specify exact amounts, adjust partial payments, or settle specific invoices.
+6. **Post & Save (`[Ctrl+S]`)**:
+   - Press **`[Ctrl+S]`** or click **Post Voucher (`#btn-post-voucher`)**.
+   - The transaction posts to the Double-Entry General Ledger, bill-by-bill allocations are committed, and the voucher number advances automatically (e.g. `REC-2026-0002`).
+
+---
+
+## 25. Universal Escape Key Navigation & Application Lifecycle Architecture
+
+The ERP provides a consistent, multi-tiered **`[Esc]` key lifecycle** across the entire application:
+
+```
+[Esc Pressed]
+      |
+      v
+Is a Modal, Drawer, or Popup Open?
+      |
+     +--- YES ---> Close active modal/drawer/popup (No route change)
+      |
+     +--- NO  ---> Is the user on the Counter Workbench ('/')?
+                         |
+                        +--- YES ---> Open "Exit Application" Confirmation Modal (#modal-exit-app)
+                         |                  |
+                         |                 +--- [Enter] ---> Terminate / Redirect to Login
+                         |                  |
+                         |                 +--- [Esc]   ---> Cancel & Return to Workbench
+                         |
+                        +--- NO  ---> Navigate back to Counter Workbench ('/')
+```
+
+### 25.1 Hierarchical Escape Handling
+1. **Level 1 (Topmost Modal or Slide-Over Drawer)**:
+   - Dismisses Batch Selection Modal (`[F3]`), Party Lookup Modal (`[F7]`), Settlement Modal (`[End]`), Consignment Detail Drawer (`#drawer-consignment-detail`), Audit Diff Drawer (`#drawer-audit-diff`), or Legal Hold Modal (`#modal-apply-hold`).
+   - The underlying page context and unsaved form entries remain preserved.
+2. **Level 2 (Dedicated Module Screens)**:
+   - On screens like `/sales`, `/purchase`, `/cargo`, `/audit`, `/receipt`, `/payment`, pressing `[Esc]` smoothly returns the operator to the Counter Workbench (`HomeScreen` at `/`).
+3. **Level 3 (Counter Workbench Exit Application Modal)**:
+   - On the Counter Workbench (`/`), pressing `[Esc]` opens the high-contrast Application Exit Modal (`#modal-exit-app`).
+   - Cashiers can press `Enter` to confirm exit or press `[Esc]` / click `Cancel` to immediately resume billing.
+
+### 25.2 Workflows Header Dropdown (`[F4]`)
+The main application header features a consolidated **Workflows (`[F4]`)** dropdown linking all automated pipelines:
+- **Approvals Inbox (`/workflow/inbox`)**: Pending authorization tasks with SLA countdowns and 1-click Maker-Checker sign-off.
+- **Workflow Designer (`/workflow/designer`)**: Visual no-code workflow builder with threshold tiers and sandbox simulator.
+- **Real-Time SLA Monitor (`/workflow/monitor`)**: Enterprise TAT analytics and SHA-256 idempotency locks.
+- **Cargo Consignment Board (`/cargo` / `Ctrl+1`)**: Multi-package consignment registry and Kanban tracker.
+- **Cargo Cost Allocation Center (`/cargo/costs`)**: Centralized freight expenditure analysis with combined multi-client reporting toggle.
+- **POD & Exceptions Claims Desk (`/cargo/pod-exceptions`)**: Delivery receiving queue, discrepancy logging, and transit claims desk.
+
+---
+
+## 26. Master Screen-by-Screen UI Element & Hotkey Catalog
+
+| Screen / Route | Element Selector / ID | Type & Hotkey | Functional Description & Expected Behavior |
+| :--- | :--- | :--- | :--- |
+| **Counter Workbench (`/`)** | `#hub-btn-sales-bill` | Button `[F2]` | Opens Counter Sales Billing screen with sequential invoice continuation. |
+| **Counter Workbench (`/`)** | `#hub-btn-receipt-voucher` | Button `[F6]` | Opens Customer Collection & Receipt Voucher screen. |
+| **Counter Workbench (`/`)** | `#hub-btn-payment-voucher` | Button `[F5]` | Opens Supplier Outward Payment Voucher screen. |
+| **Counter Workbench (`/`)** | `#hub-btn-cargo-management` | Button `[Ctrl+1]` | Launches Cargo & Consignment Management Board. |
+| **Counter Workbench (`/`)** | `#hub-btn-audit-trail` | Button | Opens Cryptographic SHA-256 Audit Trail Explorer. |
+| **Counter Workbench (`/`)** | `#modal-exit-app` | Modal `[Esc]` | Application exit confirmation dialog with Exit `[Enter]` and Cancel `[Esc]`. |
+| **Header** | `#btn-workflow-dropdown` | Dropdown `[F4]` | Expands workflows menu with Inbox, Designer, Monitor, Cargo, Costs, POD Desk. |
+| **Receipt Voucher (`/receipt`)** | `#voucher-series-input` | Input | Displays and allows editing of current receipt continuation series (`REC-YYYY-XXXX`). |
+| **Receipt Voucher (`/receipt`)** | `#party-search-input` | Input `[F7]` | Triggers Party Search modal with live debtor balance and drug license. |
+| **Receipt Voucher (`/receipt`)** | `#voucher-amount-input` | Input | Enters receipt amount; recalculates unallocated floating credit dynamically. |
+| **Receipt Voucher (`/receipt`)** | `#btn-auto-allocate-fifo` | Button `[Alt+A]` | Executes FIFO auto-allocation across pending customer invoices. |
+| **Receipt Voucher (`/receipt`)** | `#btn-post-voucher` | Button `[Ctrl+S]` | Posts receipt voucher to GL, updates ledger balances, increments series. |
+| **Payment Voucher (`/payment`)** | `#voucher-series-input` | Input | Displays and allows editing of current payment continuation series (`PAY-YYYY-XXXX`). |
+| **Payment Voucher (`/payment`)** | `#party-search-input` | Input `[F7]` | Triggers Party Search modal with live creditor balance and bank account. |
+| **Payment Voucher (`/payment`)** | `#btn-auto-allocate-fifo` | Button `[Alt+A]` | Executes FIFO auto-allocation across pending vendor purchase bills. |
+| **Audit Explorer (`/audit`)** | `#input-audit-search` | Input `[Ctrl+F]` | Fuzzy search across audit trail by document number, actor, or reason. |
+| **Audit Explorer (`/audit`)** | `#btn-verify-chain` | Button | Traverses cryptographic SHA-256 hash chain and certifies 100% integrity. |
+| **Audit Explorer (`/audit`)** | `#drawer-audit-diff` | Drawer `[Enter]` | Slides over before/after field diff with sensitive data masking. |
+| **Audit Explorer (`/audit`)** | `#btn-export-evidence-pack` | Button `[E]` | Generates auditor-compliant sealed JSON evidence pack. |
+| **Governance (`/audit/governance`)** | `#tab-retention-policies` | Tab | Displays statutory retention schedules and 2,920-day MCA/GST policies. |
+| **Governance (`/audit/governance`)** | `#btn-apply-legal-hold` | Button | Opens modal to establish statutory preservation legal hold (`#modal-apply-hold`). |
+| **Governance (`/audit/governance`)** | `#grid-forensic-anomalies` | Grid | Displays real-time anomaly detection radar for velocity and after-hours edits. |
+| **Cargo Board (`/cargo`)** | `#btn-register-consignment` | Button `[F6]` | Opens consignment registration modal with volumetric CBM calculator. |
+| **Cargo Board (`/cargo`)** | `#drawer-consignment-detail` | Drawer | Slide-over drawer showing package barcodes, weights, and status advance. |
+| **Cargo Costs (`/cargo/costs`)** | `#toggle-combined-reporting` | Toggle | Switches between single-tenant and aggregated multi-client MIS view. |
+| **POD Desk (`/cargo/pod-exceptions`)** | `#btn-record-delivery-pod` | Button | Submits delivery POD with accepted vs short/damaged quantity validation. |
+
+---
+
+## 27. Automated Selenium QA Suites & Live Production Verification Matrix
+
+| Test Suite / Verification Script | Verification Scope & Stages | Target Assertions & Status |
+| :--- | :--- | :--- |
+| `test_master_all_6_modules_selenium.py` | 6 Stages (All 6 core billing modules) | 100% PASS: Sales Bill, Purchase Bill, Supplier Debit Note, Customer Credit Note, Breakage Issue, Breakage Receive with series continuation. |
+| `test_reports_and_finance_selenium.py` | 8 Stages (Financial accounting suite) | 100% PASS: Day Book, Ledger Statement, Trial Balance, P&L, Balance Sheet, Bank Reconciliation, Report Designer. |
+| `test_gst_compliance_selenium.py` | 11 Stages (Statutory tax compliance) | 100% PASS: GSTR-1 (Tables 4,7,9B,12,13), GSTR-2, GSTR-3B, Offline JSON export, E-Invoicing. |
+| `test_receipt_payment_settlement_selenium.py` | 6 Stages (Settlement & FIFO engine) | 100% PASS: Customer receipts `[F6]`, FIFO auto-allocation `[Alt+A]`, Supplier payments `[F5]`, Ageing analysis. |
+| `test_journal_accrual_engine_selenium.py` | 6 Stages (Multi-leg journal cockpit) | 100% PASS: Multi-leg entry, `[Ctrl+B]` Auto-Balance, accrual scheduler, 1-click reversal. |
+| `test_direct_expense_ui_selenium.py` | 8 Stages (Operational expense desk) | 100% PASS: Direct expense form, live P&L impact box, advance issuance, multi-line claim approval. |
+| `test_fixed_assets_selenium.py` | 5 Stages (Fixed assets & depreciation) | 100% PASS: Asset registration, WDV/SLM depreciation run, GL journal generation, P&L deduction. |
+| `test_bank_recon_cash_selenium.py` | 6 Stages (BRS & cash drawer control) | 100% PASS: BRS workbench, tolerance auto-matching, cash denomination tally counting, discrepancy audit. |
+| `test_dashboard_bi_control_center_selenium.py` | 7 Stages (Executive BI control center) | 100% PASS: Counter workbench, Executive BI strip, area trends, Opex donut, territory map modal. |
+| `test_workflow_approval_automation_selenium.py` | 10 Stages (Workflow automation engine) | 100% PASS: Universal trigger, `[F4]` Inbox, Maker-Checker 403 enforcement, rejection modal, designer simulator, SLA monitor. |
+| `test_audit_governance_selenium.py` | 10 Stages (Audit trail & data governance) | 100% PASS: Cryptographic SHA-256 hash chaining, diff drawer, seal validation, retention policies, legal holds, forensic anomalies, evidence pack. |
+| `test_cargo_consignment_selenium.py` | 10 Stages (Cargo & consignment engine) | 100% PASS: Consignment registry, volumetric CBM, `[Ctrl+1]` Board, drawer inspection, cost center combined toggle, 4-eyes POD & exception claims. |
+| `test_esc_navigation_and_cargo_flow_selenium.py` | 10 Stages (Escape lifecycle & workflows) | 100% PASS: Universal Esc key navigation, Home Screen exit modal, header workflows dropdown, and quick launcher tiles. |
+| `verify_live_vercel_receipt_payment_audit.py` | 10 Stages (Live cloud production audit) | 100% PASS: Live production verification on `https://erp-rho-three.vercel.app` with zero regressions and complete visual screenshot artifacts. |
+
+---
+
 *End of User Workflow Manual.*
+
 
 
 

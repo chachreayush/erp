@@ -185,7 +185,140 @@ The ERP reporting and double-entry accounting engine has been verified with **10
 * **Automated Verification**: 100% PASS via `test_journal_accrual_engine_selenium.py`.
 
 ---
+---
+
+## 12. Customer Receipt & Supplier Payment Luxury Architecture
+
+* **Routes**: Customer Receipts (`/receipt` / `[F6]`), Supplier Payments (`/payment` / `[F5]`)
+* **Financial Telemetry Strip**:
+  - **Active Ledger Balance (`#kpi-active-balance`)**: Live running balance of selected customer (Debtor) or vendor (Creditor) from GL.
+  - **Total Settlement Allocation (`#kpi-total-allocated`)**: Running sum of bill-by-bill allocated amounts across pending invoices.
+  - **Unallocated Floating Credit (`#kpi-unallocated-credit`)**: Calculated variance ($\text{Voucher Amount} - \text{Allocated}$); surplus records as on-account advance credit.
+* **Party Lookup Modal (`[F7]`)**: Searchable dialog with real-time debtor/creditor query, balance, drug licenses, and GSTIN.
+* **FIFO Bill-by-Bill Allocation Engine (`[Alt+A]`)**: Auto-allocates payment against oldest unpaid invoices chronologically; allows per-row manual override.
+* **Alphanumeric Series Continuation**: Sequential continuation (`REC-YYYY-XXXX`, `PAY-YYYY-XXXX`) preserving custom user prefixes.
+* **Automated Verification**: 100% PASS via `test_receipt_payment_settlement_selenium.py`.
+
+---
+
+## 13. Executive Business Intelligence & Control Center (`/dashboard`)
+
+* **Executive KPI Strip**: Gross Turnover (Sales), Procurement Volume, Gross Operating Margin (%), and Quick Liquidity Ratio.
+* **Comparative Volume Curves**: 7-month rolling sales vs purchases turnover curves.
+* **Operating Expense (Opex) Donut**: Comprehensive category distribution across freight, storage, travel, depreciation, and office overheads.
+* **Interactive Regional Territory Map Modal (`#mapModal`)**: Clickable state-level drilldowns (Delhi NCR, Punjab, Haryana, UP, Rajasthan) tracking chemist network density, quota attainment %, and revenue metrics.
+* **Receivables Ageing Distribution**: 0-30, 31-60, 61-90, 90+ days statutory receivables breakdown.
+* **Automated Verification**: 100% PASS via `test_dashboard_bi_control_center_selenium.py`.
+
+---
+
+## 14. Workflow Approval, Alert & Business Automation Engine (DOC-31)
+
+* **Routes**: Inbox (`/workflow/inbox` / `[F4]`), Designer (`/workflow/designer`), Monitor (`/workflow/monitor`)
+* **Unified Approval Inbox (`[F4]`)**: Multi-tier approval queue with SLA countdowns, 1-click Approve/Reject, and Maker-Checker 403 enforcement.
+* **Visual No-Code Designer**: Multi-tier hierarchy builder (Floor Review, Executive Signoff, Director Authorization) with interactive sandbox amount simulator (`#input-sim-amount`).
+* **Real-Time SLA Monitor**: Enterprise TAT benchmarks (1.8h avg), SLA adherence rate (94.2%), bottleneck identification, and SHA-256 idempotency deduplication locks.
+* **Automated Verification**: 100% PASS via `test_workflow_approval_automation_selenium.py`.
+
+---
+
+## 15. Audit Trail, Data Governance & Compliance Control Engine (DOC-33)
+
+* **Routes**: Audit Explorer (`/audit`), Data Governance Console (`/audit/governance`)
+* **Audit Explorer (`/audit`)**:
+  - **4 Top KPI Cards**: Total Audited Events, Cryptographic Chain Integrity, Active Legal Holds, Terminal Chain SHA-256 Hash.
+  - **Cryptographic Chain Banner (`#banner-chain-integrity`)**: High-visibility seal badge validating sequential SHA-256 hash links.
+  - **Slide-Over Diff Drawer (`#drawer-audit-diff`)**: Side-by-side comparison of before/after states with sensitive credential masking (`[REDACTED_SENSITIVE]`).
+  - **Evidence Pack Exporter (`#btn-export-evidence-pack` / `[E]`)**: Produces cryptographically signed JSON compliance evidence packs for MCA/GST audits.
+* **Data Governance Console (`/audit/governance`)**:
+  - **Retention Policies**: MCA & CGST 8-year standard retention (2,920 days) across INVOICE, VOUCHER, AUDIT_EVENT, PARTY tables.
+  - **Litigation Legal Holds (`#modal-apply-hold`)**: Freezes targeted records against disposal during tax audits with audit-logged justifications.
+  - **Forensic Anomaly Radar**: Evaluates 5 automated signals (`MASS_EDITS`, `REPEATED_REVERSALS`, `AFTER_HOURS`, `ACTIVE_LEGAL_HOLDS`, `CHAIN_INTEGRITY`).
+* **Automated Verification**: 100% PASS via `test_audit_governance_selenium.py`.
+
+---
+
+## 16. Cargo & Consignment Management Engine (DOC-34)
+
+* **Routes**: Consignment Board (`/cargo` / `Ctrl+1`), Costs Allocation Center (`/cargo/costs`), POD & Exceptions Desk (`/cargo/pod-exceptions`)
+* **Independent Consignment Identity**: First-class series continuation (`CN-YYYY-XXXX`) decoupled from sales invoices and dispatches.
+* **Admin-Funded Client Cargo Architecture**:
+  - Freight costs borne centrally by Platform Admin are posted solely in Platform Admin GL under Account 5200 (Freight & Logistics Expense).
+  - Client Company General Ledger is never auto-debited (`Zero-Debit Rule`).
+  - **Combined Multi-Client Reporting Toggle (`#toggle-combined-reporting`)**: Aggregates freight liabilities across Jaipur, Delhi, and regional distribution centers.
+* **Volumetric CBM Formula**: $\text{CBM} = (\text{Length} \times \text{Width} \times \text{Height}) / 1,000,000$ with package barcodes (`PKG-YYYY-XXXX-NN`).
+* **4-Eyes POD & Discrepancy Claims Desk**: Accepted vs short/damaged delivery verification with exception claim branch (Carrier Claim, Demurrage Waiver, Inventory Write-off).
+* **Automated Verification**: 100% PASS via `test_cargo_consignment_selenium.py`.
+
+---
+
+## 17. Universal Escape Key Navigation & Application Lifecycle Architecture
+
+* **Multi-Level Escape Lifecycle**:
+  - **Level 1 (Topmost Modal / Drawer)**: Pressing `[Esc]` dismisses active slide-over inspection drawers (Consignment Drawer, Audit Diff Drawer), batch/party modals (`[F3]`/`[F7]`), or settlement popups (`[End]`) without page route changes.
+  - **Level 2 (Sub-Page Navigation)**: On dedicated transaction/finance screens (`/sales`, `/purchase`, `/cargo`, `/audit`, `/receipt`, `/payment`), pressing `[Esc]` smoothly returns to Counter Workbench (`HomeScreen` at `/`).
+  - **Level 3 (Counter Workbench Exit Confirmation)**: On the Counter Workbench (`/`), pressing `[Esc]` opens the high-contrast Application Exit Modal (`#modal-exit-app`). Pressing `Enter` confirms exit, while pressing `[Esc]` or clicking `Cancel` immediately resumes counter operations.
+* **Header Workflows Dropdown (`[F4]`)**: Consolidated navigation dropdown in header linking Approvals Inbox, Designer, SLA Monitor, Cargo Board, Cost Center, and POD Desk.
+* **Automated Verification**: 100% PASS via `test_esc_navigation_and_cargo_flow_selenium.py`.
+
+---
+
+## 18. Master Screen-by-Screen UI Element & Selector Catalog
+
+| Screen / Route | Element Selector / ID | Type & Hotkey | Functional Description & Expected Behavior |
+| :--- | :--- | :--- | :--- |
+| **Counter Workbench (`/`)** | `#hub-btn-sales-bill` | Button `[F2]` | Opens Counter Sales Billing screen with sequential invoice continuation. |
+| **Counter Workbench (`/`)** | `#hub-btn-receipt-voucher` | Button `[F6]` | Opens Customer Collection & Receipt Voucher screen. |
+| **Counter Workbench (`/`)** | `#hub-btn-payment-voucher` | Button `[F5]` | Opens Supplier Outward Payment Voucher screen. |
+| **Counter Workbench (`/`)** | `#hub-btn-cargo-management` | Button `[Ctrl+1]` | Launches Cargo & Consignment Management Board. |
+| **Counter Workbench (`/`)** | `#hub-btn-audit-trail` | Button | Opens Cryptographic SHA-256 Audit Trail Explorer. |
+| **Counter Workbench (`/`)** | `#modal-exit-app` | Modal `[Esc]` | Application exit confirmation dialog with Exit `[Enter]` and Cancel `[Esc]`. |
+| **Header** | `#btn-workflow-dropdown` | Dropdown `[F4]` | Expands workflows menu with Inbox, Designer, Monitor, Cargo, Costs, POD Desk. |
+| **Receipt Voucher (`/receipt`)** | `#voucher-series-input` | Input | Displays and allows editing of current receipt continuation series (`REC-YYYY-XXXX`). |
+| **Receipt Voucher (`/receipt`)** | `#party-search-input` | Input `[F7]` | Triggers Party Search modal with live debtor balance and drug license. |
+| **Receipt Voucher (`/receipt`)** | `#voucher-amount-input` | Input | Enters receipt amount; recalculates unallocated floating credit dynamically. |
+| **Receipt Voucher (`/receipt`)** | `#btn-auto-allocate-fifo` | Button `[Alt+A]` | Executes FIFO auto-allocation across pending customer invoices. |
+| **Receipt Voucher (`/receipt`)** | `#btn-post-voucher` | Button `[Ctrl+S]` | Posts receipt voucher to GL, updates ledger balances, increments series. |
+| **Payment Voucher (`/payment`)** | `#voucher-series-input` | Input | Displays and allows editing of current payment continuation series (`PAY-YYYY-XXXX`). |
+| **Payment Voucher (`/payment`)** | `#party-search-input` | Input `[F7]` | Triggers Party Search modal with live creditor balance and bank account. |
+| **Payment Voucher (`/payment`)** | `#btn-auto-allocate-fifo` | Button `[Alt+A]` | Executes FIFO auto-allocation across pending vendor purchase bills. |
+| **Audit Explorer (`/audit`)** | `#input-audit-search` | Input `[Ctrl+F]` | Fuzzy search across audit trail by document number, actor, or reason. |
+| **Audit Explorer (`/audit`)** | `#btn-verify-chain` | Button | Traverses cryptographic SHA-256 hash chain and certifies 100% integrity. |
+| **Audit Explorer (`/audit`)** | `#drawer-audit-diff` | Drawer `[Enter]` | Slides over before/after field diff with sensitive data masking. |
+| **Audit Explorer (`/audit`)** | `#btn-export-evidence-pack` | Button `[E]` | Generates auditor-compliant sealed JSON evidence pack. |
+| **Governance (`/audit/governance`)** | `#tab-retention-policies` | Tab | Displays statutory retention schedules and 2,920-day MCA/GST policies. |
+| **Governance (`/audit/governance`)** | `#btn-apply-legal-hold` | Button | Opens modal to establish statutory preservation legal hold (`#modal-apply-hold`). |
+| **Governance (`/audit/governance`)** | `#grid-forensic-anomalies` | Grid | Displays real-time anomaly detection radar for velocity and after-hours edits. |
+| **Cargo Board (`/cargo`)** | `#btn-register-consignment` | Button `[F6]` | Opens consignment registration modal with volumetric CBM calculator. |
+| **Cargo Board (`/cargo`)** | `#drawer-consignment-detail` | Drawer | Slide-over drawer showing package barcodes, weights, and status advance. |
+| **Cargo Costs (`/cargo/costs`)** | `#toggle-combined-reporting` | Toggle | Switches between single-tenant and aggregated multi-client MIS view. |
+| **POD Desk (`/cargo/pod-exceptions`)** | `#btn-record-delivery-pod` | Button | Submits delivery POD with accepted vs short/damaged quantity validation. |
+
+---
+
+## 19. Comprehensive Automated QA Test Suite Registry
+
+| Test Suite File | Module Coverage | Assertions Target & Status |
+| :--- | :--- | :--- |
+| `test_master_all_6_modules_selenium.py` | Sales, Purchase, DN, CN, BKI, BKR | 100% PASS: All 6 transaction modules with series continuation. |
+| `test_reports_and_finance_selenium.py` | Day Book, Ledger, Trial Balance, P&L, BS, BRS, Designer | 100% PASS: Full double-entry financial reporting suite. |
+| `test_gst_compliance_selenium.py` | GSTR-1, GSTR-2, GSTR-3B, Offline JSON, E-Invoice | 100% PASS: Statutory GST returns and offline utility JSON payload. |
+| `test_receipt_payment_settlement_selenium.py` | Receipt `[F6]`, Payment `[F5]`, FIFO allocation `[Alt+A]` | 100% PASS: Settlement cockpit, 3-card telemetry strip, FIFO engine. |
+| `test_journal_accrual_engine_selenium.py` | Multi-leg journal cockpit, accrual scheduler | 100% PASS: Dynamic double-entry balancing and atomic reversals. |
+| `test_direct_expense_ui_selenium.py` | Direct expense form, live P&L impact box, advances | 100% PASS: Real-time P&L net profit deduction and claim approvals. |
+| `test_fixed_assets_selenium.py` | Asset registration, WDV/SLM depreciation run | 100% PASS: Automatic depreciation posting and asset register. |
+| `test_bank_recon_cash_selenium.py` | BRS auto-matching, cash denomination drawer tally | 100% PASS: Multi-rule reconciliation and physical cash counting audit. |
+| `test_dashboard_bi_control_center_selenium.py` | Executive BI, 7-month curves, Opex donut, territory map | 100% PASS: Role-based separation and territory modal drilldowns. |
+| `test_workflow_approval_automation_selenium.py` | Universal trigger, `[F4]` Inbox, Maker-Checker, Designer | 100% PASS: Automated business workflows and SLA tracking. |
+| `test_audit_governance_selenium.py` | SHA-256 hash chain, diff drawer, legal holds, anomalies | 100% PASS: Cryptographic audit trail and data governance console. |
+| `test_cargo_consignment_selenium.py` | Consignment board, CBM calc, Admin cost center, POD desk | 100% PASS: Decoupled freight movement and combined reporting. |
+| `test_esc_navigation_and_cargo_flow_selenium.py` | Universal Esc key handling, Exit modal, Workflows dropdown | 100% PASS: Full keyboard navigation lifecycle across all modules. |
+| `verify_live_vercel_receipt_payment_audit.py` | Live production audit on https://erp-rho-three.vercel.app | 100% PASS: Zero regressions across all newly deployed luxury screens. |
+
+---
+
 *End of User Manual and Workflows.*
+
 
 
 

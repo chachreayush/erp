@@ -81,5 +81,72 @@ The ERP is 100% keyboard-navigable. Key shortcuts:
 * **Verified 100% PASS**: Automated Selenium suite `test_journal_accrual_engine_selenium.py`.
 
 ---
+### 2.9 Customer Receipt & Supplier Payment Luxury Architecture (`/receipt`, `/payment`)
+* **Financial Telemetry Strip**: 3 cards displaying Active Ledger Balance, Total Settlement Allocation, and Unallocated Floating Credit.
+* **Party Lookup Modal (`[F7]`)**: Instant search across Debtor and Creditor ledgers with live balances and drug licenses.
+* **FIFO Bill-by-Bill Allocation Engine (`[Alt+A]`)**: Auto-allocates payments chronologically from oldest overdue bills; permits row-by-row manual allocation.
+* **Alphanumeric Series Continuation**: Alphanumeric series continuation (`REC-YYYY-XXXX`, `PAY-YYYY-XXXX`).
+* **Verified 100% PASS**: Automated Selenium suite `test_receipt_payment_settlement_selenium.py`.
+
+### 2.10 Executive Business Intelligence & Control Center (`/dashboard`)
+* **Executive KPI Strip**: Gross Sales Turnover, Procurement Volume, Gross Operating Margin (%), Quick Ratio.
+* **7-Month Comparative Curves**: Sales vs Procurement volume trends.
+* **Opex Donut & Territory Map**: Expense breakdown and interactive regional territory modal (`#mapModal`) with chemist network drill-downs.
+* **Verified 100% PASS**: Automated Selenium suite `test_dashboard_bi_control_center_selenium.py`.
+
+### 2.11 Workflow Approval & Automation Engine (`/workflow/inbox`, `/workflow/designer`, `/workflow/monitor`)
+* **Approvals Inbox (`[F4]`)**: Unified queue with SLA countdowns, 1-click Approve/Reject, and Maker-Checker 403 enforcement.
+* **No-Code Designer**: Multi-tier hierarchy builder with sandbox transaction amount simulator (`#input-sim-amount`).
+* **Real-Time SLA Monitor**: Enterprise TAT benchmarks (1.8h avg), 94.2% SLA adherence, and SHA-256 idempotency locks.
+* **Verified 100% PASS**: Automated Selenium suite `test_workflow_approval_automation_selenium.py`.
+
+### 2.12 Audit Trail & Data Governance Console (`/audit`, `/audit/governance`)
+* **Audit Explorer (`/audit`)**: Top 4 KPIs, sequential SHA-256 hash chaining banner (`#banner-chain-integrity`), slide-over diff drawer (`#drawer-audit-diff`) with sensitive data masking, and auditor evidence pack generator (`[E]`).
+* **Data Governance Console (`/audit/governance`)**: Retention schedules (2,920 days MCA/GST standard), statutory litigation legal holds (`#modal-apply-hold`), and forensic anomaly detection radar.
+* **Verified 100% PASS**: Automated Selenium suite `test_audit_governance_selenium.py`.
+
+### 2.13 Cargo & Consignment Management Engine (`/cargo`, `/cargo/costs`, `/cargo/pod-exceptions`)
+* **Consignment Board (`/cargo` / `Ctrl+1`)**: Alphanumeric series continuation (`CN-YYYY-XXXX`), volumetric CBM calculator ($\text{Length} \times \text{Width} \times \text{Height} / 1,000,000$), package barcodes (`PKG-YYYY-XXXX-NN`).
+* **Admin-Funded Client Cargo Architecture**: Logistics costs posted solely in Platform Admin GL under Account 5200; Client GL is never auto-debited (`Zero-Debit Rule`). Combined multi-client reporting toggle (`#toggle-combined-reporting`).
+* **4-Eyes POD & Exception Claims Desk (`/cargo/pod-exceptions`)**: Delivery receiving queue, discrepancy damage/shortage logging, and carrier liability claim branch.
+* **Verified 100% PASS**: Automated Selenium suite `test_cargo_consignment_selenium.py`.
+
+### 2.14 Universal Escape Key Lifecycle & Header Workflows
+* **Hierarchical Esc Handling**: Topmost modal/drawer dismissal &rarr; Sub-page return to Counter Workbench (`/`) &rarr; Counter Workbench Exit Confirmation Modal (`#modal-exit-app`).
+* **Workflows Dropdown (`[F4]`)**: Application header dropdown providing immediate access to Approvals Inbox, Designer, SLA Monitor, Cargo Board, Cost Center, and POD Desk.
+* **Verified 100% PASS**: Automated Selenium suite `test_esc_navigation_and_cargo_flow_selenium.py`.
+
+### 2.15 Master Screen-by-Screen UI Element & Hotkey Catalog
+
+| Route | Selector / ID | Hotkey | Functionality |
+| :--- | :--- | :--- | :--- |
+| `/` | `#hub-btn-sales-bill` | `[F2]` | Counter Sales Billing with sequential continuation |
+| `/` | `#hub-btn-receipt-voucher` | `[F6]` | Customer Collection & Receipt Voucher |
+| `/` | `#hub-btn-payment-voucher` | `[F5]` | Supplier Outward Payment Voucher |
+| `/` | `#hub-btn-cargo-management` | `[Ctrl+1]` | Cargo & Consignment Management Board |
+| `/` | `#hub-btn-audit-trail` | - | Cryptographic SHA-256 Audit Trail Explorer |
+| `/` | `#modal-exit-app` | `[Esc]` | Application exit confirmation modal (`Enter` exit, `Esc` cancel) |
+| Header | `#btn-workflow-dropdown` | `[F4]` | Workflows navigation dropdown menu |
+| `/receipt` | `#voucher-series-input` | - | Alphanumeric receipt series continuation (`REC-YYYY-XXXX`) |
+| `/receipt` | `#party-search-input` | `[F7]` | Debtor party search popup with live balance |
+| `/receipt` | `#btn-auto-allocate-fifo` | `[Alt+A]` | 1-Click FIFO auto-allocation across pending invoices |
+| `/receipt` | `#btn-post-voucher` | `[Ctrl+S]` | Post receipt voucher to double-entry GL |
+| `/payment` | `#voucher-series-input` | - | Alphanumeric payment series continuation (`PAY-YYYY-XXXX`) |
+| `/payment` | `#party-search-input` | `[F7]` | Creditor party search popup with live balance |
+| `/payment` | `#btn-auto-allocate-fifo` | `[Alt+A]` | 1-Click FIFO auto-allocation across pending vendor bills |
+| `/audit` | `#input-audit-search` | `[Ctrl+F]` | Fuzzy search across audit trail |
+| `/audit` | `#btn-verify-chain` | - | Cryptographic SHA-256 hash chain verification |
+| `/audit` | `#drawer-audit-diff` | `[Enter]` | Slide-over before/after diff drawer |
+| `/audit` | `#btn-export-evidence-pack` | `[E]` | Digitally sealed auditor evidence pack export |
+| `/audit/governance` | `#tab-retention-policies` | - | Statutory 2,920-day retention policies tab |
+| `/audit/governance` | `#btn-apply-legal-hold` | - | Establish litigation preservation legal hold |
+| `/cargo` | `#btn-register-consignment` | `[F6]` | Consignment creation with volumetric CBM calculator |
+| `/cargo` | `#drawer-consignment-detail` | - | Package barcodes and consignment detail drawer |
+| `/cargo/costs` | `#toggle-combined-reporting` | - | Toggle combined multi-client freight MIS |
+| `/cargo/pod-exceptions` | `#btn-record-delivery-pod` | - | Submit delivery POD with accepted vs damaged quantities |
+
+---
+
 *End of Unified Master Manual.*
+
 

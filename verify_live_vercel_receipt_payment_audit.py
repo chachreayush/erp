@@ -78,10 +78,11 @@ def run_verification():
         # ── 1. RECEIPT VOUCHER ──
         log("\n[2/5] Testing Live Customer Receipt Voucher (/receipt)...")
         driver.get(f"{LIVE_URL}/receipt")
-        time.sleep(3)
+        time.sleep(2)
         inject_auth(driver)
         driver.get(f"{LIVE_URL}/receipt")
-        time.sleep(3)
+        wait.until(EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Receipt Voucher') or contains(text(), 'RECEIPT')]")))
+        time.sleep(1)
 
         body_text = driver.find_element(By.TAG_NAME, "body").text.lower()
         log(f"  Receipt page text snippet: {body_text[:150]}")
@@ -96,7 +97,8 @@ def run_verification():
         # ── 2. PAYMENT VOUCHER ──
         log("\n[3/5] Testing Live Supplier Payment Voucher (/payment)...")
         driver.get(f"{LIVE_URL}/payment")
-        time.sleep(3)
+        wait.until(EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Payment Voucher') or contains(text(), 'PAYMENT')]")))
+        time.sleep(1)
 
         body_text_pmt = driver.find_element(By.TAG_NAME, "body").text.lower()
         assert "payment voucher" in body_text_pmt or "payment" in body_text_pmt, "Payment voucher not found on live site"

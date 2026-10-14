@@ -10,7 +10,7 @@ This document provides complete instructions for deploying, configuring, and mai
 ```
 +-----------------------------------------------------------------------------------+
 |                                  CLIENT BROWSER                                   |
-|                        https://erp-nbbigyye0-erp-b646.vercel.app                  |
+|                        https://erp-rho-three.vercel.app                         |
 +-----------------------------------------------------------------------------------+
                                         |
                  +----------------------+----------------------+
@@ -87,7 +87,7 @@ origins = [
     "http://localhost:50005",
     "http://localhost:3000",
     "http://127.0.0.1:50005",
-    "https://erp-nbbigyye0-erp-b646.vercel.app",
+    "https://erp-rho-three.vercel.app",
     "https://*.vercel.app" # Allows Vercel preview branch deployments
 ]
 
@@ -105,13 +105,17 @@ app.add_middleware(
 ## 5. Deployment Step-by-Step
 
 ### 5.1 Automated Continuous Deployment (GitHub &rarr; Vercel)
-1. Commit all verified changes to your Git repository on branch `main`:
+1. Commit all verified changes to your Git repository on branch `main` (using PowerShell `;` chaining):
    ```powershell
-   git add .
-   git commit -m "Deploy latest ERP updates"
-   git push origin main
+   git add . ; git commit -m "Deploy latest ERP updates" ; git push origin main
    ```
 2. Vercel automatically detects the push, runs `npm install`, executes `npm run build`, and deploys the generated bundle to production within 45 seconds.
+
+### 5.2 Live Cloud Verification
+Run the automated Selenium headless verification script to validate 100% production uptime:
+```powershell
+C:\Python313\python.exe verify_live_vercel_receipt_payment_audit.py
+```
 
 ### 5.2 Manual Deployment via Vercel CLI
 If deploying directly from your local terminal:

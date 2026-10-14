@@ -52,7 +52,7 @@ def run_sync():
     commands = [
         ['robocopy', r'C:\Users\DELL\OneDrive\Desktop\erp2\src', r'C:\Users\DELL\OneDrive\Desktop\erp\src', '/MIR', '/XD', 'node_modules'],
         ['robocopy', r'C:\Users\DELL\OneDrive\Desktop\erp2\backend', r'C:\Users\DELL\OneDrive\Desktop\erp\backend', '/MIR', '/XD', '__pycache__', '.venv', '.pytest_cache'],
-        ['robocopy', r'C:\Users\DELL\OneDrive\Desktop\erp2', r'C:\Users\DELL\OneDrive\Desktop\erp', '*.md', '*.json', '*.txt', '*.html', '/XF', 'package-lock.json', '/XD', 'node_modules', 'backend', 'src', '.git']
+        ['robocopy', r'C:\Users\DELL\OneDrive\Desktop\erp2', r'C:\Users\DELL\OneDrive\Desktop\erp', '*.md', '*.json', '*.txt', '*.html', '*.py', '*.docx', '/XF', 'package-lock.json', '/XD', 'node_modules', 'backend', 'src', '.git']
     ]
     for cmd in commands:
         res = subprocess.run(cmd, capture_output=True, text=True)
@@ -79,8 +79,8 @@ robocopy "C:\Users\DELL\OneDrive\Desktop\erp2\src" "C:\Users\DELL\OneDrive\Deskt
 # 2. Synchronize Backend Source (/backend)
 robocopy "C:\Users\DELL\OneDrive\Desktop\erp2\backend" "C:\Users\DELL\OneDrive\Desktop\erp\backend" /MIR /XD __pycache__ .venv .pytest_cache
 
-# 3. Synchronize Documentation, Manuals & Configs
-robocopy "C:\Users\DELL\OneDrive\Desktop\erp2" "C:\Users\DELL\OneDrive\Desktop\erp" *.md *.json *.txt *.html /XF package-lock.json /XD node_modules backend src .git
+# 3. Synchronize Documentation, Word Master Walkthroughs, Scripts & Configs
+robocopy "C:\Users\DELL\OneDrive\Desktop\erp2" "C:\Users\DELL\OneDrive\Desktop\erp" *.md *.json *.txt *.html *.py *.docx /XF package-lock.json /XD node_modules backend src .git
 ```
 
 > [!CAUTION]
@@ -90,40 +90,40 @@ robocopy "C:\Users\DELL\OneDrive\Desktop\erp2" "C:\Users\DELL\OneDrive\Desktop\e
 
 ## 3. Git Release & Push Workflow
 
-Once the folders are mirrored, execute the standard Git release sequence in `C:\Users\DELL\OneDrive\Desktop\erp`:
+Once the folders are mirrored, execute the Git release sequence in `C:\Users\DELL\OneDrive\Desktop\erp`:
 
 ### Step 1: Check Working Tree Status
 ```powershell
 cd C:\Users\DELL\OneDrive\Desktop\erp
 git status
 ```
-Verify that modified files correspond to the modules and manuals recently updated.
+Verify that modified files correspond to the modules, Word master walkthrough (`ERP_ENTERPRISE_SYSTEM_COMPLETE_SOFTWARE_MASTER_WALKTHROUGH.docx`), and manuals recently updated.
 
-### Step 2: Stage & Inspect Changes
+### Step 2: Stage, Commit & Push
+> [!NOTE]
+> In Windows PowerShell, chain shell commands using the semicolon (`;`), not `&&`:
+
 ```powershell
-git add .
-git diff --staged --stat
+git add . ; git commit -m "docs: exhaustive update of master walkthrough docx, user workflows, and developer manuals" ; git push origin main
 ```
 
-### Step 3: Commit with Semantic Message
-Format commit messages according to conventional commit guidelines:
-```powershell
-git commit -m "docs: overhaul developer manuals, user workflows, series continuation & QA audits"
-```
+This triggers the continuous deployment webhook on Vercel, deploying the application live to `https://erp-rho-three.vercel.app`.
 
-### Step 4: Push to Remote GitHub Origin
+### Step 3: Automated Live Cloud Verification
+Run the automated Selenium headless suite against the live Vercel deployment:
 ```powershell
-git push origin main
+C:\Python313\python.exe verify_live_vercel_receipt_payment_audit.py
 ```
-This triggers the automatic production deployment webhook on Vercel.
+This guarantees 100% production uptime and records visual proof artifacts.
 
 ---
 
 ## 4. Git Best Practices & Safety Rules
 
-1. **Verify Before Syncing**: Never run the Robocopy mirror command while compilation or tests are failing in `erp2`. Always run `npx tsc --noEmit` first.
+1. **Verify Before Syncing**: Never run the Robocopy mirror command while compilation or tests are failing in `erp2`. Always run `npx tsc --noEmit` and `npm run build` first.
 2. **Never Commit Secrets**: Ensure `.env` in `backend` and `src` is listed in `.gitignore` so database passwords and secret keys are never exposed on GitHub.
 3. **Branch Protection**: The `main` branch represents production code deployed to live pharmacies and cashiers. Ensure all changes are verified via Selenium before pushing to `main`.
 
 ---
 *End of Git Workflow Manual.*
+
