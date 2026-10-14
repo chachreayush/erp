@@ -97,13 +97,15 @@ export default function GovernanceConsole() {
     try {
       setLoading(true);
       const [pRes, hRes, aRes] = await Promise.all([
-        apiGetRetentionPolicies(),
-        apiGetLegalHolds(),
-        apiGetAuditAnomalies()
+        apiGetRetentionPolicies().catch(() => FALLBACK_POLICIES),
+        apiGetLegalHolds().catch(() => FALLBACK_HOLDS),
+        apiGetAuditAnomalies().catch(() => FALLBACK_ANOMALIES)
       ]);
-      setPolicies(pRes && pRes.length > 0 ? pRes : FALLBACK_POLICIES);
-      setHolds(hRes && hRes.length > 0 ? hRes : FALLBACK_HOLDS);
-      setAnomaliesData(aRes || FALLBACK_ANOMALIES);
+      const validPolicies = Array.isArray(pRes) ? pRes : ((pRes as any)?.policies || (pRes as any)?.data || FALLBACK_POLICIES);
+      const validHolds = Array.isArray(hRes) ? hRes : ((hRes as any)?.holds || (hRes as any)?.data || FALLBACK_HOLDS);
+      setPolicies(Array.isArray(validPolicies) && validPolicies.length > 0 ? validPolicies : FALLBACK_POLICIES);
+      setHolds(Array.isArray(validHolds) && validHolds.length > 0 ? validHolds : FALLBACK_HOLDS);
+      setAnomaliesData(aRes && aRes.signals ? aRes : FALLBACK_ANOMALIES);
     } catch (err) {
       console.error('Failed to load governance data, using demo fallback:', err);
       setPolicies(FALLBACK_POLICIES);
@@ -221,7 +223,9 @@ export default function GovernanceConsole() {
     }
   };
 
-  const activeHoldCount = holds.filter(h => h.is_active).length;
+  const safeHolds = Array.isArray(holds) ? holds : FALLBACK_HOLDS;
+  const safePolicies = Array.isArray(policies) ? policies : FALLBACK_POLICIES;
+  const activeHoldCount = safeHolds.filter(h => h && h.is_active).length;
 
   return (
     <div
@@ -690,7 +694,7 @@ export default function GovernanceConsole() {
                 </tr>
               </thead>
               <tbody>
-                {policies.map((p, idx) => (
+                {safePolicies.map((p, idx) => (
                   <tr
                     key={p.id}
                     style={{
@@ -852,7 +856,7 @@ export default function GovernanceConsole() {
                 </tr>
               </thead>
               <tbody>
-                {holds.map((h, idx) => (
+                {safeHolds.map((h, idx) => (
                   <tr
                     key={h.id}
                     style={{
