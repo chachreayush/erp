@@ -197,7 +197,7 @@ export default function CargoBoard() {
       ]);
 
       if (sumRes) setSummary(sumRes);
-      if (listRes && listRes.consignments) {
+      if (listRes && listRes.consignments && listRes.consignments.length > 0) {
         setConsignments(listRes.consignments);
       } else {
         setConsignments(FALLBACK_CONSIGNMENTS);
