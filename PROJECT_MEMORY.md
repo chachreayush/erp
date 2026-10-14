@@ -371,6 +371,51 @@ px tsc --noEmit) with 0 errors.
 
 ---
 
+## Major Milestone: DOC-33 Audit Trail, Data Governance & Compliance Control Engine (COMPLETED)
+
+1. **Architectural Principles (DOC-33 Non-Negotiables)**:
+   - **Append-Only & Tamper-Evident**: Audit events cannot be updated or deleted through normal business UI or APIs. Storage is strictly immutable.
+   - **Cryptographic Hash Chaining**: Every audit entry computes a deterministic SHA-256 digest linking back to the immediate predecessor (`prev_hash`):
+     $$\text{event\_hash} = \text{SHA256}(\text{prev\_hash} + \text{tenant\_id} + \text{actor} + \text{event\_type} + \text{object\_type} + \text{object\_id} + \text{timestamp} + \text{before\_payload} + \text{after\_payload})$$
+     Mathematical verification (`POST /api/audit/verify-chain`) certifies that no records were deleted, inserted out of order, or altered.
+   - **Sensitive Data Redaction**: Passwords, tokens, secret keys, bank secrets, and credentials are automatically intercepted and redacted as `[REDACTED_SENSITIVE]` in before/after payload diff viewers.
+   - **Audit of Audit**: Any export, legal hold creation/release, or policy adjustment automatically generates its own immutable audit event.
+   - **Statutory Retention**: Preconfigured with statutory MCA/GST 8-year rules (2,920 days) across financial ledgers, vouchers, and audit logs.
+   - **Legal Litigation Holds**: Freezes records subject to regulatory inquiry, overriding retention purges with mandatory release reason tracking.
+
+2. **Relational Database Schema (`backend/models.py`)**:
+   - `audit_events`: Stores `id`, `company_id`, `actor_id`, `actor_name`, `event_type`, `object_type`, `object_id`, `document_number`, `event_time`, `before_payload` (JSONB), `after_payload` (JSONB), `reason`, `correlation_id`, `prev_hash` (VARCHAR 64), `event_hash` (VARCHAR 64), and `is_verified` (BOOLEAN).
+   - `retention_policies`: Stores `id`, `company_id`, `object_type`, `retention_days` (default 2,920 days / 8 years), `legal_hold_allowed`, `effective_from`, and `created_at`.
+   - `legal_holds`: Stores `id`, `company_id`, `scope_type` (RECORD, MODULE, PARTY, ALL), `scope_id`, `scope_description`, `reason`, `created_by_id`, `released_at`, `release_reason`, and `created_at`.
+
+3. **Backend REST APIs (`backend/api/audit.py`)**:
+   - `GET /api/audit/events`: Multidimensional search and filter with pagination, total count, and latest hash seal.
+   - `GET /api/audit/diff/{event_id}`: Field-by-field before/after diff with sensitive data masking and individual SHA-256 hash seal validation.
+   - `POST /api/audit/verify-chain`: Complete sequential mathematical traversal and validation of the SHA-256 hash chain.
+   - `GET/POST /api/audit/retention/policies`: Retention policy management (generates audit event).
+   - `GET/POST /api/audit/legal-holds`: Statutory litigation and inquiry hold management (generates audit event).
+   - `POST /api/audit/legal-holds/{id}/release`: Unfreezes records with mandatory release reason (generates audit event).
+   - `GET /api/audit/anomalies`: Anomaly detection engine (mass edit velocity, repeated cancellations, after-hours modifications, active holds, chain seal).
+   - `POST /api/audit/evidence-pack`: Produces cryptographically sealed audit evidence packs for statutory auditors (generates `AUDIT_EXPORT` event).
+   - `POST /api/audit/log`: Generic module audit event logger.
+
+4. **Frontend Cockpits & Launchers**:
+   - `AuditExplorer.tsx` (`/audit`): Unified Audit Explorer with fuzzy search (`[Ctrl+F]`), module filter, event type filter, interactive timeline table, slide-over Change Detail Drawer with before/after field diffs, sensitive masking, SHA-256 seal verification badge (`✓ SEAL VALID (SHA-256)`), hash chain verification button (`#btn-verify-chain`), and evidence pack export modal.
+   - `GovernanceConsole.tsx` (`/audit/governance`): 4-tab console for Retention Policies (MCA/GST 8-year standard), Statutory Legal Holds (`#modal-apply-hold`, release modal), Forensic Anomaly Signals (`MASS_EDITS`, `REPEATED_REVERSALS`, `AFTER_HOURS`, `ACTIVE_LEGAL_HOLDS`, `CHAIN_INTEGRITY`), and Auditor Evidence Pack Generator (`#btn-console-generate-evidence`).
+   - `HomeScreen.tsx`: Added `Audit Trail` launcher tile (`#hub-btn-audit-trail`) and `Audit Trail ↗` action button in Urgent Exceptions.
+   - `Header.tsx` & `MargAppShell.tsx`: Added navigation links and icons for Audit Trail and Governance Console.
+
+5. **Master Automated Selenium Suite (`test_audit_governance_selenium.py`)**:
+   - Verified 100% PASS across all 10 verification stages (Exit Code 0).
+   - 5 live visual proof screenshots captured:
+     - `verified_audit_homescreen_launcher.png`
+     - `verified_audit_explorer_table.png`
+     - `verified_audit_diff_drawer_seal.png`
+     - `verified_audit_governance_console_holds.png`
+     - `verified_audit_anomalies_and_evidence.png`
+
+---
+
 ## Enterprise Master Documentation: Complete Software Walkthrough (.docx)
 
 An exhaustive, publication-grade master reference manual has been created as an editable Microsoft Word document:
@@ -388,9 +433,10 @@ An exhaustive, publication-grade master reference manual has been created as an 
   9. Statutory GST Compliance (GSTR-1, GSTR-2 with Debit Note ITC reversal, GSTR-3B, Government Offline Utility JSON, E-Invoicing IRN & E-Way Bill).
   10. Management Reporting & Executive BI (Company Sales Drill-downs, Custom Report Designer, Predictive Risk Signals).
   11. Workflow, Approval, Alert & Business Automation Engine (DOC-32: Inbox `[F4]`, Maker-Checker 403, Designer with Sandbox Simulator, SLA Monitor).
-  12. Relational Database Schema Dictionary (18+ PostgreSQL models).
-  13. RESTful API Directory (23+ core endpoints).
-  14. Automated Selenium QA Verification Matrix (10 test suites, 100% assertions) & Production Deployment guide.
+  12. Audit Trail, Data Governance & Compliance Control Engine (DOC-33: Cryptographic SHA-256 Hash Chain, Tamper Detection, Before/After Diff Drawer, Legal Holds, Retention Policies, Auditor Evidence Packs).
+  13. Relational Database Schema Dictionary (21+ PostgreSQL models).
+  14. RESTful API Directory (32+ core endpoints).
+  15. Automated Selenium QA Verification Matrix (11 test suites, 100% assertions) & Production Deployment guide.
 
 ---
 

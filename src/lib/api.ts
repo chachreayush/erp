@@ -2217,3 +2217,185 @@ export async function apiGetWorkflowAnalytics(): Promise<WorkflowAnalyticsRespon
   return response.data;
 }
 
+// ── DOC-33: AUDIT TRAIL, DATA GOVERNANCE & COMPLIANCE CONTROL ENGINE ──
+export interface AuditEventItem {
+  id: string;
+  actor_name: string;
+  event_type: string;
+  object_type: string;
+  object_id: string | null;
+  document_number: string;
+  event_time: string;
+  reason: string;
+  prev_hash: string | null;
+  event_hash: string;
+  correlation_id: string | null;
+  is_verified: boolean;
+}
+
+export interface AuditEventsResponse {
+  total: number;
+  offset: number;
+  limit: number;
+  latest_hash: string;
+  chain_verified: boolean;
+  events: AuditEventItem[];
+}
+
+export interface AuditDiffItem {
+  field: string;
+  old_value: any;
+  new_value: any;
+  status: 'ADDED' | 'REMOVED' | 'MODIFIED' | 'UNCHANGED';
+}
+
+export interface AuditDiffResponse {
+  event_id: string;
+  document_number: string;
+  actor_name: string;
+  event_type: string;
+  object_type: string;
+  event_time: string;
+  reason: string | null;
+  prev_hash: string | null;
+  event_hash: string;
+  is_hash_intact: boolean;
+  diff_items: AuditDiffItem[];
+  before_payload: Record<string, any> | null;
+  after_payload: Record<string, any> | null;
+}
+
+export interface ChainVerificationResponse {
+  is_valid: boolean;
+  total_verified: number;
+  genesis_hash: string;
+  latest_hash: string;
+  broken_link_id: string | null;
+  verified_at: string;
+  status_badge: string;
+  message?: string;
+}
+
+export interface RetentionPolicyItem {
+  id: string;
+  object_type: string;
+  retention_days: number;
+  retention_years: number;
+  legal_hold_allowed: boolean;
+  effective_from: string | null;
+  created_at: string;
+}
+
+export interface LegalHoldItem {
+  id: string;
+  scope_type: string;
+  scope_description: string;
+  reason: string;
+  is_active: boolean;
+  created_at: string;
+  released_at: string | null;
+  release_reason: string;
+}
+
+export interface AuditAnomaliesResponse {
+  signals: {
+    code: string;
+    title: string;
+    severity: 'NORMAL' | 'INFO' | 'WARNING' | 'CRITICAL' | 'SECURE';
+    metric: string;
+    description: string;
+  }[];
+  total_active_holds: number;
+  recent_24h_volume: number;
+}
+
+export interface EvidencePackResponse {
+  status: string;
+  manifest: {
+    pack_id: string;
+    exported_by: string;
+    exported_at: string;
+    purpose: string;
+    total_records: number;
+    genesis_hash: string;
+    terminal_hash: string;
+    compliance_standard: string;
+  };
+  export_audit_event_id: string;
+  records_count: number;
+}
+
+export async function apiGetAuditEvents(params?: {
+  search?: string;
+  module?: string;
+  event_type?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<AuditEventsResponse> {
+  const response = await apiClient.get<AuditEventsResponse>('/api/audit/events', { params });
+  return response.data;
+}
+
+export async function apiGetAuditDiff(eventId: string): Promise<AuditDiffResponse> {
+  const response = await apiClient.get<AuditDiffResponse>(`/api/audit/diff/${eventId}`);
+  return response.data;
+}
+
+export async function apiVerifyAuditChain(): Promise<ChainVerificationResponse> {
+  const response = await apiClient.post<ChainVerificationResponse>('/api/audit/verify-chain');
+  return response.data;
+}
+
+export async function apiGetRetentionPolicies(): Promise<RetentionPolicyItem[]> {
+  const response = await apiClient.get<RetentionPolicyItem[]>('/api/audit/retention/policies');
+  return response.data;
+}
+
+export async function apiUpsertRetentionPolicy(payload: {
+  object_type: string;
+  retention_days: number;
+  legal_hold_allowed?: boolean;
+  effective_from?: string;
+}): Promise<{ status: string; policy_id: string; audit_event_id: string }> {
+  const response = await apiClient.post('/api/audit/retention/policies', payload);
+  return response.data;
+}
+
+export async function apiGetLegalHolds(): Promise<LegalHoldItem[]> {
+  const response = await apiClient.get<LegalHoldItem[]>('/api/audit/legal-holds');
+  return response.data;
+}
+
+export async function apiCreateLegalHold(payload: {
+  scope_type: string;
+  scope_description: string;
+  reason: string;
+}): Promise<{ status: string; hold_id: string; audit_event_id: string }> {
+  const response = await apiClient.post('/api/audit/legal-holds', payload);
+  return response.data;
+}
+
+export async function apiReleaseLegalHold(
+  holdId: string,
+  releaseReason: string
+): Promise<{ status: string; hold_id: string; audit_event_id: string }> {
+  const response = await apiClient.post(`/api/audit/legal-holds/${holdId}/release`, {
+    release_reason: releaseReason
+  });
+  return response.data;
+}
+
+export async function apiGetAuditAnomalies(): Promise<AuditAnomaliesResponse> {
+  const response = await apiClient.get<AuditAnomaliesResponse>('/api/audit/anomalies');
+  return response.data;
+}
+
+export async function apiExportEvidencePack(payload: {
+  purpose: string;
+  module?: string;
+}): Promise<EvidencePackResponse> {
+  const response = await apiClient.post<EvidencePackResponse>('/api/audit/evidence-pack', payload);
+  return response.data;
+}
+
+

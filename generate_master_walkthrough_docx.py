@@ -433,10 +433,27 @@ def create_full_software_walkthrough():
     add_p("• Execution & SLA Monitor (/workflow/monitor): Real-time analytics displaying 1.8h Average Turnaround Time, 94.2% SLA Adherence, bottleneck approver rankings, SHA-256 hash stream, and 1-click safe retry buttons.")
 
     # ==========================================
-    # SECTION 11: DATABASE SCHEMA
+    # SECTION 11: AUDIT TRAIL & DATA GOVERNANCE (DOC-33)
     # ==========================================
-    add_h1("11. Relational Database Schema Dictionary (PostgreSQL)")
-    add_p("The database architecture encompasses 18+ high-performance relational tables:")
+    add_h1("11. Audit Trail, Data Governance & Compliance Control Engine (DOC-33)")
+    add_p("DOC-33 serves as the cryptographic trust and regulatory governance spine of the enterprise platform, enforcing mathematical non-repudiation, tamper detection, and statutory record retention across all ledger postings, master data adjustments, and approval actions.")
+
+    add_h2("11.1 Non-Negotiable Compliance Architecture")
+    add_p("1. Append-Only Immutability: Audit log records are strictly append-only. No user, administrator, or API caller can delete or modify past audit events.")
+    add_p("2. Cryptographic Hash Chaining: Each event is cryptographically linked to its predecessor via an SHA-256 digital fingerprint calculated as: SHA256(prev_hash + tenant_id + actor + event_type + object_type + object_id + timestamp + before_payload + after_payload). Sequential chain validation (POST /api/audit/verify-chain) mathematically proves historical data integrity.")
+    add_p("3. Sensitive Data Redaction: Passwords, tokens, secret keys, bank secrets, and credential hashes are intercepted and permanently redacted as [REDACTED_SENSITIVE] before rendering in diff views.")
+    add_p("4. Audit of Audit: Any administrative inspection, legal hold placement, retention policy update, or evidence export automatically records its own immutable audit event.")
+
+    add_h2("11.2 Cockpits, Drawers & Governance Features")
+    add_p("• Unified Audit Explorer (/audit): Multidimensional search (Ctrl+F) with module filters, event type filters, timeline table, and 1-click cryptographic chain verification button (#btn-verify-chain).")
+    add_p("• Slide-Over Change Detail Drawer: Side inspection panel displaying full event metadata, field-by-field before/after diffs, and an authentic SHA-256 seal badge (✓ SEAL VALID (SHA-256)).")
+    add_p("• Data Governance Console (/audit/governance): 4-tab control center covering Statutory Retention Policies (MCA/GST 8-year standard / 2,920 days), Legal Litigation Holds (#btn-apply-hold with freeze & unfreeze reasons), Forensic Anomaly Signals (mass edits, repeated reversals, after-hours modifications, chain integrity), and Auditor Evidence Pack Generation.")
+
+    # ==========================================
+    # SECTION 12: DATABASE SCHEMA
+    # ==========================================
+    add_h1("12. Relational Database Schema Dictionary (PostgreSQL)")
+    add_p("The database architecture encompasses 21+ high-performance relational tables:")
 
     schema_table = doc.add_table(rows=1, cols=3)
     schema_headers = ["Table Name", "Primary Keys & Constraints", "Functional Purpose & Key Columns"]
@@ -458,15 +475,18 @@ def create_full_software_walkthrough():
         ["workflow_definitions", "id UUID (PK), company_id (FK)", "Approval templates. Columns: module_name, trigger_event, tier_ladder JSONB, is_active."],
         ["workflow_instances", "id UUID (PK), idempotency_key UNIQUE", "Workflow executions. Columns: source_document_id, status, current_tier, document_payload."],
         ["workflow_tasks", "id UUID (PK), instance_id (FK)", "Approval work items. Columns: tier_index, required_role, assigned_user, status, sla_deadline."],
-        ["workflow_audit_logs", "id UUID (PK), instance_id (FK)", "Regulatory audit timeline. Columns: action_type, actor_id, previous_state, new_state, remarks."]
+        ["workflow_audit_logs", "id UUID (PK), instance_id (FK)", "Regulatory audit timeline. Columns: action_type, actor_id, previous_state, new_state, remarks."],
+        ["audit_events", "id UUID (PK), prev_hash VARCHAR(64)", "Immutable cryptographically chained audit events. Columns: company_id, actor_name, event_type, object_type, before_payload JSONB, after_payload JSONB, event_hash."],
+        ["retention_policies", "id UUID (PK), company_id (FK)", "Statutory retention policies. Columns: object_type, retention_days (2920 days / 8 yrs), legal_hold_allowed, effective_from."],
+        ["legal_holds", "id UUID (PK), company_id (FK)", "Statutory litigation/inquiry holds. Columns: scope_type, scope_description, reason, created_by_id, released_at, release_reason."]
     ]
     style_table(schema_table, [1.5, 2.0, 3.0], schema_headers, schema_data)
     doc.add_paragraph().paragraph_format.space_after = Pt(8)
 
     # ==========================================
-    # SECTION 12: REST API DIRECTORY
+    # SECTION 13: REST API DIRECTORY
     # ==========================================
-    add_h1("12. RESTful API Directory & Endpoint Specifications")
+    add_h1("13. RESTful API Directory & Endpoint Specifications")
     add_p("The backend exposes a high-speed, asynchronous RESTful API layer organized by domain:")
 
     api_table = doc.add_table(rows=1, cols=3)
@@ -494,15 +514,23 @@ def create_full_software_walkthrough():
         ["/api/workflow/inbox", "GET", "Fetches pending & historic approval tasks with SLA countdowns."],
         ["/api/workflow/tasks/{id}/action", "POST", "Executes APPROVE, REJECT (mandatory remarks), DELEGATE, or ESCALATE."],
         ["/api/workflow/trigger", "POST", "Universal workflow trigger with SHA-256 deduplication and fallback UUID support."],
-        ["/api/workflow/analytics", "GET", "Returns turnaround time (1.8h), SLA adherence (94.2%), and bottleneck analysis."]
+        ["/api/workflow/analytics", "GET", "Returns turnaround time (1.8h), SLA adherence (94.2%), and bottleneck analysis."],
+        ["/api/audit/events", "GET", "Multidimensional audit event query with module/event filtering and pagination."],
+        ["/api/audit/diff/{id}", "GET", "Field-by-field before/after state diff with sensitive data masking and hash seal test."],
+        ["/api/audit/verify-chain", "POST", "Traverses sequential SHA-256 cryptographic chain certifying 100% data integrity."],
+        ["/api/audit/retention/policies", "GET / POST", "Retrieves and upserts statutory retention schedules (MCA/GST 8-year standard)."],
+        ["/api/audit/legal-holds", "GET / POST", "Applies and lists statutory inquiry/litigation holds freezing records."],
+        ["/api/audit/legal-holds/{id}/release", "POST", "Releases legal hold with mandatory justification audit reason."],
+        ["/api/audit/anomalies", "GET", "Scans for velocity spikes, repeated cancellations, after-hours edits, and chain tampering."],
+        ["/api/audit/evidence-pack", "POST", "Produces cryptographically sealed audit evidence package with SHA-256 root hash."]
     ]
     style_table(api_table, [2.2, 0.9, 3.4], api_headers, api_data)
     doc.add_paragraph().paragraph_format.space_after = Pt(8)
 
     # ==========================================
-    # SECTION 13: QA VERIFICATION & DEPLOYMENT
+    # SECTION 14: QA VERIFICATION & DEPLOYMENT
     # ==========================================
-    add_h1("13. Automated Selenium QA Matrix & Production Deployment")
+    add_h1("14. Automated Selenium QA Matrix & Production Deployment")
     add_p("The codebase maintains 100% automated test coverage across headless Chrome Selenium suites:")
 
     qa_table = doc.add_table(rows=1, cols=3)
@@ -517,12 +545,13 @@ def create_full_software_walkthrough():
         ["test_fixed_assets_selenium.py", "5 Stages", "100% PASS: Asset registration, WDV/SLM depreciation run, GL journal generation, P&L deduction."],
         ["test_bank_recon_cash_selenium.py", "6 Stages", "100% PASS: BRS workbench, tolerance auto-matching, cash denomination tally counting, discrepancy audit."],
         ["test_dashboard_bi_control_center_selenium.py", "7 Stages", "100% PASS: Counter workbench, Executive BI strip, area trends, Opex donut, vector map modal."],
-        ["test_workflow_approval_automation_selenium.py", "10 Stages", "100% PASS: Universal trigger, [F4] Inbox, Maker-Checker 403 enforcement, rejection modal, designer simulator, SLA monitor."]
+        ["test_workflow_approval_automation_selenium.py", "10 Stages", "100% PASS: Universal trigger, [F4] Inbox, Maker-Checker 403 enforcement, rejection modal, designer simulator, SLA monitor."],
+        ["test_audit_governance_selenium.py", "10 Stages", "100% PASS: Cryptographic SHA-256 hash chaining, diff drawer, seal validation, retention policies, legal holds, forensic anomalies, evidence pack."]
     ]
     style_table(qa_table, [2.3, 1.0, 3.2], qa_headers, qa_data)
     doc.add_paragraph().paragraph_format.space_after = Pt(8)
 
-    add_h2("13.1 Production Deployment & Synchronization Commands")
+    add_h2("14.1 Production Deployment & Synchronization Commands")
     add_p("To run or synchronize the software across development and production environments:")
     
     add_callout(

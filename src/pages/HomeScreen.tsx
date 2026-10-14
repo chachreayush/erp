@@ -73,6 +73,7 @@ export default function HomeScreen() {
   const quickLaunchers = [
     { label: 'Sales Bill', hotkey: 'F2', icon: <ShoppingCart size={20} />, path: '/sales', color: '#1b4332' },
     { label: 'Approval Inbox', hotkey: 'F4', icon: <CheckCircle2 size={20} />, path: '/workflow/inbox', color: '#0369a1' },
+    { label: 'Audit Trail', hotkey: '', icon: <ShieldCheck size={20} />, path: '/audit', color: '#1b4332' },
     { label: 'Purchase Bill', hotkey: 'F9', icon: <Package size={20} />, path: '/sales', color: '#2d6a4f' },
     { label: 'Sales Return', hotkey: '', icon: <RotateCcw size={20} />, path: '/sales', color: '#40916c' },
     { label: 'Purchase Return', hotkey: '', icon: <RotateCcw size={20} />, path: '/purchases/returns', color: '#52b788' },
@@ -81,6 +82,7 @@ export default function HomeScreen() {
     { label: 'Day Book', hotkey: '', icon: <BookOpen size={20} />, path: '/finance/daybook', color: '#111827' },
     { label: 'Stock Register', hotkey: '', icon: <Search size={20} />, path: '/stock', color: '#111827' },
   ]
+
 
   return (
     <div 
@@ -389,6 +391,22 @@ export default function HomeScreen() {
                 }}
               >
                 Approvals Inbox [F4] ↗
+              </button>
+              <button
+                id="btn-home-audit-trail"
+                onClick={() => navigate('/audit')}
+                style={{
+                  fontSize: '11px',
+                  backgroundColor: '#1b4332',
+                  color: '#ffffff',
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  fontWeight: 700,
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                Audit Trail ↗
               </button>
               <span style={{ fontSize: '12px', backgroundColor: '#fef2f2', color: '#b91c1c', padding: '2px 8px', borderRadius: '6px', fontWeight: 700 }}>
                 {alertsData?.urgent_exceptions.length ?? 3} Actionable

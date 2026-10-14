@@ -1946,3 +1946,63 @@ class WorkflowAuditLog(Base):
 
     instance = relationship("WorkflowInstance", back_populates="audit_logs")
 
+
+# ============================================================
+# DOC-33: Audit Trail, Data Governance & Compliance Control Engine
+# ============================================================
+
+class AuditEvent(Base):
+    __tablename__ = "audit_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    actor_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    actor_name = Column(String(100), nullable=False, default="System")
+    event_type = Column(String(80), nullable=False, index=True) # CREATE, UPDATE, CANCEL, APPROVE, REJECT, POST, REVERSE, EXPORT, LOGIN, LEGAL_HOLD_APPLIED
+    object_type = Column(String(60), nullable=False, index=True) # INVOICE, VOUCHER, PARTY, PRODUCT, PRICE_LIST, ROLE, RETENTION_POLICY, LEGAL_HOLD
+    object_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    document_number = Column(String(100), nullable=True, index=True)
+    event_time = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    before_payload = Column(JSONB, nullable=True)
+    after_payload = Column(JSONB, nullable=True)
+    reason = Column(Text, nullable=True)
+    correlation_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    prev_hash = Column(String(64), nullable=True, index=True)
+    event_hash = Column(String(64), nullable=False, index=True)
+    is_verified = Column(Boolean, default=True, nullable=False)
+
+    organization = relationship("Organization")
+    actor = relationship("User", foreign_keys=[actor_id])
+
+
+class RetentionPolicy(Base):
+    __tablename__ = "retention_policies"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    object_type = Column(String(60), nullable=False, index=True) # INVOICE, VOUCHER, AUDIT_EVENT, PARTY, MASTER
+    retention_days = Column(Integer, nullable=False, default=2920) # Default 8 years (2920 days) statutory MCA/GST
+    legal_hold_allowed = Column(Boolean, default=True, nullable=False)
+    effective_from = Column(Date, default=date.today, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    organization = relationship("Organization")
+
+
+class LegalHold(Base):
+    __tablename__ = "legal_holds"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    scope_type = Column(String(30), nullable=False) # RECORD, MODULE, PARTY, ALL
+    scope_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    scope_description = Column(String(200), nullable=True)
+    reason = Column(Text, nullable=False)
+    created_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    released_at = Column(DateTime, nullable=True)
+    release_reason = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    organization = relationship("Organization")
+    created_by = relationship("User", foreign_keys=[created_by_id])
+

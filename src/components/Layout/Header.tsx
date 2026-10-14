@@ -18,6 +18,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Inventory', path: '/inventory-dashboard', module: 'inventory' },
   { label: 'Sales & Purchase', path: '/sales', module: 'sales' },
   { label: 'Workflows [F4]', path: '/workflow/inbox', module: undefined },
+  { label: 'Audit Trail', path: '/audit', module: undefined },
   { label: 'CRM & Admin', path: '/crm', module: 'crm' },
   { label: 'GST & Compliance', path: '/gst', module: undefined },
   { label: 'HR Management', path: '/hr', module: 'hr' },

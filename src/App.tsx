@@ -22,6 +22,8 @@ import ReportDesigner from './pages/reports/ReportDesigner';
 import WorkflowInbox from './pages/workflow/WorkflowInbox';
 import WorkflowDesigner from './pages/workflow/WorkflowDesigner';
 import WorkflowMonitor from './pages/workflow/WorkflowMonitor';
+import AuditExplorer from './pages/audit/AuditExplorer';
+import GovernanceConsole from './pages/audit/GovernanceConsole';
 
 
 // ── STORE ─────────────────────────────────────────────────────
@@ -237,7 +239,13 @@ function App() {
         <Route path="workflow/designer" element={<WorkflowDesigner />} />
         <Route path="workflow/monitor" element={<WorkflowMonitor />} />
         <Route path="approvals" element={<WorkflowInbox />} />
+
+        {/* DOC-33 Audit Trail & Data Governance Routes */}
+        <Route path="audit" element={<AuditExplorer />} />
+        <Route path="audit/explorer" element={<AuditExplorer />} />
+        <Route path="audit/governance" element={<GovernanceConsole />} />
       </Route>
+
 
       {/* ── CATCH-ALL REDIRECT ───────────────────────────────
           Any unknown URL redirects to "/" (dashboard).

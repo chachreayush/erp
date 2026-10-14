@@ -895,6 +895,77 @@ C:\Python313\python.exe test_workflow_approval_automation_selenium.py
 
 ---
 
+## 21. Master Selenium Testing Suite: Audit Trail, Data Governance & Compliance Control Engine (DOC-33)
+
+The automated test suite `test_audit_governance_selenium.py` provides end-to-end regression verification of the DOC-33 Audit Trail, Data Governance & Compliance Control Engine, covering the Unified Audit Explorer (`/audit`), Change Detail Drawer with Before/After Diff & Seal Verification, Cryptographic Hash Chain Traversal, and the Data Governance Console (`/audit/governance`):
+
+```powershell
+cd C:\Users\DELL\OneDrive\Desktop\erp2
+C:\Python313\python.exe test_audit_governance_selenium.py
+```
+
+### 21.1 Architecture & Endpoints Under Test
+* **Append-Only & Tamper-Evident Storage**: Audit events are strictly immutable. Neither business users nor administrators can alter or delete logged records through UI or standard APIs.
+* **Cryptographic Hash Chaining**: Every audit entry computes a deterministic SHA-256 digest linking back to the immediate predecessor:
+  $$\text{event\_hash} = \text{SHA256}(\text{prev\_hash} + \text{tenant\_id} + \text{actor} + \text{event\_type} + \text{object\_type} + \text{object\_id} + \text{timestamp} + \text{before\_payload} + \text{after\_payload})$$
+* **Sequential Chain Traversal (`POST /api/audit/verify-chain`)**: Traverses all sequential audit blocks chronologically, recalculating each SHA-256 hash against its predecessor. Mathematical proof confirms no deletions, insertions, or payload modifications.
+* **Sensitive Data Redaction**: Automatic masking engine intercepts passwords, auth tokens, secret keys, bank account secrets, and credential hashes, outputting `[REDACTED_SENSITIVE]` in payload diff viewers.
+* **Audit of Audit**: All governance operations—such as creating or releasing legal holds, modifying retention policies, or generating evidence packs—automatically write immutable audit events.
+* **Statutory Retention Policies (`GET/POST /api/audit/retention/policies`)**: Implements MCA/GST 8-year statutory compliance (2,920 days) across financial ledgers, invoices, vouchers, and audit logs.
+* **Litigation & Inquiry Legal Holds (`GET/POST /api/audit/legal-holds`, `POST /api/audit/legal-holds/{id}/release`)**: Freezes records subject to regulatory inquiry, overriding retention purges with mandatory release reason tracking.
+* **Forensic Anomaly Detection (`GET /api/audit/anomalies`)**: Scans for high-velocity edits (>20/hour), repeated document cancellations (>3), after-hours activity (20:00–06:00), active hold conflicts, and cryptographic chain breaks.
+* **Auditor Evidence Pack Generator (`POST /api/audit/evidence-pack`)**: Compiles filtered audit logs, policy profiles, and active holds into a cryptographically sealed JSON/CSV manifest signed with an SHA-256 root hash for statutory auditors.
+
+### 21.2 Database Models
+* `audit_events`: Stores `id`, `company_id`, `actor_id`, `actor_name`, `event_type`, `object_type`, `object_id`, `document_number`, `event_time`, `before_payload` (JSONB), `after_payload` (JSONB), `reason`, `correlation_id`, `prev_hash` (VARCHAR 64), `event_hash` (VARCHAR 64), and `is_verified` (BOOLEAN).
+* `retention_policies`: Stores `id`, `company_id`, `object_type`, `retention_days` (default 2,920 days / 8 years), `legal_hold_allowed`, `effective_from`, and `created_at`.
+* `legal_holds`: Stores `id`, `company_id`, `scope_type` (RECORD, MODULE, PARTY, ALL), `scope_id`, `scope_description`, `reason`, `created_by_id`, `released_at`, `release_reason`, and `created_at`.
+
+### 21.3 Automated Verification Assertions (10/10 Stages - 100% Pass):
+1. **API Authentication & Tenant Context**: Authenticates as `admin` on Organization `78fca6c8-eb92-41c4-96ec-ac2e150d56a4`.
+2. **DOC-33 Backend API Verification**:
+   - Asserts HTTP 200 on `GET /api/audit/events` (returns seeded events, total count, latest hash).
+   - Asserts at least 5 cryptographically chained audit events present.
+3. **Cryptographic Hash Chain Validation API**:
+   - Asserts HTTP 200 on `POST /api/audit/verify-chain`.
+   - Asserts `is_valid == true` with 100% sequential chain integrity certified.
+4. **Field-by-Field Diff API & Sensitive Data Masking**:
+   - Asserts HTTP 200 on `GET /api/audit/diff/{event_id}`.
+   - Asserts `is_hash_intact == true` (recomputed SHA-256 matches stored event hash).
+   - Asserts field diff entries with before/after state comparison.
+5. **Headless Chrome WebDriver Initialization**: Launches Chrome (1440x950) with session auth token injection into `localStorage` and `sessionStorage`.
+6. **Counter Workbench Launcher Verification**:
+   - Asserts `Audit Trail` launcher tile (`#hub-btn-audit-trail`) on Operational Counter Workbench (`/`).
+   - Asserts `Audit Trail ↗` action button in Urgent Counter Exceptions card.
+   - Captures `verified_audit_homescreen_launcher.png`.
+7. **Unified Audit Explorer UI (`/audit`)**:
+   - Clicks launcher tile to navigate to `/audit`.
+   - Asserts `#input-audit-search` fuzzy filter input.
+   - Asserts `#stat-total-events` metric and `#stat-chain-status` badge (`SEAL INTACT`).
+   - Captures `verified_audit_explorer_table.png`.
+8. **Change Detail Drawer & SHA-256 Seal Validation**:
+   - Clicks first audit row (`audit-row-*`) to open slide-over Change Detail Drawer.
+   - Asserts `#drawer-change-detail` presence.
+   - Asserts `#badge-hash-intact` displays `✓ SEAL VALID (SHA-256)`.
+   - Asserts before/after field diff table and sensitive data masking.
+   - Captures `verified_audit_diff_drawer_seal.png`.
+   - Closes drawer via `#btn-close-drawer`.
+9. **Interactive Hash Chain Verification Action**:
+   - Clicks `#btn-verify-chain` on Audit Explorer toolbar.
+   - Asserts `#banner-verification-result` confirms `Cryptographic Chain Integrity Confirmed (100% Valid)`.
+10. **Data Governance Console (`/audit/governance`)**:
+    - Navigates to `/audit/governance`.
+    - Tab 1: Asserts Retention Policies table (`#tab-btn-policies`) with statutory MCA/GST 8-year rules (2,920 days).
+    - Tab 2: Clicks `#tab-btn-holds`, asserts active statutory Legal Holds and `#btn-apply-hold` action.
+    - Captures `verified_audit_governance_console_holds.png`.
+    - Tab 3: Clicks `#tab-btn-anomalies`, asserts forensic anomaly detection cards (`#card-anomaly-CHAIN_INTEGRITY`, `MASS_EDITS`, `REPEATED_REVERSALS`, `AFTER_HOURS`).
+    - Tab 4: Clicks `#tab-btn-export`, triggers `#btn-console-generate-evidence`.
+    - Asserts `#export-result-box` confirms evidence pack generation sealed with cryptographic root hash.
+    - Captures `verified_audit_anomalies_and_evidence.png`.
+
+---
+
 *End of Developer Manual.*
+
 
 

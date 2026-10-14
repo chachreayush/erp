@@ -218,6 +218,10 @@ app.include_router(dashboard_router, prefix="/api")
 from api.workflow import router as workflow_router
 app.include_router(workflow_router)
 
+# DOC-33: Audit Trail, Data Governance & Compliance Control Engine
+from api.audit import router as audit_router
+app.include_router(audit_router)
+
 # Future routers will be added here as modules are built:
 # app.include_router(hr_router)
 

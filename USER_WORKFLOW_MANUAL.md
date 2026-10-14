@@ -838,6 +838,81 @@ Provides real-time visibility and health tracking for all automated enterprise w
 
 ---
 
+## 22. Audit Trail, Data Governance & Compliance Control Engine (DOC-33)
+
+DOC-33 delivers an immutable, cryptographically chained audit logging and compliance governance layer that satisfies the Ministry of Corporate Affairs (MCA) Audit Trail Rules, US FDA 21 CFR Part 11, and statutory GST requirements.
+
+---
+
+### 22.1 Using the Audit Explorer (`/audit` or `/audit/explorer`)
+
+1. **Accessing the Explorer**:
+   - Click the **Audit Trail** launcher tile on the Counter Workbench (`/`).
+   - Or click **Audit Trail ↗** in the Urgent Counter Exceptions card.
+   - Or select **Audit Trail** from the top navigation bar.
+2. **Top Metric Cards**:
+   - **Total Audited Events**: Live tally of append-only records committed to `audit_events`.
+   - **Hash Chain Integrity**: Real-time cryptographic validation status (**100% Cryptographically Verified**).
+   - **Active Legal Holds**: Number of active litigation or tax inquiry preservation holds.
+   - **Terminal Event Hash**: Displays the latest 64-character SHA-256 root hash.
+3. **Deep Search & Filters**:
+   - Global Search (`#input-audit-search`): Press `[Ctrl+F]` to focus search bar. Search by Document Number, User name, Reason, or Module.
+   - Module Filter: Filter by `INVOICE`, `VOUCHER`, `PARTY`, `PRODUCT`, `WORKFLOW_TASK`, `LEGAL_HOLD`, `RETENTION_POLICY`, or `EVIDENCE_PACK`.
+   - Action Filter: Filter by `CREATE`, `UPDATE`, `POST`, `APPROVE`, `REJECT`, `CANCEL`, `LEGAL_HOLD_APPLIED`, `AUDIT_EXPORT`.
+4. **Keyboard Hotkeys in Audit Explorer**:
+   - `[Ctrl+F]`: Jump to global search input.
+   - `[ArrowUp]` / `[ArrowDown]`: Navigate through audit rows.
+   - `[Enter]`: Open slide-over Change Detail Drawer for highlighted event.
+   - `[E]`: Open the Auditor Evidence Pack export modal.
+   - `[Esc]`: Dismiss drawer or active modal.
+
+---
+
+### 22.2 Change Detail Slide-Over Drawer & Cryptographic Seal Verification
+
+Clicking **Inspect 👁** or pressing `[Enter]` on any row slides open the **Change Evidence Detail Drawer**:
+1. **Cryptographic Hash Chaining Verification**:
+   - Displays the **Previous Event Hash (`prev_hash`)** and **Current Event Hash (`event_hash`)**.
+   - Displays green **`✓ SEAL VALID (SHA-256)`** badge certifying the mathematical link has not been tampered with.
+2. **Event Metadata Banner**:
+   - Authenticated Actor identity, Action Type, Canonical UTC timestamp, and Operational Reason.
+3. **Field-Level Before/After Comparison Grid**:
+   - Itemizes every modified field with Old State (highlighted in red) vs New State (highlighted in green).
+   - Diff status badges: `ADDED`, `MODIFIED`, `REMOVED`.
+   - Sensitive credentials (passwords, tokens, secret keys) are automatically masked as `[REDACTED_SENSITIVE]`.
+
+---
+
+### 22.3 Operating the Data Governance Console (`/audit/governance`)
+
+Access the console via the top header or route `/audit/governance`:
+1. **Retention Policies Tab**:
+   - Lists data classifications (`INVOICE`, `VOUCHER`, `AUDIT_EVENT`, `PARTY`).
+   - Default statutory retention period is **2,920 Days (8 Years)** meeting statutory Indian Companies Act 2013 and CGST Act rules.
+   - Click **Adjust Days** to customize retention schedules. Every policy modification generates an immutable audit record.
+2. **Statutory Legal Holds Tab**:
+   - Manages records protected against automated disposal or archival during tax inquiry or litigation.
+   - To establish a hold, click **+ Establish Statutory Legal Hold**:
+     - Choose Scope (`MODULE`, `RECORD`, `PARTY`, `ALL`).
+     - Enter Scope Description (e.g. *Sales Invoices Series 2025-26 under Tax Notice*).
+     - Enter statutory justification notice citation.
+     - Click **Commit Legal Hold**. An immutable `LEGAL_HOLD_APPLIED` audit event is recorded.
+   - To release a hold, click **Release Hold**, provide mandatory closure remarks, and confirm. An immutable `LEGAL_HOLD_RELEASED` audit event is recorded.
+3. **Forensic Anomaly Signals Tab**:
+   - Real-time heuristic evaluation cards:
+     - **High-Volume Activity Velocity (`MASS_EDITS`)**: Flags rapid mass updates.
+     - **Transaction Reversals & Cancellations (`REPEATED_REVERSALS`)**: Audits cancellation frequency.
+     - **Off-Hours Critical Modifications (`AFTER_HOURS`)**: Flags transactions posted between 22:00 and 06:00.
+     - **Statutory Preservation Holds (`ACTIVE_LEGAL_HOLDS`)**: Highlights active held records.
+     - **Cryptographic Hash Chain Seal (`CHAIN_INTEGRITY`)**: Confirms 100% sequential validity.
+4. **Auditor Evidence Pack Generator Tab**:
+   - Enter statutory audit mandate and click **Generate & Digitally Seal Evidence Pack**.
+   - Produces a verifiable JSON package with embedded cryptographic manifest, pack ID, and terminal hash.
+   - The export action is committed to the audit trail as an immutable `AUDIT_EXPORT` record.
+
+---
+
 *End of User Workflow Manual.*
+
 
 
