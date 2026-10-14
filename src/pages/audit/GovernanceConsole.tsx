@@ -1,6 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import {
+  ShieldCheck,
+  Scale,
+  FileText,
+  AlertTriangle,
+  CheckCircle2,
+  Download,
+  Plus,
+  X,
+  Clock,
+  Lock,
+  Database,
+  ShieldAlert,
+  ArrowLeft,
+  Sliders,
+  Calendar,
+  Layers,
+  Sparkles,
+  Search
+} from 'lucide-react';
 import {
   apiGetRetentionPolicies,
   apiUpsertRetentionPolicy,
@@ -11,7 +30,8 @@ import {
   apiExportEvidencePack,
   RetentionPolicyItem,
   LegalHoldItem,
-  AuditAnomaliesResponse
+  AuditAnomaliesResponse,
+  EvidencePackResponse
 } from '../../lib/api';
 
 export default function GovernanceConsole() {
@@ -37,7 +57,7 @@ export default function GovernanceConsole() {
 
   // Export
   const [exportPurpose, setExportPurpose] = useState<string>('Annual Statutory Governance Review (MCA 2026)');
-  const [exportResult, setExportResult] = useState<any | null>(null);
+  const [exportResult, setExportResult] = useState<EvidencePackResponse | null>(null);
 
   const [loading, setLoading] = useState<boolean>(true);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
@@ -129,7 +149,7 @@ export default function GovernanceConsole() {
       setActionMsg(`Retention policy for ${editingPolicy.object_type} updated to ${policyDays} days. Audit event generated.`);
       setEditingPolicy(null);
       loadAll();
-      setTimeout(() => setActionMsg(null), 3000);
+      setTimeout(() => setActionMsg(null), 3500);
     } catch (err) {
       console.error('Failed to update retention policy:', err);
     }
@@ -150,7 +170,7 @@ export default function GovernanceConsole() {
       setHoldDescription('');
       setHoldReason('');
       loadAll();
-      setTimeout(() => setActionMsg(null), 3000);
+      setTimeout(() => setActionMsg(null), 3500);
     } catch (err) {
       console.error('Failed to create legal hold:', err);
     }
@@ -165,7 +185,7 @@ export default function GovernanceConsole() {
       setReleasingHoldId(null);
       setReleaseReason('');
       loadAll();
-      setTimeout(() => setActionMsg(null), 3000);
+      setTimeout(() => setActionMsg(null), 3500);
     } catch (err) {
       console.error('Failed to release legal hold:', err);
     }
@@ -201,141 +221,542 @@ export default function GovernanceConsole() {
     }
   };
 
+  const activeHoldCount = holds.filter(h => h.is_active).length;
+
   return (
-    <div className="min-h-screen bg-[#f4f7f5] text-slate-800 p-4 md:p-6 font-sans">
-      {/* ── APEX HEADER ────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between pb-5 border-b border-slate-200 gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <span className="bg-[#1b4332] text-white text-xs font-bold px-2.5 py-1 rounded tracking-wider uppercase">
-              DOC-33 Governance
-            </span>
-            <h1 className="text-2xl font-black text-[#1b4332] tracking-tight">
+    <div
+      style={{
+        minHeight: '100vh',
+        backgroundColor: '#eef2ef',
+        color: '#111827',
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+        padding: '24px 32px',
+        boxSizing: 'border-box'
+      }}
+    >
+      {/* ── TOP LUXURY OPERATIONAL RIBBON ───────────────────────── */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '16px',
+          paddingBottom: '20px',
+          borderBottom: '1px solid #d8e2dc',
+          marginBottom: '20px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div
+            style={{
+              backgroundColor: '#1b4332',
+              color: '#ffffff',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              fontSize: '11px',
+              fontWeight: 800,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <ShieldCheck size={15} />
+            DOC-33 GOVERNANCE
+          </div>
+          <div>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: '22px',
+                fontWeight: 800,
+                color: '#111827',
+                letterSpacing: '-0.02em',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
               Data Governance & Regulatory Compliance Console
             </h1>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginTop: '4px',
+                fontSize: '12px',
+                color: '#52796f',
+                fontWeight: 500
+              }}
+            >
+              <span>Statutory Retention Schedules</span>
+              <span style={{ color: '#d8e2dc' }}>•</span>
+              <span>Litigation Legal Holds</span>
+              <span style={{ color: '#d8e2dc' }}>•</span>
+              <span>Anomaly Signal Engine</span>
+              <span style={{ color: '#d8e2dc' }}>•</span>
+              <span>Sealed Evidence Packs</span>
+            </div>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Statutory Retention Schedules • Litigation Legal Holds • Anomaly Signal Engine • Sealed Evidence Packs
-          </p>
         </div>
 
-        {/* Navigation Tabs & Actions */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200 shadow-sm text-xs font-bold">
+        {/* Action Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {/* Tabs Pill Selector */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              backgroundColor: '#ffffff',
+              padding: '4px',
+              borderRadius: '10px',
+              border: '1px solid #d8e2dc',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+            }}
+          >
             <button
               id="tab-btn-policies"
               onClick={() => setActiveTab('policies')}
-              className={`px-3 py-1.5 rounded transition-colors ${
-                activeTab === 'policies' ? 'bg-[#1b4332] text-white' : 'text-slate-600 hover:bg-slate-100'
-              }`}
+              style={{
+                padding: '7px 14px',
+                borderRadius: '7px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: 700,
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: activeTab === 'policies' ? '#1b4332' : 'transparent',
+                color: activeTab === 'policies' ? '#ffffff' : '#374151',
+                transition: 'all 0.15s ease'
+              }}
             >
-              Retention Policies
+              <Calendar size={13} />
+              <span>Retention Policies</span>
             </button>
+
             <button
               id="tab-btn-holds"
               onClick={() => setActiveTab('holds')}
-              className={`px-3 py-1.5 rounded transition-colors ${
-                activeTab === 'holds' ? 'bg-[#1b4332] text-white' : 'text-slate-600 hover:bg-slate-100'
-              }`}
+              style={{
+                padding: '7px 14px',
+                borderRadius: '7px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: 700,
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: activeTab === 'holds' ? '#1b4332' : 'transparent',
+                color: activeTab === 'holds' ? '#ffffff' : '#374151',
+                transition: 'all 0.15s ease'
+              }}
             >
-              Legal Holds ({holds.filter(h => h.is_active).length})
+              <Scale size={13} />
+              <span>Legal Holds</span>
+              <span
+                style={{
+                  backgroundColor: activeTab === 'holds' ? 'rgba(255,255,255,0.25)' : '#fee2e2',
+                  color: activeTab === 'holds' ? '#ffffff' : '#991b1b',
+                  padding: '1px 6px',
+                  borderRadius: '10px',
+                  fontSize: '11px',
+                  fontWeight: 800
+                }}
+              >
+                {activeHoldCount}
+              </span>
             </button>
+
             <button
               id="tab-btn-anomalies"
               onClick={() => setActiveTab('anomalies')}
-              className={`px-3 py-1.5 rounded transition-colors ${
-                activeTab === 'anomalies' ? 'bg-[#1b4332] text-white' : 'text-slate-600 hover:bg-slate-100'
-              }`}
+              style={{
+                padding: '7px 14px',
+                borderRadius: '7px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: 700,
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: activeTab === 'anomalies' ? '#1b4332' : 'transparent',
+                color: activeTab === 'anomalies' ? '#ffffff' : '#374151',
+                transition: 'all 0.15s ease'
+              }}
             >
-              Anomaly Signals
+              <ShieldAlert size={13} />
+              <span>Anomaly Signals</span>
             </button>
+
             <button
               id="tab-btn-export"
               onClick={() => setActiveTab('export')}
-              className={`px-3 py-1.5 rounded transition-colors ${
-                activeTab === 'export' ? 'bg-[#1b4332] text-white' : 'text-slate-600 hover:bg-slate-100'
-              }`}
+              style={{
+                padding: '7px 14px',
+                borderRadius: '7px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: 700,
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: activeTab === 'export' ? '#1b4332' : 'transparent',
+                color: activeTab === 'export' ? '#ffffff' : '#374151',
+                transition: 'all 0.15s ease'
+              }}
             >
-              Auditor Evidence
+              <Download size={13} />
+              <span>Auditor Evidence</span>
             </button>
           </div>
 
+          {/* Navigation Back to Audit Trail */}
           <button
             id="btn-back-to-audit"
             onClick={() => navigate('/audit')}
             title="Return to Audit Trail & Cryptographic Evidence Explorer [Esc]"
-            className="flex items-center gap-1.5 px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded shadow transition-colors"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              backgroundColor: '#ffffff',
+              color: '#1b4332',
+              border: '1px solid #1b4332',
+              borderRadius: '9px',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '12px',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+              transition: 'all 0.15s ease'
+            }}
           >
-            <ArrowLeft size={13} />
+            <ArrowLeft size={14} />
             <span>Audit Trail</span>
-            <span className="bg-slate-300 px-1.5 py-0.5 rounded text-[10px] font-bold">[Esc]</span>
+            <span
+              style={{
+                backgroundColor: '#eef2ef',
+                color: '#1b4332',
+                padding: '2px 5px',
+                borderRadius: '4px',
+                fontSize: '10px',
+                fontWeight: 800,
+                fontFamily: 'monospace'
+              }}
+            >
+              [Esc]
+            </span>
           </button>
         </div>
       </div>
 
       {/* ── ACTION NOTIFICATION BANNER ─────────────────────────── */}
       {actionMsg && (
-        <div id="banner-action-msg" className="my-4 p-3 bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-bold rounded flex items-center justify-between">
-          <span>✓ {actionMsg}</span>
-          <button onClick={() => setActionMsg(null)} className="text-emerald-700 hover:text-emerald-900 font-bold">✕</button>
+        <div
+          id="banner-action-msg"
+          style={{
+            marginBottom: '20px',
+            padding: '12px 18px',
+            backgroundColor: '#d1fae5',
+            border: '1px solid #6ee7b7',
+            borderRadius: '10px',
+            color: '#065f46',
+            fontSize: '13px',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            boxShadow: '0 2px 8px rgba(6,95,70,0.06)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 size={16} />
+            <span>{actionMsg}</span>
+          </div>
+          <button
+            onClick={() => setActionMsg(null)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#065f46',
+              cursor: 'pointer',
+              fontWeight: 800,
+              fontSize: '14px'
+            }}
+          >
+            ✕
+          </button>
         </div>
       )}
 
-      {/* ── TAB 1: RETENTION POLICIES ──────────────────────────── */}
-      {activeTab === 'policies' && (
-        <div className="mt-5 space-y-4">
-          <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-            <div>
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Statutory Retention Policies</h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Indian Companies Act 2013 & CGST Act 2017 require preservation of financial books for a minimum of 8 years (2,920 days).
-              </p>
-            </div>
-            <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded border border-emerald-200">
-              MCA & GST Compliant
+      {/* ── EXECUTIVE KPI METRIC CARDS ──────────────────────────── */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: '16px',
+          marginBottom: '24px'
+        }}
+      >
+        {/* KPI 1 */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '14px',
+            padding: '18px 20px',
+            border: '1px solid #d8e2dc',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#52796f', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Statutory Schedule
+            </span>
+            <span style={{ backgroundColor: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800 }}>
+              8 YEARS
             </span>
           </div>
+          <div style={{ fontSize: '24px', fontWeight: 900, color: '#1b4332', fontFamily: 'monospace' }}>
+            2,920 Days
+          </div>
+          <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+            MCA 2013 & CGST Act 2017 baseline
+          </div>
+        </div>
 
-          <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-            <table className="w-full text-left text-xs border-collapse">
+        {/* KPI 2 */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '14px',
+            padding: '18px 20px',
+            border: '1px solid #d8e2dc',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#52796f', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Litigation Preservation
+            </span>
+            <span style={{ backgroundColor: activeHoldCount > 0 ? '#fee2e2' : '#f1f5f9', color: activeHoldCount > 0 ? '#991b1b' : '#475569', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800 }}>
+              {activeHoldCount > 0 ? 'ACTIVE HOLDS' : 'STANDBY'}
+            </span>
+          </div>
+          <div style={{ fontSize: '24px', fontWeight: 900, color: activeHoldCount > 0 ? '#b91c1c' : '#111827', fontFamily: 'monospace' }}>
+            {activeHoldCount} Active
+          </div>
+          <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+            Suspends automatic document disposal
+          </div>
+        </div>
+
+        {/* KPI 3 */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '14px',
+            padding: '18px 20px',
+            border: '1px solid #d8e2dc',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#52796f', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Anomaly Heuristic Engine
+            </span>
+            <span style={{ backgroundColor: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800 }}>
+              ACTIVE
+            </span>
+          </div>
+          <div style={{ fontSize: '24px', fontWeight: 900, color: '#1b4332', fontFamily: 'monospace' }}>
+            {anomaliesData?.signals.length || 4} Signals
+          </div>
+          <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+            Continuous heuristic risk scoring
+          </div>
+        </div>
+
+        {/* KPI 4 */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '14px',
+            padding: '18px 20px',
+            border: '1px solid #d8e2dc',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#52796f', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Cryptographic Integrity
+            </span>
+            <span style={{ backgroundColor: '#d1fae5', color: '#065f46', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800 }}>
+              CERTIFIED
+            </span>
+          </div>
+          <div style={{ fontSize: '24px', fontWeight: 900, color: '#1b4332', fontFamily: 'monospace' }}>
+            SHA-256 Root
+          </div>
+          <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+            Four-eyes maker-checker provenance
+          </div>
+        </div>
+      </div>
+
+      {/* ── TAB 1: RETENTION POLICIES ──────────────────────────── */}
+      {activeTab === 'policies' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              padding: '18px 22px',
+              borderRadius: '14px',
+              border: '1px solid #d8e2dc',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+            }}
+          >
+            <div>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#111827', letterSpacing: '-0.01em' }}>
+                Statutory Data Retention Schedules
+              </h3>
+              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#52796f' }}>
+                Indian Companies Act 2013 (Section 128) & CGST Act 2017 require preservation of financial books for a minimum of 8 years (2,920 days).
+              </p>
+            </div>
+            <div
+              style={{
+                backgroundColor: '#d1fae5',
+                color: '#065f46',
+                border: '1px solid #6ee7b7',
+                padding: '6px 14px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 800,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <CheckCircle2 size={14} />
+              <span>MCA & GST Compliant</span>
+            </div>
+          </div>
+
+          {/* Retention Policies Table */}
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '14px',
+              border: '1px solid #d8e2dc',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
+              overflow: 'hidden'
+            }}
+          >
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
               <thead>
-                <tr className="bg-[#1b4332] text-white font-semibold">
-                  <th className="py-2.5 px-3">Data Classification / Object</th>
-                  <th className="py-2.5 px-3">Retention Period</th>
-                  <th className="py-2.5 px-3">Statutory Standard</th>
-                  <th className="py-2.5 px-3">Legal Hold Allowed</th>
-                  <th className="py-2.5 px-3">Effective Date</th>
-                  <th className="py-2.5 px-3 text-right">Actions</th>
+                <tr style={{ backgroundColor: '#1b4332', color: '#ffffff' }}>
+                  <th style={{ padding: '12px 18px', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Data Classification / Object
+                  </th>
+                  <th style={{ padding: '12px 18px', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Retention Duration
+                  </th>
+                  <th style={{ padding: '12px 18px', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Statutory Rule Standard
+                  </th>
+                  <th style={{ padding: '12px 18px', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Legal Hold Supported
+                  </th>
+                  <th style={{ padding: '12px 18px', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Effective Date
+                  </th>
+                  <th style={{ padding: '12px 18px', fontWeight: 700, fontSize: '12px', textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Action
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {policies.map(p => (
-                  <tr key={p.id} className="hover:bg-slate-50">
-                    <td className="py-3 px-3 font-bold text-slate-800">
-                      {p.object_type}
+              <tbody>
+                {policies.map((p, idx) => (
+                  <tr
+                    key={p.id}
+                    style={{
+                      borderBottom: '1px solid #f1f5f9',
+                      backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fcfdfc'
+                    }}
+                  >
+                    <td style={{ padding: '14px 18px', fontWeight: 800, color: '#111827' }}>
+                      <span
+                        style={{
+                          backgroundColor: '#eef2ef',
+                          color: '#1b4332',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          fontFamily: 'monospace',
+                          fontSize: '12px',
+                          fontWeight: 700
+                        }}
+                      >
+                        {p.object_type}
+                      </span>
                     </td>
-                    <td className="py-3 px-3 font-mono font-bold text-[#1b4332]">
+                    <td style={{ padding: '14px 18px', fontFamily: 'monospace', fontWeight: 800, color: '#1b4332' }}>
                       {p.retention_days} Days ({p.retention_years} Years)
                     </td>
-                    <td className="py-3 px-3">
-                      <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold text-[10px]">
+                    <td style={{ padding: '14px 18px' }}>
+                      <span
+                        style={{
+                          backgroundColor: p.retention_days >= 2920 ? '#d1fae5' : '#fef3c7',
+                          color: p.retention_days >= 2920 ? '#065f46' : '#92400e',
+                          padding: '3px 9px',
+                          borderRadius: '12px',
+                          fontSize: '11px',
+                          fontWeight: 700
+                        }}
+                      >
                         {p.retention_days >= 2920 ? 'Statutory 8-Year Min' : 'Custom Policy'}
                       </span>
                     </td>
-                    <td className="py-3 px-3">
-                      <span className="text-emerald-700 font-bold">✓ Enabled</span>
+                    <td style={{ padding: '14px 18px' }}>
+                      <span style={{ color: '#065f46', fontWeight: 700, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <CheckCircle2 size={13} />
+                        Enabled
+                      </span>
                     </td>
-                    <td className="py-3 px-3 font-mono text-slate-600">
+                    <td style={{ padding: '14px 18px', fontFamily: 'monospace', color: '#6b7280', fontSize: '12px' }}>
                       {p.effective_from || '—'}
                     </td>
-                    <td className="py-3 px-3 text-right">
+                    <td style={{ padding: '14px 18px', textAlign: 'right' }}>
                       <button
                         id={`btn-edit-policy-${p.object_type}`}
                         onClick={() => {
                           setEditingPolicy(p);
                           setPolicyDays(p.retention_days);
                         }}
-                        className="px-2.5 py-1 text-xs font-bold text-[#1b4332] bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded"
+                        style={{
+                          padding: '6px 14px',
+                          backgroundColor: '#eef2ef',
+                          color: '#1b4332',
+                          border: '1px solid #1b4332',
+                          borderRadius: '7px',
+                          cursor: 'pointer',
+                          fontWeight: 700,
+                          fontSize: '12px',
+                          transition: 'all 0.15s ease'
+                        }}
                       >
                         Adjust Days
                       </button>
@@ -350,58 +771,138 @@ export default function GovernanceConsole() {
 
       {/* ── TAB 2: LEGAL HOLDS ─────────────────────────────────── */}
       {activeTab === 'holds' && (
-        <div className="mt-5 space-y-4">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              padding: '18px 22px',
+              borderRadius: '14px',
+              border: '1px solid #d8e2dc',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+            }}
+          >
             <div>
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Statutory Legal Holds</h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Active holds unconditionally suspend all data disposal and archiving rules during litigation or tax inquiries.
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#111827', letterSpacing: '-0.01em' }}>
+                Litigation & Regulatory Legal Holds
+              </h3>
+              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#52796f' }}>
+                Active legal holds unconditionally suspend all document disposal and archiving rules during court proceedings or department inquiries.
               </p>
             </div>
             <button
               id="btn-apply-hold"
               onClick={() => setShowApplyHoldModal(true)}
-              className="px-3.5 py-2 bg-[#1b4332] hover:bg-[#2d6a4f] text-white text-xs font-bold rounded shadow transition-colors"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '9px 16px',
+                backgroundColor: '#1b4332',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '9px',
+                cursor: 'pointer',
+                fontWeight: 700,
+                fontSize: '12px',
+                boxShadow: '0 4px 12px rgba(27,67,50,0.2)',
+                transition: 'all 0.15s ease'
+              }}
             >
-              + Establish Statutory Legal Hold
+              <Plus size={15} />
+              <span>Establish Statutory Legal Hold</span>
             </button>
           </div>
 
-          <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-            <table className="w-full text-left text-xs border-collapse">
+          {/* Legal Holds Table */}
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '14px',
+              border: '1px solid #d8e2dc',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
+              overflow: 'hidden'
+            }}
+          >
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
               <thead>
-                <tr className="bg-[#1b4332] text-white font-semibold">
-                  <th className="py-2.5 px-3">Hold Status</th>
-                  <th className="py-2.5 px-3">Scope Type</th>
-                  <th className="py-2.5 px-3">Scope Description</th>
-                  <th className="py-2.5 px-3">Statutory Justification / Reason</th>
-                  <th className="py-2.5 px-3">Established Date</th>
-                  <th className="py-2.5 px-3 text-right">Actions</th>
+                <tr style={{ backgroundColor: '#1b4332', color: '#ffffff' }}>
+                  <th style={{ padding: '12px 18px', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Hold Status
+                  </th>
+                  <th style={{ padding: '12px 18px', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Scope Type
+                  </th>
+                  <th style={{ padding: '12px 18px', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Scope Description / Target
+                  </th>
+                  <th style={{ padding: '12px 18px', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Statutory Justification / Notice
+                  </th>
+                  <th style={{ padding: '12px 18px', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Established
+                  </th>
+                  <th style={{ padding: '12px 18px', fontWeight: 700, fontSize: '12px', textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Actions
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {holds.map(h => (
-                  <tr key={h.id} className="hover:bg-slate-50">
-                    <td className="py-3 px-3">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        h.is_active ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-slate-100 text-slate-600'
-                      }`}>
-                        {h.is_active ? '● ACTIVE HOLD' : 'RELEASED'}
+              <tbody>
+                {holds.map((h, idx) => (
+                  <tr
+                    key={h.id}
+                    style={{
+                      borderBottom: '1px solid #f1f5f9',
+                      backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fcfdfc'
+                    }}
+                  >
+                    <td style={{ padding: '14px 18px' }}>
+                      <span
+                        style={{
+                          backgroundColor: h.is_active ? '#fee2e2' : '#f1f5f9',
+                          color: h.is_active ? '#991b1b' : '#475569',
+                          border: h.is_active ? '1px solid #fca5a5' : '1px solid #e2e8f0',
+                          padding: '3px 9px',
+                          borderRadius: '12px',
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px'
+                        }}
+                      >
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: h.is_active ? '#dc2626' : '#94a3b8' }} />
+                        {h.is_active ? 'ACTIVE HOLD' : 'RELEASED'}
                       </span>
                     </td>
-                    <td className="py-3 px-3 font-bold text-slate-700">
-                      {h.scope_type}
+                    <td style={{ padding: '14px 18px', fontWeight: 800, color: '#374151' }}>
+                      <span
+                        style={{
+                          backgroundColor: '#eef2ef',
+                          color: '#1b4332',
+                          padding: '2px 8px',
+                          borderRadius: '5px',
+                          fontFamily: 'monospace',
+                          fontSize: '11px'
+                        }}
+                      >
+                        {h.scope_type}
+                      </span>
                     </td>
-                    <td className="py-3 px-3 font-semibold text-slate-800 max-w-xs truncate">
+                    <td style={{ padding: '14px 18px', fontWeight: 700, color: '#111827', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {h.scope_description}
                     </td>
-                    <td className="py-3 px-3 text-slate-600 max-w-sm truncate">
+                    <td style={{ padding: '14px 18px', color: '#4b5563', maxWidth: '320px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {h.reason}
                     </td>
-                    <td className="py-3 px-3 font-mono text-[11px] text-slate-600">
+                    <td style={{ padding: '14px 18px', fontFamily: 'monospace', color: '#6b7280', fontSize: '12px' }}>
                       {new Date(h.created_at).toLocaleDateString()}
                     </td>
-                    <td className="py-3 px-3 text-right">
+                    <td style={{ padding: '14px 18px', textAlign: 'right' }}>
                       {h.is_active ? (
                         <button
                           id={`btn-release-hold-${h.id}`}
@@ -409,12 +910,22 @@ export default function GovernanceConsole() {
                             setReleasingHoldId(h.id);
                             setReleaseReason('Formal closure of department audit inquiry.');
                           }}
-                          className="px-2.5 py-1 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded"
+                          style={{
+                            padding: '6px 12px',
+                            backgroundColor: '#fee2e2',
+                            color: '#991b1b',
+                            border: '1px solid #fca5a5',
+                            borderRadius: '7px',
+                            cursor: 'pointer',
+                            fontWeight: 700,
+                            fontSize: '12px',
+                            transition: 'all 0.15s ease'
+                          }}
                         >
                           Release Hold
                         </button>
                       ) : (
-                        <span className="text-slate-400 text-[11px]">Released</span>
+                        <span style={{ color: '#9ca3af', fontSize: '12px', fontStyle: 'italic' }}>Released</span>
                       )}
                     </td>
                   </tr>
@@ -427,89 +938,191 @@ export default function GovernanceConsole() {
 
       {/* ── TAB 3: ANOMALY SIGNALS ─────────────────────────────── */}
       {activeTab === 'anomalies' && anomaliesData && (
-        <div className="mt-5 space-y-4">
-          <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
-              Automated Forensic Anomaly Signals & Security Signals
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              padding: '18px 22px',
+              borderRadius: '14px',
+              border: '1px solid #d8e2dc',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+            }}
+          >
+            <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#111827', letterSpacing: '-0.01em' }}>
+              Automated Forensic Anomaly & Security Signals
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#52796f' }}>
               Real-time heuristic evaluation flagging high-risk behavior patterns for administrative inspection without autonomous accusations.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {anomaliesData.signals.map((sig, idx) => (
-              <div
-                key={idx}
-                id={`card-anomaly-${sig.code}`}
-                className={`p-4 rounded-lg border shadow-sm ${
-                  sig.severity === 'CRITICAL' ? 'bg-red-50 border-red-200' :
-                  sig.severity === 'WARNING' ? 'bg-amber-50 border-amber-200' :
-                  sig.severity === 'SECURE' ? 'bg-emerald-50 border-emerald-200' :
-                  'bg-white border-slate-200'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                    sig.severity === 'CRITICAL' ? 'bg-red-200 text-red-900' :
-                    sig.severity === 'WARNING' ? 'bg-amber-200 text-amber-900' :
-                    sig.severity === 'SECURE' ? 'bg-emerald-200 text-emerald-900' :
-                    'bg-slate-100 text-slate-800'
-                  }`}>
-                    {sig.severity}
-                  </span>
-                  <span className="font-mono text-xs font-bold text-slate-700">{sig.metric}</span>
-                </div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              gap: '16px'
+            }}
+          >
+            {anomaliesData.signals.map((sig, idx) => {
+              const isSecure = sig.severity === 'SECURE';
+              const isWarn = sig.severity === 'WARNING';
+              const isCrit = sig.severity === 'CRITICAL';
+              const bgCard = isCrit ? '#fef2f2' : isWarn ? '#fffbeb' : isSecure ? '#f0fdf4' : '#ffffff';
+              const borderCard = isCrit ? '#fecaca' : isWarn ? '#fde68a' : isSecure ? '#bbf7d0' : '#d8e2dc';
+              const badgeBg = isCrit ? '#fee2e2' : isWarn ? '#fef3c7' : isSecure ? '#d1fae5' : '#f1f5f9';
+              const badgeColor = isCrit ? '#991b1b' : isWarn ? '#92400e' : isSecure ? '#065f46' : '#334155';
 
-                <div className="font-bold text-sm text-slate-800">{sig.title}</div>
-                <p className="text-xs text-slate-600 mt-1">{sig.description}</p>
-              </div>
-            ))}
+              return (
+                <div
+                  key={idx}
+                  id={`card-anomaly-${sig.code}`}
+                  style={{
+                    backgroundColor: bgCard,
+                    borderRadius: '14px',
+                    border: `1px solid ${borderCard}`,
+                    padding: '20px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '12px'
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span
+                        style={{
+                          backgroundColor: badgeBg,
+                          color: badgeColor,
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          fontSize: '11px',
+                          fontWeight: 800
+                        }}
+                      >
+                        {sig.severity}
+                      </span>
+                      <span style={{ fontFamily: 'monospace', fontSize: '13px', fontWeight: 800, color: '#111827' }}>
+                        {sig.metric}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '15px', fontWeight: 800, color: '#111827', marginTop: '6px' }}>
+                      {sig.title}
+                    </div>
+                    <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: '#4b5563', lineHeight: '1.5' }}>
+                      {sig.description}
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#6b7280', paddingTop: '8px', borderTop: `1px solid ${borderCard}` }}>
+                    <ShieldCheck size={13} color="#1b4332" />
+                    <span>Signal Code: <strong style={{ fontFamily: 'monospace' }}>{sig.code}</strong></span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
       {/* ── TAB 4: AUDITOR EVIDENCE PACK ───────────────────────── */}
       {activeTab === 'export' && (
-        <div className="mt-5 space-y-4">
-          <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm max-w-2xl">
-            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-1">
-              Auditor Evidence Pack Generator
-            </h3>
-            <p className="text-xs text-slate-500 mb-4">
-              Produces a cryptographically signed, complete audit trail extract formatted for external chartered accountants and statutory regulators.
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '800px' }}>
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '14px',
+              border: '1px solid #d8e2dc',
+              padding: '24px',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.03)'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <Download size={18} color="#1b4332" />
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#111827' }}>
+                Auditor Evidence Pack Generator
+              </h3>
+            </div>
+            <p style={{ margin: '0 0 20px 0', fontSize: '12px', color: '#52796f', lineHeight: '1.5' }}>
+              Produces a cryptographically signed, complete audit trail extract formatted for external chartered accountants and statutory regulators under Indian Companies Act (Section 128) & GST Section 67.
             </p>
 
-            <div className="space-y-4 text-xs">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Statutory Purpose (Required):</label>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>
+                  Statutory Audit Purpose / Regulatory Reference:
+                </label>
                 <input
                   id="input-console-export-purpose"
                   type="text"
                   value={exportPurpose}
                   onChange={e => setExportPurpose(e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded focus:ring-2 focus:ring-[#1b4332]"
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    fontSize: '13px',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
                 />
               </div>
 
-              <button
-                id="btn-console-generate-evidence"
-                onClick={handleTriggerExport}
-                className="px-4 py-2 bg-[#1b4332] hover:bg-[#2d6a4f] text-white font-bold rounded shadow transition-colors"
-              >
-                Generate & Digitally Seal Evidence Pack
-              </button>
+              <div>
+                <button
+                  id="btn-console-generate-evidence"
+                  onClick={handleTriggerExport}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '11px 20px',
+                    backgroundColor: '#1b4332',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '9px',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    boxShadow: '0 4px 12px rgba(27,67,50,0.2)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Lock size={15} />
+                  <span>Generate & Digitally Seal Evidence Pack</span>
+                </button>
+              </div>
             </div>
 
+            {/* Export Manifest Output Box */}
             {exportResult && (
-              <div id="export-result-box" className="mt-5 p-4 bg-slate-50 rounded border border-slate-200 space-y-2 text-xs font-mono">
-                <div className="font-bold text-emerald-800">✓ Cryptographic Manifest Generated</div>
-                <div>Pack ID: {exportResult.manifest.pack_id}</div>
-                <div>Exported By: {exportResult.manifest.exported_by}</div>
-                <div>Records Sealed: {exportResult.records_count}</div>
-                <div>Genesis Hash: {exportResult.manifest.genesis_hash.slice(0, 16)}...</div>
-                <div>Terminal Hash: {exportResult.manifest.terminal_hash.slice(0, 16)}...</div>
-                <div className="text-slate-500">Standard: {exportResult.manifest.compliance_standard}</div>
+              <div
+                id="export-result-box"
+                style={{
+                  marginTop: '20px',
+                  padding: '18px',
+                  backgroundColor: '#f8fafc',
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  fontFamily: 'monospace',
+                  fontSize: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}
+              >
+                <div style={{ fontWeight: 800, color: '#065f46', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <CheckCircle2 size={15} />
+                  <span>✓ Cryptographic Manifest Generated</span>
+                </div>
+                <div><strong>Pack ID:</strong> {exportResult.manifest.pack_id}</div>
+                <div><strong>Exported By:</strong> {exportResult.manifest.exported_by}</div>
+                <div><strong>Records Sealed:</strong> {exportResult.records_count}</div>
+                <div><strong>Genesis Hash:</strong> {exportResult.manifest.genesis_hash.slice(0, 20)}...</div>
+                <div><strong>Terminal Hash:</strong> {exportResult.manifest.terminal_hash.slice(0, 20)}...</div>
+                <div style={{ color: '#64748b' }}><strong>Compliance Standard:</strong> {exportResult.manifest.compliance_standard}</div>
               </div>
             )}
           </div>
@@ -518,33 +1131,100 @@ export default function GovernanceConsole() {
 
       {/* ── MODAL: EDIT RETENTION POLICY ───────────────────────── */}
       {editingPolicy && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-lg p-5 max-w-sm w-full border border-slate-200 shadow-xl text-xs space-y-4">
-            <h4 className="font-bold text-sm text-[#1b4332]">Adjust Retention Policy: {editingPolicy.object_type}</h4>
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '420px',
+              width: '100%',
+              border: '1px solid #d8e2dc',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#1b4332' }}>
+                Adjust Retention Policy: {editingPolicy.object_type}
+              </h4>
+              <button
+                onClick={() => setEditingPolicy(null)}
+                style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
             <div>
-              <label className="block text-slate-600 font-bold mb-1">Retention Duration (Days):</label>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>
+                Retention Duration (Days):
+              </label>
               <input
                 id="input-policy-days"
                 type="number"
                 value={policyDays}
                 onChange={e => setPolicyDays(Number(e.target.value))}
-                className="w-full p-2 border border-slate-300 rounded"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '13px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  fontFamily: 'monospace'
+                }}
               />
-              <span className="text-[10px] text-slate-500 mt-0.5 block">
-                {roundToYears(policyDays)} Years (MCA standard is 2,920 days / 8 years)
+              <span style={{ fontSize: '11px', color: '#6b7280', marginTop: '6px', display: 'block' }}>
+                {roundToYears(policyDays)} Years (MCA standard baseline is 2,920 days / 8 years)
               </span>
             </div>
-            <div className="flex justify-end gap-2">
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '8px' }}>
               <button
                 onClick={() => setEditingPolicy(null)}
-                className="px-3 py-1.5 bg-slate-200 rounded font-bold"
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#f1f5f9',
+                  color: '#475569',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  fontSize: '12px'
+                }}
               >
-                Cancel
+                Cancel [Esc]
               </button>
               <button
                 id="btn-save-policy"
                 onClick={handleSavePolicy}
-                className="px-3 py-1.5 bg-[#1b4332] text-white font-bold rounded"
+                style={{
+                  padding: '8px 18px',
+                  backgroundColor: '#1b4332',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  boxShadow: '0 2px 8px rgba(27,67,50,0.2)'
+                }}
               >
                 Save Policy
               </button>
@@ -555,17 +1235,65 @@ export default function GovernanceConsole() {
 
       {/* ── MODAL: APPLY STATUTORY LEGAL HOLD ──────────────────── */}
       {showApplyHoldModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div id="modal-apply-hold" className="bg-white rounded-lg p-5 max-w-md w-full border border-slate-200 shadow-xl text-xs space-y-4">
-            <h4 className="font-bold text-sm text-[#1b4332]">Establish Statutory Legal Hold</h4>
-            <form onSubmit={handleCreateLegalHold} className="space-y-3">
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+        >
+          <div
+            id="modal-apply-hold"
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '500px',
+              width: '100%',
+              border: '1px solid #d8e2dc',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#1b4332' }}>
+                Establish Statutory Legal Hold
+              </h4>
+              <button
+                onClick={() => setShowApplyHoldModal(false)}
+                style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateLegalHold} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Hold Scope:</label>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>
+                  Hold Scope:
+                </label>
                 <select
                   id="select-hold-scope"
                   value={holdScopeType}
                   onChange={e => setHoldScopeType(e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded bg-white"
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    fontSize: '13px',
+                    backgroundColor: '#ffffff',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
                 >
                   <option value="MODULE">Module-Wide (e.g. All Invoices)</option>
                   <option value="RECORD">Specific Document / Record</option>
@@ -575,7 +1303,9 @@ export default function GovernanceConsole() {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Scope Description / Reference:</label>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>
+                  Scope Description / Reference:
+                </label>
                 <input
                   id="input-hold-description"
                   type="text"
@@ -583,12 +1313,22 @@ export default function GovernanceConsole() {
                   placeholder="e.g. Sales Invoices Series 2025-26 under Tax Notice"
                   value={holdDescription}
                   onChange={e => setHoldDescription(e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded"
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    fontSize: '13px',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Statutory Justification Reason:</label>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>
+                  Statutory Justification Reason:
+                </label>
                 <textarea
                   id="input-hold-reason"
                   required
@@ -596,22 +1336,50 @@ export default function GovernanceConsole() {
                   placeholder="Statutory notice citation, section number, and preservation instructions..."
                   value={holdReason}
                   onChange={e => setHoldReason(e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded"
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    fontSize: '13px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    resize: 'vertical'
+                  }}
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '6px' }}>
                 <button
                   type="button"
                   onClick={() => setShowApplyHoldModal(false)}
-                  className="px-3 py-1.5 bg-slate-200 rounded font-bold"
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#f1f5f9',
+                    color: '#475569',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    fontSize: '12px'
+                  }}
                 >
-                  Cancel
+                  Cancel [Esc]
                 </button>
                 <button
                   id="btn-confirm-apply-hold"
                   type="submit"
-                  className="px-3 py-1.5 bg-[#1b4332] text-white font-bold rounded shadow"
+                  style={{
+                    padding: '8px 18px',
+                    backgroundColor: '#1b4332',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    fontSize: '12px',
+                    boxShadow: '0 2px 8px rgba(27,67,50,0.2)'
+                  }}
                 >
                   Commit Legal Hold
                 </button>
@@ -623,34 +1391,103 @@ export default function GovernanceConsole() {
 
       {/* ── MODAL: RELEASE LEGAL HOLD ──────────────────────────── */}
       {releasingHoldId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div id="modal-release-hold" className="bg-white rounded-lg p-5 max-w-sm w-full border border-slate-200 shadow-xl text-xs space-y-4">
-            <h4 className="font-bold text-sm text-red-800">Release Statutory Legal Hold</h4>
-            <p className="text-[11px] text-slate-600">
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+        >
+          <div
+            id="modal-release-hold"
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '420px',
+              width: '100%',
+              border: '1px solid #d8e2dc',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#991b1b' }}>
+                Release Statutory Legal Hold
+              </h4>
+              <button
+                onClick={() => setReleasingHoldId(null)}
+                style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ margin: 0, fontSize: '12px', color: '#6b7280', lineHeight: '1.5' }}>
               Releasing this hold will reinstate automatic retention and archival policies for the affected records.
             </p>
+
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Release Reason / Mandate:</label>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>
+                Release Reason / Mandate:
+              </label>
               <textarea
                 id="input-release-reason"
                 required
                 rows={3}
                 value={releaseReason}
                 onChange={e => setReleaseReason(e.target.value)}
-                className="w-full p-2 border border-slate-300 rounded"
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '13px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  resize: 'vertical'
+                }}
               />
             </div>
-            <div className="flex justify-end gap-2">
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '6px' }}>
               <button
                 onClick={() => setReleasingHoldId(null)}
-                className="px-3 py-1.5 bg-slate-200 rounded font-bold"
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#f1f5f9',
+                  color: '#475569',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  fontSize: '12px'
+                }}
               >
-                Cancel
+                Cancel [Esc]
               </button>
               <button
                 id="btn-confirm-release-hold"
                 onClick={handleConfirmReleaseHold}
-                className="px-3 py-1.5 bg-red-700 text-white font-bold rounded"
+                style={{
+                  padding: '8px 18px',
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  boxShadow: '0 2px 8px rgba(220,38,38,0.2)'
+                }}
               >
                 Confirm Release
               </button>

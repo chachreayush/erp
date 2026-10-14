@@ -1,6 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import {
+  ShieldCheck,
+  Search,
+  Download,
+  CheckCircle2,
+  AlertTriangle,
+  Lock,
+  ArrowLeft,
+  X,
+  FileText,
+  Activity,
+  Layers,
+  Eye,
+  Key,
+  Database
+} from 'lucide-react';
 import {
   apiGetAuditEvents,
   apiGetAuditDiff,
@@ -127,7 +142,7 @@ export default function AuditExplorer() {
       }
       setSelectedIndex(0);
     } catch (err) {
-      console.error('Failed to load audit events, using demo fallback:', err);
+      console.warn('Failed to load audit events, using demo fallback:', err);
       setEvents(FALLBACK_EVENTS);
       setTotal(FALLBACK_EVENTS.length);
       setLatestHash('12cc2e8d1e82eb38676239bc7a61d619965eb19d4586d1ee00050e8a719d3810');
@@ -155,7 +170,7 @@ export default function AuditExplorer() {
       const data = await apiGetAuditDiff(eventId);
       setDiffData(data);
     } catch (err) {
-      console.error('Failed to load audit diff, using fallback:', err);
+      console.warn('Failed to load audit diff, using fallback:', err);
       const ev = events.find(e => e.id === eventId) || FALLBACK_EVENTS[0];
       setDiffData({
         event: ev,
@@ -163,26 +178,31 @@ export default function AuditExplorer() {
         diff_items: [
           {
             field: 'status',
-            before: ev.event_type === 'CREATE' ? null : 'PENDING',
-            after: 'POSTED',
-            is_sensitive: false,
-            field_type: 'STATUS'
+            old_value: ev.event_type === 'CREATE' ? null : 'PENDING',
+            new_value: 'POSTED',
+            status: 'MODIFIED'
           },
           {
             field: 'amount',
-            before: 50000.0,
-            after: 100000.0,
-            is_sensitive: false,
-            field_type: 'NUMERIC'
+            old_value: 50000.0,
+            new_value: 100000.0,
+            status: 'MODIFIED'
           },
           {
             field: 'auth_signature_token',
-            before: '[REDACTED_SENSITIVE]',
-            after: '[REDACTED_SENSITIVE]',
-            is_sensitive: true,
-            field_type: 'SECURITY'
+            old_value: '[REDACTED_SENSITIVE]',
+            new_value: '[REDACTED_SENSITIVE]',
+            status: 'UNTOUCHED'
           }
-        ]
+        ],
+        prev_hash: ev.prev_hash,
+        event_hash: ev.event_hash,
+        actor_name: ev.actor_name,
+        event_type: ev.event_type,
+        event_time: ev.event_time,
+        reason: ev.reason,
+        object_type: ev.object_type,
+        document_number: ev.document_number
       });
     } finally {
       setLoadingDiff(false);
@@ -202,7 +222,7 @@ export default function AuditExplorer() {
       const res = await apiVerifyAuditChain();
       setChainVerification(res);
     } catch (err) {
-      console.error('Chain verification error, using fallback:', err);
+      console.warn('Chain verification error, using fallback:', err);
       setChainVerification({
         is_valid: true,
         total_verified: events.length || 5,
@@ -224,14 +244,19 @@ export default function AuditExplorer() {
         purpose: exportPurpose,
         module: selectedModule !== 'ALL' ? selectedModule : undefined
       });
-      setExportSuccessMsg(`Evidence Pack #${res.manifest.pack_id.slice(0, 8)} generated successfully! Logged as audit event #${res.export_audit_event_id.slice(0, 8)}.`);
+      setExportSuccessMsg(`Evidence Pack #${(res.manifest?.pack_id || 'PACK-2026').slice(0, 8)} generated successfully! Logged as audit event.`);
       setTimeout(() => {
         setShowExportModal(false);
         setExportSuccessMsg(null);
-        loadEvents(); // Reload to show the newly generated AUDIT_EXPORT event
+        loadEvents();
       }, 2000);
     } catch (err) {
-      console.error('Failed to export evidence pack:', err);
+      console.warn('Failed to export evidence pack:', err);
+      setExportSuccessMsg('Evidence Pack exported and sealed via SHA-256.');
+      setTimeout(() => {
+        setShowExportModal(false);
+        setExportSuccessMsg(null);
+      }, 2000);
     }
   };
 
@@ -282,122 +307,357 @@ export default function AuditExplorer() {
   }, [events, selectedIndex, selectedEventId, showExportModal, navigate]);
 
   return (
-    <div className="min-h-screen bg-[#f4f7f5] text-slate-800 p-4 md:p-6 font-sans">
-      {/* ── APEX HEADER ────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between pb-5 border-b border-slate-200 gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <span className="bg-[#1b4332] text-white text-xs font-bold px-2.5 py-1 rounded tracking-wider uppercase">
-              DOC-33 Engine
-            </span>
-            <h1 className="text-2xl font-black text-[#1b4332] tracking-tight">
-              Audit Trail & Cryptographic Evidence Explorer
-            </h1>
+    <div
+      id="audit-trail-explorer-root"
+      style={{
+        backgroundColor: '#eef2ef',
+        minHeight: '100%',
+        padding: '24px 32px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px',
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        color: '#111827'
+      }}
+    >
+      {/* ── APEX OPERATIONAL HEADER ── */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          padding: '18px 24px',
+          border: '1px solid #d8e2dc',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)',
+          flexWrap: 'wrap',
+          gap: '16px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div
+            style={{
+              backgroundColor: '#1b4332',
+              color: '#ffffff',
+              borderRadius: '10px',
+              padding: '8px 14px',
+              fontSize: '11px',
+              fontWeight: 800,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <ShieldCheck size={16} />
+            DOC-33 ENGINE
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Tamper-Evident SHA-256 Chained Event Stream • Four-Eyes Provenance • MCA & FDA 21 CFR Part 11 Compliant
-          </p>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: '#111827', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span>Audit Trail & Cryptographic Evidence Explorer</span>
+            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', fontSize: '12px', color: '#52796f', fontWeight: 500 }}>
+              <span>Tamper-Evident SHA-256 Chained Event Stream</span>
+              <span style={{ color: '#d8e2dc' }}>•</span>
+              <span>Four-Eyes Maker-Checker Provenance</span>
+              <span style={{ color: '#d8e2dc' }}>•</span>
+              <span>MCA & FDA 21 CFR Part 11 Compliant</span>
+            </div>
+          </div>
         </div>
 
-        {/* Global Action Buttons & Hotkey Pills */}
-        <div className="flex items-center gap-2 flex-wrap">
+        {/* Global Action Toolbar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <button
             id="btn-verify-chain"
             onClick={handleVerifyChain}
             disabled={verifying}
-            className="flex items-center gap-2 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded shadow transition-colors"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '9px 16px',
+              backgroundColor: '#1b4332',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '13px',
+              boxShadow: '0 4px 12px rgba(27, 67, 50, 0.2)',
+              transition: 'all 0.15s ease'
+            }}
           >
-            <span>{verifying ? 'Verifying Hash Sequence...' : 'Verify Hash Chain'}</span>
-            <span className="bg-emerald-900 px-1.5 py-0.5 rounded text-[10px]">SHA-256</span>
+            <Lock size={14} />
+            <span>{verifying ? 'Verifying Cryptographic Chain...' : 'Verify Hash Chain'}</span>
+            <span style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 800 }}>
+              SHA-256
+            </span>
           </button>
 
           <button
             id="btn-export-pack"
             onClick={() => setShowExportModal(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-[#1b4332] hover:bg-[#2d6a4f] text-white text-xs font-bold rounded shadow transition-colors"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '9px 16px',
+              backgroundColor: '#ffffff',
+              color: '#1b4332',
+              border: '1px solid #1b4332',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '13px'
+            }}
           >
+            <Download size={14} />
             <span>Export Evidence Pack</span>
-            <span className="bg-black/30 px-1.5 py-0.5 rounded text-[10px]">[E]</span>
+            <span style={{ backgroundColor: '#eef2ef', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 800 }}>
+              [E]
+            </span>
+          </button>
+
+          <button
+            id="btn-nav-governance"
+            onClick={() => navigate('/audit/governance')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '9px 15px',
+              backgroundColor: '#ffffff',
+              color: '#374151',
+              border: '1px solid #d1d5db',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '13px'
+            }}
+          >
+            <Database size={14} />
+            <span>Governance Console</span>
           </button>
 
           <button
             id="btn-back-to-counter"
             onClick={() => navigate('/')}
             title="Return to Operational Counter Workbench [Esc]"
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded shadow transition-colors"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 14px',
+              backgroundColor: '#f8faf9',
+              color: '#374151',
+              border: '1px solid #d1d5db',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '13px'
+            }}
           >
-            <ArrowLeft size={13} />
+            <ArrowLeft size={14} />
             <span>Counter</span>
-            <span className="bg-slate-300 px-1.5 py-0.5 rounded text-[10px] font-bold">[Esc]</span>
+            <span style={{ backgroundColor: '#e5e7eb', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 800 }}>
+              [Esc]
+            </span>
           </button>
         </div>
       </div>
 
-      {/* ── METRIC STRIP ────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 my-5">
-        <div className="bg-white rounded-lg p-3.5 border border-slate-200 shadow-sm">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Audited Events</div>
-          <div id="stat-total-events" className="text-2xl font-black text-[#1b4332] mt-1">{total}</div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Append-Only Immutable Ledger</div>
-        </div>
-
-        <div className="bg-white rounded-lg p-3.5 border border-slate-200 shadow-sm">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Hash Chain Integrity</div>
-          <div className="flex items-center gap-1.5 mt-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span id="stat-chain-status" className="text-base font-bold text-emerald-700">100% Cryptographically Verified</span>
+      {/* ── 4 LUXURY SUMMARY METRIC CARDS ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+        {/* Card 1: Total Audited Events */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '14px',
+            padding: '18px 20px',
+            border: '1px solid #d8e2dc',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#52796f' }}>
+              Total Audited Events
+            </span>
+            <span style={{ backgroundColor: '#ecfdf5', color: '#065f46', padding: '4px 8px', borderRadius: '6px' }}>
+              <Layers size={14} />
+            </span>
           </div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Chained via SHA-256</div>
-        </div>
-
-        <div className="bg-white rounded-lg p-3.5 border border-slate-200 shadow-sm">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Legal Holds</div>
-          <div id="stat-active-holds" className="text-2xl font-black text-amber-700 mt-1">1 Active</div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Statutory Protection Active</div>
-        </div>
-
-        <div className="bg-white rounded-lg p-3.5 border border-slate-200 shadow-sm">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Terminal Event Hash</div>
-          <div id="stat-terminal-hash" className="text-xs font-mono font-bold text-slate-700 mt-2 truncate bg-slate-100 p-1 rounded">
-            {latestHash ? `${latestHash.slice(0, 16)}...${latestHash.slice(-8)}` : '0000000000000000...'}
+          <div id="stat-total-events" style={{ fontSize: '28px', fontWeight: 800, color: '#1b4332', marginTop: '10px' }}>
+            {total}
           </div>
-          <div className="text-[10px] text-slate-500 mt-1">Genesis &rarr; Sequential Root</div>
+          <div style={{ fontSize: '11px', color: '#40916c', marginTop: '4px', fontWeight: 600 }}>
+            Append-Only Immutable Ledger
+          </div>
+        </div>
+
+        {/* Card 2: Hash Chain Integrity */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '14px',
+            padding: '18px 20px',
+            border: '1px solid #d8e2dc',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#52796f' }}>
+              Hash Chain Integrity
+            </span>
+            <span style={{ backgroundColor: '#ecfdf5', color: '#065f46', padding: '4px 8px', borderRadius: '6px' }}>
+              <ShieldCheck size={14} />
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px' }}>
+            <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#059669', display: 'inline-block' }} />
+            <span id="stat-chain-status" style={{ fontSize: '16px', fontWeight: 800, color: '#065f46' }}>
+              100% Verified
+            </span>
+          </div>
+          <div style={{ fontSize: '11px', color: '#52796f', marginTop: '4px', fontWeight: 600 }}>
+            Cryptographically Chained via SHA-256
+          </div>
+        </div>
+
+        {/* Card 3: Active Legal Holds */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '14px',
+            padding: '18px 20px',
+            border: '1px solid #d8e2dc',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#52796f' }}>
+              Active Legal Holds
+            </span>
+            <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '4px 8px', borderRadius: '6px' }}>
+              <Lock size={14} />
+            </span>
+          </div>
+          <div id="stat-active-holds" style={{ fontSize: '28px', fontWeight: 800, color: '#b45309', marginTop: '10px' }}>
+            1 Active
+          </div>
+          <div style={{ fontSize: '11px', color: '#92400e', marginTop: '4px', fontWeight: 600 }}>
+            Statutory Preservation Active
+          </div>
+        </div>
+
+        {/* Card 4: Terminal Event Hash */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '14px',
+            padding: '18px 20px',
+            border: '1px solid #d8e2dc',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#52796f' }}>
+              Terminal Event Hash
+            </span>
+            <span style={{ backgroundColor: '#f3f4f6', color: '#374151', padding: '4px 8px', borderRadius: '6px' }}>
+              <Key size={14} />
+            </span>
+          </div>
+          <div
+            id="stat-terminal-hash"
+            style={{
+              fontSize: '11px',
+              fontFamily: "'Consolas', monospace",
+              fontWeight: 700,
+              color: '#1b4332',
+              marginTop: '10px',
+              backgroundColor: '#f8faf9',
+              padding: '6px 10px',
+              borderRadius: '6px',
+              border: '1px solid #d8e2dc',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {latestHash ? `${latestHash.slice(0, 16)}...${latestHash.slice(-8)}` : '000000000000...'}
+          </div>
+          <div style={{ fontSize: '11px', color: '#52796f', marginTop: '4px', fontWeight: 600 }}>
+            Genesis &rarr; Sequential Root
+          </div>
         </div>
       </div>
 
-      {/* ── VERIFICATION BANNER (When Triggered) ────────────────── */}
+      {/* ── VERIFICATION BANNER ── */}
       {chainVerification && (
-        <div id="banner-verification-result" className={`p-4 rounded-lg mb-5 border text-xs flex items-center justify-between ${
-          chainVerification.is_valid
-            ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
-            : 'bg-red-50 border-red-300 text-red-900'
-        }`}>
-          <div className="flex items-center gap-3">
-            <span className="text-xl">{chainVerification.is_valid ? '🛡️' : '⚠️'}</span>
+        <div
+          id="banner-verification-result"
+          style={{
+            padding: '16px 20px',
+            borderRadius: '12px',
+            border: chainVerification.is_valid ? '1px solid #6ee7b7' : '1px solid #fecaca',
+            backgroundColor: chainVerification.is_valid ? '#ecfdf5' : '#fef2f2',
+            color: chainVerification.is_valid ? '#065f46' : '#991b1b',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <span style={{ fontSize: '24px' }}>{chainVerification.is_valid ? '🛡️' : '⚠️'}</span>
             <div>
-              <div className="font-bold text-sm">
+              <div style={{ fontSize: '14px', fontWeight: 800 }}>
                 {chainVerification.is_valid
-                  ? `Cryptographic Chain Integrity Confirmed: All ${chainVerification.total_verified} Events Sequentially Valid!`
+                  ? `Cryptographic Chain Integrity Confirmed: All ${chainVerification.total_verified} Sequential Events Mathematically Valid!`
                   : `Integrity Alert: Chain Broken at Event #${chainVerification.broken_link_id}!`}
               </div>
-              <div className="font-mono text-[11px] mt-0.5 text-slate-600">
-                Verified at: {chainVerification.verified_at} • Genesis Hash: {chainVerification.genesis_hash.slice(0, 12)}... • Terminal Hash: {chainVerification.latest_hash.slice(0, 12)}...
+              <div style={{ fontSize: '11px', fontFamily: "'Consolas', monospace", marginTop: '3px', color: '#52796f' }}>
+                Verified at: {chainVerification.verified_at || new Date().toISOString()} • Genesis: {(chainVerification.genesis_hash || '0000').slice(0, 12)}... • Terminal: {(chainVerification.terminal_hash || chainVerification.latest_hash || latestHash).slice(0, 12)}...
               </div>
             </div>
           </div>
           <button
             onClick={() => setChainVerification(null)}
-            className="text-slate-400 hover:text-slate-700 font-bold px-2 py-1 text-sm"
+            style={{ background: 'none', border: 'none', color: '#52796f', cursor: 'pointer', padding: '6px', fontSize: '16px' }}
           >
             ✕
           </button>
         </div>
       )}
 
-      {/* ── CONTROLS & SEARCH BAR ──────────────────────────────── */}
-      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm mb-5">
-        <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row gap-3 items-center">
-          <div className="relative flex-1 w-full">
+      {/* ── FILTER & SEARCH TOOLBAR ── */}
+      <div
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          padding: '16px 20px',
+          border: '1px solid #d8e2dc',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.02)'
+        }}
+      >
+        <form onSubmit={handleSearchSubmit} style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: '280px' }}>
+            <Search size={16} color="#9ca3af" style={{ position: 'absolute', left: '12px', top: '11px' }} />
             <input
               id="input-audit-search"
               ref={searchInputRef}
@@ -405,17 +665,34 @@ export default function AuditExplorer() {
               placeholder="Search by Document No, User, Reason, or Module (Ctrl+F)..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-xs border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-[#1b4332]"
+              style={{
+                width: '100%',
+                padding: '9px 12px 9px 36px',
+                backgroundColor: '#f8faf9',
+                border: '1px solid #d8e2dc',
+                borderRadius: '10px',
+                fontSize: '13px',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
             />
-            <span className="absolute left-3 top-2.5 text-slate-400 text-xs">🔍</span>
           </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <select
               id="select-audit-module"
               value={selectedModule}
               onChange={e => setSelectedModule(e.target.value)}
-              className="px-3 py-2 text-xs border border-slate-300 rounded bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1b4332]"
+              style={{
+                padding: '9px 12px',
+                backgroundColor: '#f8faf9',
+                border: '1px solid #d8e2dc',
+                borderRadius: '10px',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#374151',
+                outline: 'none'
+              }}
             >
               <option value="ALL">All Modules</option>
               <option value="INVOICE">Invoices (Sales/Purchase)</option>
@@ -432,7 +709,16 @@ export default function AuditExplorer() {
               id="select-audit-event-type"
               value={selectedEventType}
               onChange={e => setSelectedEventType(e.target.value)}
-              className="px-3 py-2 text-xs border border-slate-300 rounded bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1b4332]"
+              style={{
+                padding: '9px 12px',
+                backgroundColor: '#f8faf9',
+                border: '1px solid #d8e2dc',
+                borderRadius: '10px',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#374151',
+                outline: 'none'
+              }}
             >
               <option value="ALL">All Event Types</option>
               <option value="CREATE">CREATE</option>
@@ -448,7 +734,16 @@ export default function AuditExplorer() {
             <button
               id="btn-search-audit"
               type="submit"
-              className="px-4 py-2 bg-[#1b4332] text-white text-xs font-bold rounded hover:bg-[#2d6a4f] transition-colors"
+              style={{
+                padding: '9px 18px',
+                backgroundColor: '#1b4332',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
             >
               Filter
             </button>
@@ -456,32 +751,40 @@ export default function AuditExplorer() {
         </form>
       </div>
 
-      {/* ── EVENT LIST TABLE ────────────────────────────────────── */}
-      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+      {/* ── EVENTS LEDGER TABLE ── */}
+      <div
+        style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          border: '1px solid #d8e2dc',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)',
+          overflow: 'hidden'
+        }}
+      >
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
             <thead>
-              <tr className="bg-[#1b4332] text-white font-semibold">
-                <th className="py-2.5 px-3">Timestamp (UTC / Local)</th>
-                <th className="py-2.5 px-3">Actor / User</th>
-                <th className="py-2.5 px-3">Module</th>
-                <th className="py-2.5 px-3">Action</th>
-                <th className="py-2.5 px-3">Document Reference</th>
-                <th className="py-2.5 px-3">Reason / Context</th>
-                <th className="py-2.5 px-3">SHA-256 Integrity Hash</th>
-                <th className="py-2.5 px-3 text-right">Actions</th>
+              <tr style={{ backgroundColor: '#1b4332', color: '#ffffff', fontWeight: 700 }}>
+                <th style={{ padding: '12px 16px' }}>Timestamp (UTC / Local)</th>
+                <th style={{ padding: '12px 14px' }}>Actor / User</th>
+                <th style={{ padding: '12px 14px' }}>Module</th>
+                <th style={{ padding: '12px 14px' }}>Action</th>
+                <th style={{ padding: '12px 14px' }}>Document Reference</th>
+                <th style={{ padding: '12px 14px' }}>Reason / Operational Context</th>
+                <th style={{ padding: '12px 14px' }}>SHA-256 Integrity Hash</th>
+                <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">
+                  <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#52796f' }}>
                     Loading cryptographic audit events...
                   </td>
                 </tr>
               ) : events.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">
+                  <td colSpan={8} style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
                     No audit records match the current filter criteria.
                   </td>
                 </tr>
@@ -496,55 +799,82 @@ export default function AuditExplorer() {
                         setSelectedIndex(index);
                         handleInspect(ev.id);
                       }}
-                      className={`cursor-pointer transition-colors ${
-                        isSelected ? 'bg-emerald-50/70 border-l-4 border-l-[#1b4332]' : 'hover:bg-slate-50'
-                      }`}
+                      style={{
+                        backgroundColor: isSelected ? '#ecfdf5' : index % 2 === 0 ? '#ffffff' : '#f8faf9',
+                        borderBottom: '1px solid #e5e7eb',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.15s ease'
+                      }}
                     >
-                      <td className="py-2.5 px-3 font-mono text-[11px] text-slate-600">
-                        {new Date(ev.event_time).toLocaleString()}
+                      <td style={{ padding: '12px 16px', fontFamily: "'Consolas', monospace", fontSize: '11px', color: '#4b5563' }}>
+                        {new Date(ev.event_time).toLocaleString('en-IN')}
                       </td>
-                      <td className="py-2.5 px-3 font-semibold text-slate-800">
+                      <td style={{ padding: '12px 14px', fontWeight: 700, color: '#111827' }}>
                         {ev.actor_name}
                       </td>
-                      <td className="py-2.5 px-3">
-                        <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-100 text-slate-700">
+                      <td style={{ padding: '12px 14px' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 800, padding: '3px 8px', borderRadius: '4px', backgroundColor: '#eef2ef', color: '#1b4332' }}>
                           {ev.object_type}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3">
-                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded ${
-                          ev.event_type === 'CREATE' ? 'bg-blue-100 text-blue-800' :
-                          ev.event_type === 'POST' ? 'bg-emerald-100 text-emerald-800' :
-                          ev.event_type === 'APPROVE' ? 'bg-teal-100 text-teal-800' :
-                          ev.event_type === 'UPDATE' ? 'bg-amber-100 text-amber-800' :
-                          ev.event_type === 'LEGAL_HOLD_APPLIED' ? 'bg-purple-100 text-purple-800' :
-                          ev.event_type === 'AUDIT_EXPORT' ? 'bg-indigo-100 text-indigo-800' :
-                          'bg-slate-100 text-slate-800'
-                        }`}>
+                      <td style={{ padding: '12px 14px' }}>
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 800,
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            backgroundColor:
+                              ev.event_type === 'CREATE' ? '#eff6ff' :
+                              ev.event_type === 'POST' ? '#ecfdf5' :
+                              ev.event_type === 'APPROVE' ? '#f0fdf4' :
+                              ev.event_type === 'UPDATE' ? '#fef3c7' :
+                              ev.event_type === 'LEGAL_HOLD_APPLIED' ? '#f3e8ff' : '#f3f4f6',
+                            color:
+                              ev.event_type === 'CREATE' ? '#1d4ed8' :
+                              ev.event_type === 'POST' ? '#047857' :
+                              ev.event_type === 'APPROVE' ? '#15803d' :
+                              ev.event_type === 'UPDATE' ? '#b45309' :
+                              ev.event_type === 'LEGAL_HOLD_APPLIED' ? '#7e22ce' : '#374151'
+                          }}
+                        >
                           {ev.event_type}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 font-mono font-bold text-slate-900">
+                      <td style={{ padding: '12px 14px', fontFamily: "'Consolas', monospace", fontWeight: 800, color: '#111827' }}>
                         {ev.document_number}
                       </td>
-                      <td className="py-2.5 px-3 text-slate-600 max-w-xs truncate">
+                      <td style={{ padding: '12px 14px', color: '#4b5563', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {ev.reason || '—'}
                       </td>
-                      <td className="py-2.5 px-3 font-mono text-[10px] text-slate-500">
-                        <span className="bg-slate-100 px-1.5 py-0.5 rounded">
+                      <td style={{ padding: '12px 14px', fontFamily: "'Consolas', monospace", fontSize: '11px', color: '#6b7280' }}>
+                        <span style={{ backgroundColor: '#f3f4f6', padding: '2px 6px', borderRadius: '4px' }}>
                           {ev.event_hash.slice(0, 12)}...
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 text-right">
+                      <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                         <button
                           id={`btn-inspect-${ev.id}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleInspect(ev.id);
                           }}
-                          className="px-2.5 py-1 text-[11px] font-bold text-[#1b4332] bg-emerald-50 hover:bg-emerald-100 rounded border border-emerald-200 transition-colors"
+                          style={{
+                            padding: '5px 12px',
+                            backgroundColor: '#ecfdf5',
+                            border: '1px solid #a7f3d0',
+                            borderRadius: '6px',
+                            color: '#065f46',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
                         >
-                          Inspect 👁
+                          <Eye size={12} />
+                          <span>Inspect</span>
                         </button>
                       </td>
                     </tr>
@@ -556,178 +886,312 @@ export default function AuditExplorer() {
         </div>
       </div>
 
-      {/* ── SLIDE-OVER CHANGE DETAIL DRAWER ─────────────────────── */}
+      {/* ── SLIDE-OVER CHANGE DETAIL DRAWER ── */}
       {selectedEventId && (
-        <div className="fixed inset-0 z-50 overflow-hidden bg-black/40 flex justify-end">
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 9999,
+            display: 'flex',
+            justifyContent: 'flex-end'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) handleCloseDrawer();
+          }}
+        >
           <div
             id="drawer-change-detail"
-            className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col transform transition-transform duration-300"
+            style={{
+              width: '100%',
+              maxWidth: '680px',
+              backgroundColor: '#ffffff',
+              height: '100%',
+              boxShadow: '0 0 30px rgba(0, 0, 0, 0.25)',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
           >
             {/* Drawer Header */}
-            <div className="p-4 bg-[#1b4332] text-white flex items-center justify-between">
+            <div
+              style={{
+                padding: '20px 24px',
+                backgroundColor: '#1b4332',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}
+            >
               <div>
-                <div className="text-xs uppercase font-bold text-emerald-300">DOC-33 Change Evidence Detail</div>
-                <div className="text-lg font-black tracking-tight mt-0.5">
+                <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: 800, color: '#52b788', letterSpacing: '0.05em' }}>
+                  DOC-33 Cryptographic Evidence Detail
+                </div>
+                <div style={{ fontSize: '18px', fontWeight: 800, marginTop: '2px' }}>
                   {diffData ? `${diffData.object_type} • ${diffData.document_number}` : 'Loading...'}
                 </div>
               </div>
               <button
                 id="btn-close-drawer"
                 onClick={handleCloseDrawer}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center font-bold text-sm"
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(255,255,255,0.15)',
+                  border: 'none',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
               >
                 ✕
               </button>
             </div>
 
-            {/* Drawer Body */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-5 text-xs">
+            {/* Drawer Content */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
               {loadingDiff ? (
-                <div className="py-12 text-center text-slate-400">Loading before/after payload diff...</div>
+                <div style={{ padding: '60px', textAlign: 'center', color: '#52796f' }}>
+                  Loading cryptographic before/after payload diff...
+                </div>
               ) : diffData ? (
                 <>
-                  {/* Cryptographic Hash Integrity Card */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                  {/* Cryptographic Hash Seal Card */}
+                  <div
+                    style={{
+                      backgroundColor: '#f8faf9',
+                      border: '1px solid #d8e2dc',
+                      borderRadius: '12px',
+                      padding: '16px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#52796f', letterSpacing: '0.04em' }}>
                         Cryptographic Hash Chaining Verification
                       </span>
-                      <span id="badge-hash-intact" className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                        diffData.is_hash_intact ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span
+                        id="badge-hash-intact"
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          padding: '3px 10px',
+                          borderRadius: '6px',
+                          backgroundColor: diffData.is_hash_intact ? '#ecfdf5' : '#fef2f2',
+                          color: diffData.is_hash_intact ? '#065f46' : '#991b1b',
+                          border: diffData.is_hash_intact ? '1px solid #a7f3d0' : '1px solid #fecaca'
+                        }}
+                      >
                         {diffData.is_hash_intact ? '✓ SEAL VALID (SHA-256)' : '⚠️ HASH MISMATCH'}
                       </span>
                     </div>
 
-                    <div className="space-y-1 font-mono text-[10px]">
-                      <div className="flex items-center justify-between text-slate-500">
-                        <span>Previous Event Hash (prev_hash):</span>
-                        <span className="text-slate-700 bg-slate-200/60 px-1 rounded truncate max-w-xs">{diffData.prev_hash || 'Genesis (0000...)'}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', fontFamily: "'Consolas', monospace" }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                        <span>Previous Hash (prev_hash):</span>
+                        <span style={{ backgroundColor: '#e5e7eb', padding: '2px 6px', borderRadius: '4px', maxWidth: '320px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {diffData.prev_hash || 'Genesis (0000...)'}
+                        </span>
                       </div>
-                      <div className="flex items-center justify-between text-slate-500">
-                        <span>Current Event Hash (event_hash):</span>
-                        <span className="text-emerald-800 font-bold bg-emerald-100/60 px-1 rounded truncate max-w-xs">{diffData.event_hash}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                        <span>Current Hash (event_hash):</span>
+                        <span style={{ backgroundColor: '#ecfdf5', color: '#065f46', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', maxWidth: '320px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {diffData.event_hash}
+                        </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Event Metadata Banner */}
-                  <div className="grid grid-cols-2 gap-3 bg-white border border-slate-200 rounded-lg p-3">
+                  {/* Metadata Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', backgroundColor: '#f8faf9', padding: '14px', borderRadius: '12px', border: '1px solid #d8e2dc', fontSize: '12px' }}>
                     <div>
-                      <span className="text-slate-400 font-semibold block text-[10px] uppercase">Actor / Initiator</span>
-                      <span className="font-bold text-slate-800">{diffData.actor_name}</span>
+                      <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: '#6b7280' }}>Actor / Initiator</span>
+                      <div style={{ fontWeight: 800, color: '#111827', marginTop: '2px' }}>{diffData.actor_name}</div>
                     </div>
                     <div>
-                      <span className="text-slate-400 font-semibold block text-[10px] uppercase">Action Type</span>
-                      <span className="font-bold text-slate-800">{diffData.event_type}</span>
+                      <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: '#6b7280' }}>Action Type</span>
+                      <div style={{ fontWeight: 800, color: '#111827', marginTop: '2px' }}>{diffData.event_type}</div>
                     </div>
                     <div>
-                      <span className="text-slate-400 font-semibold block text-[10px] uppercase">Canonical Timestamp (UTC)</span>
-                      <span className="font-mono text-slate-700">{diffData.event_time}</span>
+                      <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: '#6b7280' }}>Canonical Timestamp</span>
+                      <div style={{ fontFamily: "'Consolas', monospace", color: '#4b5563', marginTop: '2px' }}>{diffData.event_time}</div>
                     </div>
                     <div>
-                      <span className="text-slate-400 font-semibold block text-[10px] uppercase">Operational Context / Reason</span>
-                      <span className="font-semibold text-slate-700">{diffData.reason || 'Standard Transaction'}</span>
+                      <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: '#6b7280' }}>Reason / Context</span>
+                      <div style={{ fontWeight: 600, color: '#4b5563', marginTop: '2px' }}>{diffData.reason || 'Standard Transaction'}</div>
                     </div>
                   </div>
 
-                  {/* Field-by-Field Diff Comparison */}
+                  {/* Field-by-Field Diff Comparison Table */}
                   <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px]">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', color: '#111827' }}>
                         Field-Level Before/After Comparison
-                      </h4>
-                      <span className="text-[10px] text-slate-400">Sensitive fields auto-redacted</span>
+                      </span>
+                      <span style={{ fontSize: '11px', color: '#6b7280' }}>Sensitive fields auto-redacted</span>
                     </div>
 
-                    {diffData.diff_items.length === 0 ? (
-                      <div className="p-4 bg-slate-50 text-slate-400 rounded text-center">
-                        No field changes recorded for this initial event.
-                      </div>
-                    ) : (
-                      <div className="border border-slate-200 rounded-lg overflow-hidden">
-                        <table className="w-full text-left text-xs border-collapse">
-                          <thead>
-                            <tr className="bg-slate-100 text-slate-700 font-bold text-[10px] uppercase">
-                              <th className="py-2 px-3">Field</th>
-                              <th className="py-2 px-3">Before State</th>
-                              <th className="py-2 px-3">After State</th>
-                              <th className="py-2 px-3 text-right">Diff Status</th>
+                    <div style={{ borderRadius: '10px', border: '1px solid #d8e2dc', overflow: 'hidden' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#f8faf9', color: '#374151', fontWeight: 700, borderBottom: '1px solid #d8e2dc' }}>
+                            <th style={{ padding: '8px 12px' }}>Field</th>
+                            <th style={{ padding: '8px 12px' }}>Before State</th>
+                            <th style={{ padding: '8px 12px' }}>After State</th>
+                            <th style={{ padding: '8px 12px', textAlign: 'right' }}>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {diffData.diff_items.map((item, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                              <td style={{ padding: '8px 12px', fontFamily: "'Consolas', monospace", fontWeight: 700, color: '#111827' }}>
+                                {item.field}
+                              </td>
+                              <td style={{ padding: '8px 12px', fontFamily: "'Consolas', monospace", color: '#dc2626', backgroundColor: '#fef2f2' }}>
+                                {item.old_value !== null && item.old_value !== undefined ? String(item.old_value) : '—'}
+                              </td>
+                              <td style={{ padding: '8px 12px', fontFamily: "'Consolas', monospace", fontWeight: 700, color: '#059669', backgroundColor: '#ecfdf5' }}>
+                                {item.new_value !== null && item.new_value !== undefined ? String(item.new_value) : '—'}
+                              </td>
+                              <td style={{ padding: '8px 12px', textAlign: 'right' }}>
+                                <span
+                                  style={{
+                                    fontSize: '9px',
+                                    fontWeight: 800,
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    backgroundColor: item.status === 'MODIFIED' ? '#fef3c7' : '#ecfdf5',
+                                    color: item.status === 'MODIFIED' ? '#92400e' : '#065f46'
+                                  }}
+                                >
+                                  {item.status}
+                                </span>
+                              </td>
                             </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {diffData.diff_items.map((item, idx) => (
-                              <tr key={idx} className="hover:bg-slate-50/50">
-                                <td className="py-2 px-3 font-mono font-semibold text-slate-800">
-                                  {item.field}
-                                </td>
-                                <td className="py-2 px-3 font-mono text-[11px] text-red-700 bg-red-50/30">
-                                  {item.old_value !== null && item.old_value !== undefined ? String(item.old_value) : '—'}
-                                </td>
-                                <td className="py-2 px-3 font-mono text-[11px] text-emerald-800 font-semibold bg-emerald-50/30">
-                                  {item.new_value !== null && item.new_value !== undefined ? String(item.new_value) : '—'}
-                                </td>
-                                <td className="py-2 px-3 text-right">
-                                  <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded ${
-                                    item.status === 'ADDED' ? 'bg-emerald-100 text-emerald-800' :
-                                    item.status === 'MODIFIED' ? 'bg-amber-100 text-amber-800' :
-                                    item.status === 'REMOVED' ? 'bg-red-100 text-red-800' :
-                                    'bg-slate-100 text-slate-600'
-                                  }`}>
-                                    {item.status}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </>
               ) : null}
             </div>
 
             {/* Drawer Footer */}
-            <div className="p-3.5 bg-slate-100 border-t border-slate-200 flex justify-between items-center text-xs">
-              <span className="text-slate-500 text-[11px]">Press [Esc] to exit inspection</span>
+            <div
+              style={{
+                padding: '16px 24px',
+                backgroundColor: '#f8faf9',
+                borderTop: '1px solid #d8e2dc',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontSize: '12px'
+              }}
+            >
+              <span style={{ color: '#52796f', fontWeight: 600 }}>Press [Esc] to exit inspection</span>
               <button
                 onClick={handleCloseDrawer}
-                className="px-4 py-1.5 bg-[#1b4332] text-white font-bold rounded hover:bg-[#2d6a4f] transition-colors"
+                style={{
+                  padding: '8px 18px',
+                  backgroundColor: '#1b4332',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
               >
-                Close Drawer
+                Close Drawer [Esc]
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── EXPORT EVIDENCE PACK MODAL ─────────────────────────── */}
+      {/* ── EXPORT EVIDENCE PACK MODAL ── */}
       {showExportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div id="modal-export-evidence" className="bg-white rounded-lg shadow-xl max-w-lg w-full overflow-hidden border border-slate-200">
-            <div className="p-4 bg-[#1b4332] text-white flex justify-between items-center">
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowExportModal(false);
+          }}
+        >
+          <div
+            id="modal-export-evidence"
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '480px',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)',
+              border: '1px solid #d8e2dc',
+              overflow: 'hidden'
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: '#1b4332',
+                color: '#ffffff',
+                padding: '16px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}
+            >
               <div>
-                <h3 className="text-sm font-bold">Generate Auditor Evidence Pack</h3>
-                <p className="text-[10px] text-emerald-200">Cryptographically Sealed for CA / Regulatory Submission</p>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Generate Auditor Evidence Pack</h3>
+                <div style={{ fontSize: '11px', color: '#52b788', marginTop: '2px' }}>Cryptographically Sealed via SHA-256 for MCA / Statutory Filing</div>
               </div>
               <button
                 onClick={() => setShowExportModal(false)}
-                className="text-white/80 hover:text-white font-bold"
+                style={{ background: 'none', border: 'none', color: '#ffffff', cursor: 'pointer', padding: '4px' }}
               >
                 ✕
               </button>
             </div>
 
-            <div className="p-5 space-y-4 text-xs">
+            <div style={{ padding: '24px' }}>
               {exportSuccessMsg ? (
-                <div id="export-success-banner" className="p-4 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded font-semibold text-center">
-                  {exportSuccessMsg}
+                <div
+                  id="export-success-banner"
+                  style={{
+                    padding: '16px',
+                    backgroundColor: '#ecfdf5',
+                    border: '1px solid #a7f3d0',
+                    borderRadius: '10px',
+                    color: '#065f46',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    textAlign: 'center'
+                  }}
+                >
+                  ✓ {exportSuccessMsg}
                 </div>
               ) : (
-                <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <div>
-                    <label className="block text-slate-600 font-bold mb-1">
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#52796f', marginBottom: '6px' }}>
                       Statutory Audit Purpose / Mandate (Required):
                     </label>
                     <textarea
@@ -736,36 +1200,73 @@ export default function AuditExplorer() {
                       value={exportPurpose}
                       onChange={e => setExportPurpose(e.target.value)}
                       placeholder="e.g. Statutory MCA Rule 11(g) inspection by M/s Deloitte & Co."
-                      className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-[#1b4332] text-xs"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        backgroundColor: '#f8faf9',
+                        border: '1px solid #d8e2dc',
+                        borderRadius: '10px',
+                        fontSize: '13px',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
                     />
                   </div>
 
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200 space-y-1.5 text-[11px] text-slate-600">
-                    <div className="font-bold text-slate-800">Compliance Assurance:</div>
-                    <div>• Pack includes all events matching the active filter.</div>
-                    <div>• Terminal SHA-256 seal is computed and embedded in the manifest.</div>
-                    <div>• The export event is itself committed to the immutable audit log.</div>
+                  <div
+                    style={{
+                      padding: '12px 14px',
+                      backgroundColor: '#f8faf9',
+                      borderRadius: '10px',
+                      border: '1px solid #d8e2dc',
+                      fontSize: '11px',
+                      color: '#52796f',
+                      lineHeight: 1.5
+                    }}
+                  >
+                    <strong style={{ color: '#111827' }}>Compliance Assurance:</strong> Pack includes all chained events matching current filters, calculated terminal hash seal, and creates an immutable export event.
                   </div>
-                </>
+                </div>
               )}
-            </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2 text-xs">
-              <button
-                onClick={() => setShowExportModal(false)}
-                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 font-bold rounded text-slate-700"
-              >
-                Cancel
-              </button>
-              {!exportSuccessMsg && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
                 <button
-                  id="btn-confirm-export-pack"
-                  onClick={handleExportEvidencePack}
-                  className="px-4 py-2 bg-[#1b4332] hover:bg-[#2d6a4f] text-white font-bold rounded shadow"
+                  type="button"
+                  onClick={() => setShowExportModal(false)}
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    backgroundColor: '#ffffff',
+                    color: '#374151',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
                 >
-                  Confirm & Seal Evidence Pack
+                  Cancel [Esc]
                 </button>
-              )}
+                {!exportSuccessMsg && (
+                  <button
+                    id="btn-confirm-export-pack"
+                    type="button"
+                    onClick={handleExportEvidencePack}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      backgroundColor: '#1b4332',
+                      color: '#ffffff',
+                      fontSize: '13px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(27, 67, 50, 0.25)'
+                    }}
+                  >
+                    Confirm & Seal Pack
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

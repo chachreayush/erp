@@ -18,12 +18,16 @@ import {
   AlertCircle,
   Hash,
   ArrowRight,
+  ArrowLeft,
   RotateCcw,
   Sparkles,
   Save,
   Search,
   X,
-  FileText
+  FileText,
+  DollarSign,
+  Clock,
+  ShieldCheck
 } from 'lucide-react';
 
 interface AllocationRow extends PendingAllocationItem {
@@ -103,29 +107,33 @@ export default function ReceiptPaymentVoucher({ type: propType }: { type?: 'rece
         }
       });
       setParties(filtered);
-
-      // Check query param pre-select
-      const params = new URLSearchParams(location.search);
-      const prePartyId = params.get('party_id');
-      if (prePartyId) {
-        const found = filtered.find(p => p.id === prePartyId);
-        if (found) setSelectedParty(found);
+      if (filtered.length > 0 && !selectedParty) {
+        setSelectedParty(filtered[0]);
       }
-    }).catch(console.error);
+    }).catch(err => {
+      console.warn('Failed to load parties:', err);
+    });
 
     apiGetLedgers().then(res => {
-      // Find cash and bank accounts
-      const cashBankLedgers = (res || []).filter(l =>
-        ['Cash-in-hand', 'Bank Accounts', 'Cash', 'Bank'].includes(l.group_name || '') ||
-        l.name.toLowerCase().includes('cash') ||
-        l.name.toLowerCase().includes('bank')
-      );
-      setLedgers(cashBankLedgers);
-      if (cashBankLedgers.length > 0) {
-        setSelectedLedgerId(cashBankLedgers[0].id || '');
+      const cashBank = (res || []).filter(l => {
+        const group = (l.group_name || '').toLowerCase();
+        const name = (l.name || '').toLowerCase();
+        return (
+          group.includes('cash') ||
+          group.includes('bank') ||
+          name.includes('cash') ||
+          name.includes('bank') ||
+          l.type === 'Asset'
+        );
+      });
+      setLedgers(cashBank);
+      if (cashBank.length > 0) {
+        setSelectedLedgerId(cashBank[0].id);
       }
-    }).catch(console.error);
-  }, [isPayment, location.search]);
+    }).catch(err => {
+      console.warn('Failed to load ledgers:', err);
+    });
+  }, [isPayment]);
 
   // Load open bills when selected party changes
   useEffect(() => {
@@ -145,7 +153,7 @@ export default function ReceiptPaymentVoucher({ type: propType }: { type?: 'rece
       }));
       setAllocations(rows);
     }).catch(err => {
-      console.error(err);
+      console.warn('Failed to load pending allocations:', err);
     }).finally(() => {
       setLoadingAllocations(false);
     });
@@ -155,7 +163,7 @@ export default function ReceiptPaymentVoucher({ type: propType }: { type?: 'rece
   const handleFifoAutoAllocate = () => {
     const totalToAllocate = parseFloat(amount) || 0;
     if (totalToAllocate <= 0) {
-      setErrorMsg('Please enter a valid amount first before auto-allocating.');
+      setErrorMsg('Please enter a valid transaction amount before auto-allocating.');
       return;
     }
     setErrorMsg('');
@@ -197,6 +205,44 @@ export default function ReceiptPaymentVoucher({ type: propType }: { type?: 'rece
   const numericAmount = parseFloat(amount) || 0;
   const totalAllocated = allocations.reduce((sum, r) => sum + (parseFloat(r.allocate_amount) || 0), 0);
   const floatingBalance = Math.max(0, numericAmount - totalAllocated);
+
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (showConfirmModal) {
+          setShowConfirmModal(false);
+        } else if (isPartyModalOpen) {
+          setIsPartyModalOpen(false);
+        } else {
+          navigate('/');
+        }
+      } else if (e.key === 'F5') {
+        e.preventDefault();
+        navigate('/payment');
+      } else if (e.key === 'F6') {
+        e.preventDefault();
+        navigate('/receipt');
+      } else if (e.key === 'F7') {
+        e.preventDefault();
+        setIsPartyModalOpen(true);
+      } else if (e.altKey && (e.key === 'a' || e.key === 'A')) {
+        e.preventDefault();
+        handleFifoAutoAllocate();
+      } else if (e.ctrlKey && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        if (numericAmount > 0 && selectedParty) {
+          setShowConfirmModal(true);
+        }
+      } else if (e.key === 'Enter' && showConfirmModal) {
+        e.preventDefault();
+        handleConfirmSave();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showConfirmModal, isPartyModalOpen, numericAmount, selectedParty, allocations, navigate]);
 
   // Save Transaction
   const handleConfirmSave = async () => {
@@ -244,14 +290,14 @@ export default function ReceiptPaymentVoucher({ type: propType }: { type?: 'rece
 
       const res = await apiCreateReceiptPayment(payload);
 
-      // Marg/Tally Series Continuation
+      // Marg Series Continuation
       const nextNo = incrementSeries(voucherNumber);
       setVoucherNumber(nextNo);
       localStorage.setItem(storageKey, nextNo);
 
       setSuccessBanner(
-        `${voucherType} ${res.voucher_number} saved successfully! Amount: ₹${res.total_amount.toLocaleString(
-          'en-IN'
+        `${voucherType} ${res.voucher_number} saved successfully! Amount ₹${res.total_amount.toLocaleString(
+          'en-IN', { minimumFractionDigits: 2 }
         )} posted to General Ledger.`
       );
       setShowConfirmModal(false);
@@ -277,541 +323,1055 @@ export default function ReceiptPaymentVoucher({ type: propType }: { type?: 'rece
     }
   };
 
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 p-4 md:p-6 font-sans">
-      {/* ── APEX HEADER RIBBON ── */}
-      <div className="bg-gradient-to-r from-emerald-900 via-teal-800 to-emerald-950 text-white rounded-2xl shadow-xl p-6 mb-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center space-x-4">
-            <div className="p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/20">
-              {isPayment ? <CreditCard className="w-8 h-8 text-amber-300" /> : <Receipt className="w-8 h-8 text-emerald-300" />}
-            </div>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold tracking-tight">
-                  {isPayment ? 'Supplier Payment Voucher (DOC-24)' : 'Customer Receipt Voucher (DOC-24)'}
-                </h1>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/20 text-white border border-white/30">
-                  Bill-by-Bill FIFO
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/30 text-emerald-200 border border-emerald-400/40">
-                  Series Continuation
-                </span>
-              </div>
-              <p className="text-sm text-emerald-200/90 mt-1">
-                {isPayment
-                  ? 'Record outward vendor payments and settle open purchase bills with double-entry GL ledger posting.'
-                  : 'Fast counter collections from chemists/debtors with automatic invoice settlement and floating advance support.'}
-              </p>
-            </div>
-          </div>
+  const primaryColor = isPayment ? '#b45309' : '#1b4332';
+  const badgeBg = isPayment ? '#fef3c7' : '#ecfdf5';
+  const badgeColor = isPayment ? '#92400e' : '#065f46';
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/finance/outstanding')}
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/30 rounded-xl text-sm font-medium transition-all flex items-center gap-2"
-            >
-              <FileText className="w-4 h-4" />
-              Outstanding Ageing
-            </button>
-            <button
-              onClick={() => navigate(isPayment ? '/receipt' : '/payment')}
-              className="px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/30 text-amber-200 rounded-xl text-sm font-medium transition-all flex items-center gap-2"
-            >
-              Switch to {isPayment ? 'Receipt [F6]' : 'Payment [F5]'}
-            </button>
+  return (
+    <div
+      id="receipt-payment-voucher-root"
+      style={{
+        backgroundColor: '#eef2ef',
+        minHeight: '100%',
+        padding: '24px 32px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px',
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        color: '#111827'
+      }}
+    >
+      {/* ── TOP APEX OPERATIONAL HEADER ── */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          backgroundColor: '#ffffff',
+          borderRadius: '16px',
+          padding: '18px 24px',
+          border: '1px solid #d8e2dc',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)',
+          flexWrap: 'wrap',
+          gap: '16px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div
+            style={{
+              backgroundColor: primaryColor,
+              color: '#ffffff',
+              borderRadius: '10px',
+              padding: '8px 14px',
+              fontSize: '11px',
+              fontWeight: 800,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            {isPayment ? <CreditCard size={16} /> : <Receipt size={16} />}
+            DOC-24 {voucherType.toUpperCase()}
           </div>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: '#111827', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span>{isPayment ? 'Supplier Payment Voucher' : 'Customer Receipt Voucher'}</span>
+              <span style={{ fontSize: '12px', backgroundColor: badgeBg, color: badgeColor, padding: '2px 8px', borderRadius: '6px', fontWeight: 700 }}>
+                {isPayment ? 'Payable Settlement' : 'Receivable Cash / Bank'}
+              </span>
+            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', fontSize: '12px', color: '#52796f', fontWeight: 500 }}>
+              <span>Bill-by-Bill Auto Settlement (FIFO)</span>
+              <span style={{ color: '#d8e2dc' }}>•</span>
+              <span>Double-Entry GL Ledger Posting</span>
+              <span style={{ color: '#d8e2dc' }}>•</span>
+              <span>Floating Advance Balance Engine</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Global Action Toolbar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            id="btn-switch-voucher-mode"
+            onClick={() => navigate(isPayment ? '/receipt' : '/payment')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 15px',
+              backgroundColor: '#ffffff',
+              color: isPayment ? '#1b4332' : '#b45309',
+              border: `1px solid ${isPayment ? '#1b4332' : '#d97706'}`,
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '13px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <span>Switch to {isPayment ? 'Receipt' : 'Payment'}</span>
+            <span style={{ backgroundColor: isPayment ? '#ecfdf5' : '#fef3c7', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 800 }}>
+              {isPayment ? '[F6]' : '[F5]'}
+            </span>
+          </button>
+
+          <button
+            id="btn-view-outstanding"
+            onClick={() => navigate('/finance/outstanding')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 15px',
+              backgroundColor: '#ffffff',
+              color: '#374151',
+              border: '1px solid #d1d5db',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '13px'
+            }}
+          >
+            <FileText size={15} />
+            <span>Outstanding Ageing</span>
+          </button>
+
+          <button
+            id="btn-back-to-counter"
+            onClick={() => navigate('/')}
+            title="Return to Operational Counter Workbench [Esc]"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 14px',
+              backgroundColor: '#f8faf9',
+              color: '#374151',
+              border: '1px solid #d1d5db',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '13px'
+            }}
+          >
+            <ArrowLeft size={15} />
+            <span>Counter</span>
+            <span style={{ backgroundColor: '#e5e7eb', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 800 }}>[Esc]</span>
+          </button>
         </div>
       </div>
 
       {/* ── SUCCESS BANNER ── */}
       {successBanner && (
-        <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl p-4 mb-6 shadow-sm flex items-center justify-between animate-fadeIn">
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="w-6 h-6 text-emerald-600 flex-shrink-0" />
-            <span className="font-semibold text-sm">{successBanner}</span>
+        <div
+          style={{
+            backgroundColor: '#ecfdf5',
+            border: '1px solid #6ee7b7',
+            borderRadius: '12px',
+            padding: '14px 18px',
+            color: '#065f46',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: '13px',
+            fontWeight: 600,
+            boxShadow: '0 2px 6px rgba(16, 185, 129, 0.1)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <CheckCircle2 size={18} color="#059669" />
+            <span>{successBanner}</span>
           </div>
-          <button onClick={() => setSuccessBanner('')} className="text-emerald-700 hover:text-emerald-900">
-            <X className="w-5 h-5" />
+          <button
+            onClick={() => setSuccessBanner('')}
+            style={{ background: 'none', border: 'none', color: '#047857', cursor: 'pointer', padding: '4px' }}
+          >
+            <X size={16} />
           </button>
         </div>
       )}
 
       {/* ── ERROR BANNER ── */}
       {errorMsg && (
-        <div className="bg-red-50 border border-red-300 text-red-900 rounded-xl p-4 mb-6 shadow-sm flex items-center justify-between animate-fadeIn">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0" />
-            <span className="font-semibold text-sm">{errorMsg}</span>
+        <div
+          style={{
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '12px',
+            padding: '14px 18px',
+            color: '#991b1b',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: '13px',
+            fontWeight: 600,
+            boxShadow: '0 2px 6px rgba(239, 68, 68, 0.1)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <AlertCircle size={18} color="#dc2626" />
+            <span>{errorMsg}</span>
           </div>
-          <button onClick={() => setErrorMsg('')} className="text-red-700 hover:text-red-900">
-            <X className="w-5 h-5" />
+          <button
+            onClick={() => setErrorMsg('')}
+            style={{ background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer', padding: '4px' }}
+          >
+            <X size={16} />
           </button>
         </div>
       )}
 
-      {/* ── MAIN WORKBENCH GRID ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* LEFT COLUMN: VOUCHER FORM (5 COLS) */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-5">
-            <h2 className="text-base font-bold text-slate-800 pb-2 border-b border-slate-100 flex items-center gap-2">
-              <Hash className="w-4 h-4 text-emerald-700" />
-              Voucher Header Details
-            </h2>
-
-            {/* Voucher Series Number & Date */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Voucher Number <span className="text-emerald-600">(Editable Series)</span>
-                </label>
-                <input
-                  id="voucher-number-input"
-                  ref={vchNoRef}
-                  type="text"
-                  value={voucherNumber}
-                  onChange={e => setVoucherNumber(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm font-bold text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Voucher Date</label>
-                <input
-                  id="voucher-date-input"
-                  ref={dateRef}
-                  type="date"
-                  value={date}
-                  onChange={e => setDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                />
-              </div>
+      {/* ── 2-COLUMN LUXURY WORKBENCH GRID ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '460px 1fr', gap: '20px', alignItems: 'start' }}>
+        
+        {/* ── LEFT PANEL: VOUCHER DETAILS & POSTING ── */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            border: '1px solid #d8e2dc',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '18px'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid #edf2f0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', fontWeight: 800, color: '#111827' }}>
+              <Hash size={16} color={primaryColor} />
+              <span>Voucher Entry Parameters</span>
             </div>
+            <span style={{ fontSize: '11px', color: '#52796f', fontWeight: 700, backgroundColor: '#f0fdf4', padding: '2px 8px', borderRadius: '4px' }}>
+              Double-Entry GL
+            </span>
+          </div>
 
-            {/* Party Selector */}
+          {/* Series Number & Voucher Date */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-slate-600">
-                  {isPayment ? 'Payee Supplier / Creditor [F7]' : 'Customer / Chemist Debtor [F7]'}
-                </label>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#52796f', marginBottom: '6px' }}>
+                Voucher Number
+              </label>
+              <input
+                id="voucher-number-input"
+                ref={vchNoRef}
+                type="text"
+                value={voucherNumber}
+                onChange={e => setVoucherNumber(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  backgroundColor: '#f8faf9',
+                  border: '1px solid #d8e2dc',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontFamily: "'Consolas', 'Courier New', monospace",
+                  fontWeight: 800,
+                  color: primaryColor,
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#52796f', marginBottom: '6px' }}>
+                Posting Date
+              </label>
+              <input
+                id="voucher-date-input"
+                ref={dateRef}
+                type="date"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  backgroundColor: '#f8faf9',
+                  border: '1px solid #d8e2dc',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#111827',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Party Selector */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#52796f' }}>
+                {isPayment ? 'Payee Supplier / Creditor' : 'Customer / Chemist Debtor'}
+              </label>
+              <span style={{ fontSize: '11px', color: '#52796f', fontWeight: 600 }}>Hotkey: [F7]</span>
+            </div>
+            <button
+              id="party-select-btn"
+              type="button"
+              onClick={() => setIsPartyModalOpen(true)}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 14px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #1b4332',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                textAlign: 'left',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                boxSizing: 'border-box'
+              }}
+            >
+              <div style={{ overflow: 'hidden' }}>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: '#111827', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                  {selectedParty ? selectedParty.legal_name : `Click or press [F7] to select ${isPayment ? 'Supplier' : 'Customer'}...`}
+                </div>
                 {selectedParty && (
-                  <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                    GSTIN: {selectedParty.gst || 'UNREGISTERED'}
-                  </span>
+                  <div style={{ fontSize: '11px', color: '#52796f', marginTop: '2px' }}>
+                    GSTIN: <strong>{selectedParty.gst || 'Unregistered Consumer'}</strong>
+                  </div>
                 )}
               </div>
-              <div className="flex gap-2">
-                <button
-                  id="party-select-btn"
-                  type="button"
-                  onClick={() => setIsPartyModalOpen(true)}
-                  className="w-full flex items-center justify-between px-3 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-lg text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-700 text-left transition-all"
-                >
-                  <span className="truncate">
-                    {selectedParty ? selectedParty.legal_name : `Select ${isPayment ? 'Supplier' : 'Customer'}...`}
-                  </span>
-                  <Search className="w-4 h-4 text-slate-500 flex-shrink-0" />
-                </button>
-              </div>
-            </div>
+              <Search size={16} color="#52796f" style={{ flexShrink: 0, marginLeft: '8px' }} />
+            </button>
+          </div>
 
-            {/* Cash/Bank Account Selector */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
-                Deposit / Payment Ledger Account
-              </label>
-              <select
-                id="cash-bank-select"
-                value={selectedLedgerId}
-                onChange={e => setSelectedLedgerId(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-              >
-                {ledgers.map(l => (
-                  <option key={l.id} value={l.id}>
-                    {l.name} ({l.group_name || 'Asset'})
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Cash / Bank Ledger Account Selector */}
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#52796f', marginBottom: '6px' }}>
+              Deposit / Payment Ledger Account
+            </label>
+            <select
+              id="cash-bank-select"
+              value={selectedLedgerId}
+              onChange={e => setSelectedLedgerId(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                backgroundColor: '#f8faf9',
+                border: '1px solid #d8e2dc',
+                borderRadius: '10px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#111827',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            >
+              {ledgers.map(l => (
+                <option key={l.id} value={l.id}>
+                  {l.name} ({l.group_name || 'Cash/Bank Asset'})
+                </option>
+              ))}
+            </select>
+          </div>
 
-            {/* Payment Mode */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-2">Payment Instrument Mode</label>
-              <div className="grid grid-cols-4 gap-2">
-                {(['Cash', 'Cheque', 'NEFT/RTGS', 'UPI'] as const).map(mode => (
+          {/* Payment Mode Selector */}
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#52796f', marginBottom: '8px' }}>
+              Instrument Payment Mode
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+              {(['Cash', 'Cheque', 'NEFT/RTGS', 'UPI'] as const).map(mode => {
+                const isActive = paymentMode === mode;
+                return (
                   <button
                     key={mode}
                     type="button"
                     onClick={() => setPaymentMode(mode)}
-                    className={`py-2 text-xs font-bold rounded-lg border transition-all ${
-                      paymentMode === mode
-                        ? 'bg-emerald-900 text-white border-emerald-900 shadow-sm'
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                    }`}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      border: isActive ? `1px solid ${primaryColor}` : '1px solid #d8e2dc',
+                      backgroundColor: isActive ? primaryColor : '#f8faf9',
+                      color: isActive ? '#ffffff' : '#374151',
+                      transition: 'all 0.15s ease'
+                    }}
                   >
                     {mode}
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
+          </div>
 
-            {/* Instrument Details (If non-cash) */}
-            {paymentMode !== 'Cash' && (
-              <div className="grid grid-cols-2 gap-4 p-3 bg-slate-50 border border-slate-200 rounded-xl animate-fadeIn">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">
-                    {paymentMode === 'Cheque' ? 'Cheque No.' : 'UTR / Ref No.'}
-                  </label>
-                  <input
-                    id="instrument-ref-input"
-                    ref={refNoRef}
-                    type="text"
-                    placeholder="Ref #..."
-                    value={referenceNumber}
-                    onChange={e => setReferenceNumber(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Bank Name</label>
-                  <input
-                    id="instrument-bank-input"
-                    type="text"
-                    placeholder="Issuing bank..."
-                    value={bankName}
-                    onChange={e => setBankName(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Transaction Amount */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">
-                Transaction Amount (₹) <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-2.5 text-lg font-bold text-slate-400">₹</span>
+          {/* Instrument Details (When Non-Cash) */}
+          {paymentMode !== 'Cash' && (
+            <div
+              style={{
+                backgroundColor: '#f8faf9',
+                border: '1px solid #d8e2dc',
+                borderRadius: '12px',
+                padding: '14px',
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '12px'
+              }}
+            >
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#52796f', marginBottom: '4px' }}>
+                  {paymentMode === 'Cheque' ? 'Cheque Number' : 'UTR / Reference Number'}
+                </label>
                 <input
-                  id="transaction-amount-input"
-                  ref={amountRef}
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-lg font-bold text-emerald-950 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                  id="instrument-ref-input"
+                  ref={refNoRef}
+                  type="text"
+                  placeholder="Ref No..."
+                  value={referenceNumber}
+                  onChange={e => setReferenceNumber(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #d8e2dc',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#52796f', marginBottom: '4px' }}>
+                  Issuing Bank
+                </label>
+                <input
+                  id="instrument-bank-input"
+                  type="text"
+                  placeholder="e.g. HDFC Bank"
+                  value={bankName}
+                  onChange={e => setBankName(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #d8e2dc',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
                 />
               </div>
             </div>
+          )}
 
-            {/* Narration */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Narration / Particulars</label>
+          {/* Transaction Amount Box */}
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#111827', marginBottom: '6px' }}>
+              Transaction Amount (₹) <span style={{ color: '#dc2626' }}>*</span>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: '14px', top: '10px', fontSize: '20px', fontWeight: 800, color: '#52796f' }}>₹</span>
               <input
-                id="narration-input"
-                ref={narrRef}
-                type="text"
-                placeholder="Optional voucher note..."
-                value={narration}
-                onChange={e => setNarration(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                id="transaction-amount-input"
+                ref={amountRef}
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px 10px 36px',
+                  backgroundColor: '#f8faf9',
+                  border: '2px solid #1b4332',
+                  borderRadius: '12px',
+                  fontSize: '22px',
+                  fontWeight: 900,
+                  fontFamily: "'Consolas', monospace",
+                  color: '#1b4332',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
               />
             </div>
+          </div>
 
-            {/* Save / Post Trigger */}
-            <div className="pt-2">
+          {/* Narration */}
+          <div>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#52796f', marginBottom: '6px' }}>
+              Narration / Particulars
+            </label>
+            <input
+              id="narration-input"
+              ref={narrRef}
+              type="text"
+              placeholder="e.g. Invoice settlement on counter..."
+              value={narration}
+              onChange={e => setNarration(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                backgroundColor: '#f8faf9',
+                border: '1px solid #d8e2dc',
+                borderRadius: '10px',
+                fontSize: '13px',
+                color: '#111827',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+          {/* Save / Post Trigger */}
+          <button
+            id="save-voucher-btn"
+            type="button"
+            onClick={() => setShowConfirmModal(true)}
+            disabled={saving || numericAmount <= 0 || !selectedParty}
+            style={{
+              width: '100%',
+              padding: '14px 20px',
+              backgroundColor: saving || numericAmount <= 0 || !selectedParty ? '#9ca3af' : primaryColor,
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '14px',
+              fontWeight: 800,
+              cursor: saving || numericAmount <= 0 || !selectedParty ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              boxShadow: '0 4px 14px rgba(27, 67, 50, 0.2)',
+              marginTop: '6px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Save size={18} />
+            <span>Post & Save {voucherType} [Ctrl+S]</span>
+          </button>
+        </div>
+
+        {/* ── RIGHT PANEL: BILL-BY-BILL ALLOCATION ENGINE ── */}
+        <div
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            border: '1px solid #d8e2dc',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '18px'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid #edf2f0', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', fontWeight: 800, color: '#111827' }}>
+                <Sparkles size={16} color="#059669" />
+                <span>Bill-by-Bill Allocation Engine (DOC-07)</span>
+              </div>
+              <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#52796f' }}>
+                Clear open dues via FIFO or manual document allocation; remaining unallocated sum flows to Floating Advance.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button
-                id="save-voucher-btn"
+                id="fifo-allocate-btn"
                 type="button"
-                onClick={() => setShowConfirmModal(true)}
-                disabled={saving || numericAmount <= 0 || !selectedParty}
-                className="w-full py-3 bg-gradient-to-r from-emerald-800 to-teal-800 hover:from-emerald-900 hover:to-teal-900 disabled:opacity-50 text-white rounded-xl text-base font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                onClick={handleFifoAutoAllocate}
+                disabled={allocations.length === 0 || numericAmount <= 0}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 12px',
+                  backgroundColor: '#ecfdf5',
+                  border: '1px solid #a7f3d0',
+                  borderRadius: '8px',
+                  color: '#065f46',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: allocations.length === 0 || numericAmount <= 0 ? 'not-allowed' : 'pointer',
+                  opacity: allocations.length === 0 || numericAmount <= 0 ? 0.6 : 1
+                }}
               >
-                <Save className="w-5 h-5" />
-                Post & Save {voucherType} (Ctrl+S)
+                <RotateCcw size={13} />
+                <span>Auto-Allocate FIFO [Alt+A]</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClearAllocations}
+                disabled={allocations.length === 0}
+                style={{
+                  padding: '7px 12px',
+                  backgroundColor: '#f8faf9',
+                  border: '1px solid #d8e2dc',
+                  borderRadius: '8px',
+                  color: '#4b5563',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: allocations.length === 0 ? 'not-allowed' : 'pointer',
+                  opacity: allocations.length === 0 ? 0.6 : 1
+                }}
+              >
+                Clear
               </button>
             </div>
           </div>
-        </div>
 
-        {/* RIGHT COLUMN: BILL-BY-BILL ALLOCATION PANEL (7 COLS) */}
-        <div className="lg:col-span-7 space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-3">
-              <div>
-                <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-emerald-700" />
-                  Bill-by-Bill Allocation Engine (DOC-07)
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Allocate received payment against open invoices or leave unallocated as an advance.
-                </p>
+          {/* TELEMETRY CARDS */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
+            <div
+              style={{
+                backgroundColor: '#f8faf9',
+                borderRadius: '12px',
+                border: '1px solid #d8e2dc',
+                padding: '14px 16px'
+              }}
+            >
+              <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#52796f', letterSpacing: '0.04em' }}>
+                Total {voucherType} Amount
               </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  id="fifo-allocate-btn"
-                  type="button"
-                  onClick={handleFifoAutoAllocate}
-                  disabled={allocations.length === 0 || numericAmount <= 0}
-                  className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  Auto-Allocate FIFO [Alt+A]
-                </button>
-                <button
-                  type="button"
-                  onClick={handleClearAllocations}
-                  disabled={allocations.length === 0}
-                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
-                >
-                  Clear All
-                </button>
+              <div style={{ fontSize: '20px', fontWeight: 900, color: '#111827', marginTop: '4px', fontFamily: "'Consolas', monospace" }}>
+                ₹{numericAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </div>
             </div>
 
-            {/* TELEMETRY TELEGRAPH */}
-            <div className="grid grid-cols-3 gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-              <div>
-                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total Received</div>
-                <div className="text-base font-extrabold text-slate-800 mt-0.5">
-                  ₹{numericAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </div>
+            <div
+              style={{
+                backgroundColor: '#ecfdf5',
+                borderRadius: '12px',
+                border: '1px solid #a7f3d0',
+                padding: '14px 16px'
+              }}
+            >
+              <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#065f46', letterSpacing: '0.04em' }}>
+                Allocated to Invoices
               </div>
-              <div>
-                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Allocated to Bills</div>
-                <div className="text-base font-extrabold text-emerald-800 mt-0.5">
-                  ₹{totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </div>
-              </div>
-              <div>
-                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Floating / On-Account</div>
-                <div className="text-base font-extrabold text-amber-700 mt-0.5">
-                  ₹{floatingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </div>
+              <div style={{ fontSize: '20px', fontWeight: 900, color: '#065f46', marginTop: '4px', fontFamily: "'Consolas', monospace" }}>
+                ₹{totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </div>
             </div>
 
-            {/* OPEN INVOICES TABLE */}
-            <div className="overflow-x-auto rounded-xl border border-slate-200">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-emerald-900 text-white font-bold">
-                    <th className="py-2.5 px-3">Doc / Bill No.</th>
-                    <th className="py-2.5 px-2">Date</th>
-                    <th className="py-2.5 px-3 text-right">Bill Amt</th>
-                    <th className="py-2.5 px-3 text-right">Net Due</th>
-                    <th className="py-2.5 px-3 text-center">Overdue</th>
-                    <th className="py-2.5 px-3 text-right w-32">Allocate (₹)</th>
-                    <th className="py-2.5 px-2 text-center">Action</th>
+            <div
+              style={{
+                backgroundColor: '#fef3c7',
+                borderRadius: '12px',
+                border: '1px solid #fde68a',
+                padding: '14px 16px'
+              }}
+            >
+              <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#92400e', letterSpacing: '0.04em' }}>
+                Floating Advance / Credit
+              </div>
+              <div style={{ fontSize: '20px', fontWeight: 900, color: '#92400e', marginTop: '4px', fontFamily: "'Consolas', monospace" }}>
+                ₹{floatingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </div>
+            </div>
+          </div>
+
+          {/* OPEN INVOICES TABLE */}
+          <div style={{ borderRadius: '12px', border: '1px solid #d8e2dc', overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#1b4332', color: '#ffffff', fontWeight: 700 }}>
+                  <th style={{ padding: '10px 14px' }}>Doc / Bill No.</th>
+                  <th style={{ padding: '10px 12px' }}>Date</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'right' }}>Bill Amt</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'right' }}>Net Due</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'center' }}>Overdue</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'right', width: '130px' }}>Allocate (₹)</th>
+                  <th style={{ padding: '10px 10px', textAlign: 'center' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loadingAllocations ? (
+                  <tr>
+                    <td colSpan={7} style={{ padding: '36px', textAlign: 'center', color: '#52796f' }}>
+                      Loading pending open bills for {selectedParty?.legal_name}...
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {loadingAllocations ? (
-                    <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-500">
-                        Loading pending open bills...
-                      </td>
-                    </tr>
-                  ) : allocations.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-400">
-                        {selectedParty
-                          ? `No open unpaid bills found for ${selectedParty.legal_name}. Full amount will be stored as Floating Advance.`
-                          : 'Select a customer or supplier to view unpaid bills.'}
-                      </td>
-                    </tr>
-                  ) : (
-                    allocations.map(row => {
-                      const isAllocated = (parseFloat(row.allocate_amount) || 0) > 0;
-                      return (
-                        <tr
-                          key={row.id}
-                          className={`transition-colors ${
-                            isAllocated ? 'bg-emerald-50/60 font-medium' : 'hover:bg-slate-50'
-                          }`}
-                        >
-                          <td className="py-2.5 px-3 font-bold text-slate-800">
-                            {row.invoice_number || row.voucher_number || row.id.slice(0, 8)}
-                            <span className="block text-[10px] font-normal text-slate-400">
-                              {row.document_type}
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-2 text-slate-600">
-                            {row.date ? new Date(row.date).toLocaleDateString('en-IN') : '-'}
-                          </td>
-                          <td className="py-2.5 px-3 text-right text-slate-600">
-                            ₹{row.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-bold text-slate-900">
-                            ₹{row.outstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </td>
-                          <td className="py-2.5 px-3 text-center">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                (row.days_overdue || 0) > 60
-                                  ? 'bg-red-100 text-red-800'
-                                  : (row.days_overdue || 0) > 30
-                                  ? 'bg-amber-100 text-amber-800'
-                                  : 'bg-emerald-100 text-emerald-800'
-                              }`}
-                            >
-                              {row.days_overdue || 0}d
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-3 text-right">
-                            <input
-                              id={`allocate-input-${row.id}`}
-                              type="number"
-                              step="0.01"
-                              placeholder="0.00"
-                              value={row.allocate_amount}
-                              onChange={e => handleRowAllocateChange(row.id, e.target.value)}
-                              className="w-full px-2 py-1 text-right bg-white border border-slate-300 rounded text-xs font-bold text-emerald-900 focus:outline-none focus:ring-1 focus:ring-emerald-700"
-                            />
-                          </td>
-                          <td className="py-2.5 px-2 text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleFullPayRow(row.id)}
-                              className="text-[10px] px-2 py-0.5 bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-900 rounded font-bold transition-all"
-                            >
-                              Full
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                ) : allocations.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ padding: '36px', textAlign: 'center', color: '#6b7280' }}>
+                      {selectedParty
+                        ? `No unpaid open bills found for ${selectedParty.legal_name}. Full amount will be recorded as floating advance.`
+                        : 'Select a customer or supplier to view unpaid bills.'}
+                    </td>
+                  </tr>
+                ) : (
+                  allocations.map((row, idx) => {
+                    const isAllocated = (parseFloat(row.allocate_amount) || 0) > 0;
+                    return (
+                      <tr
+                        key={row.id}
+                        style={{
+                          backgroundColor: isAllocated ? '#ecfdf5' : idx % 2 === 0 ? '#ffffff' : '#f8faf9',
+                          borderBottom: '1px solid #e5e7eb'
+                        }}
+                      >
+                        <td style={{ padding: '10px 14px', fontWeight: 700, color: '#111827' }}>
+                          <div>{row.invoice_number || row.voucher_number || row.id.slice(0, 8)}</div>
+                          <span style={{ fontSize: '10px', color: '#52796f', fontWeight: 500 }}>{row.document_type}</span>
+                        </td>
+                        <td style={{ padding: '10px 12px', color: '#4b5563' }}>
+                          {row.date ? new Date(row.date).toLocaleDateString('en-IN') : '-'}
+                        </td>
+                        <td style={{ padding: '10px 14px', textAlign: 'right', color: '#4b5563' }}>
+                          ₹{row.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: '#111827' }}>
+                          ₹{row.outstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                          <span
+                            style={{
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontWeight: 800,
+                              backgroundColor: (row.days_overdue || 0) > 60 ? '#fef2f2' : (row.days_overdue || 0) > 30 ? '#fef3c7' : '#ecfdf5',
+                              color: (row.days_overdue || 0) > 60 ? '#991b1b' : (row.days_overdue || 0) > 30 ? '#92400e' : '#065f46'
+                            }}
+                          >
+                            {row.days_overdue || 0}d
+                          </span>
+                        </td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right' }}>
+                          <input
+                            id={`allocate-input-${row.id}`}
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={row.allocate_amount}
+                            onChange={e => handleRowAllocateChange(row.id, e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '6px 8px',
+                              textAlign: 'right',
+                              backgroundColor: '#ffffff',
+                              border: isAllocated ? '1px solid #059669' : '1px solid #d1d5db',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: 800,
+                              fontFamily: "'Consolas', monospace",
+                              color: '#1b4332',
+                              outline: 'none',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </td>
+                        <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleFullPayRow(row.id)}
+                            style={{
+                              padding: '3px 8px',
+                              backgroundColor: '#eef2ef',
+                              border: '1px solid #d8e2dc',
+                              borderRadius: '4px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              color: '#1b4332',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Full
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
 
-            {/* SETTLEMENT AUDIT NOTE */}
-            <div className="text-[11px] text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-200">
-              <span className="font-bold text-slate-700">DOC-07 Settlement Rules:</span> Every allocation line maps directly to a target invoice in <code className="font-mono text-emerald-800">invoice_allocations</code>. Any unallocated balance of ₹{floatingBalance.toFixed(2)} is stored as a floating on-account credit, available for future invoices.
-            </div>
+          {/* Settlement Rules Footer Notice */}
+          <div
+            style={{
+              padding: '12px 16px',
+              backgroundColor: '#f8faf9',
+              borderRadius: '10px',
+              border: '1px solid #d8e2dc',
+              fontSize: '11px',
+              color: '#52796f',
+              lineHeight: 1.5
+            }}
+          >
+            <strong style={{ color: '#111827' }}>DOC-07 Settlement Rules:</strong> Direct invoice allocation clears outstanding in FIFO order. Any unallocated balance of ₹{floatingBalance.toFixed(2)} is posted as an on-account credit advance for future billing.
           </div>
         </div>
       </div>
 
       {/* ── PARTY SEARCH MODAL [F7] ── */}
       {isPartyModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-emerald-700" />
-                Select {isPayment ? 'Supplier / Creditor' : 'Customer / Chemist'}
-              </h3>
-              <button onClick={() => setIsPartyModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsPartyModalOpen(false);
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '520px',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)',
+              border: '1px solid #d8e2dc',
+              overflow: 'hidden'
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: primaryColor,
+                color: '#ffffff',
+                padding: '16px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Building2 size={20} />
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>
+                  Select {isPayment ? 'Supplier / Creditor' : 'Customer / Chemist'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsPartyModalOpen(false)}
+                style={{ background: 'none', border: 'none', color: '#ffffff', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={18} />
               </button>
             </div>
 
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                id="party-search-input"
-                type="text"
-                autoFocus
-                placeholder="Search party by name, trade name or GSTIN..."
-                value={partySearch}
-                onChange={e => setPartySearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
-              />
-            </div>
+            <div style={{ padding: '20px' }}>
+              <div style={{ position: 'relative', marginBottom: '14px' }}>
+                <Search size={16} color="#9ca3af" style={{ position: 'absolute', left: '12px', top: '12px' }} />
+                <input
+                  id="party-search-input"
+                  type="text"
+                  autoFocus
+                  placeholder="Search by party name, trade name, or GSTIN..."
+                  value={partySearch}
+                  onChange={e => setPartySearch(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px 10px 36px',
+                    backgroundColor: '#f8faf9',
+                    border: '1px solid #d8e2dc',
+                    borderRadius: '10px',
+                    fontSize: '13px',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
 
-            <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
-              {parties
-                .filter(p =>
-                  p.legal_name.toLowerCase().includes(partySearch.toLowerCase()) ||
-                  (p.trade_name && p.trade_name.toLowerCase().includes(partySearch.toLowerCase())) ||
-                  (p.gst && p.gst.toLowerCase().includes(partySearch.toLowerCase()))
-                )
-                .map(party => (
-                  <button
-                    key={party.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedParty(party);
-                      setIsPartyModalOpen(false);
-                    }}
-                    data-party-name={party.legal_name}
-                    className="party-option-item w-full text-left p-3 hover:bg-emerald-50/60 rounded-xl transition-all flex items-center justify-between group"
-                  >
-                    <div>
-                      <div className="text-sm font-bold text-slate-800 group-hover:text-emerald-950">
-                        {party.legal_name}
+              <div style={{ maxHeight: '280px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {parties
+                  .filter(p =>
+                    p.legal_name.toLowerCase().includes(partySearch.toLowerCase()) ||
+                    (p.trade_name && p.trade_name.toLowerCase().includes(partySearch.toLowerCase())) ||
+                    (p.gst && p.gst.toLowerCase().includes(partySearch.toLowerCase()))
+                  )
+                  .map(party => (
+                    <button
+                      key={party.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedParty(party);
+                        setIsPartyModalOpen(false);
+                      }}
+                      data-party-name={party.legal_name}
+                      className="party-option-item"
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: '10px',
+                        border: '1px solid #e5e7eb',
+                        backgroundColor: '#ffffff',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 800, color: '#111827' }}>
+                          {party.legal_name}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#52796f', marginTop: '2px' }}>
+                          {party.trade_name ? `${party.trade_name} • ` : ''}GSTIN: {party.gst || 'Unregistered'}
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-400">
-                        {party.trade_name ? `${party.trade_name} • ` : ''}GSTIN: {party.gst || 'Unregistered'}
-                      </div>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-emerald-700 transition-colors" />
-                  </button>
-                ))}
+                      <ArrowRight size={16} color="#9ca3af" />
+                    </button>
+                  ))}
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── SAVE CONFIRMATION MODAL ── */}
+      {/* ── SAVE CONFIRMATION MODAL [ENTER] ── */}
       {showConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-6 space-y-4">
-            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <CheckCircle2 className="w-6 h-6 text-emerald-700" />
-              Confirm {voucherType} Posting
-            </h3>
-            <div className="bg-slate-50 p-4 rounded-xl space-y-2 text-xs border border-slate-200">
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-semibold">Voucher Number:</span>
-                <span className="font-bold text-emerald-900">{voucherNumber}</span>
+        <div
+          id="modal-confirm-voucher-post"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowConfirmModal(false);
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '440px',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)',
+              border: '1px solid #d8e2dc',
+              overflow: 'hidden'
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: primaryColor,
+                color: '#ffffff',
+                padding: '16px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <CheckCircle2 size={20} />
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Confirm {voucherType} Posting</h3>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-semibold">Party Name:</span>
-                <span className="font-bold text-slate-900">{selectedParty?.legal_name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-semibold">Payment Mode:</span>
-                <span className="font-bold text-slate-900">{paymentMode}</span>
-              </div>
-              <div className="flex justify-between pt-2 border-t border-slate-200 text-sm">
-                <span className="text-slate-700 font-bold">Total Amount:</span>
-                <span className="font-extrabold text-emerald-900">
-                  ₹{numericAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-              <div className="flex justify-between text-xs text-emerald-700">
-                <span>Allocated to Bills:</span>
-                <span>₹{totalAllocated.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-xs text-amber-700">
-                <span>Floating / On-Account Advance:</span>
-                <span>₹{floatingBalance.toFixed(2)}</span>
-              </div>
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                style={{ background: 'none', border: 'none', color: '#ffffff', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={18} />
+              </button>
             </div>
 
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowConfirmModal(false)}
-                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-all"
+            <div style={{ padding: '24px' }}>
+              <div
+                style={{
+                  backgroundColor: '#f8faf9',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  border: '1px solid #d8e2dc',
+                  marginBottom: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  fontSize: '13px'
+                }}
               >
-                Cancel
-              </button>
-              <button
-                id="confirm-post-btn"
-                type="button"
-                onClick={handleConfirmSave}
-                disabled={saving}
-                className="flex-1 py-2.5 bg-emerald-900 hover:bg-emerald-950 text-white rounded-xl text-sm font-bold shadow transition-all flex items-center justify-center gap-2"
-              >
-                {saving ? 'Posting...' : 'Yes, Confirm Post (Enter)'}
-              </button>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#52796f', fontWeight: 600 }}>Voucher Number:</span>
+                  <span style={{ fontWeight: 800, color: primaryColor, fontFamily: "'Consolas', monospace" }}>{voucherNumber}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#52796f', fontWeight: 600 }}>Party Name:</span>
+                  <span style={{ fontWeight: 800, color: '#111827' }}>{selectedParty?.legal_name}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#52796f', fontWeight: 600 }}>Payment Mode:</span>
+                  <span style={{ fontWeight: 700, color: '#111827' }}>{paymentMode}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #e5e7eb', fontSize: '15px' }}>
+                  <span style={{ fontWeight: 800, color: '#111827' }}>Total Amount:</span>
+                  <span style={{ fontWeight: 900, color: primaryColor, fontFamily: "'Consolas', monospace" }}>
+                    ₹{numericAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#065f46' }}>
+                  <span>Allocated to Invoices:</span>
+                  <span style={{ fontWeight: 700 }}>₹{totalAllocated.toFixed(2)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#92400e' }}>
+                  <span>Floating Advance:</span>
+                  <span style={{ fontWeight: 700 }}>₹{floatingBalance.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmModal(false)}
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    backgroundColor: '#ffffff',
+                    color: '#374151',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel [Esc]
+                </button>
+                <button
+                  id="confirm-post-btn"
+                  type="button"
+                  onClick={handleConfirmSave}
+                  disabled={saving}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    backgroundColor: primaryColor,
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    fontWeight: 800,
+                    cursor: saving ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 2px 8px rgba(27, 67, 50, 0.25)'
+                  }}
+                >
+                  {saving ? 'Posting...' : 'Confirm Post [Enter]'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
