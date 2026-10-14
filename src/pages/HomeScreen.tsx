@@ -243,7 +243,7 @@ export default function HomeScreen() {
             Today's Cash Collected
           </div>
           <div style={{ fontSize: '26px', fontWeight: 800, color: '#1b4332' }}>
-            {formatCurrency(summary?.today_sales.cash_share ?? 64575)}
+            {formatCurrency(summary?.today_sales?.cash_share ?? 64575)}
           </div>
           <div style={{ fontSize: '12px', color: '#40916c', marginTop: '6px', fontWeight: 500 }}>
             Cash in drawer verified • Optimal
@@ -264,10 +264,10 @@ export default function HomeScreen() {
             Today's Credit Billed
           </div>
           <div style={{ fontSize: '26px', fontWeight: 800, color: '#111827' }}>
-            {formatCurrency(summary?.today_sales.credit_share ?? 119925)}
+            {formatCurrency(summary?.today_sales?.credit_share ?? 119925)}
           </div>
           <div style={{ fontSize: '12px', color: '#52796f', marginTop: '6px' }}>
-            {summary?.today_sales.invoice_count ?? 24} Invoices billed today
+            {summary?.today_sales?.invoice_count ?? 24} Invoices billed today
           </div>
         </div>
 
@@ -285,7 +285,7 @@ export default function HomeScreen() {
             Active SKU Catalog
           </div>
           <div style={{ fontSize: '26px', fontWeight: 800, color: '#111827' }}>
-            {(summary?.inventory_health.active_skus ?? 1480).toLocaleString()}
+            {(summary?.inventory_health?.active_skus ?? 1480).toLocaleString()}
           </div>
           <div style={{ fontSize: '12px', color: '#2d6a4f', marginTop: '6px' }}>
             100% Master compliance active
@@ -306,7 +306,7 @@ export default function HomeScreen() {
             Stockout / Expiry Risk
           </div>
           <div style={{ fontSize: '26px', fontWeight: 800, color: '#b91c1c' }}>
-            {(summary?.inventory_health.low_stock_alerts ?? 3)} Low • {(summary?.inventory_health.near_expiry_alerts ?? 8)} Exp
+            {(summary?.inventory_health?.low_stock_alerts ?? 3)} Low • {(summary?.inventory_health?.near_expiry_alerts ?? 8)} Exp
           </div>
           <div style={{ fontSize: '12px', color: '#b91c1c', marginTop: '6px' }}>
             Requires immediate supervisor reorder
