@@ -27,6 +27,9 @@ import GovernanceConsole from './pages/audit/GovernanceConsole';
 import CargoBoard from './pages/cargo/CargoBoard';
 import CargoCostCenter from './pages/cargo/CargoCostCenter';
 import PodExceptionDesk from './pages/cargo/PodExceptionDesk';
+import { FreightRateMaster } from './pages/cargo/FreightRateMaster';
+import { FreightReconciliationDesk } from './pages/cargo/FreightReconciliationDesk';
+
 
 
 // ── STORE ─────────────────────────────────────────────────────
@@ -253,6 +256,10 @@ function App() {
         <Route path="cargo/board" element={<CargoBoard />} />
         <Route path="cargo/costs" element={<CargoCostCenter />} />
         <Route path="cargo/pod-exceptions" element={<PodExceptionDesk />} />
+
+        {/* DOC-35 Freight & Logistics Cost Recovery Engine Routes */}
+        <Route path="freight/contracts" element={<FreightRateMaster />} />
+        <Route path="freight/reconciliation" element={<FreightReconciliationDesk />} />
       </Route>
 
 

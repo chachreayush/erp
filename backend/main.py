@@ -226,8 +226,13 @@ app.include_router(audit_router)
 from api.cargo import router as cargo_router
 app.include_router(cargo_router, prefix="/api/cargo")
 
+# DOC-35: Freight & Logistics Cost Recovery Engine
+from api.freight import router as freight_router
+app.include_router(freight_router, prefix="/api/freight")
+
 # Future routers will be added here as modules are built:
 # app.include_router(hr_router)
+
 
 
 # ── STARTUP EVENT ─────────────────────────────────────────────

@@ -728,7 +728,14 @@ def create_full_software_walkthrough():
         ["Cargo Board (/cargo)", "#btn-register-consignment", "Button [F6]", "Opens consignment registration modal with volumetric CBM calculator."],
         ["Cargo Board (/cargo)", "#drawer-consignment-detail", "Drawer", "Slide-over drawer showing package barcodes, weights, and status advance."],
         ["Cargo Costs (/cargo/costs)", "#toggle-combined-reporting", "Toggle", "Switches between single-tenant and aggregated multi-client MIS view."],
-        ["POD Desk (/cargo/pod-exceptions)", "#btn-record-delivery-pod", "Button", "Submits delivery POD with accepted vs short/damaged quantity validation."]
+        ["POD Desk (/cargo/pod-exceptions)", "#btn-record-delivery-pod", "Button", "Submits delivery POD with accepted vs short/damaged quantity validation."],
+        ["Counter Workbench (/)", "#hub-btn-freight-management", "Button [Ctrl+2]", "Quick launcher navigating to Freight & Rates Master (/freight/contracts)."],
+        ["Freight Rate Master (/freight/contracts)", "#kpi-active-contracts", "Card", "Displays total active transporter rate contracts with tiered slabs."],
+        ["Freight Rate Master (/freight/contracts)", "#btn-switch-tab-sandbox", "Tab [F4]", "Toggles interactive deterministic calculation sandbox."],
+        ["Freight Rate Master (/freight/contracts)", "#btn-execute-calc", "Button", "Executes live rate resolution and displays formula breakdown."],
+        ["Freight Rate Master (/freight/contracts)", "#btn-new-contract", "Button [F6]", "Opens modal to register new freight contract (#modal-new-contract)."],
+        ["Reconciliation Desk (/freight/reconciliation)", "#kpi-total-recons", "Card", "Displays total transporter statement count and three-way match status."],
+        ["Reconciliation Desk (/freight/reconciliation)", "#btn-enter-transporter-bill", "Button [F6]", "Opens modal to enter manual transporter invoice for audit (#modal-enter-transporter-bill)."]
     ]
     style_table(elem_table, [1.5, 1.8, 1.1, 2.1], elem_headers, elem_data)
     doc.add_paragraph().paragraph_format.space_after = Pt(8)
@@ -737,7 +744,7 @@ def create_full_software_walkthrough():
     # SECTION 20: COMPREHENSIVE QA VERIFICATION MATRIX
     # ==========================================
     add_h1("20. Comprehensive Verification Matrix & Headless Selenium End-to-End Test Registry")
-    add_p("The software platform maintains 100% automated pass coverage across 14 comprehensive headless Chrome Selenium test suites and continuous live Vercel production audits:")
+    add_p("The software platform maintains 100% automated pass coverage across 15 comprehensive headless Chrome Selenium test suites and continuous live Vercel production audits:")
 
     matrix_table = doc.add_table(rows=1, cols=3)
     mat_headers = ["Test Suite / Verification Script", "Verification Scope & Stages", "Target Assertions & Status"]
@@ -755,9 +762,41 @@ def create_full_software_walkthrough():
         ["test_audit_governance_selenium.py", "10 Stages (Audit trail & data governance)", "100% PASS: Cryptographic SHA-256 hash chaining, diff drawer, seal validation, retention policies, legal holds, forensic anomalies, evidence pack."],
         ["test_cargo_consignment_selenium.py", "10 Stages (Cargo & consignment engine)", "100% PASS: Consignment registry, volumetric CBM, [Ctrl+1] Board, drawer inspection, cost center combined toggle, 4-eyes POD & exception claims."],
         ["test_esc_navigation_and_cargo_flow_selenium.py", "10 Stages (Escape lifecycle & workflows)", "100% PASS: Universal Esc key navigation, Home Screen exit modal, header workflows dropdown, and quick launcher tiles."],
+        ["test_freight_logistics_selenium.py", "10 Stages (Freight & logistics cost engine)", "100% PASS: Rate contracts, tiered slabs, deterministic calculation, Admin GL 5200 segregation, 3-way transporter reconciliation, [Esc] lifecycle."],
         ["verify_live_vercel_receipt_payment_audit.py", "10 Stages (Live cloud production audit)", "100% PASS: Live production verification on https://erp-rho-three.vercel.app with zero regressions and complete visual screenshot artifacts."]
     ]
     style_table(matrix_table, [2.2, 1.2, 3.1], mat_headers, mat_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(12)
+
+    # ==========================================
+    # SECTION 21: FREIGHT & LOGISTICS COST & RECOVERY ENGINE (DOC-35)
+    # ==========================================
+    add_h1("21. Freight & Logistics Cost & Recovery Engine (DOC-35)")
+    add_p("DOC-35 defines the centralized freight calculation, rate resolution, cost allocation, commercial recovery, and three-way transporter reconciliation engine for the enterprise ERP.")
+
+    add_callout(
+        "DOC-35 ARCHITECTURAL INVARIANTS & CORE DESIGN PRINCIPLES:\n"
+        "1. Strict Separation of Cost, Recovery, and Logistics Margin: Transporter cost incurred is never conflated with or silently offset by customer/principal recoveries.\n"
+        "2. First-Class Cost Bearer Policy: When Platform Admin is configured as cost bearer for client company dispatches, the accounting expense posts exclusively to Account 5200 in the Platform Admin General Ledger; the Client Company General Ledger maintains zero auto-debits.\n"
+        "3. Deterministic Explainability Snapshots: Every calculation generates an immutable JSON snapshot with inputs, formula traces, and rule versions.\n"
+        "4. Three-Way Transporter Billing & Reconciliation: Transporter invoices are audited against system-expected costs with automated variance status tagging (MATCHED, TOLERABLE, UNAPPROVED_EXCESS, DISPUTED) and 1-click GL posting.",
+        prefix="DOC-35 CORE MANDATE: "
+    )
+
+    add_h2("21.1 Implemented Relational Schema & Backend Services")
+    add_p("DOC-35 introduces 11 relational entities mapped via SQLAlchemy 2.0 and mounted under /api/freight:")
+    add_p("• FreightContract & FreightLane: Transporter contract master with priority, vehicle classes, and origin-destination distance matrices.")
+    add_p("• FreightRateRule & FreightAncillaryRule: Tiered weight slabs, base rates, minimum charges, and ancillary surcharges (Loading ₹300, Toll ₹450, Hamali ₹15/pkg, Transit Cover 0.5%, Demurrage ₹500).")
+    add_p("• FreightCostEvent & FreightCalculationSnapshot: Atomic cost facts linked to DOC-34 consignments with complete formula explainability traces.")
+    add_p("• FreightAllocation & FreightRecovery: Multi-document proportional splitting (Weight, Value, Packages, Equal) and commercial customer/principal recovery accounting.")
+    add_p("• FreightReconciliation: Three-way match workbench for auditing transporter statements against expected dispatches.")
+
+    add_h2("21.2 Interactive UI Cockpits & Verification Proof")
+    add_p("The frontend delivers two dedicated luxury Marg-themed cockpits:")
+    add_p("1. Freight Rate Master (/freight/contracts): 4 Top KPI cards, rate card matrix, and an interactive Calculation Sandbox with live parameter inputs and formula trace rendering.")
+    add_p("2. Transporter Billing & Reconciliation Desk (/freight/reconciliation): Complete statement audit grid with variance thresholds, dispute logging, and 1-click GL posting to Account 5200.")
+    add_p("3. Zero-Mouse Operational Guarantee: 100% keyboard navigable with [F6] New Contract/Bill modal, [F4] Sandbox toggle, [Esc] hierarchical dismissal, and [Ctrl+2] Counter Workbench hotkey.")
+
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
     # Save to erp2 directory
@@ -772,3 +811,4 @@ def create_full_software_walkthrough():
 
 if __name__ == "__main__":
     create_full_software_walkthrough()
+

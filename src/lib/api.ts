@@ -2633,5 +2633,277 @@ export async function apiResolveCargoException(
   return response.data;
 }
 
+// ==========================================
+// DOC-35: FREIGHT & LOGISTICS COST RECOVERY APIS
+// ==========================================
+
+export interface FreightSummaryKPI {
+  total_freight_spend: number;
+  admin_funded_spend: number;
+  total_recoveries: number;
+  total_subsidies: number;
+  net_logistics_margin: number;
+  active_contracts_count: number;
+  cost_events_count: number;
+  pending_reconciliations: number;
+  currency: string;
+}
+
+export interface FreightLaneItem {
+  id: string;
+  origin_zone: string;
+  destination_zone: string;
+  distance_km: number;
+  distance_source: string;
+  transit_days: number;
+  priority: number;
+}
+
+export interface FreightRateRuleItem {
+  id: string;
+  lane_id?: string | null;
+  charge_basis: string;
+  base_rate: number;
+  min_charge: number;
+  max_cap?: number | null;
+  slab_config?: { min_kg: number; max_kg: number; rate: number }[];
+  rounding_rule: string;
+}
+
+export interface FreightAncillaryRuleItem {
+  id: string;
+  ancillary_type: string;
+  charge_basis: string;
+  rate: number;
+  is_mandatory: boolean;
+  condition_text?: string;
+}
+
+export interface FreightContractItem {
+  id: string;
+  contract_number: string;
+  transporter_name: string;
+  vehicle_class: string;
+  status: string;
+  priority: number;
+  notes?: string;
+  effective_from?: string;
+  lanes: FreightLaneItem[];
+  rate_rules: FreightRateRuleItem[];
+  ancillary_rules: FreightAncillaryRuleItem[];
+}
+
+export interface FreightCalculationResult {
+  contract_id: string;
+  contract_number: string;
+  transporter_name: string;
+  chargeable_weight_kg: number;
+  base_freight: number;
+  ancillary_charges: {
+    type: string;
+    basis: string;
+    rate: number;
+    amount: number;
+    condition?: string;
+  }[];
+  total_ancillary: number;
+  gross_freight_cost: number;
+  recovery_type: string;
+  recovery_amount: number;
+  subsidy_amount: number;
+  logistics_margin: number;
+  formula_text: string;
+  is_admin_funded: boolean;
+  cost_bearer: string;
+  beneficiary: string;
+  currency: string;
+}
+
+export interface FreightCostEventItem {
+  id: string;
+  event_number: string;
+  consignment_id?: string | null;
+  cost_type: string;
+  estimated_amount: number;
+  actual_amount: number;
+  variance_amount: number;
+  currency: string;
+  status: string;
+  is_admin_funded: boolean;
+  created_at: string;
+  allocations: {
+    id: string;
+    target_type: string;
+    target_number?: string;
+    allocation_method: string;
+    allocated_amount: number;
+  }[];
+  recoveries: {
+    id: string;
+    recovery_type: string;
+    recovery_party_type: string;
+    recovery_party_name?: string;
+    recovery_amount: number;
+    subsidy_amount: number;
+    logistics_margin: number;
+    status: string;
+  }[];
+}
+
+export interface FreightReconciliationItem {
+  id: string;
+  recon_number: string;
+  transporter_name: string;
+  transporter_invoice_no: string;
+  transporter_invoice_date?: string;
+  expected_amount: number;
+  billed_amount: number;
+  approved_amount: number;
+  variance_amount: number;
+  variance_status: 'MATCHED' | 'TOLERABLE' | 'UNAPPROVED_EXCESS' | 'DISPUTED' | 'RESOLVED';
+  dispute_reason?: string;
+  status: string;
+  created_at: string;
+}
+
+export async function apiGetFreightSummary(): Promise<{ success: boolean; summary: FreightSummaryKPI }> {
+  const response = await apiClient.get('/api/freight/summary');
+  return response.data;
+}
+
+export async function apiGetFreightContracts(): Promise<{ success: boolean; contracts: FreightContractItem[] }> {
+  const response = await apiClient.get('/api/freight/contracts');
+  return response.data;
+}
+
+export async function apiCreateFreightContract(payload: {
+  contract_number?: string;
+  transporter_name: string;
+  vehicle_class?: string;
+  priority?: number;
+  notes?: string;
+  lanes?: {
+    origin_zone: string;
+    destination_zone: string;
+    distance_km: number;
+    distance_source?: string;
+    transit_days?: number;
+    priority?: number;
+  }[];
+  rate_rules?: {
+    charge_basis: string;
+    base_rate: number;
+    min_charge: number;
+    max_cap?: number;
+    slab_config?: { min_kg: number; max_kg: number; rate: number }[];
+    rounding_rule?: string;
+  }[];
+  ancillary_rules?: {
+    ancillary_type: string;
+    charge_basis: string;
+    rate: number;
+    is_mandatory: boolean;
+    condition_text?: string;
+  }[];
+}): Promise<{ success: boolean; contract_id: string; contract_number: string }> {
+  const response = await apiClient.post('/api/freight/contracts', payload);
+  return response.data;
+}
+
+export async function apiCalculateFreight(payload: {
+  contract_id?: string;
+  transporter_name?: string;
+  origin_zone: string;
+  destination_zone: string;
+  gross_weight_kg: number;
+  volumetric_weight_kg?: number;
+  package_count: number;
+  distance_km?: number;
+  declared_value?: number;
+  ancillaries_requested?: string[];
+  recovery_type?: string;
+  recovery_amount?: number;
+}): Promise<{ success: boolean; calculation: FreightCalculationResult }> {
+  const response = await apiClient.post('/api/freight/calculate', payload);
+  return response.data;
+}
+
+export async function apiGetFreightEvents(params?: {
+  status?: string;
+  consignment_id?: string;
+}): Promise<{ success: boolean; events: FreightCostEventItem[] }> {
+  const response = await apiClient.get('/api/freight/events', { params });
+  return response.data;
+}
+
+export async function apiCreateFreightEvent(payload: {
+  consignment_id?: string;
+  contract_id?: string;
+  cost_type: string;
+  estimated_amount: number;
+  actual_amount?: number;
+  currency?: string;
+  is_admin_funded?: boolean;
+  calculation_inputs?: any;
+  calculation_outputs?: any;
+  formula_text?: string;
+  allocation_targets?: any[];
+  recovery_data?: any;
+}): Promise<{ success: boolean; event_id: string; event_number: string }> {
+  const response = await apiClient.post('/api/freight/events', payload);
+  return response.data;
+}
+
+export async function apiAllocateFreightCost(payload: {
+  cost_event_id: string;
+  allocation_method: string;
+  targets: {
+    target_type: string;
+    target_id?: string;
+    target_number: string;
+    weight?: number;
+    value?: number;
+    package_count?: number;
+  }[];
+}): Promise<{ success: boolean; message: string; allocations: any[] }> {
+  const response = await apiClient.post('/api/freight/allocate', payload);
+  return response.data;
+}
+
+export async function apiGetFreightReconciliations(): Promise<{ success: boolean; reconciliations: FreightReconciliationItem[] }> {
+  const response = await apiClient.get('/api/freight/reconciliation');
+  return response.data;
+}
+
+export async function apiCreateFreightReconciliation(payload: {
+  transporter_name: string;
+  transporter_invoice_no: string;
+  transporter_invoice_date?: string;
+  expected_amount: number;
+  billed_amount: number;
+  dispute_reason?: string;
+}): Promise<{ success: boolean; message: string; recon_number: string; variance_status: string }> {
+  const response = await apiClient.post('/api/freight/reconciliation', payload);
+  return response.data;
+}
+
+export async function apiActionFreightReconciliation(
+  reconId: string,
+  payload: {
+    action: string;
+    approved_amount?: number;
+    dispute_reason?: string;
+  }
+): Promise<{ success: boolean; message: string; status: string }> {
+  const response = await apiClient.post(`/api/freight/reconciliation/${reconId}/action`, payload);
+  return response.data;
+}
+
+export async function apiGetFreightPolicies(): Promise<{ success: boolean; policy: any }> {
+  const response = await apiClient.get('/api/freight/policies');
+  return response.data;
+}
+
+
 
 

@@ -468,7 +468,8 @@ An exhaustive, publication-grade master reference manual has been created as an 
   13. Cargo & Consignment Management Engine (DOC-34: Independent Series `CN-YYYY-XXXX`, Admin-Funded Client Cargo Architecture, Zero Client GL Auto-Debit, Volumetric CBM, 4-Eyes POD & Discrepancy Desk).
   14. Relational Database Schema Dictionary (25+ PostgreSQL models).
   15. RESTful API Directory (40+ core endpoints).
-  16. Automated Selenium QA Verification Matrix (12 test suites, 100% assertions) & Production Deployment guide.
+  16. Freight & Logistics Cost Recovery Engine (DOC-35: Carrier Contracts, Multi-Tier Slabs, Explainability Engine, GL Account 5200 Posting, 3-Way Reconciliation Desk).
+  17. Automated Selenium QA Verification Matrix (15 test suites, 100% assertions) & Production Deployment guide.
 
 ---
 
@@ -550,6 +551,42 @@ robocopy C:\Users\DELL\OneDrive\Desktop\erp2 C:\Users\DELL\OneDrive\Desktop\erp 
 
 ---
 
+## Freight & Logistics Cost Recovery Engine (DOC-35)
+
+Implemented and verified the production-grade Freight & Logistics Cost Recovery Engine:
+1. **First-Class Relational Models (11 PostgreSQL Models in `backend/models.py`)**:
+   - `FreightContract`, `FreightLane`, `FreightRateRule`, `FreightAncillaryRule`, `FreightCostEvent`, `FreightCalculationSnapshot`, `FreightAllocation`, `FreightRecovery`, `FreightReconciliation`, `FreightCostBearerPolicy`, `FreightException`.
+2. **First-Class Cost Bearer Policy Invariant**:
+   - Zero Client General Ledger Auto-Debit: Client Company GL accounts are protected and never automatically debited for carrier freight charges.
+   - Platform Admin Central Freight Ledger: Freight expenses strictly recognized in Platform Admin General Ledger under Account 5200 (`Central Freight & Logistics Expense`).
+3. **Deterministic Multi-Tier Slab Calculation Engine (`backend/api/freight.py`)**:
+   - Multi-tier weight slabs (`MIN_CHARGE`, `PER_KG`, `FLAT`, `VOLUMETRIC_RATIO`).
+   - Dynamic ancillary charges (`DOCKET_FEE`, `ROV_SURCHARGE`, `FOD_CHARGE`, `FUEL_SURCHARGE`, `ODA_SURCHARGE`, `HANDLING_FEE`).
+   - Volumetric CBM conversion ($(L \times W \times H) / 1,000,000$) with volumetric weight factor comparison.
+   - Step-by-step explainability breakdown formula returned with all calculation snapshots.
+4. **Interactive UI Cockpits**:
+   - `FreightRateMaster.tsx` (`/freight/contracts` or `Ctrl+2`): Contract catalog, active lanes grid, live deterministic calculation sandbox with origin/destination pincode routing, weight/declared value inputs, step-by-step cost breakdown, and New Contract modal `[F6]`.
+   - `FreightReconciliationDesk.tsx` (`/freight/reconciliation`): 3-way transporter bill audit matching ERP Estimated vs Consignment Actual vs Transporter Billed with automated tolerance checking (`MATCHED`, `TOLERABLE`, `UNAPPROVED_EXCESS`, `DISPUTED`) and 1-click Approve, Dispute, and Post GL actions.
+   - Cross-linking from `CargoBoard.tsx` consignment drawer to live freight calculation engine.
+5. **Backend REST API Endpoints**:
+   - `GET /api/freight/summary`: Global KPIs, contract counts, active lanes, audited expenditure.
+   - `GET /api/freight/contracts`: Multi-transporter rate cards and lane pricing matrices.
+   - `POST /api/freight/calculate`: Deterministic live rating sandbox with ancillary breakdown and explainability formula.
+   - `GET /api/freight/events`: Real-time cost recovery ledger events.
+   - `POST /api/freight/allocate`: Consignment & invoice freight cost allocations.
+   - `GET /api/freight/reconciliation`: Transporter bill audits and tolerance verification queues.
+   - `POST /api/freight/reconciliation/{id}/action`: 1-click Approve, Dispute, and Post GL (Account 5200) actions.
+   - `GET /api/freight/policies`: Organization cost bearer rules and GL account bindings.
+6. **Automated Selenium Verification (`test_freight_logistics_selenium.py`)**:
+   - 10/10 Stages PASSED (100% Exit Code 0).
+   - 4 verified screenshots captured:
+     - `verified_freight_homescreen_launcher.png`
+     - `verified_freight_rate_cards_catalog.png`
+     - `verified_freight_calculation_sandbox.png`
+     - `verified_freight_reconciliation_desk.png`
+
+---
+
 ## Master Screen-by-Screen UI Element & Hotkey Catalog
 
 | Screen / Route | Element Selector / ID | Type & Hotkey | Functional Description & Expected Behavior |
@@ -558,6 +595,7 @@ robocopy C:\Users\DELL\OneDrive\Desktop\erp2 C:\Users\DELL\OneDrive\Desktop\erp 
 | **Counter Workbench (`/`)** | `#hub-btn-receipt-voucher` | Button `[F6]` | Opens Customer Collection & Receipt Voucher screen. |
 | **Counter Workbench (`/`)** | `#hub-btn-payment-voucher` | Button `[F5]` | Opens Supplier Outward Payment Voucher screen. |
 | **Counter Workbench (`/`)** | `#hub-btn-cargo-management` | Button `[Ctrl+1]` | Launches Cargo & Consignment Management Board. |
+| **Counter Workbench (`/`)** | `#hub-btn-freight-management` | Button `[Ctrl+2]` | Launches Freight & Logistics Cost Recovery Engine. |
 | **Counter Workbench (`/`)** | `#hub-btn-audit-trail` | Button | Opens Cryptographic SHA-256 Audit Trail Explorer. |
 | **Counter Workbench (`/`)** | `#modal-exit-app` | Modal `[Esc]` | Application exit confirmation dialog with Exit `[Enter]` and Cancel `[Esc]`. |
 | **Header** | `#btn-workflow-dropdown` | Dropdown `[F4]` | Expands workflows menu with Inbox, Designer, Monitor, Cargo, Costs, POD Desk. |
@@ -580,10 +618,27 @@ robocopy C:\Users\DELL\OneDrive\Desktop\erp2 C:\Users\DELL\OneDrive\Desktop\erp 
 | **Cargo Board (`/cargo`)** | `#drawer-consignment-detail` | Drawer | Slide-over drawer showing package barcodes, weights, and status advance. |
 | **Cargo Costs (`/cargo/costs`)** | `#toggle-combined-reporting` | Toggle | Switches between single-tenant and aggregated multi-client MIS view. |
 | **POD Desk (`/cargo/pod-exceptions`)** | `#btn-record-delivery-pod` | Button | Submits delivery POD with accepted vs short/damaged quantity validation. |
+| **Freight Contracts (`/freight/contracts`)** | `#kpi-active-contracts` | Metric Card | Displays total active carrier contracts. |
+| **Freight Contracts (`/freight/contracts`)** | `#kpi-configured-lanes` | Metric Card | Displays total active pricing lanes. |
+| **Freight Contracts (`/freight/contracts`)** | `#btn-new-contract` | Button `[F6]` | Opens modal to configure new transporter contract. |
+| **Freight Contracts (`/freight/contracts`)** | `#sandbox-origin-pincode` | Input | Origin pincode for deterministic lane lookup. |
+| **Freight Contracts (`/freight/contracts`)** | `#sandbox-dest-pincode` | Input | Destination pincode for deterministic lane lookup. |
+| **Freight Contracts (`/freight/contracts`)** | `#sandbox-weight-input` | Input | Chargeable consignment weight in kilograms. |
+| **Freight Contracts (`/freight/contracts`)** | `#sandbox-declared-value` | Input | Declared consignment invoice value for ROV/FOD surcharges. |
+| **Freight Contracts (`/freight/contracts`)** | `#btn-calculate-freight` | Button `[Enter]` | Executes deterministic multi-tier slab calculation. |
+| **Freight Contracts (`/freight/contracts`)** | `#sandbox-total-freight` | Output | Displays calculated total freight cost. |
+| **Freight Contracts (`/freight/contracts`)** | `#sandbox-gl-account` | Badge | Shows bound General Ledger account (Account 5200). |
+| **Freight Reconciliation (`/freight/reconciliation`)** | `#kpi-total-audited-freight` | Metric Card | Total freight bills audited. |
+| **Freight Reconciliation (`/freight/reconciliation`)** | `#kpi-approved-amount` | Metric Card | Net approved freight value. |
+| **Freight Reconciliation (`/freight/reconciliation`)** | `#kpi-pending-variance` | Metric Card | Pending audit variance amount. |
+| **Freight Reconciliation (`/freight/reconciliation`)** | `#reconciliation-table` | Data Grid | 3-way transporter matching table with variance badges. |
+| **Freight Reconciliation (`/freight/reconciliation`)** | `#btn-approve-bill` | Button | Approves carrier bill within allowable tolerance. |
+| **Freight Reconciliation (`/freight/reconciliation`)** | `#btn-dispute-bill` | Button | Marks unapproved excess bill into DISPUTED state. |
+| **Freight Reconciliation (`/freight/reconciliation`)** | `#btn-post-gl` | Button | Posts approved freight cost to GL Account 5200. |
 
 ---
 
-## Complete 14-Suite Automated Selenium Verification Matrix & Live Production Audit
+## Complete 15-Suite Automated Selenium Verification Matrix & Live Production Audit
 
 | Test Suite File | Coverage Scope | Verified Status |
 | :--- | :--- | :--- |
@@ -599,6 +654,7 @@ robocopy C:\Users\DELL\OneDrive\Desktop\erp2 C:\Users\DELL\OneDrive\Desktop\erp 
 | `test_workflow_approval_automation_selenium.py` | Universal trigger, `[F4]` Inbox, Maker-Checker, Designer | 100% PASS |
 | `test_audit_governance_selenium.py` | SHA-256 hash chain, diff drawer, legal holds, anomalies | 100% PASS |
 | `test_cargo_consignment_selenium.py` | Consignment board, CBM calc, Admin cost center, POD desk | 100% PASS |
+| `test_freight_logistics_selenium.py` | Freight rate cards, live slab calculation sandbox, 3-way reconciliation audit, GL Account 5200 posting | 100% PASS |
 | `test_esc_navigation_and_cargo_flow_selenium.py` | Universal Esc key handling, Exit modal, Workflows dropdown | 100% PASS |
 | `verify_live_vercel_receipt_payment_audit.py` | Live production audit on https://erp-rho-three.vercel.app | 100% PASS |
 

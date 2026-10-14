@@ -1,0 +1,496 @@
+DOC-35
+FREIGHT & LOGISTICS COST & RECOVERY ENGINE
+Implementation Specification - Phase 1 / C&F Commercial Management
+Important: DOC-35 owns freight and logistics cost rules, rate resolution, recovery calculations, allocation and cost-bearer logic. It does not create a second accounting, settlement, inventory, dashboard or workflow engine.
+Document Map
+1. Executive Summary
+2. Design Intent & Problem Statement
+3. Architecture Position & Ownership
+4. Freight Cost Concepts
+5. Cost-Bearer Model
+6. Freight Rate & Contract Master
+7. Lanes, Zones & Geography
+8. Charge Basis Engine
+9. Freight Calculation Engine
+10. Ancillary Logistics Cost Engine
+11. Cost Allocation Engine
+12. Freight Recovery Engine
+13. Estimated vs Actual Freight
+14. Transporter Billing & Reconciliation
+15. Admin Company Funded Client Cargo
+16. Client & Admin Reporting
+17. UI/UX Architecture
+18. Workflow & Approval Integration
+19. Accounting Integration
+20. Tax & Localization
+21. Inventory/Pricing/Billing Integration
+22. Data Model & Relational Schema
+23. Lifecycle & State Machine
+24. Permissions & Data Scope
+25. Local-First / LAN / Cloud Sync
+26. Error, Edge-Case & Recovery Handling
+27. Controls & Audit
+28. Reports & Dashboard Feeds
+29. Small, Medium & Large Business Modes
+30. Performance & Scalability
+31. Implementation Dependencies
+32. Acceptance Criteria
+33. Decision Register
+34. Appendix - Example Calculations
+35. Appendix - Future Extensions
+1. Executive Summary
+DOC-35 defines the centralized freight and logistics cost engine for the ERP. It determines what a shipment costs, who bears that cost, how that cost is allocated, whether any part is recoverable, how actual transporter charges are reconciled, and how the result is exposed to accounting, reporting and dashboards.
+A core distinction is mandatory: cost, recovery and profitability are separate values. A freight cost paid to a transporter is never silently replaced by the amount recovered from a customer, principal or another party.
+1.1 Key outcomes
+Support fixed, per-package, per-kg, per-quintal, per-ton, per-km, percentage, slab, zone and hybrid freight calculations.
+Track loading, unloading, hamali, toll, parking, detention, insurance and other configured logistics costs.
+Resolve the best applicable rate from transporter contracts and route/lane rules with effective dates.
+Support estimated freight at order/dispatch stage and actual freight after transporter billing.
+Allocate freight across consignments, invoices, challans, packages, weight, value or other configured dimensions.
+Track customer recovery, principal recovery, internal subsidy and non-recoverable freight separately.
+Allow the Platform Admin Company to bear client-company cargo cost and record it as an Admin Company expense while retaining client-level beneficiary reporting.
+Provide auditable cost-to-recovery variance and logistics margin.
+2. Design Intent & Problem Statement
+C&F operations generate many freight-related costs that do not fit a single simple freight field on an invoice. The same dispatch may have base transport cost, loading, unloading, hamali, tolls and special charges, while the recovery may be fixed, negotiated, principal-funded, customer-funded or intentionally non-recoverable.
+2.1 Problems solved
+Avoid hard-coded freight formulas.
+Avoid mixing transporter cost with customer recovery.
+Avoid losing freight visibility when multiple invoices share one consignment.
+Avoid double charging the same freight event.
+Avoid silently changing historical freight when rate masters are later edited.
+Provide a controlled way for the Admin Company to fund client cargo without creating unapproved client-company accounting entries.
+Support small operations without forcing enterprise freight configuration.
+3. Architecture Position & Ownership
+4. Freight Cost Concepts
+5. Cost-Bearer Model
+DOC-35 introduces a first-class Cost Bearer Policy because freight may be borne by the Client Company, the Platform Admin Company, a Principal, the Customer, a shared service entity, or another configured party.
+5.1 Non-negotiable rule
+The identity of the cost bearer must be explicit for each freight cost event. A dashboard or report selection must not silently change the accounting cost bearer.
+6. Freight Rate & Contract Master
+A transporter rate card or logistics contract is a versioned, effective-dated master. Historical transactions retain the resolved rate snapshot and calculation inputs.
+7. Lanes, Zones & Geography
+Support origin/destination by address, city, district, state/province, country, postal code or configured logistics zone.
+Allow explicit lane rules to override generic zone rules.
+Allow distance source to be manually entered or supplied by an approved routing provider/integration later.
+Store whether distance is estimated, contracted or actual.
+Prevent ambiguous route matches by using priority/precedence rules.
+8. Charge Basis Engine
+9. Freight Calculation Engine
+The engine resolves a deterministic calculation sequence. Every output stores the inputs and rule version used so the amount can be explained later.
+9.1 Precedence
+Explicit transaction override with approval
+Customer/principal-specific contract
+Branch-specific contract
+Lane-specific contract
+Zone-specific contract
+Vehicle-type contract
+Generic transporter rate
+Company default freight rule
+The selected rule must record the precedence path. If two rules have equal priority and conflicting rates, the system must not guess; it must flag a configuration conflict.
+10. Ancillary Logistics Cost Engine
+Every ancillary cost needs a cost type, source/reference and owner. Generic “other” charges cannot be posted without a reason code and audit record.
+11. Cost Allocation Engine
+One freight cost can relate to many commercial documents. DOC-35 must support allocation while preserving the original total cost.
+11.1 Allocation invariants
+Allocated total must equal source cost unless a configured residual/rounding policy exists.
+Rounding residual must be assigned deterministically and auditable.
+Reallocation after posting requires reversal/recalculation rather than silent overwrite.
+A document cannot receive freight from a different company context without an authorized cross-company/cost-bearer rule.
+12. Freight Recovery Engine
+Recovery is independent of cost. The recovery engine determines what amount is billed or claimed from a customer, principal or another approved party.
+13. Estimated vs Actual Freight
+At order/dispatch stage the ERP may need an estimate. At transporter invoice/reconciliation stage the actual cost becomes authoritative for cost accounting. The system retains both.
+14. Transporter Billing & Reconciliation
+Import or enter transporter invoice/statement.
+Match by consignment, LR/GR, vehicle, route, date and expected amount.
+Support one transporter bill against many consignments.
+Support one consignment split across transporter bills where partial/incremental charges are valid.
+Flag unmatched, duplicate, rate mismatch, distance mismatch, weight mismatch and excess-charge conditions.
+Create an approved variance rather than editing the transporter invoice to make it match.
+15. Admin Company Funded Client Cargo
+This is a key project-specific requirement. A Client Company may generate cargo and consignment activity while the Platform Admin Company is configured to bear the cost.
+15.1 Required behavior
+Admin Company records the accounting expense when the cost-bearer policy says Admin bears the cost.
+Client Company retains the operational cargo/beneficiary attribution but does not automatically receive an expense entry unless a chargeback/recharge policy is enabled.
+Every cost is tagged with client company, branch, consignment, transporter, route, cost type and period.
+Admin can view costs client-wise, branch-wise, transporter-wise, route-wise, principal-wise, consignment-wise and period-wise.
+Combined multi-client reporting is explicitly enabled by Platform Admin; it is never implicit.
+Client-company users can see admin-borne freight only when their permissions allow it.
+Optional recharge/chargeback can create an intercompany or service-recovery workflow without changing the original gross cost.
+Changing the cost-bearer policy after posting must not silently rewrite historical accounting.
+16. Client & Admin Reporting
+17. UI/UX Architecture
+17.1 Freight setup screen
+Transporter/contract selector
+Origin/destination/lane
+Vehicle class
+Rate basis
+Rate/slab editor
+Ancillary cost rules
+Recovery settings
+Cost bearer policy
+Effective dates
+Approval settings
+Calculation preview
+Version history
+17.2 Dispatch freight panel
+Show estimated freight before dispatch.
+Show source of rate and calculation basis.
+Allow authorized override with reason.
+Show cost bearer.
+Show estimated recovery and projected margin.
+Link directly to consignment and package details.
+17.3 Reconciliation workbench
+Expected vs actual grid
+Difference amount and percentage
+Reason code
+Document match
+Approve variance
+Split/allocate actual cost
+Post/finalize
+Audit timeline
+18. Workflow & Approval Integration
+19. Accounting Integration
+DOC-35 prepares accounting intents; DOC-08 performs the final double-entry posting.
+The exact ledger mapping is company- and jurisdiction-configured. DOC-35 never posts directly to the database ledger tables.
+20. Tax & Localization
+Freight may have tax consequences that vary by transaction type, jurisdiction and document structure. DOC-35 stores tax-relevant attributes and passes them to DOC-29; it does not become the tax authority.
+Taxability flag and tax category for each charge type.
+Place-of-supply context where relevant.
+Tax registration of supplier/transporter.
+Tax-inclusive vs exclusive amount.
+Tax component retained separately from base freight.
+Effective-dated localization rules.
+India GST and future jurisdiction rule packs consumed from DOC-29.
+21. Inventory, Pricing & Billing Integration
+DOC-34 supplies package, weight, route and consignment facts.
+DOC-20 consumes recoverable freight and invoice presentation values.
+DOC-16 may consume freight as a landed-cost input when explicitly configured for purchase/inward costing.
+DOC-15 may supply commercial pricing context where freight recovery uses customer-specific rules.
+DOC-19 consumes freight status for dispatch readiness and transport assignment.
+22. Data Model & Relational Schema
+The following logical entities are required. Physical table naming may be adapted in DOC-45, but ownership and relationships must be preserved.
+22.1 Core constraints
+All cost events have an explicit company and cost-bearer context.
+Historical snapshots are immutable after finalization.
+Amounts use decimal-safe currency fields, never floating point semantics at the business-rule level.
+Allocation totals are validated against source totals plus configured rounding residuals.
+Contract/rule versions cannot overlap with ambiguous priority for the same exact scope.
+A recovery cannot exceed recoverable base unless an approved override exists.
+23. Lifecycle & State Machine
+24. Permissions & Data Scope
+25. Local-First / LAN / Cloud Sync
+Freight calculations should execute locally for active LAN operations whenever source data is local.
+A calculation snapshot and event ID travel with synchronization.
+Retries must be idempotent so freight is not duplicated after reconnect.
+Conflicting rate-master edits require conflict handling; posted historical snapshots remain unchanged.
+Remote users should see synchronized freight state and its data-as-of timestamp.
+Admin combined reports must clearly distinguish synchronized vs pending data.
+26. Error, Edge-Case & Recovery Handling
+27. Controls & Audit
+Every rate-master create/change/deactivate is audited.
+Every manual override stores actor, reason and before/after values.
+Every cost-bearer change stores effective date and approval.
+Every allocation amendment preserves previous allocation history.
+Every reconciliation keeps expected, actual and variance values.
+Every admin-borne client cost is traceable to client, consignment and source document.
+Every export of combined client freight data is audited.
+No dashboard exclusion can remove a freight cost from accounting or audit truth.
+28. Reports & Dashboard Feeds
+DOC-31 may display these metrics only within the viewer's data scope and dashboard policy. The underlying freight facts remain in DOC-35 and financial truth remains in DOC-08/09.
+29. Small, Medium & Large Business Modes
+30. Performance & Scalability
+Precompute reusable lane/rate matches rather than recalculating identical rules repeatedly.
+Use effective-date and scope indexes for contract resolution.
+Keep calculation snapshots compact but complete enough for explainability.
+Aggregate reporting facts separately from transactional detail where justified.
+Support batch calculation for end-of-day dispatches.
+Prevent one large combined Admin report from scanning every transaction in real time when summarized facts are available.
+31. Implementation Dependencies
+32. Acceptance Criteria
+User can calculate freight using flat, weight, package, distance, percentage, slab and hybrid rules.
+Historical freight retains the exact rate/rule snapshot used at calculation time.
+Actual transporter cost can be reconciled against estimated/accrued cost.
+One freight cost can be allocated across multiple invoices/challans without double counting.
+Customer/principal recovery remains separate from actual freight cost.
+Admin Company can be configured as cost bearer for a Client Company.
+Admin-borne cargo appears as Admin expense in the authorized Admin accounting/reporting context.
+Client Company can see its beneficiary freight cost when authorized, without automatic client expense posting unless explicitly configured.
+Admin can generate per-client, combined and transporter/route/consignment reports when authorized.
+Combined reporting can be enabled/disabled and is permission controlled.
+All manual overrides require reason and appropriate approval.
+All important changes are auditable.
+Offline and retry behavior cannot duplicate freight costs.
+No future module creates a second freight calculation engine.
+All dashboard/reporting calculations trace back to DOC-35 freight facts and the authoritative accounting records.
+33. Decision Register
+34. Appendix - Example Calculations
+Example A: Weight-based freight
+Example B: Admin-funded client cargo
+Example C: Recovery + subsidy
+35. Appendix - Future Extensions
+Dynamic route optimization
+Carrier performance scorecards using factual metrics
+Freight tender/bidding workflow
+Rate quotation comparison
+API ingestion from transporter systems
+GPS/telematics integration
+Automated detention calculation from timestamps
+Advanced multi-leg intermodal freight
+Contract utilization and minimum-volume tracking
+AI-assisted anomaly detection subject to explicit governance
+
+--- TABLE ---
+Document Control | Value
+Document ID | DOC-35
+Version | 2.0 - Detailed implementation specification
+Status | Authoritative design baseline for business review
+Primary scope | Freight cost calculation, logistics expense, recovery and margin
+Applies to | Platform Admin, Client Companies, branches, warehouses, principals, customers, transporters
+Depends on | DOC-13, DOC-19, DOC-20, DOC-24, DOC-30, DOC-31, DOC-32, DOC-33, DOC-34
+Accounting authority | DOC-08
+Settlement authority | DOC-07
+Reporting authority | DOC-30
+Dashboard authority | DOC-31
+Workflow authority | DOC-32
+Audit authority | DOC-33
+
+--- TABLE ---
+ORDER / CHALLAN / CONSIGNMENT         |         v CARGO + TRANSPORT CONTEXT (DOC-34)         |         v FREIGHT RATE RESOLUTION         |         v BASE FREIGHT + ANCILLARY COSTS         |         +---------------------------+         |                           |         v                           v COST ALLOCATION                RECOVERY RULE         |                           |         +-------------+-------------+                       |                       v               FREIGHT RESULT                       |         +-------------+-------------+         v                           v  ACCOUNTING / AP EXPENSE       BILLING / RECOVERY         |                           |         v                           v       DOC-08                   DOC-20 / DOC-30 / DOC-31
+
+--- TABLE ---
+Area | Authoritative owner | DOC-35 role
+Cargo/Consignment | DOC-34 | Consumes consignment, package, weight, route and transport context.
+Billing | DOC-20 | Consumes eligible recovery outputs and source references.
+Payment/AP | DOC-24 / DOC-07 | Uses payable/payment and settlement mechanisms.
+Accounting posting | DOC-08 | Receives freight expense, recovery, accrual and variance posting instructions.
+Reports/KPIs | DOC-30 | Consumes normalized freight facts and calculated measures.
+Dashboard | DOC-31 | Displays authorized freight KPIs and actionable exceptions.
+Workflow | DOC-32 | Approves contracts, exceptional charges, write-offs and cost-bearer changes.
+Audit | DOC-33 | Stores freight rule changes, calculations, approvals and reconciliation history.
+
+--- TABLE ---
+Concept | Meaning | Example
+Base Freight | Core transport charge | Rs 1,800 for lane A-B
+Ancillary Cost | Operational transport-side cost | Loading Rs 250 + Toll Rs 180
+Estimated Cost | Expected cost before actual invoice | Estimated Rs 2,250
+Actual Cost | Cost confirmed from transporter/receipt | Actual Rs 2,420
+Recovery | Amount charged/recovered from another party | Customer recovery Rs 2,000
+Subsidy | Cost intentionally not recovered | Rs 420 company subsidy
+Variance | Actual minus expected | Rs 170 unfavorable
+Logistics Margin | Recovery minus allocated cost | Rs -420 if cost exceeds recovery
+Cost Bearer | Entity responsible for accounting expense | Admin Company
+Beneficiary | Operational company/entity that received service | Client Company A
+
+--- TABLE ---
+Cost bearer mode | Accounting owner | Beneficiary reporting
+Client Company | Client Company | Client + authorized platform views
+Admin Company | Admin Company | Client beneficiary + Admin consolidated views
+Principal | Principal claim/recovery context as configured | Client + Principal reports if authorized
+Customer | Customer recovery; cost still tracked in cost ledger | Customer billing + management
+Shared/Other Entity | Configured legal/accounting entity | Authorized aggregate view
+
+--- TABLE ---
+Field group | Required behavior
+Contract identity | Transporter, contract number, version, status, effective-from, effective-to
+Scope | Company/branch/principal/customer/route/zone/channel
+Vehicle class | Optional vehicle type/capacity rule
+Rate basis | Flat, weight, package, distance, value, percentage, slab, hybrid
+Rate | Base rate, minimum charge, maximum cap, rounding
+Zones/Lanes | Origin zone, destination zone, lane priority
+Ancillary rules | Loading/unloading/hamali/toll/parking/detention/insurance
+Recovery rules | Customer/principal/internal recovery basis
+Approval | Who can create, modify, override and deactivate
+Historical snapshot | Resolved rate copied into each calculation result
+
+--- TABLE ---
+Basis | Calculation input | Example
+Flat trip | One fixed amount | Rs 2,500/trip
+Per package | Package count | 20 x Rs 45
+Per kg | Chargeable weight | 1,200 kg x Rs 6
+Per quintal | Quintals | 12 x Rs 90
+Per ton | Metric tons | 1.2 x Rs 5,000
+Per km | Distance | 350 km x Rs 8
+Percentage | Base taxable/commercial value | 1.2% of defined base
+Slab | Range-based rate | 0-500 kg at Rs 7; 501-1000 at Rs 6
+Zone | Origin/destination zone | Zone B to C = Rs 2,100
+Hybrid | Multiple components | Base + per kg + toll + hamali
+
+--- TABLE ---
+1. Resolve shipment/consignment context 2. Resolve cost bearer policy 3. Resolve eligible transporter contracts 4. Resolve lane/zone and vehicle rules 5. Resolve charge basis 6. Determine chargeable quantity/weight/distance/value 7. Apply base rate + slabs + minimum/maximum 8. Add ancillary costs 9. Apply configured discounts/contract rebates 10. Round according to currency/company policy 11. Calculate estimated/actual cost 12. Calculate recovery if configured 13. Allocate across target documents 14. Produce auditable calculation snapshot
+
+--- TABLE ---
+Cost type | Controls
+Loading | Basis, supplier, quantity, rate, actual document
+Unloading | Basis, quantity, rate, destination responsibility
+Hamali | Per package/weight/fixed/contract
+Toll | Actual receipt or rule-based estimate
+Parking | Time/rate-based or actual
+Detention | Free time + excess hours/days
+Insurance | Percentage/fixed with taxable basis
+Handling | Per shipment/package/weight
+Other | Reason code required; custom charge requires authorization
+
+--- TABLE ---
+Allocation method | Use
+Equal share | When no other basis is suitable
+Package count | Carton/package distribution
+Gross weight | Weight-driven freight
+Chargeable weight | Air/courier style basis
+Value | Invoice/value proportion
+Distance contribution | Multi-leg/route allocation
+Custom formula | Authorized no-code rule
+Manual allocation | Controlled override with reason and approval
+
+--- TABLE ---
+Recovery type | Example
+Full pass-through | Actual freight recovered in full
+Fixed recovery | Customer charged Rs 500
+Rate-based recovery | Rs 5/kg
+Percentage recovery | 2% of defined base
+Principal recovery | Principal bears approved transport cost
+Partial subsidy | Part recovered, remainder absorbed
+No recovery | Cost intentionally borne by configured cost bearer
+
+--- TABLE ---
+State | Allowed action
+Estimated | Used for planning, margin preview, recovery suggestion
+Accrued | Expected cost posted/held through DOC-08 if policy requires
+Actual received | Transporter invoice/receipt matched
+Variance | Difference evaluated and approved
+Finalized | Historical cost snapshot locked
+Reopened | Only via controlled reversal/reconciliation workflow
+
+--- TABLE ---
+CLIENT COMPANY A DISPATCH         |         v DOC-34 CONSIGNMENT         |         v DOC-35 FREIGHT COST = Rs X         |         v COST BEARER POLICY = ADMIN COMPANY         |         +------------------------------+         |                              |         v                              v ADMIN COMPANY EXPENSE            CLIENT A BENEFICIARY REPORT         |                              |         +---------------+--------------+                         |                         v                 COMBINED ADMIN VIEW                 only when enabled
+
+--- TABLE ---
+Report | Client company view | Admin company view
+Cargo cost register | Own cargo costs, authorized admin-borne costs | All authorized client + admin cost ledger
+Consignment cost | Consignment detail | All clients or selected clients
+Transporter cost | Own usage | Combined transporter spend
+Branch freight | Own branch | All client branches if authorized
+Cost vs recovery | Own shipments | Consolidated + per-client
+Logistics margin | Own scope | Combined/segmented
+Admin-funded cost | Visible only if authorized | Primary Admin control report
+Recharge status | Only if applicable | Chargeback/recovery tracking
+
+--- TABLE ---
+Trigger | Suggested approval
+New transporter contract | Commercial/management approval
+Rate override above threshold | Manager approval
+Manual freight override | Finance/operations approval
+Cost-bearer change | Platform/Admin authorization
+High variance | Finance review
+Write-off/non-recovery | Configured management approval
+Recharge/chargeback | Finance approval
+Exceptional ancillary charge | Reason + threshold approval
+
+--- TABLE ---
+Event | Possible accounting intent
+Transporter cost incurred | Freight/Logistics Expense or inventory/landed-cost account per configuration; payable/cash credit
+Freight accrued | Accrued Freight Expense / Accrued Liability
+Actual vs accrual variance | Variance account according to configured policy
+Customer freight recovery | Receivable/recovery income or reduction of freight expense per configured accounting policy
+Admin-borne client cargo | Admin Company freight/logistics expense; client beneficiary memo/reporting; optional recharge later
+Chargeback to client | Intercompany/service recovery receivable and corresponding client-side payable only if explicit policy is enabled
+
+--- TABLE ---
+Entity | Key fields | Notes
+freight_contract | contract_id, transporter_id, company_id, effective dates, status, priority | Versioned rate contract
+freight_lane | lane_id, origin_zone, destination_zone, distance, priority | Lane/routing context
+freight_rate_rule | rule_id, contract_id, basis, rate, min/max, slab, rounding | Effective-dated rule
+freight_ancillary_rule | ancillary_rule_id, type, basis, rate, condition | Loading/toll/etc.
+freight_cost_event | cost_event_id, company_id, beneficiary_company_id, cost_bearer_company_id, consignment_id, cost_type, amount, currency, status | Atomic cost fact
+freight_calculation_snapshot | snapshot_id, source_ref, rule_version, inputs, outputs, formula_text, created_at | Explainability/history
+freight_allocation | allocation_id, cost_event_id, target_type, target_id, allocated_amount | Document allocation
+freight_recovery | recovery_id, cost_event_id, recovery_party_id, recovery_type, amount, status | Recovery fact
+freight_reconciliation | recon_id, transporter_document_id, expected, actual, variance, status | Transporter reconciliation
+freight_cost_bearer_policy | policy_id, scope, bearer_type, bearer_id, effective_from/to | Admin/client/principal rule
+freight_exception | exception_id, type, severity, owner, status, reason | Edge cases and workflow
+
+--- TABLE ---
+DRAFT   |   v CALCULATED   |   +--> NEEDS_APPROVAL --> APPROVED   |                         |   +-------------------------+             |             v ESTIMATED / ACCRUED             |             v ACTUAL_RECEIVED             |             v RECONCILED             |             v FINALIZED             |             v POSTED / CLOSED Exceptions may move a record to DISPUTED or REQUIRES_CORRECTION without deleting history.
+
+--- TABLE ---
+Permission | Examples
+View freight cost | Own company / branch / warehouse / client-scope
+View transporter rates | Restricted commercial permission
+View recovery | Sales/finance permission
+Edit contract | Admin/procurement permission
+Override rate | Manager approval
+Change cost bearer | Platform Admin / authorized finance
+Approve variance | Finance/management
+View combined admin report | Explicit platform/company permission
+Export freight data | Permission + audit
+View sensitive margin | Separate permission
+
+--- TABLE ---
+Scenario | Required behavior
+No transporter rate found | Block final calculation or allow explicit manual freight with reason/approval.
+Two matching rates | Use priority; if still ambiguous, raise configuration conflict.
+Rate expired | Use valid historical rule for historical transaction; no silent current-rate substitution.
+Distance missing | Use approved fallback or require manual distance; mark source.
+Weight changed after estimate | Recalculate estimated cost; retain previous snapshot.
+Partial dispatch | Allocate only actual dispatched portion; remaining stays pending.
+One consignment, many invoices | Allocate by selected method without double counting.
+Many consignments, one invoice | Aggregate recovery while preserving source allocations.
+Transporter bill exceeds expected | Create variance workflow; do not rewrite expected cost.
+Transporter bill duplicated | Detect document/reference duplicate and block duplicate posting.
+Client company suspended | Existing admin-borne costs can remain visible per audit/report policy; new cost creation follows suspension policy.
+Admin cost-bearer switched mid-period | Future events use new rule; historical events remain unchanged.
+Sync retry | Idempotency key prevents duplicate cost event.
+User loses permission mid-workflow | Save as pending/forbidden; do not bypass authorization.
+Currency mismatch | Require explicit conversion policy and rate source/date.
+Rounding residual | Assign deterministic residual and record allocation note.
+Negative freight/credit | Only via reversal/credit adjustment workflow, never normal cost entry.
+Deleted transporter | Historical records retain original transporter identity; master becomes inactive only.
+Rate contract corrected | New version from effective date; historical snapshots remain intact.
+Offline transporter actual received later | Queue reconciliation and finalize when synchronized.
+Admin combined report with missing client sync | Mark incomplete scope and show last-sync timestamp; do not silently present as complete.
+
+--- TABLE ---
+Report/KPI | Measures
+Freight cost register | Cost, cost type, bearer, beneficiary, source, date
+Cost by transporter | Actual/estimated/variance
+Cost by client company | Admin-borne, client-borne, recovered, subsidy
+Cost by consignment | Gross cost, allocated cost, recovery
+Cost vs recovery | Recovery, subsidy, margin
+Rate variance | Contract vs actual
+Ancillary cost analysis | Loading, unloading, toll, hamali, detention
+Pending reconciliation | Transporter bills not matched
+Admin funding report | Client-wise admin expense
+Combined logistics dashboard | Authorized cross-client aggregate
+
+--- TABLE ---
+Mode | Configuration
+Small | Single transporter/rate card, simple freight basis, manual actual cost, basic reports
+Medium | Multiple transporters, lanes, slabs, approvals, reconciliation workbench
+Large | Contracts, zones, multi-leg, automated imports, cost-bearer policies, recharge, advanced analytics, high-volume calculations
+Multi-company platform | Admin/company cost bearer, cross-client consolidated reporting with explicit authorization
+
+--- TABLE ---
+DOC-13 Transporter / Vehicle Master         | DOC-19 Dispatch & Challan         | DOC-34 Cargo & Consignment         | DOC-35 FREIGHT / COST / RECOVERY         +---------------------+---------------------+         |                     |                     |         v                     v                     v DOC-20 Billing          DOC-08 Posting         DOC-30 Reports         |                     |                     |         +-----------+---------+----------+----------+                     |                    |                     v                    v                 DOC-31 Dashboard     DOC-32 Workflow                                            |                                            v                                       DOC-33 Audit
+
+--- TABLE ---
+Topic | Decision
+Authority | DOC-35 is the sole freight calculation and cost/recovery authority.
+Estimated vs actual | Both retained; actual finalizes cost after reconciliation.
+Cost vs recovery | Always separate metrics and records.
+Admin-funded client cargo | Supported as a first-class cost-bearer policy.
+Combined admin reporting | Opt-in and permission controlled.
+Historical integrity | Rate and cost snapshots immutable after finalization.
+Accounting | All postings through DOC-08; no direct ledger manipulation.
+Settlement | All payment/adjustment application through DOC-07.
+Dashboard | DOC-31 consumes DOC-30 definitions and DOC-35 measures.
+Audit | DOC-33 captures changes, overrides and access.
+Localization | Tax consequences come from DOC-29 jurisdiction rule packs.
+
+--- TABLE ---
+Chargeable weight = 1,250 kg Rate = Rs 6.50/kg Base freight = 1,250 x 6.50 = Rs 8,125 Loading = Rs 300 Toll = Rs 450 Actual cost estimate = Rs 8,875
+
+--- TABLE ---
+Client Company A consignment cost = Rs 4,800 Cost bearer = Admin Company Admin expense = Rs 4,800 Client beneficiary reporting = Rs 4,800 Client accounting expense = Rs 0 unless recharge policy is enabled Admin combined report includes Client A = Rs 4,800 Admin report can drill to consignment / transporter / route
+
+--- TABLE ---
+Actual freight cost = Rs 5,500 Customer recovery = Rs 4,000 Non-recoverable subsidy = Rs 1,500 Logistics margin = 4,000 - 5,500 = -Rs 1,500

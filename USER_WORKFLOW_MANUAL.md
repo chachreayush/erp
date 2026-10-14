@@ -1122,6 +1122,13 @@ The main application header features a consolidated **Workflows (`[F4]`)** dropd
 | **Cargo Board (`/cargo`)** | `#drawer-consignment-detail` | Drawer | Slide-over drawer showing package barcodes, weights, and status advance. |
 | **Cargo Costs (`/cargo/costs`)** | `#toggle-combined-reporting` | Toggle | Switches between single-tenant and aggregated multi-client MIS view. |
 | **POD Desk (`/cargo/pod-exceptions`)** | `#btn-record-delivery-pod` | Button | Submits delivery POD with accepted vs short/damaged quantity validation. |
+| **Counter Workbench (`/`)** | `#hub-btn-freight-management` | Button `[Ctrl+2]` | Launches Freight & Rates Master Screen. |
+| **Freight Rate Master (`/freight/contracts`)** | `#kpi-active-contracts` | Card | Displays total active transporter rate contracts with tiered slabs. |
+| **Freight Rate Master (`/freight/contracts`)** | `#btn-switch-tab-sandbox` | Tab `[F4]` | Toggles interactive deterministic calculation sandbox. |
+| **Freight Rate Master (`/freight/contracts`)** | `#btn-execute-calc` | Button | Executes deterministic rate resolution engine. |
+| **Freight Rate Master (`/freight/contracts`)** | `#btn-new-contract` | Button `[F6]` | Opens modal to register new freight contract (`#modal-new-contract`). |
+| **Reconciliation Desk (`/freight/reconciliation`)** | `#kpi-total-recons` | Card | Displays total transporter statement count and three-way match status. |
+| **Reconciliation Desk (`/freight/reconciliation`)** | `#btn-enter-transporter-bill` | Button `[F6]` | Opens modal to record manual transporter invoice (`#modal-enter-transporter-bill`). |
 
 ---
 
@@ -1142,7 +1149,35 @@ The main application header features a consolidated **Workflows (`[F4]`)** dropd
 | `test_audit_governance_selenium.py` | 10 Stages (Audit trail & data governance) | 100% PASS: Cryptographic SHA-256 hash chaining, diff drawer, seal validation, retention policies, legal holds, forensic anomalies, evidence pack. |
 | `test_cargo_consignment_selenium.py` | 10 Stages (Cargo & consignment engine) | 100% PASS: Consignment registry, volumetric CBM, `[Ctrl+1]` Board, drawer inspection, cost center combined toggle, 4-eyes POD & exception claims. |
 | `test_esc_navigation_and_cargo_flow_selenium.py` | 10 Stages (Escape lifecycle & workflows) | 100% PASS: Universal Esc key navigation, Home Screen exit modal, header workflows dropdown, and quick launcher tiles. |
+| `test_freight_logistics_selenium.py` | 10 Stages (Freight & logistics cost engine) | 100% PASS: Rate contracts, tiered slabs, deterministic calculation, Admin GL 5200 segregation, 3-way transporter reconciliation, [Esc] lifecycle. |
 | `verify_live_vercel_receipt_payment_audit.py` | 10 Stages (Live cloud production audit) | 100% PASS: Live production verification on `https://erp-rho-three.vercel.app` with zero regressions and complete visual screenshot artifacts. |
+
+---
+
+## 28. Freight & Logistics Cost Recovery User Operational Guide (DOC-35)
+
+### 28.1 Operating the Freight Rate Master (`/freight/contracts`)
+1. **Accessing the Desk**:
+   - Press **`Ctrl+2`** from anywhere on the Counter Workbench (`/`) or click the **Freight & Rates** tile (`#hub-btn-freight-management`).
+2. **Reviewing Transporter Rate Cards**:
+   - View active contract cards displaying carrier name, vehicle class (14ft, 32ft, Trailer), and configured route lanes.
+   - Inspect tiered weight slabs (e.g. 0–500kg @ ₹7.00/kg, 501–1,500kg @ ₹6.50/kg, >1,500kg @ ₹5.80/kg).
+3. **Simulating Live Calculations (Sandbox `[F4]`)**:
+   - Press **`F4`** to switch to the **Calculation Sandbox**.
+   - Input gross weight, package count, distance in km, and select applicable ancillary surcharges (Loading ₹300, Toll ₹450, Hamali ₹15/pkg).
+   - Click **Execute Deterministic Calculation** (`#btn-execute-calc`) to review the live gross transporter cost, recovery margin, and formula trace.
+
+### 28.2 Operating the Transporter Reconciliation Desk (`/freight/reconciliation`)
+1. **Three-Way Matching**:
+   - Compare transporter billed statements against system-expected costs calculated during dispatch.
+2. **Variance Audits & Thresholds**:
+   - Statements with **₹0.00** variance are tagged `MATCHED`.
+   - Variances up to **₹200.00** are tagged `TOLERABLE` (fastag tolls, weight scale tolerances).
+   - Variances exceeding **₹200.00** are tagged `UNAPPROVED_EXCESS` and require dispute logging or supervisor override.
+3. **Taking Action**:
+   - Click **Approve** to accept the billed amount.
+   - Click **Dispute** to flag the invoice for rate-card audit.
+   - Click **Post GL** to record the approved expense directly into Account 5200 (Platform Admin General Ledger).
 
 ---
 

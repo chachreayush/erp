@@ -1167,6 +1167,15 @@ export default function CargoBoard() {
                   <div style={{ fontSize: '11px', color: '#059669', paddingTop: '6px', borderTop: '1px solid #a7f3d0', marginTop: '4px' }}>
                     Client company ledger is not debited. Cost appears as analytical MIS allocation.
                   </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed #a7f3d0' }}>
+                    <span style={{ fontSize: '11px', color: '#047857', fontWeight: 600 }}>DOC-35 Rate Resolution:</span>
+                    <a
+                      href="/freight/contracts"
+                      style={{ fontSize: '11px', color: '#059669', fontWeight: 700, textDecoration: 'underline' }}
+                    >
+                      Rate Cards & Slabs &rarr;
+                    </a>
+                  </div>
                 </div>
               </div>
 

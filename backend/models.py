@@ -2104,3 +2104,198 @@ class PodRecord(Base):
     consignment = relationship("Consignment", back_populates="pod_records")
 
 
+# ============================================================
+# DOC-35: Freight & Logistics Cost & Recovery Engine
+# ============================================================
+
+class FreightContract(Base):
+    __tablename__ = "freight_contracts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    contract_number = Column(String(80), nullable=False, unique=True, index=True)
+    transporter_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    transporter_name = Column(String(200), nullable=False, default="V-Trans Logistics India")
+    company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    status = Column(String(30), nullable=False, default="ACTIVE", index=True) # ACTIVE, DRAFT, EXPIRED, TERMINATED
+    effective_from = Column(DateTime, default=datetime.utcnow, nullable=False)
+    effective_to = Column(DateTime, nullable=True)
+    priority = Column(Integer, default=1, nullable=False)
+    vehicle_class = Column(String(50), nullable=False, default="ANY") # 14FT_TRUCK, 32FT_CONTAINER, TRAILER, ANY
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    lanes = relationship("FreightLane", back_populates="contract", cascade="all, delete-orphan")
+    rate_rules = relationship("FreightRateRule", back_populates="contract", cascade="all, delete-orphan")
+    ancillary_rules = relationship("FreightAncillaryRule", back_populates="contract", cascade="all, delete-orphan")
+
+
+class FreightLane(Base):
+    __tablename__ = "freight_lanes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    contract_id = Column(UUID(as_uuid=True), ForeignKey("freight_contracts.id", ondelete="CASCADE"), nullable=True, index=True)
+    origin_zone = Column(String(100), nullable=False, default="Jaipur Central")
+    destination_zone = Column(String(100), nullable=False, default="Delhi South")
+    distance_km = Column(Numeric(10, 2), nullable=False, default=260.0)
+    distance_source = Column(String(40), default="CONTRACTED", nullable=False) # CONTRACTED, ESTIMATED, ACTUAL, GOOGLE_MAPS
+    transit_days = Column(Integer, default=1, nullable=False)
+    priority = Column(Integer, default=1, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    contract = relationship("FreightContract", back_populates="lanes")
+
+
+class FreightRateRule(Base):
+    __tablename__ = "freight_rate_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    contract_id = Column(UUID(as_uuid=True), ForeignKey("freight_contracts.id", ondelete="CASCADE"), nullable=False, index=True)
+    lane_id = Column(UUID(as_uuid=True), ForeignKey("freight_lanes.id", ondelete="SET NULL"), nullable=True, index=True)
+    charge_basis = Column(String(40), nullable=False, default="PER_KG") # FLAT, PER_KG, PER_PACKAGE, PER_QUINTAL, PER_TON, PER_KM, PERCENTAGE, SLAB, HYBRID
+    base_rate = Column(Numeric(18, 2), nullable=False, default=6.50)
+    min_charge = Column(Numeric(18, 2), nullable=False, default=500.0)
+    max_cap = Column(Numeric(18, 2), nullable=True)
+    slab_config = Column(Text, nullable=True) # JSON string of slabs
+    rounding_rule = Column(String(40), default="NEAREST_1", nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    contract = relationship("FreightContract", back_populates="rate_rules")
+
+
+class FreightAncillaryRule(Base):
+    __tablename__ = "freight_ancillary_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    contract_id = Column(UUID(as_uuid=True), ForeignKey("freight_contracts.id", ondelete="CASCADE"), nullable=True, index=True)
+    ancillary_type = Column(String(40), nullable=False) # LOADING, UNLOADING, HAMALI, TOLL, PARKING, DETENTION, INSURANCE, HANDLING, OTHER
+    charge_basis = Column(String(40), nullable=False, default="FLAT") # FLAT, PER_KG, PER_PACKAGE, PERCENTAGE, ACTUAL
+    rate = Column(Numeric(18, 2), nullable=False, default=0.0)
+    is_mandatory = Column(Boolean, default=False, nullable=False)
+    condition_text = Column(String(200), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    contract = relationship("FreightContract", back_populates="ancillary_rules")
+
+
+class FreightCostEvent(Base):
+    __tablename__ = "freight_cost_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_number = Column(String(60), nullable=False, unique=True, index=True) # e.g. FCE-2026-0001
+    consignment_id = Column(UUID(as_uuid=True), ForeignKey("consignments.id", ondelete="SET NULL"), nullable=True, index=True)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    beneficiary_company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    cost_bearer_company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    contract_id = Column(UUID(as_uuid=True), ForeignKey("freight_contracts.id", ondelete="SET NULL"), nullable=True, index=True)
+    cost_type = Column(String(50), nullable=False, default="COMBINED_FREIGHT", index=True) # BASE_FREIGHT, ANCILLARY_LOADING, ANCILLARY_TOLL, ANCILLARY_HAMALI, ANCILLARY_DETENTION, COMBINED_FREIGHT
+    estimated_amount = Column(Numeric(18, 2), nullable=False, default=0.0)
+    actual_amount = Column(Numeric(18, 2), nullable=False, default=0.0)
+    variance_amount = Column(Numeric(18, 2), nullable=False, default=0.0) # actual - estimated
+    currency = Column(String(10), default="INR", nullable=False)
+    status = Column(String(30), default="ESTIMATED", nullable=False, index=True) # ESTIMATED, ACCRUED, ACTUAL_RECEIVED, RECONCILED, FINALIZED, DISPUTED, CLOSED
+    is_admin_funded = Column(Boolean, default=True, nullable=False)
+    snapshot_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    accounting_voucher_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    allocations = relationship("FreightAllocation", back_populates="cost_event", cascade="all, delete-orphan")
+    recoveries = relationship("FreightRecovery", back_populates="cost_event", cascade="all, delete-orphan")
+
+
+class FreightCalculationSnapshot(Base):
+    __tablename__ = "freight_calculation_snapshots"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cost_event_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    source_ref = Column(String(100), nullable=True, index=True) # Consignment No or Bill No
+    rule_version = Column(String(50), nullable=False, default="v2.0-DOC35")
+    inputs_json = Column(Text, nullable=False) # JSON string of inputs
+    outputs_json = Column(Text, nullable=False) # JSON string of computed outputs
+    formula_text = Column(Text, nullable=False) # Explanatory text of formula
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class FreightAllocation(Base):
+    __tablename__ = "freight_allocations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cost_event_id = Column(UUID(as_uuid=True), ForeignKey("freight_cost_events.id", ondelete="CASCADE"), nullable=False, index=True)
+    target_type = Column(String(40), nullable=False, default="INVOICE") # INVOICE, CHALLAN, CONSIGNMENT, PACKAGE
+    target_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    target_number = Column(String(100), nullable=True) # e.g. RJ-INV-6874
+    allocation_method = Column(String(40), nullable=False, default="WEIGHT") # WEIGHT, VALUE, PACKAGE_COUNT, EQUAL, MANUAL
+    allocated_ratio = Column(Numeric(8, 4), nullable=False, default=1.0)
+    allocated_amount = Column(Numeric(18, 2), nullable=False, default=0.0)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    cost_event = relationship("FreightCostEvent", back_populates="allocations")
+
+
+class FreightRecovery(Base):
+    __tablename__ = "freight_recoveries"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cost_event_id = Column(UUID(as_uuid=True), ForeignKey("freight_cost_events.id", ondelete="CASCADE"), nullable=False, index=True)
+    recovery_type = Column(String(40), nullable=False, default="FULL_PASS_THROUGH") # FULL_PASS_THROUGH, FIXED, RATE_BASED, PERCENTAGE, PRINCIPAL_CLAIM, SUBSIDY, NO_RECOVERY
+    recovery_party_type = Column(String(40), nullable=False, default="CUSTOMER") # CUSTOMER, PRINCIPAL, CLIENT_COMPANY, INTERNAL
+    recovery_party_id = Column(UUID(as_uuid=True), nullable=True)
+    recovery_party_name = Column(String(200), nullable=True)
+    recovery_amount = Column(Numeric(18, 2), nullable=False, default=0.0)
+    subsidy_amount = Column(Numeric(18, 2), nullable=False, default=0.0)
+    logistics_margin = Column(Numeric(18, 2), nullable=False, default=0.0) # recovery - actual_cost
+    billing_invoice_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    status = Column(String(30), default="PENDING", nullable=False) # PENDING, BILLED, RECOVERED, WAIVED
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    cost_event = relationship("FreightCostEvent", back_populates="recoveries")
+
+
+class FreightReconciliation(Base):
+    __tablename__ = "freight_reconciliations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    recon_number = Column(String(80), nullable=False, unique=True, index=True)
+    transporter_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    transporter_name = Column(String(200), nullable=False, default="V-Trans Logistics India")
+    transporter_invoice_no = Column(String(100), nullable=False, index=True)
+    transporter_invoice_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expected_amount = Column(Numeric(18, 2), nullable=False, default=0.0)
+    billed_amount = Column(Numeric(18, 2), nullable=False, default=0.0)
+    approved_amount = Column(Numeric(18, 2), nullable=False, default=0.0)
+    variance_amount = Column(Numeric(18, 2), nullable=False, default=0.0) # billed - expected
+    variance_status = Column(String(40), default="MATCHED", nullable=False) # MATCHED, TOLERABLE, UNAPPROVED_EXCESS, DISPUTED, RESOLVED
+    dispute_reason = Column(Text, nullable=True)
+    approved_by_id = Column(UUID(as_uuid=True), nullable=True)
+    status = Column(String(30), default="DRAFT", nullable=False, index=True) # DRAFT, SUBMITTED, RECONCILED, POSTED, DISPUTED
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class FreightCostBearerPolicy(Base):
+    __tablename__ = "freight_cost_bearer_policies"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    scope_type = Column(String(40), nullable=False, default="GLOBAL") # GLOBAL, COMPANY, CLIENT, ROUTE, TRANSPORTER
+    scope_id = Column(UUID(as_uuid=True), nullable=True)
+    bearer_type = Column(String(40), nullable=False, default="ADMIN_COMPANY") # ADMIN_COMPANY, CLIENT_COMPANY, PRINCIPAL, CUSTOMER, SHARED
+    bearer_company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    is_recharge_enabled = Column(Boolean, default=False, nullable=False)
+    effective_from = Column(DateTime, default=datetime.utcnow, nullable=False)
+    effective_to = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class FreightException(Base):
+    __tablename__ = "freight_exceptions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cost_event_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    exception_type = Column(String(50), nullable=False) # MISSING_RATE, CONFLICTING_RATES, EXCESS_WEIGHT, HIGH_VARIANCE, DUPLICATE_BILL, TRANSIT_HOLD
+    severity = Column(String(30), nullable=False, default="MEDIUM") # LOW, MEDIUM, HIGH, CRITICAL
+    status = Column(String(30), nullable=False, default="OPEN") # OPEN, UNDER_REVIEW, APPROVED, REJECTED, RESOLVED
+    description = Column(Text, nullable=False)
+    resolution_notes = Column(Text, nullable=True)
+    resolved_by_id = Column(UUID(as_uuid=True), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+

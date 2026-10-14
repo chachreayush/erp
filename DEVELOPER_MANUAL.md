@@ -1224,18 +1224,36 @@ The following master catalog documents every functional UI selector across the E
 | **Cargo Costs** | `/cargo/costs` | `#btn-export-cost-report` | Button | Exports freight allocation manifest to CSV. |
 | **Cargo POD Desk** | `/cargo/pod-exceptions` | `#tab-pending-pods` | Tab | Lists shipments awaiting delivery sign-off. |
 | **Cargo POD Desk** | `/cargo/pod-exceptions` | `#tab-exceptions` | Tab | Lists active transit damage and shortage claims. |
+| **Counter Workbench** | `/` | `#hub-btn-freight-management` | Button | Quick launcher navigating to Freight & Rates Master `[Ctrl+2]`. |
+| **Freight Rate Master** | `/freight/contracts` | `#kpi-active-contracts` | Card | Displays total active transporter rate contracts with tiered slabs. |
+| **Freight Rate Master** | `/freight/contracts` | `#kpi-freight-spend` | Card | Displays gross Platform Admin freight spend. |
+| **Freight Rate Master** | `/freight/contracts` | `#kpi-total-recoveries` | Card | Displays total customer/principal recoveries. |
+| **Freight Rate Master** | `/freight/contracts` | `#kpi-logistics-margin` | Card | Displays net logistics margin (recoveries - costs). |
+| **Freight Rate Master** | `/freight/contracts` | `#btn-switch-tab-sandbox` | Tab | Toggles interactive deterministic calculation sandbox `[F4]`. |
+| **Freight Rate Master** | `/freight/contracts` | `#input-test-weight` | Input | Parameter input for test gross weight in kg. |
+| **Freight Rate Master** | `/freight/contracts` | `#btn-execute-calc` | Button | Executes deterministic rate resolution engine. |
+| **Freight Rate Master** | `/freight/contracts` | `#card-calc-result` | Card | Renders gross freight cost, formula trace, and cost bearer. |
+| **Freight Rate Master** | `/freight/contracts` | `#btn-new-contract` | Button | Opens modal to register new freight contract `[F6]`. |
+| **Freight Rate Master** | `/freight/contracts` | `#modal-new-contract` | Modal | Form to create contract with lanes and rate rules. |
+| **Reconciliation Desk** | `/freight/reconciliation` | `#kpi-total-recons` | Card | Displays total transporter statement count. |
+| **Reconciliation Desk** | `/freight/reconciliation` | `#kpi-recons-matched` | Card | Displays exact match statements (0 variance). |
+| **Reconciliation Desk** | `/freight/reconciliation` | `#kpi-recons-tolerable` | Card | Displays statements within ₹200 tolerable variance. |
+| **Reconciliation Desk** | `/freight/reconciliation` | `#kpi-recons-disputed` | Card | Displays statements with unapproved excess charges. |
+| **Reconciliation Desk** | `/freight/reconciliation` | `#btn-enter-transporter-bill` | Button | Opens modal to enter manual transporter invoice `[F6]`. |
+| **Reconciliation Desk** | `/freight/reconciliation` | `#modal-enter-transporter-bill` | Modal | Form to record transporter bill for three-way audit. |
 
 ---
 
 ## 27. Automated QA Test Suites & Continuous Deployment Pipeline
 
-### 27.1 Complete Automated Selenium Test Suites Matrix (14 Suites — 100% Pass)
+### 27.1 Complete Automated Selenium Test Suites Matrix (15 Suites — 100% Pass)
 | Test Suite Script | Verified Module Scope | Assertion Target & Verification Method |
 | :--- | :--- | :--- |
 | `test_master_all_6_modules_selenium.py` | Sales, Purchase, DN, CN, BKI, BKR | 100% PASS: All 6 transaction modules with alphanumeric series continuation. |
 | `test_escape_and_workflows_selenium.py` | Workflows Dropdown, Cargo Links, Esc Exit | 100% PASS: Header Workflows `[F4]` dropdown, Cargo board navigation, Exit modal `[Esc]`. |
 | `test_receipt_payment_audit_redesign_selenium.py`| Receipt, Payment, Audit Trail, Governance | 100% PASS: Luxury UI, party picker `[F7]`, FIFO `[Alt+A]`, hash verification, diff drawer, holds. |
 | `test_cargo_consignment_selenium.py` | Consignment Board, Costs, POD Desk | 100% PASS: Volumetric CBM calculations, Admin freight bifurcation, 4-eyes POD. |
+| `test_freight_logistics_selenium.py` | Rate Contracts, Sandbox, 3-Way Reconciliation | 100% PASS: Tiered slabs, deterministic calculation, Admin GL 5200 segregation, variance approvals. |
 | `test_audit_governance_selenium.py` | Audit Ledger, Chaining, Legal Holds | 100% PASS: SHA-256 seal verification, before/after diff drawer, retention schedules. |
 | `test_workflow_approval_automation_selenium.py` | Approvals Inbox, Task Actions, SLA | 100% PASS: Universal trigger, Maker-Checker 403, rejection reason modal, simulator. |
 | `test_dashboard_bi_control_center_selenium.py` | Counter Workbench, BI Dashboard | 100% PASS: Dual-screen architecture, 7-month comparative curve, map modal `#mapModal`. |
@@ -1253,7 +1271,21 @@ The following master catalog documents every functional UI selector across the E
 
 ---
 
+## 28. Freight & Logistics Cost Recovery Engine (DOC-35)
+
+### 28.1 Overview & Architecture Position
+DOC-35 defines the centralized calculation, cost allocation, recovery, and three-way transporter billing reconciliation engine. It operates directly upon physical consignment records created in DOC-34 and prepares accounting posting instructions for DOC-08.
+
+### 28.2 Inviolable Architectural Governance Rules
+1. **Strict Cost vs. Recovery Segregation**: Transporter freight cost is never silently offset or replaced by customer or principal recoveries. Gross transporter cost, commercial recovery, and net logistics margin remain separate fields across all database entities and reports.
+2. **Platform Admin-Funded Freight (Account 5200)**: When Platform Admin finances cargo for a client company, the expense is posted exclusively to Account 5200 in the Platform Admin General Ledger. The Client Company General Ledger is never auto-debited.
+3. **Deterministic Explainability Snapshots**: Every rate calculation produces an immutable JSON snapshot (`FreightCalculationSnapshot`) capturing the inputs, formula trace, and rule version for historical auditability.
+4. **Three-Way Transporter Billing & Tolerable Variances**: Transporter invoices are reconciled against expected system costs. Variances $\le ₹200$ are flagged as `TOLERABLE`; variances $> ₹200$ require manager approval or dispute logging before posting to accounts payable.
+
+---
+
 *End of Developer Manual.*
+
 
 
 
