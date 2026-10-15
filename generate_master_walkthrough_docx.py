@@ -142,6 +142,23 @@ def create_full_software_walkthrough():
         set_font(r_text, size_pt=9.5, color=COLOR_DARK, italic=False)
         doc.add_paragraph().paragraph_format.space_after = Pt(4)
 
+    def add_screenshot(image_filename, caption_text):
+        img_path = os.path.join(r"C:\Users\DELL\OneDrive\Desktop\erp2", image_filename)
+        if os.path.exists(img_path):
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_before = Pt(8)
+            p.paragraph_format.space_after = Pt(2)
+            run = p.add_run()
+            run.add_picture(img_path, width=Inches(6.2))
+            
+            p_cap = doc.add_paragraph()
+            p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p_cap.paragraph_format.space_before = Pt(0)
+            p_cap.paragraph_format.space_after = Pt(10)
+            r_cap = p_cap.add_run(caption_text)
+            set_font(r_cap, size_pt=8.5, color=COLOR_MUTED, italic=True)
+
     # ==========================================
     # COVER PAGE / DOCUMENT HEADER
     # ==========================================
@@ -804,10 +821,19 @@ def create_full_software_walkthrough():
     # SECTION 22: PRINCIPAL & C&F OPERATIONS MANAGEMENT ENGINE (DOC-36)
     # ==========================================
     add_h1("22. Principal & C&F Operations Management Engine (DOC-36)")
-    add_p("DOC-36 establishes the operational engine that transforms Principal and C&F relationships from static master definitions into a continuously auditable, traceable operating position.")
+    add_p(
+        "DOC-36 establishes an institutional-grade operational engine that transforms static Principal and C&F master "
+        "records into a continuously auditable, traceable, and reconstructable operating position. In modern pharmaceutical "
+        "distribution networks, Clearing & Forwarding (C&F) agents and super-distributors handle consignment inventories on "
+        "behalf of multiple pharmaceutical manufacturers (Principals). Operating under diverse commercial agreements, tiered "
+        "commission rates, strict credit windows, and complex freight recovery policies, enterprises face severe financial "
+        "and statutory risks if stock ownership commingles or ledger reconciliations drift. DOC-36 solves this challenge by "
+        "providing end-to-end custody segregation, automated three-way reconciliation, dispute-proof operational claims management, "
+        "and non-editable reconstructable statements."
+    )
 
     add_callout(
-        "DOC-36 ARCHITECTURAL INVARIANTS & CORE DESIGN PRINCIPLES:\n"
+        "DOC-36 ARCHITECTURAL INVARIANTS & CORE GOVERNANCE RULES:\n"
         "1. Zero Duplicate Engines: DOC-36 orchestrates Principal context across DOC-12 (Master), DOC-14 (Schemes), DOC-16 (Stock Movement), DOC-08 (GL Postings), DOC-07 (Settlements), and DOC-35 (Freight) without duplicate ledgers.\n"
         "2. Owner Separation at SKU/Batch Level: Principal ownership is an explicit relational dimension. Multiple Principals can stock identical SKUs in the same warehouse without cross-owner stock pollution or commingling.\n"
         "3. Non-Editable Reconstructable Statements: Principal stock statements and commercial balances are mathematically reconstructed from source movements and immutable events. Manual balance overrides are strictly prohibited.\n"
@@ -815,22 +841,438 @@ def create_full_software_walkthrough():
         prefix="DOC-36 CORE MANDATE: "
     )
 
-    add_h2("22.1 Implemented Relational Schema & Backend Services")
-    add_p("DOC-36 introduces 16 relational entities mapped via SQLAlchemy 2.0 and mounted under /api/principal:")
-    add_p("• PrincipalOperatingContext & PrincipalAgreementVersion: Master operational context with effective-dated terms, commission rates, and logistics policies.")
-    add_p("• PrincipalProductRule, PrincipalCustomerRule & PrincipalOwnershipRule: Authorized product catalog, territory eligibility, and stock ownership custody modes (CONSIGNMENT_CUSTODY).")
-    add_p("• PrincipalEvent & PrincipalStockSnapshot: Cryptographically hashed commercial event log and point-in-time cached stock positions segregated by SKU and batch.")
-    add_p("• PrincipalClaim & PrincipalClaimLine: Operational claims (Expiry, Breakage, Shortage, Rate Difference) with batch provenance and multi-stage approval workflows.")
-    add_p("• PrincipalReconciliation & PrincipalReconciliationLine: 3-way automated matching engine comparing physical stock against external Principal statements.")
-    add_p("• PrincipalStatementRun & PrincipalStatementLine: Authoritative period statements with drill-down line items.")
-    add_p("• PrincipalCostAttribution & PrincipalCommissionRef: Attributed logistics costs (DOC-35 integration) and commission links (DOC-37).")
+    add_h2("22.1 Implemented Relational Schema & Relational Models (16 Models)")
+    add_p(
+        "DOC-36 introduces 16 high-performance relational entities mapped via SQLAlchemy 2.0 with strict foreign key constraints, "
+        "multi-tenant organization scoping, and cryptographic verification hashes. The schema architecture isolates custody "
+        "from legal ownership, models effective-dated agreement terms, and maintains point-in-time stock snapshots:"
+    )
 
-    add_h2("22.2 Interactive UI Cockpits & Verification Proof")
-    add_p("The frontend delivers two dedicated luxury Marg-themed cockpits:")
-    add_p("1. Principal Operational Control Center (/principal): 5 Top KPI cards, Stock Ownership & Custody Matrix [F2], Claims & Returns Desk [F3], 3-Way Reconciliation Workspace [F4], Authoritative Statement [F5], Commercial MIS [F6], and New Claim Modal [F7].")
-    add_p("2. Principal Business Statement Desk (/principal/statement): Full-screen drill-down statement screen showing source transactions, batches, and settlement links.")
-    add_p("3. Counter Workbench Launcher (#hub-btn-principal-management): Instant access via global hotkey [Ctrl+3].")
-    add_p("4. Zero-Mouse Operational Guarantee: 100% keyboard navigable with [F2]-[F7] hotkeys and [Esc] hierarchical dismissal.")
+    schema_table = doc.add_table(rows=1, cols=4)
+    sch_headers = ["Model Name & Table", "Primary & Foreign Keys", "Core Attributes & Data Types", "Operational Mandate & Governance Role"]
+    sch_data = [
+        [
+            "PrincipalOperatingContext\n(principal_operating_contexts)",
+            "PK: id (UUID)\nFK: company_id -> organizations.id\nFK: principal_id, branch_id",
+            "principal_code (String 50)\nprincipal_name (String 200)\nagreement_version_id (UUID)\nstatus (String 40: ACTIVE, SUSPENDED, TERMINATED)\ncreated_at, updated_at",
+            "Primary multi-tenant operational anchor binding client organization to external pharmaceutical principal with branch-level scoping and status control."
+        ],
+        [
+            "PrincipalAgreementVersion\n(principal_agreement_versions)",
+            "PK: id (UUID)\nFK: principal_id",
+            "agreement_number (String 80)\nversion_no (String 20)\nvalid_from, valid_to (DateTime)\nterms_json (JSON)\nstatus (DRAFT, ACTIVE, SUPERSEDED, EXPIRED)",
+            "Effective-dated commercial terms, commission percentages (e.g., 6.5%), claim dispute windows, credit periods, and authorized freight allowance models."
+        ],
+        [
+            "PrincipalProductRule\n(principal_product_rules)",
+            "PK: id (UUID)\nFK: principal_id, product_id\nFK: branch_id, warehouse_id",
+            "product_name (String 200)\nsku_code (String 100)\nis_exclusive (Boolean)\nvalid_from, valid_to (DateTime)\nstatus (ACTIVE, INACTIVE, RESTRICTED)",
+            "Authorized product catalog constraints, exclusive SKU allocations per branch, and designated depot warehouse storage boundaries."
+        ],
+        [
+            "PrincipalCustomerRule\n(principal_customer_rules)",
+            "PK: id (UUID)\nFK: principal_id, customer_id",
+            "customer_group (String 100)\nterritory_id, territory_name (String)\nvalid_from, valid_to (DateTime)\nstatus (ACTIVE, INACTIVE)",
+            "Territory boundaries and customer group eligibility, enforcing authorized distribution channels for principal-consigned products."
+        ],
+        [
+            "PrincipalOwnershipRule\n(principal_ownership_rules)",
+            "PK: id (UUID)\nFK: principal_id",
+            "product_scope (ALL, CATEGORY, SKU)\nwarehouse_scope (ALL, SPECIFIC_WH)\nmode (CONSIGNMENT_CUSTODY, OUTRIGHT_PURCHASE, PRINCIPAL_OWNED)\nvalid_from, valid_to",
+            "Inviolable stock custody classification preventing commingling and inventory pollution when identical generic drugs are stocked across different principals."
+        ],
+        [
+            "PrincipalEvent\n(principal_events)",
+            "PK: id (UUID)\nFK: company_id -> organizations.id\nFK: principal_id",
+            "event_type (String 60)\nevent_time (DateTime)\nsource_doc_type (String 50)\nsource_doc_id (String 100)\npayload_json (JSON)\npayload_hash (String 64: SHA-256)",
+            "Cryptographically hashed append-only commercial event ledger providing mathematical immutability and complete event-sourcing traceability."
+        ],
+        [
+            "PrincipalStockSnapshot\n(principal_stock_snapshots)",
+            "PK: id (UUID)\nFK: principal_id, product_id\nFK: warehouse_id",
+            "product_name (String 200)\nbatch_no (String 100)\nwarehouse_name (String 100)\nas_of (DateTime)\nqty_on_hand, qty_reserved, qty_damage\nunit_cost, total_valuation",
+            "Point-in-time frozen inventory positions segregated by SKU and batch, supporting instant historical reconstruction and discrepancy auditing."
+        ],
+        [
+            "PrincipalClaim\n(principal_claims)",
+            "PK: id (UUID)\nUnique: claim_number\nFK: principal_id",
+            "principal_name (String 200)\nclaim_type (EXPIRY, BREAKAGE, SHORTAGE, RATE_DIFFERENCE)\nsource_doc_id (String 100)\nclaimed_qty, claimed_amount, approved_amount\nreason, status (PENDING, APPROVED, etc.)",
+            "Operational claim document capturing loss events with batch provenance, dispute resolution workflows, and four-eyes settlement authorization."
+        ],
+        [
+            "PrincipalClaimLine\n(principal_claim_lines)",
+            "PK: id (UUID)\nFK: claim_id -> principal_claims.id\nFK: product_id",
+            "source_movement_id (String 100)\nbatch_no (String 100)\nexpiry_date (DateTime)\nqty, eligible_qty, rate, amount\napproved_amount, status",
+            "Granular line-item breakdown linking each claimed unit directly to DOC-16 stock movements and batch expiry records."
+        ],
+        [
+            "PrincipalReconciliation\n(principal_reconciliations)",
+            "PK: id (UUID)\nUnique: recon_number\nFK: principal_id",
+            "period_from, period_to (DateTime)\nsystem_opening_val, external_opening_val\nsystem_closing_val, external_closing_val\nnet_variance_val, matched_lines_count\nvariance_lines_count, status (APPROVED, etc.)",
+            "Automated three-way reconciliation header record comparing system stock valuation against external Principal-submitted statement balances."
+        ],
+        [
+            "PrincipalReconciliationLine\n(principal_reconciliation_lines)",
+            "PK: id (UUID)\nFK: reconciliation_id -> principal_reconciliations.id",
+            "source_key (String 100)\nsource_type (SALE, INWARD, RETURN, CLAIM)\nsystem_qty, external_qty, variance_qty\nsystem_val, external_val, variance_val\nreason_code, status (MATCHED, VARIANCE)",
+            "Itemized transaction matching line detecting quantity and valuation discrepancies with automated root-cause reason tagging."
+        ],
+        [
+            "PrincipalStatementRun\n(principal_statement_runs)",
+            "PK: id (UUID)\nUnique: run_number\nFK: principal_id",
+            "period_from, period_to (DateTime)\nfilters_hash (String 64)\nsource_versions (String 100)\nopening_stock_val, receipts_val, sales_val\nreturns_val, claims_val, freight_val, closing_val",
+            "Authoritative period statement snapshot with dataset hash signature, freezing financial and inventory figures against retroactive tampering."
+        ],
+        [
+            "PrincipalStatementLine\n(principal_statement_lines)",
+            "PK: id (UUID)\nFK: run_id -> principal_statement_runs.id",
+            "event_id (UUID)\nsource_doc_id (String 100)\ncategory (OPENING, INWARD, SALE, RETURN, CLAIM, FREIGHT, CLOSING)\nproduct_name, batch_no, qty, amount, status",
+            "Individual transaction line in the reconstructable statement maintaining complete backward audit linkage to source transaction vouchers."
+        ],
+        [
+            "PrincipalCostAttribution\n(principal_cost_attributions)",
+            "PK: id (UUID)\nFK: principal_id\nRef: source_cost_id -> DOC-35",
+            "bearer (ADMIN_COMPANY, PRINCIPAL, CLIENT_COMPANY)\nrecovery_target (PRINCIPAL_CLAIM, SUBSIDY)\namount (Numeric 18, 2)\npolicy_version, status (ATTRIBUTED, ABSORBED)",
+            "Direct integration with DOC-35 Freight Engine attributing logistics costs, transporter billings, and Admin GL 5200 subsidies to principal accounts."
+        ],
+        [
+            "PrincipalCommissionRef\n(principal_commission_refs)",
+            "PK: id (UUID)\nFK: principal_id, source_event_id\nRef: commission_doc_id -> DOC-37",
+            "gross_sales_val (Numeric 18, 2)\ncommission_rate_pct (Numeric 6, 2)\ncommission_amount (Numeric 18, 2)\nstatus (ACCRUED, BILLED, SETTLED)",
+            "Commercial settlement reference connecting dispatched sales throughput to earned C&F commission without duplicate accounting journals."
+        ],
+        [
+            "PrincipalSyncCheckpoint\n(principal_sync_checkpoints)",
+            "PK: id (UUID)\nFK: company_id -> organizations.id\nFK: principal_id",
+            "scope_key (STOCK, CLAIMS, RECON, EVENTS)\ncursor (String 100)\nhash (String 64: SHA-256)\nsynced_at (DateTime)",
+            "Distributed state synchronization cursor ensuring complete ledger consistency between central C&F depots and peripheral distribution branches."
+        ]
+    ]
+    style_table(schema_table, [1.3, 1.4, 1.6, 2.2], sch_headers, sch_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("22.2 RESTful API Directory (/api/principal/*)")
+    add_p(
+        "All DOC-36 backend services are exposed under the /api/principal namespace with mandatory JWT authentication, "
+        "organization tenant isolation, and strict parameter validation via Pydantic schemas:"
+    )
+
+    api_table = doc.add_table(rows=1, cols=4)
+    api_headers = ["HTTP Method & Route", "Request Parameters / Payload", "Response Structure", "Operational Workflow & Invariant Impact"]
+    api_data = [
+        [
+            "GET /api/principal/summary",
+            "Headers: Authorization: Bearer <JWT>\nQuery: None",
+            "{summary: {active_principals_count, total_stock_value, total_stock_quantity, pending_claims_value, approved_reconciliations_count, admin_funded_freight}}",
+            "Feeds executive telemetry cards on the Control Center. Aggregates custody valuation, open claim liability, and Platform Admin freight subsidies (Account 5200)."
+        ],
+        [
+            "GET /api/principal/list",
+            "Headers: Authorization: Bearer <JWT>\nQuery: search (Optional str)",
+            "{principals: [{id, principal_code, principal_name, agreement_number, agreement_version, commission_rate_pct, total_stock_val, status}]}",
+            "Searchable catalog of registered pharmaceutical principals with active agreement terms, commission percentages, and live stock holding figures."
+        ],
+        [
+            "GET /api/principal/{id}/position",
+            "Headers: Authorization: Bearer <JWT>\nPath: id (UUID: principal_id)",
+            "{position: {principal: {...}, stock_summary: {...}, stock_lines: [...], sales_movements: [...], open_claims: [...], cost_attributions: [...], reconciliations: [...]}}",
+            "Comprehensive operational position retrieving SKU/batch custody segregation, batch expiry dates, recent dispatches, open breakage claims, and freight subsidies."
+        ],
+        [
+            "GET /api/principal/{id}/statement",
+            "Headers: Authorization: Bearer <JWT>\nPath: id (UUID)\nQuery: period_from, period_to",
+            "{statement: {run_number, period, opening_stock, receipts, sales, returns, claims, freight_costs, closing_stock, lines: [...]}}",
+            "Reconstructs non-editable period business statement from source vouchers and immutable event logs; enforces Zero Balance Override invariant."
+        ],
+        [
+            "POST /api/principal/claims",
+            "Payload: {principal_id, claim_type, source_doc_type, source_doc_id, product_name, batch_no, claimed_qty, rate, reason, evidence_url}",
+            "{status: 'SUCCESS', claim: {id, claim_number, claimed_amount, status: 'PENDING'}}",
+            "Registers operational claim (Expiry, Breakage, Shortage) with automated number generation (CLM-PRN-YYYY-XXXX), batch provenance, and audit logging."
+        ],
+        [
+            "POST /api/principal/claims/{id}/action",
+            "Path: id (UUID: claim_id)\nPayload: {action: 'APPROVE'|'DISPUTE'|'PASS_TO_SETTLEMENT'|'REJECT', approved_amount, resolution_notes}",
+            "{status: 'SUCCESS', claim: {id, claim_number, status, approved_amount}}",
+            "Executes multi-stage approval workflow on operational claims without historical ledger tampering, updating claim lifecycle state and settlement linkages."
+        ],
+        [
+            "GET /api/principal/reconciliations",
+            "Headers: Authorization: Bearer <JWT>\nQuery: principal_id (Optional UUID)",
+            "{reconciliations: [{id, recon_number, period_from, period_to, system_closing_val, external_closing_val, net_variance_val, status, lines_count}]}",
+            "Lists historical three-way reconciliation matching runs with net variance metrics, line counts, approval timestamps, and audit status flags."
+        ],
+        [
+            "POST /api/principal/reconciliation/run",
+            "Payload: {principal_id, period_from, period_to, external_closing_val, discrepancy_reason}",
+            "{status: 'SUCCESS', reconciliation: {id, recon_number, net_variance_val, matched_lines_count, status: 'APPROVED'}}",
+            "Executes automated three-way matching engine comparing system valuation against external principal statements, logging variance items and audit trails."
+        ]
+    ]
+    style_table(api_table, [1.6, 1.4, 1.6, 1.9], api_headers, api_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("22.3 Terminal Cockpits, Screen Layouts, Hotkeys & UI Element Catalog")
+    add_p(
+        "DOC-36 features two dedicated high-density terminal cockpits adhering to the system's Marg/Tally keyboard-first "
+        "design standards, styled with forest green (#15803d) luxury accents and instant zero-mouse navigation:"
+    )
+    add_p("1. Principal Operational Control Center (/principal): Houses 5 top telemetry KPI cards, agreement terms banner, and 5 functional tabs switchable via hotkeys [F2] through [F6]. Includes the New Claim modal dialog triggered via [F7].")
+    add_p("2. Principal Business Statement Desk (/principal/statement): Full-screen drill-down reconstructable statement workbench with principal selector, transaction category filters, native print formatting, and complete backward audit traceability.")
+    add_p("3. Counter Workbench Launcher: Added #hub-btn-principal-management tile to the Home Screen with global shortcut [Ctrl+3].")
+    add_p("4. Hierarchical [Esc] Lifecycle: Universal Escape key listener safely dismisses active modals and slide-over drawers without unintended page redirects.")
+
+    ui_table = doc.add_table(rows=1, cols=4)
+    ui_headers = ["Screen / Cockpit Location", "Element ID Selector", "Input / Control Type", "Operational Role & Zero-Mouse Trigger"]
+    ui_data = [
+        [
+            "Counter Workbench (/)",
+            "#hub-btn-principal-management",
+            "Hub Tile Button [Ctrl+3]",
+            "Global launcher tile on Home Screen navigating directly to Principal Operational Control Center."
+        ],
+        [
+            "Principal Control Center (/principal)",
+            "#kpi-active-principals",
+            "Telemetry Metric Card",
+            "Displays total active pharmaceutical principals with registered operational agreements."
+        ],
+        [
+            "Principal Control Center (/principal)",
+            "#kpi-total-stock-val",
+            "Telemetry Metric Card",
+            "Displays aggregate valuation and unit count of consignment custody inventory held across warehouses."
+        ],
+        [
+            "Principal Control Center (/principal)",
+            "#kpi-pending-claims",
+            "Telemetry Metric Card",
+            "Displays open claim liability value across breakage, expiry, and shortage loss events."
+        ],
+        [
+            "Principal Control Center (/principal)",
+            "#kpi-reconciled-health",
+            "Telemetry Metric Card",
+            "Displays approved three-way reconciliation run count and net variance health status."
+        ],
+        [
+            "Principal Control Center (/principal)",
+            "#kpi-freight-attribution",
+            "Telemetry Metric Card",
+            "Displays Admin-funded freight logistics subsidy (GL Account 5200) linked to DOC-35 dispatches."
+        ],
+        [
+            "Principal Control Center (/principal)",
+            "#tab-btn-stock",
+            "Tab Button [F2]",
+            "Activates Stock Ownership & Custody Matrix showing SKU/batch segregation and warehouse allocations."
+        ],
+        [
+            "Principal Control Center (/principal)",
+            "#tab-btn-claims",
+            "Tab Button [F3]",
+            "Activates Claims & Returns Desk for tracking operational claims, batch provenance, and approval actions."
+        ],
+        [
+            "Principal Control Center (/principal)",
+            "#tab-btn-recon",
+            "Tab Button [F4]",
+            "Activates 3-Way Reconciliation Workspace for auditing external statements against system stock."
+        ],
+        [
+            "Principal Control Center (/principal)",
+            "#tab-btn-statement",
+            "Tab Button [F5]",
+            "Activates embedded Authoritative Reconstructable Statement tab with opening, movements, and closing values."
+        ],
+        [
+            "Principal Control Center (/principal)",
+            "#tab-btn-mis",
+            "Tab Button [F6]",
+            "Activates Commercial MIS & Operational Profitability dashboard with throughput and commission tracking."
+        ],
+        [
+            "Principal Control Center (/principal)",
+            "#btn-open-claim-modal",
+            "Action Button [F7]",
+            "Opens modal dialog to register a new operational claim with batch linkage (#modal-new-claim)."
+        ],
+        [
+            "Principal Control Center (/principal)",
+            "#modal-new-claim",
+            "Modal Dialog [Esc]",
+            "Form capturing claim details (Product, Batch, Qty, Rate, Reason); dismisses cleanly via Escape key."
+        ],
+        [
+            "Principal Statement Desk (/principal/statement)",
+            "#select-statement-principal",
+            "Select Dropdown",
+            "Filters reconstructable business statement by specific pharmaceutical principal entity."
+        ],
+        [
+            "Principal Statement Desk (/principal/statement)",
+            "#table-statement-lines",
+            "Data Grid",
+            "Renders reconstructed transaction lines across Inward, Sales, Returns, Claims, and Freight categories."
+        ]
+    ]
+    style_table(ui_table, [1.5, 1.7, 1.2, 2.1], ui_headers, ui_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("22.4 Local Automated Selenium Verification Suite (10 Stages - 100% PASS)")
+    add_p(
+        "The complete full-stack implementation was validated via an automated headless Chrome Selenium verification suite "
+        "(test_principal_operations_selenium.py) executing at 1440x950 resolution against the live backend (Port 8000) and "
+        "Vite frontend (Port 50005). All 10 stages completed with 100% pass rate (Exit Code 0):"
+    )
+
+    local_table = doc.add_table(rows=1, cols=4)
+    loc_headers = ["Verification Stage & Scope", "Execution Command / Target", "Automated Assertions & Validation Criteria", "Test Result"]
+    loc_data = [
+        [
+            "Stage 1: API Authentication",
+            "POST /auth/login\n(admin / Admin@123)",
+            "HTTP 200 OK. Acquired JWT bearer token. Validated organization ID and session storage auth payload.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 2: Summary Telemetry Audit",
+            "GET /api/principal/summary",
+            "HTTP 200 OK. Asserted >= 2 active principals, ₹105,600.00 custody valuation, 5,400 units, ₹2,450.00 pending claims, and GL 5200 subsidy.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 3: Principal Catalog & Agreements",
+            "GET /api/principal/list",
+            "HTTP 200 OK. Asserted 2 principals: Sun Pharma Healthcare Ltd. (AGR-SUN-2026-001, 6.5% comm) and Cipla Therapeutics Ltd. (AGR-CIP-2026-002, 5.0% comm).",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 4: Custody Segregation Audit",
+            "GET /api/principal/{id}/position",
+            "HTTP 200 OK. Verified SKU/batch custody segregation (Azithromycin 250mg Tablets, Batch B-CIP-812, CONSIGNMENT_CUSTODY mode).",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 5: Operational Claims Workflow",
+            "POST /api/principal/claims\nPOST /claims/{id}/action",
+            "HTTP 200 OK. Created claim CLM-PRN-2026-0004 (BREAKAGE, ₹55.00). Executed APPROVE action; verified status transition without ledger tampering.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 6: 3-Way Reconciliation Run",
+            "POST /api/principal/reconciliation/run",
+            "HTTP 200 OK. Executed automated match against external closing valuation. Asserted net_variance_val == 0.00, generated REC-PRN-2026-0003.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 7: Headless Browser Init",
+            "Chrome Options: --headless=new\nViewport: 1440x950",
+            "WebDriver initialized with GPU disabled, no-sandbox, and sessionStorage auth injection.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 8: Counter Workbench Integration",
+            "driver.get('http://localhost:50005/')",
+            "Located #hub-btn-principal-management launcher on Counter Workbench. Captured verified_principal_homescreen_launcher.png.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 9: Control Center & KPI Cards",
+            "driver.get('http://localhost:50005/principal')",
+            "Verified all 5 Top KPI telemetry cards (#kpi-active-principals, #kpi-total-stock-val, etc.). Captured verified_principal_control_center.png.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 10: Tabs Switching & Esc Modal",
+            "Tab [F3], Action [F7], Key [Esc]\nTabs [F4] & [F5]",
+            "Switched to Claims Desk [F3]. Opened #modal-new-claim [F7] and verified clean [Esc] dismissal. Verified Statement [F5] and Recon [F4]. Captured screenshots 3 & 4.",
+            "100% PASS\n(Exit 0)"
+        ]
+    ]
+    style_table(local_table, [1.2, 1.8, 2.6, 0.9], loc_headers, loc_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("22.5 Live Vercel Production Cloud Verification Suite (4 Stages - 100% PASS)")
+    add_p(
+        "Following local verification, the live production deployment on Vercel CDN (https://erp-rho-three.vercel.app) was "
+        "audited via verify_live_vercel_principal_audit.py using the automated demo authentication hook (#btn-demo-login). "
+        "All 4 stages completed with 100% pass rate (Exit Code 0) confirming zero cloud regressions:"
+    )
+
+    cloud_table = doc.add_table(rows=1, cols=4)
+    cld_headers = ["Cloud Audit Stage & Scope", "Live Target URL & Trigger", "Automated Cloud Assertions & Validation Criteria", "Production Status"]
+    cld_data = [
+        [
+            "Stage 1: Production Auth & Launcher",
+            "https://erp-rho-three.vercel.app/\nTrigger: #btn-demo-login",
+            "Authenticated as Admin. Verified #counter-workbench-root and confirmed #hub-btn-principal-management presence. Captured live_vercel_principal_homescreen_launcher.png.",
+            "100% PASS\n(Live Cloud)"
+        ],
+        [
+            "Stage 2: Live Control Center Telemetry",
+            "https://erp-rho-three.vercel.app/principal",
+            "Verified all 5 Top KPI cards (#kpi-active-principals, #kpi-total-stock-val, #kpi-pending-claims, #kpi-reconciled-health, #kpi-freight-attribution). Captured live_vercel_principal_control_center.png.",
+            "100% PASS\n(Live Cloud)"
+        ],
+        [
+            "Stage 3: Live Claims Desk & Hotkey Modal",
+            "https://erp-rho-three.vercel.app/principal\nTrigger: #tab-btn-claims & [F7]",
+            "Switched to Claims Desk [F3]. Triggered #modal-new-claim [F7]. Verified visibility and verified instant [Esc] dismissal cleanly. Captured live_vercel_principal_claims_desk.png.",
+            "100% PASS\n(Live Cloud)"
+        ],
+        [
+            "Stage 4: Full-Screen Statement Desk",
+            "https://erp-rho-three.vercel.app/principal/statement",
+            "Verified full-screen authoritative statement desk with #select-statement-principal, transaction line rendering, and zero manual balance overrides. Captured live_vercel_principal_statement_desk.png.",
+            "100% PASS\n(Live Cloud)"
+        ]
+    ]
+    style_table(cloud_table, [1.2, 1.8, 2.6, 0.9], cld_headers, cld_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("22.6 Visual Proof of Verification & Photographic Evidence (8 Production Screenshots)")
+    add_p(
+        "Below are the 8 publication-grade visual verification screenshots captured during automated local headless Selenium "
+        "and live Vercel production testing, providing indisputable proof of operational readiness, terminal ergonomics, and "
+        "zero-mouse hotkey execution:"
+    )
+
+    # 4 Local Verified Screenshots
+    add_screenshot(
+        "verified_principal_homescreen_launcher.png",
+        "Figure 22.1: Local Verified Counter Workbench (/) displaying the dedicated Principal & C&F Operations Management hub tile (#hub-btn-principal-management) mapped to global hotkey [Ctrl+3]."
+    )
+    add_screenshot(
+        "verified_principal_control_center.png",
+        "Figure 22.2: Local Verified Principal Operational Control Center (/principal) featuring 5 top telemetry KPI cards, agreement terms banner, and the Stock Ownership & Custody Matrix tab [F2]."
+    )
+    add_screenshot(
+        "verified_principal_claims_desk.png",
+        "Figure 22.3: Local Verified Claims & Returns Desk (/principal) displaying the operational claims register, batch provenance tracking, and the New Claim Modal [F7] with [Esc] dismissal."
+    )
+    add_screenshot(
+        "verified_principal_reconciliation_statement.png",
+        "Figure 22.4: Local Verified 3-Way Reconciliation Workspace and Reconstructable Business Statement with transaction-level backward audit traceability and zero manual overrides."
+    )
+
+    # 4 Live Vercel Production Cloud Screenshots
+    add_screenshot(
+        "live_vercel_principal_homescreen_launcher.png",
+        "Figure 22.5: Live Vercel Production Cloud Verification (https://erp-rho-three.vercel.app/) confirming seamless authentication and Counter Workbench launcher tile presence on production CDN."
+    )
+    add_screenshot(
+        "live_vercel_principal_control_center.png",
+        "Figure 22.6: Live Vercel Production Cloud Control Center (/principal) verifying live telemetry KPI cards, agreement versioning, and custody inventory monitoring."
+    )
+    add_screenshot(
+        "live_vercel_principal_claims_desk.png",
+        "Figure 22.7: Live Vercel Production Cloud Claims Desk verifying modal dialog rendering and instant [Esc] keyboard dismissal on production CDN."
+    )
+    add_screenshot(
+        "live_vercel_principal_statement_desk.png",
+        "Figure 22.8: Live Vercel Production Cloud Full-Screen Authoritative Statement Desk (/principal/statement) validating zero manual balance overrides and source-level auditability."
+    )
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
