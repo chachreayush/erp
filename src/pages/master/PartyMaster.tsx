@@ -44,13 +44,36 @@ export default function PartyMaster() {
   // Customer Profile
   const [creditLimit, setCreditLimit] = useState(0)
   const [creditDays, setCreditDays] = useState(0)
+  const [availableCompanies, setAvailableCompanies] = useState<any[]>([
+    { id: 'ALL', name: 'All Companies (Full Catalog)' },
+    { id: 'p-sun-001', name: 'Sun Pharma Healthcare Ltd.' },
+    { id: 'p-cip-002', name: 'Cipla Therapeutics Ltd.' },
+    { id: 'p-man-003', name: 'Mankind Pharma Ltd.' },
+    { id: 'p-abb-004', name: 'Abbott Healthcare Pvt. Ltd.' }
+  ])
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>(['ALL'])
   
   const [ledgerGroups, setLedgerGroups] = useState<any[]>([])
 
   useEffect(() => {
     fetchParties()
     fetchLedgerGroups()
+    fetchCompanies()
   }, [])
+
+  const fetchCompanies = async () => {
+    try {
+      const res = await apiClient.get('/api/master/manufacturers')
+      if (res.data && res.data.length > 0) {
+        setAvailableCompanies([
+          { id: 'ALL', name: 'All Companies (Full Catalog)' },
+          ...res.data.map((m: any) => ({ id: m.id, name: m.name }))
+        ])
+      }
+    } catch {
+      // Keep fallbacks
+    }
+  }
 
   const fetchParties = async () => {
     try {
@@ -97,7 +120,8 @@ export default function PartyMaster() {
       ],
       customer_profile: isCustomer ? {
         credit_limit: creditLimit,
-        credit_days: creditDays
+        credit_days: creditDays,
+        company_ids: selectedCompanyIds.length > 0 ? selectedCompanyIds : ['ALL']
       } : null,
       supplier_profile: isSupplier ? {
         lead_time_days: 0
@@ -219,6 +243,48 @@ export default function PartyMaster() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <Input variant="compact" type="number" label="Credit Limit (₹)" value={creditLimit} onChange={e => setCreditLimit(Number(e.target.value))} />
                 <Input variant="compact" type="number" label="Credit Days" value={creditDays} onChange={e => setCreditDays(Number(e.target.value))} />
+              </div>
+              <div style={{ marginTop: '14px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', marginBottom: '6px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Authorized Dealing Product Companies (Manufacturer Brands)
+                </label>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {availableCompanies.map((c: any) => {
+                    const isSel = selectedCompanyIds.includes(c.id);
+                    return (
+                      <button
+                        type="button"
+                        key={c.id}
+                        onClick={() => {
+                          if (c.id === 'ALL') {
+                            setSelectedCompanyIds(['ALL']);
+                          } else {
+                            const withoutAll = selectedCompanyIds.filter(id => id !== 'ALL');
+                            if (isSel) {
+                              const remaining = withoutAll.filter(id => id !== c.id);
+                              setSelectedCompanyIds(remaining.length > 0 ? remaining : ['ALL']);
+                            } else {
+                              setSelectedCompanyIds([...withoutAll, c.id]);
+                            }
+                          }
+                        }}
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: '16px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          backgroundColor: isSel ? '#1b4332' : '#f3f4f6',
+                          color: isSel ? '#ffffff' : '#374151',
+                          border: isSel ? '1px solid #1b4332' : '1px solid #d1d5db',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {c.name}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}

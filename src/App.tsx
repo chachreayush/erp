@@ -67,6 +67,7 @@ import PurchaseOrderMaster from './pages/procurement/PurchaseOrderMaster'
 import GoodsReceipt from './pages/procurement/GoodsReceipt'
 import VendorComplaints from './pages/procurement/VendorComplaints'
 import PurchaseBill from './pages/purchase/PurchaseBill'
+import PurchaseList from './pages/purchase/PurchaseList'
 import SalesReturnBill from './pages/returns/SalesReturnBill'
 import PurchaseReturnBill from './pages/returns/PurchaseReturnBill'
 import BrkReceiveBill from './pages/brk/BrkReceiveBill'
@@ -218,6 +219,8 @@ function App() {
 
 
         <Route path="purchase"         element={<PurchaseBill />} />
+        <Route path="purchase/list"    element={<PurchaseList />} />
+        <Route path="purchase/modify"  element={<PurchaseList />} />
         <Route path="po" element={<PurchaseOrderMaster />} />
         <Route path="grn" element={<GoodsReceipt />} />
         <Route path="vendor-complaints" element={<VendorComplaints />} />

@@ -984,6 +984,7 @@ class CustomerProfile(Base):
     credit_limit = Column(Numeric(15, 2), nullable=False, default=0)
     credit_days = Column(Integer, nullable=False, default=0)
     price_list = Column(String(50), nullable=True) # e.g. 'Retail', 'Wholesale'
+    company_ids = Column(JSON, nullable=True) # e.g. ["ALL"] or list of product manufacturer UUIDs
     
     party = relationship("Party", back_populates="customer_profile")
     ledger = relationship("Ledger")
@@ -2666,6 +2667,9 @@ class CommissionCalculation(Base):
     principal_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     principal_name = Column(String(200), nullable=False)
     category = Column(String(40), default="EARNED_COMMISSION", nullable=False) # EARNED_COMMISSION, RECOVERABLE_EXPENSE, SERVICE_FEE
+    event_type = Column(String(60), nullable=True) # SALES_BILL, GODOWN_RENT, STAFF_SALARY, FREIGHT_COST
+    client_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    client_name = Column(String(200), nullable=True)
     base_value = Column(Numeric(14, 2), default=0.0, nullable=False)
     rate_applied = Column(Numeric(8, 4), default=0.0, nullable=False)
     calculated_amount = Column(Numeric(14, 2), default=0.0, nullable=False)

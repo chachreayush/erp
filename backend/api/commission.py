@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy import desc, asc, func, or_
 from pydantic import BaseModel, Field
 
@@ -21,8 +22,8 @@ router = APIRouter(prefix="", tags=["Principal Commission & Recovery Engine (DOC
 
 class CommissionCalculateRequest(BaseModel):
     principal_id: uuid.UUID
-    event_type: str = "SALES_BILL" # SALES_BILL, SALES_RETURN, FREIGHT_COST, STORAGE_CHARGE, LOADING_CHARGE
-    source_doc_type: str = "INVOICE" # INVOICE, RETURN, FREIGHT_EVENT, CONSIGNMENT
+    event_type: str = "SALES_BILL" # SALES_BILL, SALES_RETURN, FREIGHT_COST, STORAGE_CHARGE, LOADING_CHARGE, GODOWN_RENT, STAFF_SALARY
+    source_doc_type: str = "INVOICE" # INVOICE, RETURN, FREIGHT_EVENT, CONSIGNMENT, VOUCHER
     source_doc_id: str
     base_value: float = 100000.0
     quantity: Optional[float] = 1.0
@@ -30,6 +31,19 @@ class CommissionCalculateRequest(BaseModel):
     custom_rate: Optional[float] = None
     rule_id: Optional[uuid.UUID] = None
     description: Optional[str] = None
+    client_id: Optional[uuid.UUID] = None
+    client_name: Optional[str] = None
+    custom_salary_amount: Optional[float] = None
+    custom_rent_amount: Optional[float] = None
+
+class AgreementDealTermsUpdate(BaseModel):
+    agreement_type: Optional[str] = "CF_CONSIGNMENT_AGENT"
+    cargo_expense_borne_by: Optional[str] = "PRINCIPAL" # PRINCIPAL, DISTRIBUTOR
+    staff_salary_borne_by: Optional[str] = "PRINCIPAL" # PRINCIPAL, DISTRIBUTOR
+    godown_storage_borne_by: Optional[str] = "PRINCIPAL" # PRINCIPAL, DISTRIBUTOR
+    default_monthly_staff_salary: Optional[float] = 25000.0
+    default_monthly_godown_rent: Optional[float] = 15000.0
+    sales_commission_rate: Optional[float] = 5.0
 
 class CalculationActionRequest(BaseModel):
     action: str # APPROVE, DISPUTE, ADJUST, CANCEL
@@ -270,6 +284,47 @@ def list_agreements(
     return {"status": "success", "count": len(result), "data": result}
 
 
+@router.put("/agreements/{agreement_id}/deal-terms")
+def update_agreement_deal_terms(
+    agreement_id: uuid.UUID,
+    payload: AgreementDealTermsUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    agr = db.query(models.PrincipalCommissionAgreement).filter(
+        models.PrincipalCommissionAgreement.id == agreement_id
+    ).first()
+    if not agr:
+        raise HTTPException(status_code=404, detail="Agreement not found")
+
+    terms = dict(agr.terms_json or {})
+    terms["agreement_type"] = payload.agreement_type or "CF_CONSIGNMENT_AGENT"
+    reimb = dict(terms.get("reimbursement_terms", {}) or {})
+    reimb["cargo_expenses"] = {
+        "borne_by": payload.cargo_expense_borne_by,
+        "reimbursable": payload.cargo_expense_borne_by == "PRINCIPAL"
+    }
+    reimb["staff_salaries"] = {
+        "borne_by": payload.staff_salary_borne_by,
+        "reimbursable": payload.staff_salary_borne_by == "PRINCIPAL",
+        "monthly_budget": payload.default_monthly_staff_salary
+    }
+    reimb["godown_storage"] = {
+        "borne_by": payload.godown_storage_borne_by,
+        "reimbursable": payload.godown_storage_borne_by == "PRINCIPAL",
+        "monthly_rent": payload.default_monthly_godown_rent
+    }
+    reimb["sales_commission"] = {
+        "rate_pct": payload.sales_commission_rate
+    }
+    terms["reimbursement_terms"] = reimb
+    agr.terms_json = terms
+    flag_modified(agr, "terms_json")
+    db.commit()
+    db.refresh(agr)
+    return {"status": "success", "message": "C&F deal terms updated successfully", "data": agr.terms_json}
+
+
 @router.post("/calculate")
 def execute_commission_calculation(
     payload: CommissionCalculateRequest,
@@ -321,27 +376,37 @@ def execute_commission_calculation(
             rate = payload.custom_rate if payload.custom_rate is not None else 5.0
             rule_desc = f"Default fallback rate ({rate}%)"
 
-    # Determine category
-    category = payload.category
-    if not category:
-        if payload.event_type in ["FREIGHT_COST", "STORAGE_CHARGE", "LOADING_CHARGE"]:
-            category = "RECOVERABLE_EXPENSE"
-        else:
-            category = "EARNED_COMMISSION"
-
-    # Calculate amount
+    # Determine category and calculate amount based on C&F event type
     base_val = payload.base_value
     qty = payload.quantity or 1.0
 
-    if category == "RECOVERABLE_EXPENSE" and payload.event_type in ["STORAGE_CHARGE", "LOADING_CHARGE"] and qty > 1.0:
-        calc_amount = round(qty * rate, 2)
-        trace = f"Formula: {qty} units * ₹{rate:.2f} = ₹{calc_amount:.2f} ({rule_desc})"
-    elif category == "RECOVERABLE_EXPENSE":
+    if payload.event_type == "GODOWN_RENT":
+        category = "RECOVERABLE_EXPENSE"
+        rent_terms = (agr.terms_json or {}).get("reimbursement_terms", {}).get("godown_storage", {}) if agr else {}
+        calc_amount = payload.custom_rent_amount if payload.custom_rent_amount is not None else float(rent_terms.get("monthly_rent", payload.base_value))
+        trace = f"C&F Godown & Storage Services Reimbursement: ₹{calc_amount:.2f} (Agreement Deal Terms)"
+    elif payload.event_type == "STAFF_SALARY":
+        category = "RECOVERABLE_EXPENSE"
+        salary_terms = (agr.terms_json or {}).get("reimbursement_terms", {}).get("staff_salaries", {}) if agr else {}
+        calc_amount = payload.custom_salary_amount if payload.custom_salary_amount is not None else float(salary_terms.get("monthly_budget", payload.base_value))
+        trace = f"C&F Dedicated Staff & Field Employee Salaries: ₹{calc_amount:.2f} (Agreement Deal Terms / Monthly Allocation)"
+    elif payload.event_type == "FREIGHT_COST":
+        category = "RECOVERABLE_EXPENSE"
         calc_amount = round(base_val, 2)
-        trace = f"Formula: 100% Recharge of Verified Cost = ₹{calc_amount:.2f} ({payload.description or rule_desc})"
-    else:
+        trace = f"Formula: 100% C&F Inward/Outward Transportation Recharge = ₹{calc_amount:.2f} ({payload.description or 'Freight LR Cost'})"
+    elif payload.event_type in ["STORAGE_CHARGE", "LOADING_CHARGE"]:
+        category = "RECOVERABLE_EXPENSE"
+        if qty > 1.0:
+            calc_amount = round(qty * rate, 2)
+            trace = f"Formula: {qty} units * ₹{rate:.2f} = ₹{calc_amount:.2f} ({rule_desc})"
+        else:
+            calc_amount = round(base_val, 2)
+            trace = f"Formula: 100% Recharge of Verified Cost = ₹{calc_amount:.2f} ({payload.description or rule_desc})"
+    else: # SALES_BILL, SALES_RETURN, etc.
+        category = payload.category or "EARNED_COMMISSION"
         calc_amount = round((base_val * rate) / 100.0, 2)
-        trace = f"Formula: ₹{base_val:.2f} * {rate:.2f}% = ₹{calc_amount:.2f} ({rule_desc})"
+        client_str = f"Client: {payload.client_name} - " if payload.client_name else ""
+        trace = f"Formula: {client_str}₹{base_val:.2f} * {rate:.2f}% = ₹{calc_amount:.2f} ({rule_desc})"
 
     # Create Event
     idempotency = f"EVT-{payload.source_doc_type}-{payload.source_doc_id}-{uuid.uuid4().hex[:6]}"
@@ -354,7 +419,7 @@ def execute_commission_calculation(
         source_doc_type=payload.source_doc_type,
         source_doc_id=payload.source_doc_id,
         idempotency_key=idempotency,
-        payload_json={"base_value": base_val, "qty": qty, "rate": rate}
+        payload_json={"base_value": base_val, "qty": qty, "rate": rate, "client_id": str(payload.client_id) if payload.client_id else None}
     )
     db.add(evt)
     db.flush()
@@ -383,6 +448,9 @@ def execute_commission_calculation(
         principal_id=payload.principal_id,
         principal_name=principal_name,
         category=category,
+        event_type=payload.event_type,
+        client_id=payload.client_id,
+        client_name=payload.client_name,
         base_value=base_val,
         rate_applied=rate,
         calculated_amount=calc_amount,
@@ -402,7 +470,7 @@ def execute_commission_calculation(
         action="CALCULATE",
         actor_username=current_user.username if hasattr(current_user, "username") else "admin",
         after_hash=sha_hash,
-        details_json={"event_id": str(evt.id), "amount": calc_amount, "category": category}
+        details_json={"event_id": str(evt.id), "amount": calc_amount, "category": category, "event_type": payload.event_type}
     )
     db.add(audit)
 
@@ -416,6 +484,9 @@ def execute_commission_calculation(
             "calculation_number": calc.calculation_number,
             "principal_name": calc.principal_name,
             "category": calc.category,
+            "event_type": calc.event_type,
+            "client_id": str(calc.client_id) if calc.client_id else None,
+            "client_name": calc.client_name,
             "base_value": float(calc.base_value),
             "rate_applied": float(calc.rate_applied),
             "calculated_amount": float(calc.calculated_amount),
@@ -457,6 +528,9 @@ def list_calculations(
             "principal_id": str(c.principal_id),
             "principal_name": c.principal_name,
             "category": c.category,
+            "event_type": c.event_type,
+            "client_id": str(c.client_id) if c.client_id else None,
+            "client_name": c.client_name,
             "base_value": float(c.base_value),
             "rate_applied": float(c.rate_applied),
             "calculated_amount": float(c.calculated_amount),
@@ -794,6 +868,71 @@ def update_claim_action(
             linked_at=datetime.utcnow()
         )
         db.add(doc_link)
+
+        # ── DUAL POSTING: Inward Purchase Bill for Principal in Purchase Section ──
+        principal_ledger = db.query(models.Ledger).filter(
+            models.Ledger.name.ilike(f"%{claim.principal_name}%")
+        ).first()
+        if not principal_ledger:
+            principal_ledger = db.query(models.Ledger).filter(
+                models.Ledger.name.ilike("%Supplier%")
+            ).first()
+
+        pur_bill_no = f"PUR-SRV-{datetime.utcnow().year}-{str(uuid.uuid4().int)[:4]}"
+        pur_invoice = models.Invoice(
+            id=uuid.uuid4(),
+            organization_id=current_user.organization_id,
+            invoice_type="purchase-bill",
+            invoice_number=pur_bill_no,
+            date=datetime.utcnow(),
+            customer_name=claim.principal_name,
+            party_id=principal_ledger.id if principal_ledger else None,
+            party_inv_no=doc_number,
+            party_inv_date=datetime.utcnow().strftime("%Y-%m-%d"),
+            remarks=f"C&F Consigning Agent Commission & Reimbursed Expenses - Claim {claim.claim_number}",
+            subtotal=amt,
+            tax_total=0.0,
+            grand_total=amt,
+            is_active=True
+        )
+        db.add(pur_invoice)
+        db.flush()
+
+        # Itemize lines from claim
+        lines = db.query(models.RecoveryClaimLine).filter(models.RecoveryClaimLine.claim_id == claim.id).all()
+        if lines:
+            for l in lines:
+                item = models.InvoiceItem(
+                    id=uuid.uuid4(),
+                    invoice_id=pur_invoice.id,
+                    product_name=l.line_description[:250],
+                    quantity=1,
+                    rate=l.requested_amount,
+                    line_total=l.requested_amount
+                )
+                db.add(item)
+        else:
+            item = models.InvoiceItem(
+                id=uuid.uuid4(),
+                invoice_id=pur_invoice.id,
+                product_name=f"C&F Services & Commission ({claim.principal_name})",
+                quantity=1,
+                rate=amt,
+                line_total=amt
+            )
+            db.add(item)
+
+        # Record link for PURCHASE_BILL
+        pur_link = models.RecoveryDocumentLink(
+            id=uuid.uuid4(),
+            claim_id=claim.id,
+            document_type="PURCHASE_BILL",
+            document_number=pur_bill_no,
+            amount=amt,
+            linked_at=datetime.utcnow()
+        )
+        db.add(pur_link)
+
         claim.status = "RECOVERY_CREATED"
 
     elif payload.action == "SETTLE":
@@ -816,6 +955,20 @@ def update_claim_action(
     db.add(audit)
     db.commit()
 
+    docs = db.query(models.RecoveryDocumentLink).filter(
+        models.RecoveryDocumentLink.claim_id == claim.id
+    ).all()
+    links_data = [
+        {
+            "id": str(d.id),
+            "document_type": d.document_type,
+            "document_reference": d.document_number,
+            "amount": float(d.amount),
+            "linked_at": d.linked_at.isoformat() if d.linked_at else None
+        }
+        for d in docs
+    ]
+
     return {
         "status": "success",
         "message": f"Claim {claim.claim_number} updated to {claim.status}",
@@ -824,7 +977,8 @@ def update_claim_action(
             "claim_number": claim.claim_number,
             "status": claim.status,
             "approved_amount": float(claim.approved_amount),
-            "disputed_amount": float(claim.disputed_amount)
+            "disputed_amount": float(claim.disputed_amount),
+            "recovery_document_links": links_data
         }
     }
 

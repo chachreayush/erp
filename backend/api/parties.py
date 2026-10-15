@@ -66,7 +66,8 @@ def create_party(party_in: PartyCreate, db: Session = Depends(get_db), current_u
             route_id=party_in.customer_profile.route_id,
             credit_limit=party_in.customer_profile.credit_limit,
             credit_days=party_in.customer_profile.credit_days,
-            price_list=party_in.customer_profile.price_list
+            price_list=party_in.customer_profile.price_list,
+            company_ids=party_in.customer_profile.company_ids
         )
         db.add(db_cust)
 
@@ -106,3 +107,24 @@ def create_party(party_in: PartyCreate, db: Session = Depends(get_db), current_u
 @router.get("/", response_model=List[PartyResponse])
 def get_parties(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(Party).filter(Party.organization_id == current_user.organization_id).all()
+
+@router.get("/clients-by-company/{company_id}")
+def get_clients_by_company(company_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Returns all customer clients mapped to a given product company / principal.
+    """
+    parties = db.query(Party).filter(
+        Party.organization_id == current_user.organization_id
+    ).all()
+    matched = []
+    for p in parties:
+        if p.customer_profile:
+            c_ids = p.customer_profile.company_ids or []
+            if "ALL" in c_ids or company_id in c_ids or not c_ids:
+                matched.append({
+                    "party_id": str(p.id),
+                    "legal_name": p.legal_name,
+                    "trade_name": p.trade_name,
+                    "company_ids": c_ids
+                })
+    return {"status": "success", "count": len(matched), "data": matched}

@@ -8,8 +8,8 @@ import { ColDef } from 'ag-grid-community'
 import { useReturnNavigation } from '../../hooks/useReturnNavigation'
 
 interface PurchaseListProps {
-  onSelectBill: (entryNo: string) => void;
-  type: string; // 'modify-bill' | 'modify-challan'
+  onSelectBill?: (entryNo: string) => void;
+  type?: string; // 'modify-bill' | 'modify-challan'
 }
 
 const getStartOfMonthDateString = () => {
@@ -22,7 +22,7 @@ const getTodayDateString = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-export default function PurchaseList({ onSelectBill, type }: PurchaseListProps) {
+export default function PurchaseList({ onSelectBill = () => {}, type = 'modify-bill' }: PurchaseListProps) {
   useReturnNavigation(false);
   const [bills, setBills] = useState<any[]>([])
   

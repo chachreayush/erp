@@ -1065,6 +1065,7 @@ class CustomerProfileBase(BaseModel):
     credit_limit: float = 0
     credit_days: int = 0
     price_list: Optional[str] = None
+    company_ids: Optional[List[str]] = None
 
 class SupplierProfileBase(BaseModel):
     payment_terms: Optional[str] = None

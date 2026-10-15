@@ -760,6 +760,38 @@ Implemented and verified the production-grade Principal & C&F Operations Managem
 
 ---
 
+## Production Update: C&F Consigning Agent Operational Model, 4-Pillar Commercial Deal Terms & Dual-Posting to Purchase Section (October 2026)
+
+1. **C&F Consigning Agent Operational Context**:
+   - Super-distributors and Carrying & Forwarding (C&F) / Consigning agents provide dedicated distribution infrastructure: Godown storage space, Dedicated warehouse/administrative staff, and Local cargo/transportation.
+   - Distinct Separation of Concepts:
+     - **Product Company**: Brand manufacturer / pharmaceutical entity associated with product SKUs (e.g., Sun Pharma, Cipla).
+     - **Accounting Ledger**: Financial debtor/creditor ledger maintained in General Ledger (DOC-08).
+     - **Customer Profile Product Mapping**: In Customer Profile (`PartyMaster.tsx`), each client can be mapped to one or more Product Companies (`CustomerProfile.company_ids` JSON column) or `ALL`.
+2. **4-Pillar Commercial Reimbursement Matrix**:
+   - Master Deal Terms stored in `PrincipalCommissionAgreement.terms_json.deal_terms`:
+     - **Godown Rent**: Bearer (`PRINCIPAL` vs `DISTRIBUTOR`), default agreed monthly amount (e.g. ₹42,000.00).
+     - **Staff Salary**: Bearer (`PRINCIPAL` vs `DISTRIBUTOR`), default agreed monthly payroll (e.g. ₹28,500.00).
+     - **Cargo Freight**: Bearer (`PRINCIPAL` vs `DISTRIBUTOR`), logistics charge model.
+     - **Sales Commission %**: Agreed percentage on client sales turnover (e.g. 6.50% on client sales).
+3. **Dynamic Month-to-Month Sandbox Overrides**:
+   - Calculation Sandbox allows dynamic monthly overrides:
+     - Staff Salary custom input amount (e.g. ₹28,500.00).
+     - Godown Storage custom input amount (e.g. ₹42,000.00).
+     - Client Dealership Selection: Filters clients mapped to the selected Product Company (`GET /api/parties/clients-by-company/{company_id}`) and computes turnover percentage commission.
+   - Calculates and tags entries with `client_id`, `client_name`, and `event_type` (`STAFF_SALARY`, `GODOWN_RENT`, `SALES_BILL`).
+4. **Automated Dual-Posting Engine**:
+   - When a Claim batch is approved and `CREATE_DOCUMENT` is triggered (`POST /api/commission/claims/{id}/action`):
+     - **Outward Service Invoice**: Created with unique series `SINV-2026-XXXX`.
+     - **Inward Service Purchase Bill**: Automatically generated as `models.Invoice` (`invoice_type="purchase-bill"`, entry number `PUR-SRV-2026-XXXX`, party as the Principal/Company), posting directly into the **Purchase Section** (`/purchase/list`).
+     - **Bilateral Linkage**: Two `RecoveryDocumentLink` records generated (`SERVICE_INVOICE` and `PURCHASE_BILL`) for complete bilateral audit traceability.
+5. **Selenium Automated Verification**:
+   - `test_commission_recovery_selenium.py`: 12/12 stages PASSED (100% Exit Code 0).
+   - Verified inward purchase bill `PUR-SRV-2026-XXXX` visible in Ag-Grid table on `/purchase/list`.
+   - Captured and stored `verified_commission_purchase_dual_post.png`.
+
+---
+
 *End of Master Memory File.*
 
 

@@ -2164,6 +2164,93 @@ def create_full_software_walkthrough():
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
+    # ==========================================
+    # SECTION 24: C&F CONSIGNING AGENT & DUAL-POSTING ENGINE
+    # ==========================================
+    add_h1("24. C&F (Carrying & Forwarding) & Consigning Agent Commercial Architecture, Client-Company Association, and Automated Inward Purchase Dual-Posting")
+    add_p(
+        "To empower pharmaceutical distributors acting as institutional Carrying & Forwarding (C&F) and Consigning Agents, "
+        "the ERP introduces an integrated commercial framework that models infrastructure recharges, manufacturer brand-dealerships, "
+        "and dual-entry accounting automation. Under this operational model, the distributor provides dedicated physical assets "
+        "(cold-storage godowns, material handling staff, localized cargo transportation) to Principal manufacturers, billing them "
+        "periodically for turnover-based commissions and agreed operating expense reimbursements."
+    )
+
+    add_h2("24.1 The C&F Consigning Agent 4-Pillar Commercial Matrix")
+    add_p(
+        "Under C&F operations, commercial claims are structured across four fundamental operational pillars, each governed by "
+        "explicit contractual reimbursement terms defined at the Principal Agreement level:"
+    )
+
+    cf_matrix_table = doc.add_table(rows=1, cols=4)
+    cf_matrix_headers = ["Operational Pillar", "Cost Bearer Options", "Billing Mechanism", "Audit & Verification Scope"]
+    cf_matrix_data = [
+        ["1. Godown Storage & Rent", "PRINCIPAL or DISTRIBUTOR", "Fixed Monthly Budget (e.g. ₹42,000/mo) or Actual Rental Agreement Invoice", "Warehouse square footage verification, temperature log compliance, and landlord rent receipt matching."],
+        ["2. Dedicated Staff Salaries", "PRINCIPAL or DISTRIBUTOR", "Monthly Staff Budget (e.g. ₹28,500/mo) with Dynamic Month-to-Month Payroll Override", "Depot dispatcher attendance, biometric punch logs, ESI/PF statutory challans, and payroll voucher reconciliation."],
+        ["3. Transportation & Cargo", "PRINCIPAL or DISTRIBUTOR", "Per-Kg / Per-Box Freight Rate (e.g. ₹4.5/kg) or Decoupled Freight Bill Pass-Through", "Consignment LR number tracking, weighbridge slips, delivery POD confirmation, and fuel surcharge indexation."],
+        ["4. Sales Commission", "PRINCIPAL (Paid to Agent)", "Percentage on Net/Gross Client Sales Turnover (e.g. 4.0% - 6.5%)", "Client invoice turnover matching, credit note deduping, rate card tier validation, and SHA-256 hash freezing."]
+    ]
+    style_table(cf_matrix_table, [1.4, 1.4, 1.8, 2.4], cf_matrix_headers, cf_matrix_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("24.2 Client-to-Product Company Dealership & Multi-Brand Association")
+    add_p(
+        "A critical architectural requirement in pharmaceutical supply chains is the strict distinction between a 'Product Company' "
+        "(the brand manufacturer associated with SKUs, e.g. Cipla, Sun Pharma, Mankind, Abbott) and an 'Accounting Ledger' "
+        "(the legal entity for debtor/creditor balances). In Party Master (/master/parties), each Customer Profile now includes "
+        "an authorized Product Companies multi-select registry (company_ids column):"
+    )
+    add_p("• Exclusive Client Dealership: Restricts a retail client (e.g. Apollo Pharmacy) to specific authorized manufacturer lines (e.g. Cipla only or Cipla + Sun Pharma).")
+    add_p("• All-Company Wholesale Dealership: Allows institutional distributors and super-stockists to purchase all catalog brands using the ['ALL'] master wildcard.")
+    add_p("• Targeted Billing & Reporting: Filter sales turnover by company in the Commission Sandbox, ensuring agent commission calculations only aggregate sales of goods belonging to the dealing Principal.")
+
+    add_h2("24.3 Dynamic Month-to-Month Expense Adjustments in Calculation Sandbox")
+    add_p(
+        "While master agreements define default monthly reimbursement budgets, actual monthly operating expenses fluctuate due to "
+        "overtime pay, bonus incentives, seasonal cold storage power tariffs, or temporary warehouse leasing. The Deterministic "
+        "Commission Sandbox ([F3]) provides dynamic manual adjustment overrides:"
+    )
+    add_p("• Staff Salary Custom Override: Operators can input the exact payroll disbursement for the current billing cycle (e.g. ₹28,500 vs default ₹25,000), which directly updates the base calculation amount and formula trace.")
+    add_p("• Godown Rent Custom Override: Accommodates seasonal warehouse expansions or utility recharges by allowing the operator to input the audited monthly lease amount (e.g. ₹42,000).")
+    add_p("• Client-Specific Turnover Isolation: Select specific authorized clients dealing with the Principal to compute commission strictly against their verified billing turnover.")
+
+    add_h2("24.4 Automated Inward Purchase Dual-Posting Architecture")
+    add_p(
+        "When a recovery claim batch is approved by management through the 4-Eyes Maker-Checker protocol, clicking [Invoice & Post to Purchase] "
+        "triggers an atomic dual-posting operation that synchronizes both sides of the commercial ledger without manual data re-entry:"
+    )
+
+    dual_post_table = doc.add_table(rows=1, cols=3)
+    dual_post_headers = ["Posting Leg", "Generated Document & Target Section", "Commercial & Accounting Function"]
+    dual_post_data = [
+        [
+            "Leg 1: Outward Service Billing",
+            "Service Invoice (SINV-2026-XXXX)\nSection: Commission Control Center (/commission)",
+            "Issues legal tax invoice to Principal manufacturer for commission earned + recharge of godown, staff, and freight opex with GST."
+        ],
+        [
+            "Leg 2: Inward Purchase Posting",
+            "Purchase Bill (PUR-SRV-2026-XXXX)\nSection: Purchase Invoices (/purchase/list)",
+            "Automatically inserts an inward purchase voucher into the Purchase Ledger under the Principal's supplier account. Itemizes commission, godown rent, staff payroll, and freight lines, crediting the Principal and creating an immediate audit-traceable record in the purchase register."
+        ]
+    ]
+    style_table(dual_post_table, [1.5, 2.5, 3.0], dual_post_headers, dual_post_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("24.5 Production Verification & Visual Photographic Evidence")
+    add_p(
+        "The automated Selenium test suite (test_commission_recovery_selenium.py) executes 12 end-to-end stages verifying C&F agreement "
+        "deal terms, authorized client querying, custom staff salary overrides, 4-eyes claim approval, and dual-posting to the purchase ledger. "
+        "The photographic evidence below certifies operational readiness:"
+    )
+
+    add_screenshot(
+        "verified_commission_purchase_dual_post.png",
+        "Figure 24.1: Production Verified Inward Purchase Bills Register (/purchase/list) confirming instant, automated Dual-Posting of C&F Service Invoices as purchase bills (PUR-SRV-2026-XXXX) under the Principal's supplier account."
+    )
+
+    doc.add_paragraph().paragraph_format.space_after = Pt(12)
+
     # Save to erp2 directory
     output_path = r"C:\Users\DELL\OneDrive\Desktop\erp2\ERP_ENTERPRISE_SYSTEM_COMPLETE_SOFTWARE_MASTER_WALKTHROUGH.docx"
     doc.save(output_path)

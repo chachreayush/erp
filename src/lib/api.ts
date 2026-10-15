@@ -3186,6 +3186,9 @@ export interface CommissionCalculationItem {
   principal_id: string;
   principal_name: string;
   category: 'EARNED_COMMISSION' | 'RECOVERABLE_EXPENSE' | 'SERVICE_FEE';
+  event_type?: string;
+  client_id?: string;
+  client_name?: string;
   base_value: number;
   rate_applied: number;
   calculated_amount: number;
@@ -3285,8 +3288,33 @@ export async function apiExecuteCommissionCalculation(payload: {
   custom_rate?: number;
   rule_id?: string;
   description?: string;
+  client_id?: string;
+  client_name?: string;
+  custom_salary_amount?: number;
+  custom_rent_amount?: number;
 }): Promise<{ status: string; message: string; data: CommissionCalculationItem }> {
   const response = await apiClient.post('/api/commission/calculate', payload);
+  return response.data;
+}
+
+export async function apiUpdateAgreementDealTerms(
+  agreementId: string,
+  payload: {
+    agreement_type?: string;
+    cargo_expense_borne_by?: string;
+    staff_salary_borne_by?: string;
+    godown_storage_borne_by?: string;
+    default_monthly_staff_salary?: number;
+    default_monthly_godown_rent?: number;
+    sales_commission_rate?: number;
+  }
+): Promise<{ status: string; message: string; data: any }> {
+  const response = await apiClient.put(`/api/commission/agreements/${agreementId}/deal-terms`, payload);
+  return response.data;
+}
+
+export async function apiGetClientsByCompany(companyId: string): Promise<{ status: string; count: number; data: any[] }> {
+  const response = await apiClient.get(`/api/parties/clients-by-company/${companyId}`);
   return response.data;
 }
 

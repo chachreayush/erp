@@ -1477,6 +1477,71 @@ DOC-37 establishes the enterprise commercial commission calculation and expense 
 
 ---
 
+## 31. C&F Consigning Agent Operational Model, 4-Pillar Commercial Deal Terms & Dual-Posting to Purchase Bills
+
+### 31.1 Architectural Domain & Conceptual Separation
+The C&F (Carrying & Forwarding) and Consigning Agent architecture enforces a strict separation between:
+1. **Product Company** (`item.company_id` / `items.company`): The brand manufacturer entity associated with catalog SKUs, sales turnover reporting, and contractual commission agreements.
+2. **Accounting Ledger** (`accounts.id` / `ledgers`): The legal entity debtor/creditor ledger maintained in double-entry General Ledger (DOC-08).
+3. **Client-Company Mapping** (`CustomerProfile.company_ids`): A JSON column storing an array of company UUIDs or `["ALL"]`. Allows filtering clients eligible for brand dealership sales in calculation sandboxes via `GET /api/parties/clients-by-company/{company_id}`.
+
+### 31.2 Database Schema & Model Extensions
+1. **`CustomerProfile.company_ids`** (`backend/models.py`):
+   ```python
+   company_ids = Column(JSON, nullable=True, default=list)  # List of company UUIDs or ["ALL"]
+   ```
+2. **`CommissionCalculation` Extensions** (`backend/models.py`):
+   ```python
+   client_id = Column(UUID(as_uuid=True), nullable=True)
+   client_name = Column(String(255), nullable=True)
+   event_type = Column(String(50), nullable=True)  # STAFF_SALARY, GODOWN_RENT, SALES_BILL
+   ```
+3. **4-Pillar Deal Terms Schema** (`PrincipalCommissionAgreement.terms_json`):
+   ```json
+   {
+     "deal_terms": {
+       "godown_rent": {"bearer": "PRINCIPAL", "default_amount": 42000.0, "notes": "Agreed monthly warehouse rental"},
+       "staff_salary": {"bearer": "PRINCIPAL", "default_amount": 28500.0, "notes": "Dedicated staff salaries"},
+       "cargo_freight": {"bearer": "DISTRIBUTOR", "default_amount": 0.0, "notes": "Borne by distributor"},
+       "sales_commission": {"commission_rate_pct": 6.5, "basis": "CLIENT_SALES_TURNOVER", "notes": "Percentage on client sales"}
+     }
+   }
+   ```
+
+### 31.3 Backend RESTful API Endpoints
+| Method | Path | Description | Invariant Impact |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/parties/clients-by-company/{company_id}` | Returns clients associated with a specific Product Company or `ALL`. | Multi-tenant customer profile lookup. |
+| `PUT` | `/api/commission/agreements/{agreement_id}/deal-terms` | Updates 4-pillar deal terms in `terms_json`. | Uses `flag_modified` to guarantee SQLAlchemy JSON change tracking. |
+| `POST` | `/api/commission/calculate` | Supports `STAFF_SALARY`, `GODOWN_RENT`, and `SALES_BILL` (with `client_id`, `client_name`). | Tags calculation records with immutable SHA-256 hashes. |
+| `POST` | `/api/commission/claims/{id}/action` | Executes `CREATE_DOCUMENT` generating **Outward Service Invoice** and **Inward Service Purchase Bill**. | Creates bilateral `RecoveryDocumentLink` entries and posts to Purchase Section. |
+
+### 31.4 The Dual-Posting Engine Implementation
+When `action == "CREATE_DOCUMENT"` is dispatched to `/api/commission/claims/{id}/action`:
+1. **Outward Service Invoice**:
+   - `doc_number = f"SINV-2026-{claim.id.hex[:4].upper()}"`
+   - Linked to `RecoveryDocumentLink(document_type="SERVICE_INVOICE", document_number=doc_number, amount=claim.approved_amount)`.
+2. **Inward Service Purchase Bill**:
+   - `pur_bill_number = f"PUR-SRV-2026-{claim.id.hex[:4].upper()}"`
+   - Created in `models.Invoice` table:
+     - `invoice_type = "purchase-bill"`
+     - `invoice_number = pur_bill_number`
+     - `customer_name = principal_name`
+     - `subtotal = claim.approved_amount`
+     - `total_amount = claim.approved_amount`
+     - `status = "APPROVED"`
+     - `notes = f"Auto-generated C&F Service Purchase Bill against Claim #{claim.claim_number}"`
+   - Linked to `RecoveryDocumentLink(document_type="PURCHASE_BILL", document_number=pur_bill_number, amount=claim.approved_amount)`.
+3. **Purchase List Route & Ag-Grid Table**:
+   - Direct route `/purchase/list` in `src/App.tsx` mapped to `PurchaseList.tsx`.
+   - Inward bill is immediately searchable, verifiable, and editable in the purchase register.
+
+### 31.5 Automated Selenium Verification Matrix
+- **Test Suite**: `test_commission_recovery_selenium.py` (12 stages, 100% Exit Code 0).
+- **Visual Proof**: `verified_commission_purchase_dual_post.png` capturing the Ag-Grid table on `/purchase/list` displaying `PUR-SRV-2026-XXXX`.
+
+---
+
 *End of Developer Manual.*
 
 
