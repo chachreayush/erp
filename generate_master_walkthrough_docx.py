@@ -1716,6 +1716,454 @@ def create_full_software_walkthrough():
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
+    # =========================================================================
+    # SECTION 23: DOC-37 PRINCIPAL & C&F COMMISSION & RECOVERY ENGINE v2.0
+    # =========================================================================
+    add_h1("SECTION 23: DOC-37 PRINCIPAL & C&F COMMISSION & RECOVERY ENGINE v2.0")
+    add_p(
+        "DOC-37 establishes the enterprise commercial commission calculation and expense recovery subsystem for Principal "
+        "and C&F operations. Built strictly adhering to the 4 architectural invariants, it unifies rate contract versioning, "
+        "deterministic on-the-fly commission calculation, 4-eyes claim submission and approval workflows, service invoice and debit note linking, "
+        "consolidated periodic recovery statement generation, and immutable SHA-256 audit trails."
+    )
+
+    add_h2("23.1 Engine Architecture, 4 Architectural Invariants & Relational Schema Directory (14 PostgreSQL Models)")
+    add_p(
+        "DOC-37 is engineered around four non-negotiable architectural invariants designed to prevent financial ledger corruption "
+        "and ensure total auditability across multi-tier pharmaceutical distribution networks:"
+    )
+    add_p("1. Zero Duplicate Ledgers: DOC-37 never creates shadow accounting ledgers. Calculations, claims, and recovery statements remain operational commercial objects. Financial recognition strictly routes through DOC-08 General Ledger, DOC-29 Statutory Tax, DOC-16 Stock, and DOC-07 Settlements via standard service invoices or credit/debit notes.")
+    add_p("2. Separation of Earned Commission vs Recoverable Expenses: Turnover commission (commercial income earned on goods sold) is strictly segregated from recoverable expenses (operational recharges for freight, demurrage, loading, and repacking). This guarantees clean taxability and profit-and-loss categorization.")
+    add_p("3. Deterministic Explainability & SHA-256 Integrity: Every calculation freezes its exact mathematical formula trace, unit rates, slab parameters, and generates an immutable SHA-256 hash. Retroactive changes never overwrite history; they generate explicit delta adjustments (commission_adjustments).")
+    add_p("4. 4-Eyes Claim Workflow & Dispute Isolation: Recovery claims support partial approval, allowing undisputed amounts to be invoiced immediately while disputed items are isolated into quarantine without blocking periodic settlement runs.")
+
+    add_p(
+        "The underlying PostgreSQL database schema comprises 14 tightly typed relational models registered in backend/models.py "
+        "and initialized via backend/init_commission_tables.py:"
+    )
+
+    comm_schema_table = doc.add_table(rows=1, cols=4)
+    comm_sch_headers = ["Relational Model & Table Name", "Primary & Foreign Key Topology", "Core Attributes & Data Types", "Business Function & Invariant Enforcement"]
+    comm_sch_data = [
+        [
+            "PrincipalCommissionAgreement\n(principal_commission_agreements)",
+            "PK: id (UUID)\nFK: company_id -> organizations.id\nFK: principal_id (UUID)",
+            "principal_code (String 50)\nprincipal_name (String 200)\nagreement_code (String 80)\nversion_no (String 20: v1.0)\nvalid_from, valid_to (DateTime)\nstatus (ACTIVE, SUPERSEDED)\nterms_json (JSON)",
+            "Master legal agreement binding the principal to specific commercial terms, payment frequencies, dispute grace periods, and minimum guarantee rules."
+        ],
+        [
+            "CommissionRule\n(commission_rules)",
+            "PK: id (UUID)\nFK: agreement_id -> principal_commission_agreements.id",
+            "rule_code (String 50)\nrule_name (String 150)\npriority (Integer)\nrule_type (PERCENTAGE, PER_UNIT, FIXED_PERIOD, MINIMUM_GUARANTEE)\nrate_pct, unit_rate, min_guarantee_amount (Numeric)\nformula_config (JSON)",
+            "Defines specific mathematical calculation formulas (e.g. 6.5% Net Turnover, ₹15/package handling, ₹25,000 monthly minimum guarantee floor)."
+        ],
+        [
+            "CommissionScope\n(commission_scopes)",
+            "PK: id (UUID)\nFK: rule_id -> commission_rules.id\nFK: branch_id (UUID)",
+            "product_scope (ALL, CATEGORY, SKU)\ncustomer_scope (ALL, TIER, SPECIFIC)\nterritory_scope (ALL, REGIONAL)\nscope_filter_json (JSON)",
+            "Granular applicability boundaries restricting commission rules to specific product categories, customer tiers, or geographic territories."
+        ],
+        [
+            "CommissionEvent\n(commission_events)",
+            "PK: id (UUID)\nFK: company_id -> organizations.id\nFK: principal_id (UUID)",
+            "event_type (SALES_BILL, SALES_RETURN, FREIGHT_COST, STORAGE_CHARGE, LOADING_CHARGE)\nsource_doc_type (INVOICE, RETURN, FREIGHT_EVENT, CONSIGNMENT)\nsource_doc_id (String 100)\nidempotency_key (String 120 unique)",
+            "Idempotent operational event trigger recording source transaction provenance before calculation execution, preventing duplicate calculation runs."
+        ],
+        [
+            "CommissionMeasure\n(commission_measures)",
+            "PK: id (UUID)\nFK: event_id -> commission_events.id",
+            "measure_type (NET_SALES_VALUE, GROSS_SALES_VALUE, QUANTITY_UNITS, PACKAGE_COUNT)\nbase_amount (Numeric 14, 2)\nbase_quantity (Numeric 14, 2)\nuom (String 20: INR, PACKAGES)",
+            "Normalized quantitative basis for computation, establishing the exact net sales value or physical handling count."
+        ],
+        [
+            "CommissionCalculation\n(commission_calculations)",
+            "PK: id (UUID)\nFK: event_id -> commission_events.id\nFK: rule_id (UUID)",
+            "calculation_number (String 80 unique)\ncategory (EARNED_COMMISSION, RECOVERABLE_EXPENSE)\nbase_value (Numeric 14, 2)\nrate_applied (Numeric 8, 4)\ncalculated_amount (Numeric 14, 2)\nformula_trace (Text)\nstate (CALCULATED, APPROVED, BATCHED, RECOVERY_CREATED, DISPUTED)\nsha256_hash (String 64)",
+            "Deterministic calculation record storing frozen formula breakdown, state lifecycle, and tamper-evident SHA-256 cryptographic hash."
+        ],
+        [
+            "CommissionAdjustment\n(commission_adjustments)",
+            "PK: id (UUID)\nFK: original_calc_id -> commission_calculations.id",
+            "delta_amount (Numeric 14, 2)\nreason_code (RETURN_REDUCTION, RATE_CORRECTION, DISPUTE_RESOLUTION)\ndescription (Text)\napproved_by_id (UUID)",
+            "Audit-preserving delta adjustments recording post-calculation amendments (e.g. sales returns or dispute resolutions) without overwriting historical calculations."
+        ],
+        [
+            "RecoveryClaim\n(recovery_claims)",
+            "PK: id (UUID)\nFK: company_id -> organizations.id\nFK: principal_id (UUID)",
+            "claim_number (String 80 unique)\nperiod_from, period_to (DateTime)\ntotal_earned_commission (Numeric 14, 2)\ntotal_recoverable_expenses (Numeric 14, 2)\ntotal_claimed_amount (Numeric 14, 2)\napproved_amount, disputed_amount (Numeric 14, 2)\nstatus (DRAFT, SUBMITTED, APPROVED, PARTIALLY_APPROVED, RECOVERY_CREATED)",
+            "Formal commercial claim package aggregating approved earned commissions and recoverable expenses for 4-eyes principal approval and settlement."
+        ],
+        [
+            "RecoveryClaimLine\n(recovery_claim_lines)",
+            "PK: id (UUID)\nFK: claim_id -> recovery_claims.id\nFK: calc_id (UUID)",
+            "source_doc_type, source_doc_id (String)\nline_description (String 255)\nrequested_amount, approved_amount, disputed_amount (Numeric 14, 2)\nstatus (PENDING, APPROVED, DISPUTED)",
+            "Granular itemization of claim components linking back to original calculation events or direct expense vouchers."
+        ],
+        [
+            "RecoveryDocumentLink\n(recovery_document_links)",
+            "PK: id (UUID)\nFK: claim_id -> recovery_claims.id",
+            "document_type (SERVICE_INVOICE, CREDIT_NOTE, DEBIT_NOTE)\ndocument_number (String 100)\namount (Numeric 14, 2)\nlinked_at (DateTime)",
+            "Explicit financial cross-link bridging approved operational claims into DOC-08/DOC-29 General Ledger and Statutory Tax billing."
+        ],
+        [
+            "RecoveryStatement\n(recovery_statements)",
+            "PK: id (UUID)\nFK: principal_id (UUID)",
+            "statement_number (String 80 unique)\nperiod_from, period_to (DateTime)\nearned_commission, expense_recovery, approved_commercial, invoiced_total, settled_total, outstanding_balance (Numeric 14, 2)\nstatement_hash (String 64)\nstatus (GENERATED, RECONCILED)",
+            "Periodic authoritative commercial statement summarizing turnover earnings, recoverable ancillaries, bank remittances, and outstanding principal balance."
+        ],
+        [
+            "RecoveryStatementLine\n(recovery_statement_lines)",
+            "PK: id (UUID)\nFK: statement_id -> recovery_statements.id",
+            "category (EARNED_COMMISSION, EXPENSE_RECOVERY, SETTLEMENT)\nreference_doc_id (String 100)\ndescription (String 255)\namount (Numeric 14, 2)",
+            "Reconstructable line-item movement backing the periodic statement balance with full backward source-document traceability."
+        ],
+        [
+            "CommissionException\n(commission_exceptions)",
+            "PK: id (UUID)\nFK: company_id -> organizations.id",
+            "source_id (String 100)\nexception_type (UNMAPPED_PRODUCT, EXPIRED_AGREEMENT, MISSING_RATE_CARD)\nseverity (INFO, WARNING, ERROR, CRITICAL)\ndescription (Text)\nstate (OPEN, RESOLVED, WAIVED)",
+            "Operational exception quarantine catching products without rate cards or expired agreements before calculations are batched."
+        ],
+        [
+            "CommissionAudit\n(commission_audits)",
+            "PK: id (UUID)\nFK: company_id -> organizations.id",
+            "object_type (CALCULATION, CLAIM, STATEMENT, AGREEMENT)\nobject_id (String 100)\naction (CALCULATE, APPROVE, DISPUTE, SUBMIT, RECONCILE)\nactor_username (String 100)\nbefore_hash, after_hash (String 64)\ndetails_json (JSON)",
+            "Immutable audit trail capturing user actions, before/after SHA-256 hashes, and timestamped forensic evidence for regulatory compliance."
+        ]
+    ]
+    style_table(comm_schema_table, [1.3, 1.4, 1.6, 2.2], comm_sch_headers, comm_sch_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("23.2 Complete RESTful API Specification (/api/commission/*)")
+    add_p(
+        "DOC-37 services are mounted under /api/commission with JWT multi-tenant organization filtering and strict Pydantic payload models:"
+    )
+
+    comm_api_table = doc.add_table(rows=1, cols=4)
+    comm_api_headers = ["HTTP Method & Route", "Request Parameters / Payload", "Response Structure", "Operational Workflow & Invariant Impact"]
+    comm_api_data = [
+        [
+            "GET /api/commission/summary",
+            "Headers: Authorization: Bearer <JWT>\nQuery: None",
+            "{status: 'success', data: {total_earned_commission, total_recoverable_expenses, net_commercial_total, open_claims_count, open_claims_amount, active_agreements_count, total_settled, total_outstanding}}",
+            "Feeds executive telemetry cards on Commission Control Center, reporting live commercial position across all principals."
+        ],
+        [
+            "GET /api/commission/agreements",
+            "Headers: Authorization: Bearer <JWT>\nQuery: principal_id (Optional UUID), status (Optional str)",
+            "{status: 'success', count: int, data: [{id, principal_code, principal_name, agreement_code, version_no, status, terms_json, rules: [...]}]}",
+            "Retrieves active agreements with full nested rule definitions (Percentage, Per-Unit, Minimum Floor) and territory/product scopes."
+        ],
+        [
+            "POST /api/commission/calculate",
+            "Payload: {principal_id, event_type, source_doc_type, source_doc_id, base_value, quantity, category}",
+            "{status: 'success', data: {id, calculation_number, principal_name, category, calculated_amount, formula_trace, sha256_hash, state}}",
+            "Executes on-the-fly deterministic calculation, evaluates active agreement rules, generates frozen formula trace and SHA-256 hash."
+        ],
+        [
+            "GET /api/commission/calculations",
+            "Headers: Authorization: Bearer <JWT>\nQuery: principal_id, category, state, limit (default 50)",
+            "{status: 'success', count: int, data: [{id, calculation_number, principal_name, category, calculated_amount, formula_trace, state, sha256_hash}]}",
+            "Returns auditable calculations ledger with filtering by lifecycle state (CALCULATED, APPROVED, BATCHED, DISPUTED)."
+        ],
+        [
+            "POST /api/commission/calculations/{id}/action",
+            "Path: id (UUID)\nPayload: {action: 'APPROVE'|'DISPUTE'|'ADJUST'|'CANCEL', delta_amount: float, reason: str}",
+            "{status: 'success', data: {id, calculation_number, calculated_amount, state, sha256_hash}}",
+            "Executes lifecycle state transition. If ADJUST, updates amount, creates CommissionAdjustment delta record, and re-computes SHA-256 hash."
+        ],
+        [
+            "GET /api/commission/claims",
+            "Headers: Authorization: Bearer <JWT>\nQuery: principal_id, status",
+            "{status: 'success', count: int, data: [{id, claim_number, principal_name, period_from, period_to, total_claimed_amount, approved_amount, status, lines: [...], linked_documents: [...]}]}",
+            "Lists recovery claims with itemized lines and linked commercial documents (Service Invoices, Debit Notes)."
+        ],
+        [
+            "POST /api/commission/claims",
+            "Payload: {principal_id, period_from, period_to, calc_ids: [UUID], lines: [...], notes: str}",
+            "{status: 'success', data: {id, claim_number, principal_name, total_claimed_amount, status: 'DRAFT'}}",
+            "Batches approved earned commissions and recoverable expenses into a formal recovery claim, updating calc states to BATCHED."
+        ],
+        [
+            "POST /api/commission/claims/{id}/action",
+            "Path: id (UUID)\nPayload: {action: 'SUBMIT'|'APPROVE'|'DISPUTE'|'CREATE_DOCUMENT'|'SETTLE', approved_amount, document_type}",
+            "{status: 'success', data: {id, claim_number, status, approved_amount}}",
+            "Performs 4-eyes claim actions. CREATE_DOCUMENT generates linked Service Invoice (SINV-2026-XXXX) without duplicating general ledger."
+        ],
+        [
+            "GET /api/commission/statements",
+            "Headers: Authorization: Bearer <JWT>\nQuery: principal_id",
+            "{status: 'success', count: int, data: [{id, statement_number, principal_name, earned_commission, expense_recovery, invoiced_total, settled_total, outstanding_balance, statement_hash, lines: [...]}]}",
+            "Lists periodic recovery statements reconciling commercial earnings, recoverable expenses, and bank remittances."
+        ],
+        [
+            "POST /api/commission/statements/generate",
+            "Payload: {principal_id, period_from, period_to}",
+            "{status: 'success', data: {id, statement_number, principal_name, approved_commercial, outstanding_balance, statement_hash}}",
+            "Consolidates period calculations and claims into a formal periodic recovery statement with cryptographic integrity hash."
+        ],
+        [
+            "GET /api/commission/exceptions",
+            "Headers: Authorization: Bearer <JWT>\nQuery: state (OPEN, RESOLVED)",
+            "{status: 'success', count: int, data: [{id, source_id, exception_type, severity, description, state}]}",
+            "Returns operational exceptions queue for unmapped products or rate card discrepancies."
+        ],
+        [
+            "POST /api/commission/exceptions/{id}/resolve",
+            "Path: id (UUID)",
+            "{status: 'success', message: 'Exception marked as RESOLVED'}",
+            "Resolves an exception record after contract amendment or supervisor clearance."
+        ],
+        [
+            "GET /api/commission/audits",
+            "Headers: Authorization: Bearer <JWT>\nQuery: limit (default 50)",
+            "{status: 'success', count: int, data: [{id, object_type, object_id, action, actor_username, before_hash, after_hash, created_at}]}",
+            "Returns immutable forensic audit trail records with SHA-256 before/after state hashes."
+        ]
+    ]
+    style_table(comm_api_table, [1.6, 1.4, 1.6, 1.9], comm_api_headers, comm_api_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("23.3 Terminal Cockpits, Screen Layouts, Hotkeys & UI Element Catalog")
+    add_p(
+        "DOC-37 provides a high-density Marg/Tally terminal cockpit designed for rapid zero-mouse operation at /commission:"
+    )
+    add_p("1. Commission Control Center (/commission): Features 6 top telemetry KPI cards, 5 functional tab workspaces, and live status monitoring.")
+    add_p("2. Counter Workbench Hub Tile: Added #hub-btn-commission-management launcher tile to the Home Screen with global hotkey [Ctrl+4].")
+    add_p("3. Interactive Calculation Sandbox [F3]: Allows instant simulation of sales bill turnover commissions or recoverable ancillaries with deterministic formula trace display.")
+    add_p("4. 4-Eyes Recovery Claims Desk [F4]: Allows batching of approved calculations into formal recovery claims with 1-click Service Invoice generation.")
+    add_p("5. Principal Recovery Statements Desk [F5]: Displays consolidated periodic statements reconciling turnover earnings, expense recoveries, payments, and outstanding balances with SHA-256 hash validation.")
+    add_p("6. Zero-Mouse Operational Guarantee: 100% keyboard navigable with [F2] Agreements, [F3] Sandbox, [F4] Claims Desk, [F5] Statements, [F6] Audits, [F7] New Claim Modal, and [Esc] Hierarchical Dismissal.")
+
+    comm_ui_table = doc.add_table(rows=1, cols=4)
+    comm_ui_headers = ["Screen / Cockpit Location", "Element ID Selector", "Input / Control Type", "Operational Role & Zero-Mouse Trigger"]
+    comm_ui_data = [
+        [
+            "Counter Workbench (/)",
+            "#hub-btn-commission-management",
+            "Hub Tile Button [Ctrl+4]",
+            "Global launcher tile on Home Screen navigating directly to Commission Control Center (/commission)."
+        ],
+        [
+            "Commission Control Center (/commission)",
+            "Card: Earned Commission",
+            "Telemetry Metric Card",
+            "Displays total turnover commission earned across active distribution agreements."
+        ],
+        [
+            "Commission Control Center (/commission)",
+            "Card: Recoverable Ancillaries",
+            "Telemetry Metric Card",
+            "Displays total recoverable expense recharges for freight, demurrage, loading, and handling."
+        ],
+        [
+            "Commission Control Center (/commission)",
+            "Card: Net Commercial Total",
+            "Telemetry Metric Card",
+            "Displays net commercial value (Earned Commission + Recoverable Expenses)."
+        ],
+        [
+            "Commission Control Center (/commission)",
+            "Card: Open Claims Desk",
+            "Telemetry Metric Card",
+            "Displays pending recovery claims count and aggregate value awaiting principal audit."
+        ],
+        [
+            "Commission Control Center (/commission)",
+            "Card: Settled Remittances",
+            "Telemetry Metric Card",
+            "Displays bank remittances received and outstanding principal balance."
+        ],
+        [
+            "Commission Control Center (/commission)",
+            "Card: Active Agreements",
+            "Telemetry Metric Card",
+            "Displays active principal agreements count with SHA-256 hash validation indicator."
+        ],
+        [
+            "Calculation Sandbox Tab (/commission)",
+            "#btn-run-sandbox",
+            "Action Button [Enter]",
+            "Executes deterministic calculation simulation and displays formula trace and SHA-256 hash."
+        ],
+        [
+            "Claims Desk Tab (/commission)",
+            "#btn-open-claim-modal",
+            "Action Button [F7]",
+            "Opens New Claim Batch modal with calculation multi-select checkboxes."
+        ],
+        [
+            "New Claim Modal (/commission)",
+            "#btn-submit-claim-modal",
+            "Action Button [Enter]",
+            "Submits new recovery claim batch and transitions calculations to BATCHED."
+        ],
+        [
+            "Modal Dialogs (/commission)",
+            "Window Key Listener",
+            "Hotkey [Esc]",
+            "Dismisses active modal cleanly without navigating away from the current tab."
+        ]
+    ]
+    style_table(comm_ui_table, [1.3, 1.5, 1.4, 2.3], comm_ui_headers, comm_ui_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("23.4 Automated Local 10-Stage Selenium Verification Suite (100% PASS - Exit Code 0)")
+    add_p(
+        "A dedicated automated 10-stage test suite (test_commission_recovery_selenium.py) was executed against the local environment "
+        "(Backend: http://localhost:8000, Frontend: http://localhost:50005) using headless Chrome at 1440x950 resolution. "
+        "All 10 stages completed with 100% pass rate (Exit Code 0):"
+    )
+
+    comm_loc_table = doc.add_table(rows=1, cols=4)
+    comm_loc_headers = ["Stage Number & Name", "Target Endpoint / UI Selector", "Automated Assertions & Validation Criteria", "Execution Status"]
+    comm_loc_data = [
+        [
+            "Stage 1: Backend API Authentication",
+            "POST /auth/login\n(admin / Admin@123)",
+            "HTTP 200 OK. Received JWT bearer token and verified organization tenancy ID.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 2: Commission Summary API",
+            "GET /api/commission/summary",
+            "HTTP 200 OK. Asserted total_earned_commission > 0, total_recoverable_expenses > 0, active_agreements_count >= 2.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 3: Agreements & Rate Cards",
+            "GET /api/commission/agreements",
+            "HTTP 200 OK. Verified Sun Pharma (6.5% Net Commission, ₹25k min guarantee) and Cipla (5.0% Gross, ₹15 handling).",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 4: On-the-fly Calculation Sandbox",
+            "POST /api/commission/calculate",
+            "HTTP 200 OK. Executed ₹350k bill calculation, verified formula trace and asserted valid 64-character SHA-256 hash.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 5: Calculation Action (Approve)",
+            "POST /api/commission/calculations/{id}/action",
+            "HTTP 200 OK. Action APPROVE transitioned calculation state to APPROVED with audit log update.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 6: Recovery Claim Batch Workflow",
+            "POST /api/commission/claims\nPOST /claims/{id}/action",
+            "HTTP 200 OK. Batched calculation into recovery claim, executed SUBMIT -> APPROVE -> Linked to SERVICE_INVOICE.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 7: Statement Generation",
+            "POST /api/commission/statements/generate",
+            "HTTP 200 OK. Consolidated period earnings and recoveries into RecoveryStatement with statement hash.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 8: Headless Browser Init",
+            "Chrome Options: --headless=new\nViewport: 1440x950",
+            "WebDriver initialized with GPU disabled, no-sandbox, and sessionStorage auth injection.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 9: Counter Workbench Tile",
+            "driver.get('http://localhost:50005/')",
+            "Located #hub-btn-commission-management launcher on Counter Workbench. Captured verified_commission_homescreen_launcher.png.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 10: Control Center, Sandbox & Modal",
+            "driver.get('/commission')\n[F3], [F5], [F7], [Esc]",
+            "Verified 6 KPI cards, executed Sandbox simulation [F3], verified Statements Desk [F5], tested [F7] modal & [Esc] dismissal cleanly. Captured screenshots 2, 3 & 4.",
+            "100% PASS\n(Exit 0)"
+        ]
+    ]
+    style_table(comm_loc_table, [1.2, 1.8, 2.6, 0.9], comm_loc_headers, comm_loc_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("23.5 Live Vercel Production Cloud Verification Suite (4 Stages - 100% PASS)")
+    add_p(
+        "Following local verification, the live production deployment on Vercel CDN (https://erp-rho-three.vercel.app) was "
+        "audited via verify_live_vercel_commission_audit.py using the automated demo authentication hook (#btn-demo-login). "
+        "All 4 stages completed with 100% pass rate (Exit Code 0) confirming zero cloud regressions:"
+    )
+
+    comm_cld_table = doc.add_table(rows=1, cols=4)
+    comm_cld_headers = ["Cloud Audit Stage & Scope", "Live Target URL & Trigger", "Automated Cloud Assertions & Validation Criteria", "Production Status"]
+    comm_cld_data = [
+        [
+            "Stage 1: Production Auth & Launcher",
+            "https://erp-rho-three.vercel.app/\nTrigger: #btn-demo-login",
+            "Authenticated as Admin. Verified #counter-workbench-root and confirmed #hub-btn-commission-management presence. Captured live_vercel_commission_homescreen_launcher.png.",
+            "100% PASS\n(Live Cloud)"
+        ],
+        [
+            "Stage 2: Live Control Center Telemetry",
+            "https://erp-rho-three.vercel.app/commission",
+            "Verified all 6 Top KPI cards (Earned Commission, Recoverable Ancillaries, Net Commercial Total, Open Claims, Settled, Agreements). Captured live_vercel_commission_control_center.png.",
+            "100% PASS\n(Live Cloud)"
+        ],
+        [
+            "Stage 3: Live Sandbox & Ledger",
+            "https://erp-rho-three.vercel.app/commission\nTrigger: [F3] & #btn-run-sandbox",
+            "Switched to Sandbox [F3]. Triggered live calculation simulation. Verified formula trace and calculations ledger rendering. Captured live_vercel_commission_sandbox_ledger.png.",
+            "100% PASS\n(Live Cloud)"
+        ],
+        [
+            "Stage 4: Live Statements Desk & Modal",
+            "https://erp-rho-three.vercel.app/commission\nTrigger: [F5], [F7] & [Esc]",
+            "Verified Statements Desk [F5] with consolidated balances. Triggered New Claim Batch modal [F7] and verified instant [Esc] keyboard dismissal cleanly. Captured live_vercel_commission_statement_desk.png.",
+            "100% PASS\n(Live Cloud)"
+        ]
+    ]
+    style_table(comm_cld_table, [1.2, 1.8, 2.6, 0.9], comm_cld_headers, comm_cld_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("23.6 Visual Proof of Verification & Photographic Evidence (8 Production Screenshots)")
+    add_p(
+        "Below are the 8 publication-grade visual verification screenshots captured during automated local headless Selenium "
+        "and live Vercel production testing, providing indisputable proof of operational readiness, terminal ergonomics, and "
+        "zero-mouse hotkey execution:"
+    )
+
+    # 4 Local Verified Screenshots
+    add_screenshot(
+        "verified_commission_homescreen_launcher.png",
+        "Figure 23.1: Local Verified Counter Workbench (/) displaying the dedicated Commission Engine hub tile (#hub-btn-commission-management) mapped to global hotkey [Ctrl+4]."
+    )
+    add_screenshot(
+        "verified_commission_control_center.png",
+        "Figure 23.2: Local Verified Commission Control Center (/commission) featuring 6 top telemetry KPI cards, agreement versioning, and the Agreements & Rate Cards tab [F2]."
+    )
+    add_screenshot(
+        "verified_commission_sandbox_ledger.png",
+        "Figure 23.3: Local Verified Calculation Sandbox & Ledger (/commission) displaying on-the-fly turnover simulation, frozen formula trace, and SHA-256 tamper-evident hash."
+    )
+    add_screenshot(
+        "verified_commission_statement_desk.png",
+        "Figure 23.4: Local Verified Principal Recovery Statements Desk (/commission) displaying consolidated periodic run balances and transaction-level audit traceability."
+    )
+
+    # 4 Live Vercel Production Cloud Screenshots
+    add_screenshot(
+        "live_vercel_commission_homescreen_launcher.png",
+        "Figure 23.5: Live Vercel Production Cloud Verification (https://erp-rho-three.vercel.app/) confirming seamless authentication and Counter Workbench launcher tile presence on production CDN."
+    )
+    add_screenshot(
+        "live_vercel_commission_control_center.png",
+        "Figure 23.6: Live Vercel Production Cloud Control Center (/commission) verifying live telemetry KPI cards, rate card matrix, and active principal agreements."
+    )
+    add_screenshot(
+        "live_vercel_commission_sandbox_ledger.png",
+        "Figure 23.7: Live Vercel Production Cloud Calculation Sandbox verifying interactive turnover computation and deterministic ledger rendering on production CDN."
+    )
+    add_screenshot(
+        "live_vercel_commission_statement_desk.png",
+        "Figure 23.8: Live Vercel Production Cloud Statements Desk (/commission) validating periodic recovery consolidation, modal dialog rendering, and instant [Esc] keyboard dismissal."
+    )
+
+    doc.add_paragraph().paragraph_format.space_after = Pt(12)
+
     # Save to erp2 directory
     output_path = r"C:\Users\DELL\OneDrive\Desktop\erp2\ERP_ENTERPRISE_SYSTEM_COMPLETE_SOFTWARE_MASTER_WALKTHROUGH.docx"
     doc.save(output_path)

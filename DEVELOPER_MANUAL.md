@@ -1409,7 +1409,76 @@ DOC-36 establishes the institutional-grade operational engine that transforms st
 
 ---
 
+## 30. Principal & C&F Commission & Recovery Engine (DOC-37)
+
+### 30.1 Architectural Role & Subsystem Topology
+DOC-37 establishes the enterprise commercial commission calculation and expense recovery subsystem for Principal and C&F operations. Built strictly adhering to the 4 architectural invariants, it unifies rate contract versioning, deterministic on-the-fly commission calculation, 4-eyes claim submission and approval workflows, service invoice/debit note linking, consolidated periodic recovery statement generation, and immutable SHA-256 audit trails.
+
+```
++---------------------------------------------------------------------------------------------------+
+|                        DOC-37 PRINCIPAL COMMISSION & RECOVERY ENGINE                              |
++---------------------------------------------------------------------------------------------------+
+|  Operational Sources        Calculation Sandbox         Claims & Approval        Commercial Links |
+|  - Invoices (DOC-20)   ==>  - Rate Cards (Rules)   ==>  - 4-Eyes Claims     ==>  - Service Invoice|
+|  - Returns (DOC-24)         - Formula Tracing           - Partial Approval       - Debit Notes    |
+|  - Freight Cost (DOC-35)    - SHA-256 Hashes            - Quarantine Queue       - GL 5200 / Tax  |
++---------------------------------------------------------------------------------------------------+
+```
+
+### 30.2 4 Inviolable Architectural Governance Rules
+1. **Zero Duplicate Ledgers Rule**: DOC-37 never creates shadow accounting ledgers. Calculations, claims, and recovery statements remain operational commercial objects. Financial recognition strictly routes through DOC-08 General Ledger, DOC-29 Statutory Tax, DOC-16 Stock, and DOC-07 Settlements via standard service invoices or credit/debit notes.
+2. **Separation of Earned Commission vs Recoverable Expenses**: Turnover commission (commercial income earned on goods sold) is strictly segregated from recoverable expenses (operational recharges for freight, demurrage, loading, and repacking). This guarantees clean taxability and profit-and-loss categorization.
+3. **Deterministic Explainability & SHA-256 Integrity**: Every calculation freezes its exact mathematical formula trace, unit rates, slab parameters, and generates an immutable SHA-256 hash. Retroactive changes never overwrite history; they generate explicit delta adjustments (`commission_adjustments`).
+4. **4-Eyes Claim Workflow & Dispute Isolation**: Recovery claims support partial approval, allowing undisputed amounts to be invoiced immediately while disputed items are isolated into quarantine without blocking periodic settlement runs.
+
+### 30.3 Relational Database Schema (14 PostgreSQL Models in `backend/models.py`)
+1. `PrincipalCommissionAgreement`: PK `id` (UUID), FK `company_id` -> `organizations.id`, `principal_id`. Stores `principal_code`, `principal_name`, `agreement_code`, `version_no`, `valid_from`, `valid_to`, `status`, `terms_json`.
+2. `CommissionRule`: PK `id` (UUID), FK `agreement_id` -> `principal_commission_agreements.id`. Stores `rule_code`, `rule_name`, `priority`, `rule_type`, `rate_pct`, `unit_rate`, `fixed_amount`, `min_guarantee_amount`, `formula_config`.
+3. `CommissionScope`: PK `id` (UUID), FK `rule_id` -> `commission_rules.id`. Stores `product_scope`, `customer_scope`, `territory_scope`, `branch_id`, `scope_filter_json`.
+4. `CommissionEvent`: PK `id` (UUID), FK `company_id`, `principal_id`. Stores `event_type`, `event_date`, `source_doc_type`, `source_doc_id`, `idempotency_key` (unique), `payload_json`.
+5. `CommissionMeasure`: PK `id` (UUID), FK `event_id` -> `commission_events.id`. Stores `measure_type`, `base_amount`, `base_quantity`, `uom`.
+6. `CommissionCalculation`: PK `id` (UUID), Unique `calculation_number`, FK `event_id`, `rule_id`. Stores `category`, `base_value`, `rate_applied`, `calculated_amount`, `formula_trace`, `state`, `sha256_hash`.
+7. `CommissionAdjustment`: PK `id` (UUID), FK `original_calc_id` -> `commission_calculations.id`. Stores `delta_amount`, `reason_code`, `description`, `approved_by_id`.
+8. `RecoveryClaim`: PK `id` (UUID), Unique `claim_number`, FK `company_id`, `principal_id`. Stores `period_from`, `period_to`, `total_earned_commission`, `total_recoverable_expenses`, `total_claimed_amount`, `approved_amount`, `disputed_amount`, `status`.
+9. `RecoveryClaimLine`: PK `id` (UUID), FK `claim_id` -> `recovery_claims.id`, `calc_id`. Stores `source_doc_type`, `source_doc_id`, `line_description`, `requested_amount`, `approved_amount`, `disputed_amount`, `status`.
+10. `RecoveryDocumentLink`: PK `id` (UUID), FK `claim_id` -> `recovery_claims.id`. Stores `document_type`, `document_number`, `amount`, `linked_at`.
+11. `RecoveryStatement`: PK `id` (UUID), Unique `statement_number`, FK `principal_id`. Stores `period_from`, `period_to`, `earned_commission`, `expense_recovery`, `approved_commercial`, `invoiced_total`, `settled_total`, `outstanding_balance`, `statement_hash`, `status`.
+12. `RecoveryStatementLine`: PK `id` (UUID), FK `statement_id` -> `recovery_statements.id`. Stores `category`, `reference_doc_id`, `description`, `amount`.
+13. `CommissionException`: PK `id` (UUID), FK `company_id` -> `organizations.id`. Stores `source_id`, `exception_type`, `severity`, `description`, `state`.
+14. `CommissionAudit`: PK `id` (UUID), FK `company_id` -> `organizations.id`. Stores `object_type`, `object_id`, `action`, `actor_username`, `before_hash`, `after_hash`, `details_json`.
+
+### 30.4 RESTful API Reference (`/api/commission/*`)
+| Method | Path | Request Body / Query | Success Response | Status | Invariant Impact |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/api/commission/summary` | None | `{status, data: {...}}` | 200 | Returns live commercial metrics for Control Center cards. |
+| `GET` | `/api/commission/agreements` | `principal_id?`, `status?` | `{status, count, data: [...]}` | 200 | Lists active agreements with nested rule matrix and scopes. |
+| `POST` | `/api/commission/calculate` | `CommissionCalculateRequest` | `{status, data: {...}}` | 200 | Deterministic calculation evaluating active rules with SHA-256 hash. |
+| `GET` | `/api/commission/calculations` | `principal_id?`, `category?`, `state?` | `{status, count, data: [...]}` | 200 | Lists calculation ledger records with formula traces. |
+| `POST` | `/api/commission/calculations/{id}/action` | `{action, delta_amount?, reason?}` | `{status, data: {...}}` | 200 | State transition; generates CommissionAdjustment on delta adjustment. |
+| `GET` | `/api/commission/claims` | `principal_id?`, `status?` | `{status, count, data: [...]}` | 200 | Lists recovery claims with lines and linked documents. |
+| `POST` | `/api/commission/claims` | `RecoveryClaimCreateRequest` | `{status, data: {...}}` | 200 | Batches approved calculations into recovery claim (`CLM-REC-YYYY-XXX`). |
+| `POST` | `/api/commission/claims/{id}/action` | `{action, approved_amount?, document_type?}`| `{status, data: {...}}` | 200 | 4-eyes claim workflow; links Service Invoices/Debit Notes. |
+| `GET` | `/api/commission/statements` | `principal_id?` | `{status, count, data: [...]}` | 200 | Lists consolidated statements with reconstructable line movements. |
+| `POST` | `/api/commission/statements/generate` | `{principal_id, period_from?, period_to?}` | `{status, data: {...}}` | 200 | Consolidates period calculations into statement (`REC-STM-YYYY-XXX`). |
+| `GET` | `/api/commission/exceptions` | `state?` | `{status, count, data: [...]}` | 200 | Operational exceptions queue for unmapped products or slabs. |
+| `POST` | `/api/commission/exceptions/{id}/resolve`| Path: `id` | `{status, message}` | 200 | Resolves exception after supervisor verification. |
+| `GET` | `/api/commission/audits` | `limit?` | `{status, count, data: [...]}` | 200 | Immutable forensic audit trail records with before/after hashes. |
+
+### 30.5 Terminal Cockpits & Zero-Mouse Keyboard Layout
+- **Counter Workbench Launcher**: Added `#hub-btn-commission-management` tile to `/` with global hotkey `[Ctrl+4]`.
+- **Commission Control Center (`/commission`)**:
+  - Telemetry Strip: 6 KPI metric cards (`Earned Commission`, `Recoverable Ancillaries`, `Net Commercial Total`, `Open Claims Desk`, `Settled Remittances`, `Active Agreements`).
+  - `[F2]` Agreements & Rate Cards: Detailed contractual rules (turnover %, minimum guarantees, packaging recovery).
+  - `[F3]` Calculation Sandbox & Trace: Live simulation workspace with formula breakdown and SHA-256 integrity hash.
+  - `[F4]` Recovery Claims Desk: 4-eyes approval workflow, claim lines breakdown, and 1-click Service Invoice generation.
+  - `[F5]` Principal Recovery Statements: Consolidated periodic runs with transaction-level audit traceability.
+  - `[F6]` Exceptions & Audit Trail: Operational exception quarantine and immutable forensic audit trail.
+  - `[F7]` New Claim Modal (`#btn-open-claim-modal`): Batches approved calculations into claim; clean `[Esc]` dismissal.
+
+---
+
 *End of Developer Manual.*
+
 
 
 

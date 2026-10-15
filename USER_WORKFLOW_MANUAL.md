@@ -1293,7 +1293,55 @@ The main application header features a consolidated **Workflows (`[F4]`)** dropd
 
 ---
 
+## 30. Principal & C&F Commission & Recovery Engine User Guide (DOC-37)
+
+### 30.1 Accessing the Commission Control Center (`/commission`, `Ctrl+4`)
+1. Press **`Ctrl+4`** from anywhere on the Counter Workbench (`/`) or click the **Commission Engine** tile (`#hub-btn-commission-management`).
+2. Review the 6 Top Telemetry KPI Cards:
+   - **Earned Commission**: Commercial turnover income earned on goods sold across active distribution agreements (e.g. 6.5% Sun Pharma, 5.0% Cipla).
+   - **Recoverable Ancillaries**: Legitimate operational expense recharges (Inward transit freight, demurrage, loading, hamali, and secondary repacking).
+   - **Net Commercial Total**: Combined commercial entitlement (`Earned Commission + Recoverable Expenses`).
+   - **Open Claims Desk**: Value and count of recovery claims currently awaiting 4-eyes principal audit and authorization.
+   - **Settled Remittances**: Bank payments received from principals and current outstanding balance.
+   - **Active Agreements**: Total active principal commission contracts with SHA-256 integrity validation.
+
+### 30.2 Operating the 5 Functional Tabs (`[F2]`-`[F6]`)
+- **`[F2]` Agreements & Rate Cards**:
+  - Displays legal contract versions, effective dating, payment frequencies, dispute grace days, and minimum monthly floor guarantees (e.g., ₹25,000/month for Sun Pharma).
+  - Inspect mathematical rule definitions (Percentage, Per-Unit, Minimum Floor, Slabs) and territory scopes.
+  - Click **Simulate in Sandbox** to test calculations directly against contract rules.
+- **`[F3]` Calculation Sandbox & Trace**:
+  - Live simulation workspace allowing instant calculation of sales bill turnover commissions or recoverable ancillaries.
+  - Select Principal, Event Type (`SALES_BILL`, `SALES_RETURN`, `FREIGHT_COST`, `STORAGE_CHARGE`, `LOADING_CHARGE`), Source Doc ID, Base Value (₹), and Quantity.
+  - Click **Run Calc** (`#btn-run-sandbox`) or press **`Enter`**.
+  - Review the generated result card with step-by-step formula trace and tamper-evident SHA-256 hash.
+  - Inspect the **Calculations Ledger** below; click **Approve** to accept calculation or **Dispute** to flag for review.
+- **`[F4]` Recovery Claims Desk**:
+  - Displays all registered recovery claim packages with status badges (`DRAFT`, `SUBMITTED`, `APPROVED`, `RECOVERY_CREATED`).
+  - Itemized claim lines breakdown linking to source sales invoices or freight events.
+  - 4-Eyes Action Buttons: Click **Submit** to advance draft claims, **Approve** to authorize settlement, or **Create Service Invoice** to generate linked commercial document (`SINV-2026-XXXX`).
+- **`[F5]` Principal Recovery Statements Desk**:
+  - Authoritative periodic commercial statement consolidating earned turnover commissions, expense recoveries, settlements, and outstanding principal balances.
+  - Review transaction line items, reference vouchers, and SHA-256 statement integrity hash.
+  - Click **Generate Period Statement** to consolidate open period approved calculations into a new formal statement (`REC-STM-YYYY-XXX`).
+- **`[F6]` Exceptions & Audit Trail**:
+  - **Exceptions Queue**: Highlights products missing contractual slabs or expired agreements. Click **Resolve** after contract amendment.
+  - **Immutable Audit Trail**: Live log of all calculation, claim, and statement lifecycle actions with before/after SHA-256 cryptographic hashes.
+
+### 30.3 Creating a New Recovery Claim Batch (`[F7]`, `#btn-open-claim-modal`)
+1. Press **`F7`** or click **[F7] New Claim** (`#btn-open-claim-modal`).
+2. In the modal dialog, select:
+   - **Target Principal**: Choose active pharmaceutical principal.
+   - **Batch Description / Notes**: Enter descriptive summary (e.g., *Monthly C&F Commission & Expense Recovery Run*).
+   - **Select Approved Calculations**: Multi-select checkboxes for approved calculations to batch into the claim.
+3. Click **Create Claim Batch** (`#btn-submit-claim-modal`) or press **`Enter`**.
+4. The system generates a new recovery claim (`CLM-REC-YYYY-XXX`), transitions selected calculations to `BATCHED`, and updates open claim KPIs.
+5. Press **`Esc`** at any point to dismiss the modal cleanly without losing page context.
+
+---
+
 *End of User Workflow Manual.*
+
 
 
 
