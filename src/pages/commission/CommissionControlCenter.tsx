@@ -53,6 +53,7 @@ import {
   RecoveryClaimItem,
   RecoveryStatementItem
 } from '../../lib/api';
+import './CommissionControlCenter.css';
 
 const FALLBACK_SUMMARY: CommissionSummaryKPI = {
   total_earned_commission: 48250.0,

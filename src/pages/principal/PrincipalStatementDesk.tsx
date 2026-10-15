@@ -82,34 +82,93 @@ export const PrincipalStatementDesk: React.FC = () => {
   }) || [];
 
   return (
-    <div className="min-h-screen bg-[#f4f6f4] p-4 text-gray-800">
+    <div
+      style={{
+        backgroundColor: '#eef2ef',
+        minHeight: '100vh',
+        padding: '24px 32px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px',
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        color: '#111827'
+      }}
+    >
       {/* ── TOP ACTION BAR ──────────────────────────────────── */}
-      <div className="bg-[#1b4332] text-white p-4 rounded shadow mb-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div className="flex items-center space-x-3">
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          backgroundColor: '#1b4332',
+          color: '#ffffff',
+          borderRadius: '16px',
+          padding: '18px 24px',
+          boxShadow: '0 4px 20px rgba(27, 67, 50, 0.25)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <button
             onClick={() => navigate('/principal')}
-            className="p-1.5 bg-[#0f2e21] hover:bg-[#091f16] rounded text-emerald-300 transition-all flex items-center space-x-1 text-xs"
+            title="Return to Principal Control Center [Esc]"
+            style={{
+              padding: '8px 12px',
+              backgroundColor: '#0f2e21',
+              border: '1px solid #2d6a4f',
+              borderRadius: '8px',
+              color: '#a7f3d0',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '12px',
+              fontWeight: 700
+            }}
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft size={16} />
             <span>Back [Esc]</span>
           </button>
           <div>
-            <div className="flex items-center space-x-2">
-              <span className="text-xs font-semibold uppercase bg-emerald-800 text-emerald-200 px-2 py-0.5 rounded">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+              <span
+                style={{
+                  backgroundColor: '#0f2e21',
+                  color: '#a7f3d0',
+                  padding: '2px 8px',
+                  borderRadius: '6px',
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  textTransform: 'uppercase'
+                }}
+              >
                 DOC-36 Authoritative View
               </span>
-              <span className="text-xs text-emerald-300">Auditable Source Traceability</span>
+              <span style={{ fontSize: '11px', color: '#a7f3d0', fontWeight: 600 }}>
+                Auditable Source Traceability
+              </span>
             </div>
-            <h1 className="text-xl font-bold tracking-tight">Principal Business Statement Desk</h1>
+            <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#ffffff' }}>
+              Principal Business Statement Desk
+            </h1>
           </div>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <select
             id="select-statement-principal"
             value={selectedPrincipalId}
             onChange={e => setSelectedPrincipalId(e.target.value)}
-            className="bg-white text-gray-900 font-bold text-xs rounded px-3 py-2 border-0 shadow"
+            style={{
+              backgroundColor: '#ffffff',
+              color: '#111827',
+              borderRadius: '10px',
+              padding: '9px 14px',
+              border: 'none',
+              fontWeight: 700,
+              fontSize: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+              cursor: 'pointer'
+            }}
           >
             {principals.map(p => (
               <option key={p.id} value={p.id}>
@@ -120,96 +179,156 @@ export const PrincipalStatementDesk: React.FC = () => {
 
           <button
             onClick={() => window.print()}
-            className="bg-[#2d6a4f] hover:bg-[#23533e] text-white text-xs px-3 py-2 rounded font-bold flex items-center space-x-1"
+            style={{
+              backgroundColor: '#10b981',
+              color: '#ffffff',
+              padding: '9px 16px',
+              borderRadius: '10px',
+              fontSize: '12px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)'
+            }}
           >
-            <Printer className="w-3.5 h-3.5" />
+            <Printer size={15} />
             <span>Print Statement</span>
           </button>
         </div>
       </div>
 
       {statement && (
-        <div className="space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* ── STATEMENT HEADER CARD ──────────────────────────── */}
-          <div className="bg-white p-5 rounded shadow border border-gray-200">
-            <div className="flex flex-col md:flex-row md:items-center justify-between border-b pb-4 mb-4 gap-2">
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              padding: '24px',
+              borderRadius: '16px',
+              border: '1px solid #d8e2dc',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)'
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderBottom: '1px solid #e5e7eb',
+                paddingBottom: '18px',
+                marginBottom: '18px'
+              }}
+            >
               <div>
-                <span className="text-xs font-mono text-gray-400">STATEMENT RECORD</span>
-                <h2 className="text-lg font-bold text-[#1b4332]">{statement.principal_name}</h2>
-                <div className="text-xs text-gray-500 flex items-center space-x-3 mt-1">
-                  <span>Code: <strong className="text-gray-700">{statement.principal_code}</strong></span>
-                  <span>Agreement: <strong className="text-emerald-700">{statement.agreement_number}</strong></span>
-                  <span>Period: <strong className="text-gray-700">{statement.period}</strong></span>
+                <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#9ca3af', fontWeight: 700, textTransform: 'uppercase' }}>
+                  STATEMENT RECORD
+                </span>
+                <h2 style={{ margin: '4px 0 6px', fontSize: '20px', fontWeight: 800, color: '#1b4332' }}>
+                  {statement.principal_name}
+                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '12px', color: '#6b7280' }}>
+                  <span>Code: <strong style={{ color: '#111827' }}>{statement.principal_code}</strong></span>
+                  <span>Agreement: <strong style={{ color: '#059669' }}>{statement.agreement_number}</strong></span>
+                  <span>Period: <strong style={{ color: '#111827' }}>{statement.period}</strong></span>
                 </div>
               </div>
 
-              <div className="text-right">
-                <span className="text-xs text-gray-400 font-semibold block uppercase">Closing Stock Valuation</span>
-                <span className="text-2xl font-black text-emerald-950">
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 700, textTransform: 'uppercase', display: 'block' }}>
+                  Closing Stock Valuation
+                </span>
+                <span style={{ fontSize: '28px', fontWeight: 900, color: '#064e3b', display: 'block', margin: '2px 0' }}>
                   ₹{statement.figures.closing_stock_val.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </span>
-                <span className="text-xs text-emerald-700 font-bold block">
+                <span style={{ fontSize: '12px', color: '#059669', fontWeight: 700, display: 'block' }}>
                   {statement.figures.closing_stock_qty.toLocaleString()} Units in C&F Custody
                 </span>
               </div>
             </div>
 
             {/* 4-Column Movement Equation */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-              <div className="p-3 bg-gray-50 rounded border">
-                <span className="text-gray-500 font-semibold block uppercase text-[10px]">Opening Stock</span>
-                <span className="text-base font-bold text-gray-900">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
+              <div style={{ padding: '14px 16px', backgroundColor: '#f9fafb', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
+                <span style={{ color: '#6b7280', fontWeight: 700, textTransform: 'uppercase', fontSize: '10px', display: 'block' }}>Opening Stock</span>
+                <span style={{ fontSize: '18px', fontWeight: 800, color: '#111827', margin: '4px 0', display: 'block' }}>
                   ₹{statement.figures.opening_stock_val.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </span>
-                <span className="text-gray-500 block text-[10px]">{statement.figures.opening_stock_qty} units</span>
+                <span style={{ color: '#6b7280', fontSize: '11px' }}>{statement.figures.opening_stock_qty} units</span>
               </div>
 
-              <div className="p-3 bg-gray-50 rounded border">
-                <span className="text-emerald-700 font-semibold block uppercase text-[10px]">+ Inward Receipts</span>
-                <span className="text-base font-bold text-emerald-800">
+              <div style={{ padding: '14px 16px', backgroundColor: '#f9fafb', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
+                <span style={{ color: '#059669', fontWeight: 700, textTransform: 'uppercase', fontSize: '10px', display: 'block' }}>+ Inward Receipts</span>
+                <span style={{ fontSize: '18px', fontWeight: 800, color: '#065f46', margin: '4px 0', display: 'block' }}>
                   +₹{statement.figures.inward_val.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </span>
-                <span className="text-emerald-700 block text-[10px]">+{statement.figures.inward_qty} units</span>
+                <span style={{ color: '#059669', fontSize: '11px' }}>+{statement.figures.inward_qty} units</span>
               </div>
 
-              <div className="p-3 bg-gray-50 rounded border">
-                <span className="text-rose-700 font-semibold block uppercase text-[10px]">- Outward Dispatches</span>
-                <span className="text-base font-bold text-rose-800">
+              <div style={{ padding: '14px 16px', backgroundColor: '#f9fafb', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
+                <span style={{ color: '#dc2626', fontWeight: 700, textTransform: 'uppercase', fontSize: '10px', display: 'block' }}>- Outward Dispatches</span>
+                <span style={{ fontSize: '18px', fontWeight: 800, color: '#991b1b', margin: '4px 0', display: 'block' }}>
                   -₹{statement.figures.sales_val.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </span>
-                <span className="text-rose-700 block text-[10px]">-{statement.figures.sales_qty} units</span>
+                <span style={{ color: '#dc2626', fontSize: '11px' }}>-{statement.figures.sales_qty} units</span>
               </div>
 
-              <div className="p-3 bg-gray-50 rounded border">
-                <span className="text-blue-700 font-semibold block uppercase text-[10px]">+ Customer Returns</span>
-                <span className="text-base font-bold text-blue-800">
+              <div style={{ padding: '14px 16px', backgroundColor: '#f9fafb', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
+                <span style={{ color: '#2563eb', fontWeight: 700, textTransform: 'uppercase', fontSize: '10px', display: 'block' }}>+ Customer Returns</span>
+                <span style={{ fontSize: '18px', fontWeight: 800, color: '#1e40af', margin: '4px 0', display: 'block' }}>
                   +₹{statement.figures.returns_val.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </span>
-                <span className="text-blue-700 block text-[10px]">+{statement.figures.returns_qty} units</span>
+                <span style={{ color: '#2563eb', fontSize: '11px' }}>+{statement.figures.returns_qty} units</span>
               </div>
             </div>
           </div>
 
           {/* ── TRANSACTION DETAIL LINES TABLE ─────────────────── */}
-          <div className="bg-white p-5 rounded shadow border border-gray-200">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-2">
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              padding: '24px',
+              borderRadius: '16px',
+              border: '1px solid #d8e2dc',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)'
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '18px'
+              }}
+            >
               <div>
-                <h3 className="text-sm font-bold text-gray-900">Traceable Transaction Lines</h3>
-                <p className="text-xs text-gray-500">
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#111827' }}>
+                  Traceable Transaction Lines
+                </h3>
+                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#6b7280' }}>
                   Direct drill-down to originating invoices, dispatches, inward documents, and freight events.
                 </p>
               </div>
 
-              <div className="flex items-center space-x-2 text-xs">
+              <div style={{ display: 'flex', gap: '8px' }}>
                 {['ALL', 'INWARD', 'SALE', 'RETURN', 'FREIGHT'].map(cat => (
                   <button
                     key={cat}
                     onClick={() => setFilterCategory(cat)}
-                    className={`px-3 py-1 rounded font-bold transition-all ${
-                      filterCategory === cat
-                        ? 'bg-emerald-700 text-white shadow-sm'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      fontWeight: 700,
+                      fontSize: '11px',
+                      cursor: 'pointer',
+                      border: 'none',
+                      backgroundColor: filterCategory === cat ? '#1b4332' : '#f3f4f6',
+                      color: filterCategory === cat ? '#ffffff' : '#4b5563',
+                      boxShadow: filterCategory === cat ? '0 2px 6px rgba(27, 67, 50, 0.2)' : 'none',
+                      transition: 'all 0.15s ease'
+                    }}
                   >
                     {cat}
                   </button>
@@ -217,45 +336,73 @@ export const PrincipalStatementDesk: React.FC = () => {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table id="table-statement-lines" className="w-full text-left text-xs border">
+            <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
+              <table id="table-statement-lines" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
                 <thead>
-                  <tr className="bg-gray-100 border-b text-gray-600 font-bold uppercase tracking-wider">
-                    <th className="py-2.5 px-3">Date</th>
-                    <th className="py-2.5 px-3">Category</th>
-                    <th className="py-2.5 px-3">Source Document No</th>
-                    <th className="py-2.5 px-3">Item / Description</th>
-                    <th className="py-2.5 px-3">Batch Provenance</th>
-                    <th className="py-2.5 px-3 text-right">Movement Qty</th>
-                    <th className="py-2.5 px-3 text-right">Line Valuation (₹)</th>
-                    <th className="py-2.5 px-3 text-center">Accounting Status</th>
+                  <tr style={{ background: 'linear-gradient(90deg, #1b4332 0%, #2d6a4f 100%)', color: '#ffffff' }}>
+                    <th style={{ padding: '12px 14px', fontWeight: 700, textTransform: 'uppercase' }}>Date</th>
+                    <th style={{ padding: '12px 14px', fontWeight: 700, textTransform: 'uppercase' }}>Category</th>
+                    <th style={{ padding: '12px 14px', fontWeight: 700, textTransform: 'uppercase' }}>Source Document No</th>
+                    <th style={{ padding: '12px 14px', fontWeight: 700, textTransform: 'uppercase' }}>Item / Description</th>
+                    <th style={{ padding: '12px 14px', fontWeight: 700, textTransform: 'uppercase' }}>Batch Provenance</th>
+                    <th style={{ padding: '12px 14px', fontWeight: 700, textTransform: 'uppercase', textAlign: 'right' }}>Movement Qty</th>
+                    <th style={{ padding: '12px 14px', fontWeight: 700, textTransform: 'uppercase', textAlign: 'right' }}>Line Valuation (₹)</th>
+                    <th style={{ padding: '12px 14px', fontWeight: 700, textTransform: 'uppercase', textAlign: 'center' }}>Accounting Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody>
                   {filteredLines.length > 0 ? (
                     filteredLines.map((line, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                        <td className="py-2 px-3 text-gray-600">{line.date}</td>
-                        <td className="py-2 px-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            line.category === 'INWARD' ? 'bg-emerald-100 text-emerald-800' :
-                            line.category === 'SALE' ? 'bg-rose-100 text-rose-800' :
-                            line.category === 'RETURN' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
-                          }`}>
+                      <tr
+                        key={idx}
+                        style={{
+                          backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f9fafb',
+                          borderBottom: '1px solid #f3f4f6'
+                        }}
+                      >
+                        <td style={{ padding: '12px 14px', color: '#4b5563' }}>{line.date}</td>
+                        <td style={{ padding: '12px 14px' }}>
+                          <span
+                            style={{
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              fontSize: '10px',
+                              fontWeight: 800,
+                              backgroundColor:
+                                line.category === 'INWARD' ? '#d1fae5' :
+                                line.category === 'SALE' ? '#fee2e2' :
+                                line.category === 'RETURN' ? '#dbeafe' : '#f3e8ff',
+                              color:
+                                line.category === 'INWARD' ? '#065f46' :
+                                line.category === 'SALE' ? '#991b1b' :
+                                line.category === 'RETURN' ? '#1e40af' : '#6b21a8'
+                            }}
+                          >
                             {line.category}
                           </span>
                         </td>
-                        <td className="py-2 px-3 font-mono font-bold text-emerald-900">{line.source_doc}</td>
-                        <td className="py-2 px-3 font-medium text-gray-900">{line.product_name}</td>
-                        <td className="py-2 px-3 font-mono text-gray-500">{line.batch_no}</td>
-                        <td className="py-2 px-3 text-right font-bold text-gray-800">
+                        <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontWeight: 700, color: '#065f46' }}>
+                          {line.source_doc}
+                        </td>
+                        <td style={{ padding: '12px 14px', fontWeight: 600, color: '#111827' }}>{line.product_name}</td>
+                        <td style={{ padding: '12px 14px', fontFamily: 'monospace', color: '#6b7280' }}>{line.batch_no}</td>
+                        <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700 }}>
                           {line.qty !== 0 ? line.qty.toFixed(2) : '-'}
                         </td>
-                        <td className="py-2 px-3 text-right font-black text-gray-900">
+                        <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 800, color: '#111827' }}>
                           ₹{line.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="py-2 px-3 text-center">
-                          <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[10px] font-bold">
+                        <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                          <span
+                            style={{
+                              backgroundColor: '#d1fae5',
+                              color: '#065f46',
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              fontSize: '10px',
+                              fontWeight: 800
+                            }}
+                          >
                             {line.status}
                           </span>
                         </td>
@@ -263,7 +410,7 @@ export const PrincipalStatementDesk: React.FC = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={8} className="py-4 text-center text-gray-500">
+                      <td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>
                         No transactions found for selected filter.
                       </td>
                     </tr>
@@ -277,3 +424,5 @@ export const PrincipalStatementDesk: React.FC = () => {
     </div>
   );
 };
+
+export default PrincipalStatementDesk;
