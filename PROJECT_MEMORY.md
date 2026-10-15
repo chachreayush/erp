@@ -704,7 +704,46 @@ Implemented and verified the production-grade Principal & C&F Operations Managem
 | `test_freight_logistics_selenium.py` | Freight rate cards, live slab calculation sandbox, 3-way reconciliation audit, GL Account 5200 posting | 100% PASS |
 | `test_principal_operations_selenium.py` | Agreement catalog, stock custody segregation, breakage claims workflow, 3-way reconciliation match, reconstructable statement desk, [Esc] lifecycle | 100% PASS |
 | `test_esc_navigation_and_cargo_flow_selenium.py` | Universal Esc key handling, Exit modal, Workflows dropdown | 100% PASS |
-| `verify_live_vercel_receipt_payment_audit.py` | Live production audit on https://erp-rho-three.vercel.app | 100% PASS |
+| `verify_live_vercel_escape_and_workflows.py` | Live production audit: Workflows dropdown, Cargo navigation, Esc modal | 100% PASS |
+| `verify_live_vercel_receipt_payment_audit.py` | Live production audit: Receipts, Payments, Audit Explorer, Governance Console | 100% PASS |
+| `verify_live_vercel_freight_audit.py` | Live production audit: Rate Master, Sandbox [F4], Transporter Reconciliation Desk | 100% PASS |
+| `verify_live_vercel_principal_audit.py` | Live production audit: Control Center, Claims Desk [F3], Modal [F7], Statement Desk | 100% PASS |
+
+---
+
+## Production Verification Artifacts & Visual Proof Registry
+
+### Local Selenium Verification Proof (8 Visual Screenshots)
+1. `verified_freight_homescreen_launcher.png`: Counter Workbench (`/`) Freight launcher tile (`#hub-btn-freight-management`) `[Ctrl+2]`.
+2. `verified_freight_rate_cards_catalog.png`: Freight Rate Master (`/freight/contracts`) telemetry KPI cards and carrier rate cards.
+3. `verified_freight_calculation_sandbox.png`: Calculation Sandbox `[F4]` live rating simulation and formula breakdown.
+4. `verified_freight_reconciliation_desk.png`: Transporter Billing & Reconciliation Desk (`/freight/reconciliation`) with variance badges.
+5. `verified_principal_homescreen_launcher.png`: Counter Workbench (`/`) Principal launcher tile (`#hub-btn-principal-management`) `[Ctrl+3]`.
+6. `verified_principal_control_center.png`: Principal Control Center (`/principal`) with 5 KPI cards and custody matrix.
+7. `verified_principal_claims_desk.png`: Claims & Returns Desk (`/principal`) with claims register and New Claim Modal `[F7]`.
+8. `verified_principal_reconciliation_statement.png`: 3-Way Reconciliation Workspace and Reconstructable Business Statement.
+
+### Live Vercel Production Cloud Verification (8 Visual Screenshots)
+1. `live_vercel_freight_homescreen_launcher.png`: Live Counter Workbench with Freight launcher tile on Vercel CDN.
+2. `live_vercel_freight_rate_master.png`: Live Freight Rate Master with carrier rate matrices on Vercel CDN.
+3. `live_vercel_freight_calculation_sandbox.png`: Live Calculation Sandbox with live formula resolution on Vercel CDN.
+4. `live_vercel_freight_reconciliation.png`: Live Transporter Reconciliation Desk on Vercel CDN.
+5. `live_vercel_principal_homescreen_launcher.png`: Live Counter Workbench with Principal launcher tile on Vercel CDN.
+6. `live_vercel_principal_control_center.png`: Live Principal Control Center with 5 telemetry KPI cards on Vercel CDN.
+7. `live_vercel_principal_claims_desk.png`: Live Claims Desk with New Claim Modal and instant `[Esc]` dismissal on Vercel CDN.
+8. `live_vercel_principal_statement_desk.png`: Live Full-Screen Authoritative Statement Desk on Vercel CDN.
+
+---
+
+## Publication-Grade Master Walkthrough & Specification Documents
+- **`ERP_ENTERPRISE_SYSTEM_COMPLETE_SOFTWARE_MASTER_WALKTHROUGH.docx`**:
+  - Fully compiled to 1.71 MB (`1,712,157 bytes`) in both `erp2` and `erp`.
+  - Section 21: Exhaustive DOC-35 Freight Engine chapter (11 PostgreSQL models, full API directory, UI catalog, 10-stage local test matrix, 4-stage live cloud matrix, and 8 embedded screenshots).
+  - Section 22: Exhaustive DOC-36 Principal Engine chapter (16 PostgreSQL models, full API directory, UI catalog, 10-stage local test matrix, 4-stage live cloud matrix, and 8 embedded screenshots).
+- **`DOC-35_Freight_Logistics_Cost_Recovery_Engine_v2_0_FINAL.docx`**:
+  - Appended Section 39: Live Vercel Production Cloud Verification & Visual Photographic Proof (4-stage matrix and 8 embedded figures).
+- **`DOC-36_Principal_CandF_Operations_Management_Engine_v2_0_DETAILED_FINAL.docx`**:
+  - Appended Section 39: Live Vercel Production Cloud Verification & Visual Photographic Proof (4-stage matrix and 8 embedded figures).
 
 ---
 

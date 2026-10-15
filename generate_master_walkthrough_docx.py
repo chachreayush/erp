@@ -790,30 +790,470 @@ def create_full_software_walkthrough():
     # SECTION 21: FREIGHT & LOGISTICS COST & RECOVERY ENGINE (DOC-35)
     # ==========================================
     add_h1("21. Freight & Logistics Cost & Recovery Engine (DOC-35)")
-    add_p("DOC-35 defines the centralized freight calculation, rate resolution, cost allocation, commercial recovery, and three-way transporter reconciliation engine for the enterprise ERP.")
+    add_p(
+        "DOC-35 defines the centralized calculation, multi-tier rate resolution, cost allocation, commercial recovery, "
+        "and three-way transporter reconciliation engine for the enterprise ERP system. In pharmaceutical and commercial distribution, "
+        "freight is often handled under split financial responsibilities: platform administrators, client companies, consignees, "
+        "and principals. DOC-35 guarantees mathematical determinism, transparent formula explainability, first-class cost-bearer "
+        "isolation, and automated three-way invoice matching against actual physical dispatches (DOC-34 Cargo Consignments)."
+    )
 
     add_callout(
-        "DOC-35 ARCHITECTURAL INVARIANTS & CORE DESIGN PRINCIPLES:\n"
-        "1. Strict Separation of Cost, Recovery, and Logistics Margin: Transporter cost incurred is never conflated with or silently offset by customer/principal recoveries.\n"
+        "DOC-35 ARCHITECTURAL INVARIANTS & CORE GOVERNANCE RULES:\n"
+        "1. Strict Separation of Cost, Recovery, and Logistics Margin: Transporter cost incurred is never conflated with or silently offset by customer/principal recoveries. Cost, recovery, and margin remain separate immutable ledger items.\n"
         "2. First-Class Cost Bearer Policy: When Platform Admin is configured as cost bearer for client company dispatches, the accounting expense posts exclusively to Account 5200 in the Platform Admin General Ledger; the Client Company General Ledger maintains zero auto-debits.\n"
-        "3. Deterministic Explainability Snapshots: Every calculation generates an immutable JSON snapshot with inputs, formula traces, and rule versions.\n"
-        "4. Three-Way Transporter Billing & Reconciliation: Transporter invoices are audited against system-expected costs with automated variance status tagging (MATCHED, TOLERABLE, UNAPPROVED_EXCESS, DISPUTED) and 1-click GL posting.",
+        "3. Deterministic Explainability Snapshots: Every calculation generates an immutable JSON snapshot with inputs, formula traces, and rule versions, ensuring 100% audit reconstructability.\n"
+        "4. Three-Way Transporter Billing & Reconciliation: Transporter invoices are audited against system-expected costs with automated variance status tagging (MATCHED, TOLERABLE <= ₹200, UNAPPROVED_EXCESS > ₹200, DISPUTED) and 1-click GL posting to Account 5200.",
         prefix="DOC-35 CORE MANDATE: "
     )
 
-    add_h2("21.1 Implemented Relational Schema & Backend Services")
-    add_p("DOC-35 introduces 11 relational entities mapped via SQLAlchemy 2.0 and mounted under /api/freight:")
-    add_p("• FreightContract & FreightLane: Transporter contract master with priority, vehicle classes, and origin-destination distance matrices.")
-    add_p("• FreightRateRule & FreightAncillaryRule: Tiered weight slabs, base rates, minimum charges, and ancillary surcharges (Loading ₹300, Toll ₹450, Hamali ₹15/pkg, Transit Cover 0.5%, Demurrage ₹500).")
-    add_p("• FreightCostEvent & FreightCalculationSnapshot: Atomic cost facts linked to DOC-34 consignments with complete formula explainability traces.")
-    add_p("• FreightAllocation & FreightRecovery: Multi-document proportional splitting (Weight, Value, Packages, Equal) and commercial customer/principal recovery accounting.")
-    add_p("• FreightReconciliation: Three-way match workbench for auditing transporter statements against expected dispatches.")
+    add_h2("21.1 Implemented Relational Schema & Relational Models (11 Models)")
+    add_p(
+        "DOC-35 introduces 11 relational entities mapped via SQLAlchemy 2.0 with strict foreign key constraints, "
+        "multi-tenant scoping, and cryptographic verification snapshots. The schema maps contracts, pricing lanes, "
+        "tiered weight slabs, ancillary surcharge rules, and three-way reconciliation records:"
+    )
 
-    add_h2("21.2 Interactive UI Cockpits & Verification Proof")
-    add_p("The frontend delivers two dedicated luxury Marg-themed cockpits:")
-    add_p("1. Freight Rate Master (/freight/contracts): 4 Top KPI cards, rate card matrix, and an interactive Calculation Sandbox with live parameter inputs and formula trace rendering.")
-    add_p("2. Transporter Billing & Reconciliation Desk (/freight/reconciliation): Complete statement audit grid with variance thresholds, dispute logging, and 1-click GL posting to Account 5200.")
-    add_p("3. Zero-Mouse Operational Guarantee: 100% keyboard navigable with [F6] New Contract/Bill modal, [F4] Sandbox toggle, [Esc] hierarchical dismissal, and [Ctrl+2] Counter Workbench hotkey.")
+    frt_schema_table = doc.add_table(rows=1, cols=4)
+    frt_sch_headers = ["Model Name & Table", "Primary & Foreign Keys", "Core Attributes & Data Types", "Operational Mandate & Governance Role"]
+    frt_sch_data = [
+        [
+            "FreightContract\n(freight_contracts)",
+            "PK: id (UUID)\nFK: organization_id -> organizations.id\nFK: transporter_id -> parties.id",
+            "contract_code (String 50)\ncontract_name (String 200)\nvalid_from, valid_to (DateTime)\npriority (Integer)\nstatus (ACTIVE, INACTIVE)",
+            "Master carrier agreement defining contracted pricing terms, priority resolution order, and operational status."
+        ],
+        [
+            "FreightLane\n(freight_lanes)",
+            "PK: id (UUID)\nFK: contract_id -> freight_contracts.id",
+            "origin_pincode (String 10)\ndest_pincode (String 10)\norigin_zone, dest_zone (String 50)\ntransit_days (Integer)\ndistance_km (Numeric 10, 2)",
+            "Origin-to-destination geographic routing lane defining transit duration expectations and distance matrices."
+        ],
+        [
+            "FreightRateRule\n(freight_rate_rules)",
+            "PK: id (UUID)\nFK: lane_id -> freight_lanes.id",
+            "slab_min_kg, slab_max_kg (Numeric 12, 2)\nrate_per_kg (Numeric 12, 2)\nflat_rate (Numeric 12, 2)\nmin_charge (Numeric 12, 2)\ncalc_mode (PER_KG, FLAT, TIERED)",
+            "Tiered chargeable weight slabs and base freight rates (e.g., 0-500kg @ ₹7.00/kg, 501-1,500kg @ ₹6.50/kg, >1,500kg @ ₹5.80/kg)."
+        ],
+        [
+            "FreightAncillaryRule\n(freight_ancillary_rules)",
+            "PK: id (UUID)\nFK: contract_id -> freight_contracts.id",
+            "charge_code (String 50)\ncharge_name (String 100)\nrate_type (FLAT, PERCENT, PER_PACKAGE)\nrate_value (Numeric 12, 2)\nis_mandatory (Boolean)",
+            "Dynamic surcharges including Loading/Unloading (₹300 flat), Highway Tolls (₹450 flat), Hamali/Handling (₹15/pkg), and Transit Risk (0.5% declared value)."
+        ],
+        [
+            "FreightCostEvent\n(freight_cost_events)",
+            "PK: id (UUID)\nFK: organization_id, consignment_id\nFK: contract_id",
+            "event_type (String 50)\ngross_cost (Numeric 14, 2)\nnet_cost (Numeric 14, 2)\ncurrency (String 10)\ncreated_at (DateTime)",
+            "Immutable fact table recording rated consignment cost occurrences linked directly to DOC-34 consignment dispatches."
+        ],
+        [
+            "FreightCalculationSnapshot\n(freight_calc_snapshots)",
+            "PK: id (UUID)\nFK: event_id -> freight_cost_events.id",
+            "input_payload (JSON)\nrate_rule_applied (JSON)\nancillary_breakdown (JSON)\nformula_trace (Text)\nsha256_hash (String 64)",
+            "Frozen explainability payload capturing exact weight inputs, applied slabs, surcharges, and formula steps for regulatory audit."
+        ],
+        [
+            "FreightAllocation\n(freight_allocations)",
+            "PK: id (UUID)\nFK: event_id -> freight_cost_events.id\nFK: invoice_id -> sales_invoices.id",
+            "allocation_method (WEIGHT, VALUE, PKG, EQUAL)\nallocated_cost (Numeric 14, 2)\nallocated_pct (Numeric 6, 2)",
+            "Proportional splitting of master consignment freight across multiple sales invoices or stock transfers packed in the same shipment."
+        ],
+        [
+            "FreightRecovery\n(freight_recoveries)",
+            "PK: id (UUID)\nFK: allocation_id -> freight_allocations.id\nFK: customer_id, principal_id",
+            "recovery_target (CUSTOMER, PRINCIPAL, SUBSIDY)\nrecovery_amount (Numeric 14, 2)\nbilling_status (PENDING, BILLED, RECOVERED)",
+            "Commercial recovery ledger mapping customer freight charges and principal reimbursements without polluting carrier cost ledgers."
+        ],
+        [
+            "FreightReconciliation\n(freight_reconciliations)",
+            "PK: id (UUID)\nFK: contract_id -> freight_contracts.id",
+            "statement_ref (String 100)\ncarrier_billed_val (Numeric 14, 2)\nsystem_expected_val (Numeric 14, 2)\nvariance_val (Numeric 14, 2)\nstatus (MATCHED, TOLERABLE, UNAPPROVED_EXCESS, DISPUTED, POSTED)",
+            "Three-way audit workbench matching transporter invoices against system estimated costs with automated tolerance evaluation."
+        ],
+        [
+            "FreightCostBearerPolicy\n(freight_cost_bearer_policies)",
+            "PK: id (UUID)\nFK: organization_id -> organizations.id",
+            "scope (GLOBAL, CLIENT, ROUTE)\nbearer (ADMIN, CLIENT, RECIPIENT)\ngl_account_code (String 20: 5200)\nis_active (Boolean)",
+            "Configures cost bearer rules, ensuring Platform Admin-funded cargo routes directly to GL Account 5200 without client ledger debits."
+        ],
+        [
+            "FreightException\n(freight_exceptions)",
+            "PK: id (UUID)\nFK: reconciliation_id -> freight_reconciliations.id",
+            "exception_type (RATE_MISMATCH, WEIGHT_VARIANCE, UNAPPROVED_ANCILLARY)\namount (Numeric 14, 2)\nstatus (OPEN, RESOLVED, WAIVED)",
+            "Dispute tracking records for unapproved transporter surcharges requiring carrier credit notes or supervisor waivers."
+        ]
+    ]
+    style_table(frt_schema_table, [1.3, 1.4, 1.6, 2.2], frt_sch_headers, frt_sch_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("21.2 RESTful API Directory (/api/freight/*)")
+    add_p(
+        "DOC-35 services are mounted under /api/freight with JWT multi-tenant organization filtering and strict Pydantic payload models:"
+    )
+
+    frt_api_table = doc.add_table(rows=1, cols=4)
+    frt_api_headers = ["HTTP Method & Route", "Request Parameters / Payload", "Response Structure", "Operational Workflow & Invariant Impact"]
+    frt_api_data = [
+        [
+            "GET /api/freight/summary",
+            "Headers: Authorization: Bearer <JWT>\nQuery: None",
+            "{summary: {active_contracts, total_spend, total_recoveries, logistics_margin, pending_recons_count, tolerable_recons_count}}",
+            "Feeds executive telemetry cards on Freight Rate Master and Reconciliation Desk, reporting net spend, recoveries, and margin."
+        ],
+        [
+            "GET /api/freight/contracts",
+            "Headers: Authorization: Bearer <JWT>\nQuery: transporter_id (Optional UUID)",
+            "{contracts: [{id, contract_code, contract_name, priority, lanes: [...], rate_rules: [...], ancillaries: [...]}]}",
+            "Retrieves full transporter rate cards with nested origin/destination lanes, weight slabs, and ancillary surcharge rules."
+        ],
+        [
+            "POST /api/freight/contracts",
+            "Payload: {contract_code, contract_name, transporter_id, valid_from, valid_to, priority, lanes: [...]}",
+            "{status: 'SUCCESS', contract: {id, contract_code, status: 'ACTIVE'}}",
+            "Registers new carrier rate contract with origin-destination pincodes, tiered rate slabs, and mandatory surcharge bindings."
+        ],
+        [
+            "POST /api/freight/calculate",
+            "Payload: {origin_pincode, dest_pincode, gross_weight_kg, length_cm, width_cm, height_cm, declared_value, ancillary_codes: [...]}",
+            "{calculated_cost: {gross_cost, base_freight, chargeable_weight, formula_trace, ancillary_breakdown, bearer_policy}}",
+            "Deterministic rate calculation sandbox evaluating volumetric CBM ($L \\times W \\times H / 1,000,000$), tiered slabs, and ancillary items."
+        ],
+        [
+            "GET /api/freight/events",
+            "Headers: Authorization: Bearer <JWT>\nQuery: consignment_id (Optional UUID)",
+            "{events: [{id, consignment_id, gross_cost, net_cost, calc_snapshot: {...}, created_at}]}",
+            "Auditable list of calculated freight cost events with embedded snapshot hashes and formula explainability traces."
+        ],
+        [
+            "POST /api/freight/allocate",
+            "Payload: {event_id, allocation_method: 'WEIGHT'|'VALUE'|'PACKAGE'|'EQUAL', invoice_ids: [...]}",
+            "{status: 'SUCCESS', allocations: [{invoice_id, allocated_amount, allocated_pct}]}",
+            "Proportionally distributes consignment freight across individual sales invoices packaged in the same shipment."
+        ],
+        [
+            "GET /api/freight/reconciliation",
+            "Headers: Authorization: Bearer <JWT>\nQuery: status (Optional str)",
+            "{reconciliations: [{id, statement_ref, carrier_billed_val, system_expected_val, variance_val, status}]}",
+            "Lists transporter billing statements with three-way variance status tagging (MATCHED, TOLERABLE, UNAPPROVED_EXCESS, DISPUTED)."
+        ],
+        [
+            "POST /api/freight/reconciliation",
+            "Payload: {statement_ref, contract_id, carrier_billed_val, consignment_ids: [...]}",
+            "{status: 'SUCCESS', reconciliation: {id, variance_val, status: 'TOLERABLE'|'UNAPPROVED_EXCESS'}}",
+            "Records transporter invoice for automated three-way matching against system rated costs with variance calculation."
+        ],
+        [
+            "POST /api/freight/reconciliation/{id}/action",
+            "Path: id (UUID)\nPayload: {action: 'APPROVE'|'DISPUTE'|'POST_GL', notes: str}",
+            "{status: 'SUCCESS', reconciliation: {id, status, gl_posting_ref}}",
+            "Executes 1-click invoice approval, dispute logging, or automated double-entry GL posting to Platform Admin Account 5200."
+        ],
+        [
+            "GET /api/freight/policies",
+            "Headers: Authorization: Bearer <JWT>",
+            "{policies: [{id, scope, bearer, gl_account_code: '5200', is_active: true}]}",
+            "Returns active cost-bearer policies confirming Client Company GL protection and Platform Admin GL recognition."
+        ]
+    ]
+    style_table(frt_api_table, [1.6, 1.4, 1.6, 1.9], frt_api_headers, frt_api_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("21.3 Terminal Cockpits, Screen Layouts, Hotkeys & UI Element Catalog")
+    add_p(
+        "DOC-35 provides two high-density Marg/Tally terminal cockpits designed for rapid zero-mouse operation:"
+    )
+    add_p("1. Freight Rate Master (/freight/contracts): Features 4 top KPI telemetry cards, rate card matrix, and an interactive Calculation Sandbox [F4] with live parameter inputs and formula breakdown.")
+    add_p("2. Transporter Billing & Reconciliation Desk (/freight/reconciliation): Features 4 statement status KPI cards, three-way match audit grid, manual bill entry modal [F6], and 1-click GL posting to Account 5200.")
+    add_p("3. Counter Workbench Launcher: Added #hub-btn-freight-management launcher tile to the Home Screen with global hotkey [Ctrl+2].")
+    add_p("4. Zero-Mouse Operational Guarantee: 100% keyboard navigable with [F6] New Contract/Bill modal, [F4] Sandbox toggle, and [Esc] hierarchical dismissal.")
+
+    frt_ui_table = doc.add_table(rows=1, cols=4)
+    frt_ui_headers = ["Screen / Cockpit Location", "Element ID Selector", "Input / Control Type", "Operational Role & Zero-Mouse Trigger"]
+    frt_ui_data = [
+        [
+            "Counter Workbench (/)",
+            "#hub-btn-freight-management",
+            "Hub Tile Button [Ctrl+2]",
+            "Global launcher tile on Home Screen navigating directly to Freight Rate Master (/freight/contracts)."
+        ],
+        [
+            "Freight Rate Master (/freight/contracts)",
+            "#kpi-active-contracts",
+            "Telemetry Metric Card",
+            "Displays total active transporter rate contracts with configured slabs and lanes."
+        ],
+        [
+            "Freight Rate Master (/freight/contracts)",
+            "#kpi-freight-spend",
+            "Telemetry Metric Card",
+            "Displays gross freight expense recognized under Platform Admin General Ledger."
+        ],
+        [
+            "Freight Rate Master (/freight/contracts)",
+            "#kpi-total-recoveries",
+            "Telemetry Metric Card",
+            "Displays aggregate freight recoveries billed to customers and principals."
+        ],
+        [
+            "Freight Rate Master (/freight/contracts)",
+            "#kpi-logistics-margin",
+            "Telemetry Metric Card",
+            "Displays net logistics margin calculated as Total Recoveries minus Transporter Costs."
+        ],
+        [
+            "Freight Rate Master (/freight/contracts)",
+            "#btn-switch-tab-sandbox",
+            "Tab Button [F4]",
+            "Toggles interactive deterministic calculation sandbox for rating simulations."
+        ],
+        [
+            "Freight Rate Master (/freight/contracts)",
+            "#sandbox-origin-pincode",
+            "Input Field",
+            "Origin pincode input for automatic lane matching."
+        ],
+        [
+            "Freight Rate Master (/freight/contracts)",
+            "#sandbox-dest-pincode",
+            "Input Field",
+            "Destination pincode input for automatic lane matching."
+        ],
+        [
+            "Freight Rate Master (/freight/contracts)",
+            "#sandbox-weight-input",
+            "Input Field",
+            "Consignment gross weight in kg for tiered slab rating."
+        ],
+        [
+            "Freight Rate Master (/freight/contracts)",
+            "#sandbox-declared-value",
+            "Input Field",
+            "Declared shipment invoice value for percentage-based risk surcharges."
+        ],
+        [
+            "Freight Rate Master (/freight/contracts)",
+            "#btn-execute-calc",
+            "Action Button [Enter]",
+            "Executes deterministic rate calculation and renders formula breakdown trace."
+        ],
+        [
+            "Freight Rate Master (/freight/contracts)",
+            "#card-calc-result",
+            "Display Card",
+            "Renders gross calculated freight cost, formula trace, and bound GL Account 5200 badge."
+        ],
+        [
+            "Freight Rate Master (/freight/contracts)",
+            "#btn-new-contract",
+            "Action Button [F6]",
+            "Opens modal dialog to register new carrier contract (#modal-new-contract)."
+        ],
+        [
+            "Freight Rate Master (/freight/contracts)",
+            "#modal-new-contract",
+            "Modal Dialog [Esc]",
+            "Form to capture contract code, carrier name, lanes, and rate slabs; dismisses via Esc."
+        ],
+        [
+            "Reconciliation Desk (/freight/reconciliation)",
+            "#kpi-total-recons",
+            "Telemetry Metric Card",
+            "Displays total transporter statements queued for three-way audit."
+        ],
+        [
+            "Reconciliation Desk (/freight/reconciliation)",
+            "#kpi-recons-matched",
+            "Telemetry Metric Card",
+            "Displays statements verified with exact ₹0.00 variance."
+        ],
+        [
+            "Reconciliation Desk (/freight/reconciliation)",
+            "#kpi-recons-tolerable",
+            "Telemetry Metric Card",
+            "Displays statements with acceptable variance (<= ₹200.00) eligible for approval."
+        ],
+        [
+            "Reconciliation Desk (/freight/reconciliation)",
+            "#kpi-recons-disputed",
+            "Telemetry Metric Card",
+            "Displays statements with unapproved excess charges (> ₹200.00) flagged for dispute."
+        ],
+        [
+            "Reconciliation Desk (/freight/reconciliation)",
+            "#btn-enter-transporter-bill",
+            "Action Button [F6]",
+            "Opens modal dialog to enter manual transporter invoice for audit (#modal-enter-transporter-bill)."
+        ],
+        [
+            "Reconciliation Desk (/freight/reconciliation)",
+            "#modal-enter-transporter-bill",
+            "Modal Dialog [Esc]",
+            "Form to enter carrier invoice reference, billed amount, and LR references; dismisses via Esc."
+        ],
+        [
+            "Reconciliation Desk (/freight/reconciliation)",
+            "#btn-post-gl",
+            "Action Button",
+            "Executes 1-click GL journal creation, posting approved freight cost to Account 5200."
+        ]
+    ]
+    style_table(frt_ui_table, [1.5, 1.7, 1.2, 2.1], frt_ui_headers, frt_ui_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("21.4 Local Automated Selenium Verification Suite (10 Stages - 100% PASS)")
+    add_p(
+        "DOC-35 was verified using test_freight_logistics_selenium.py executing on headless Chrome (1440x950) "
+        "against the local backend (Port 8000) and frontend (Port 50005). All 10 stages completed with 100% pass rate:"
+    )
+
+    frt_local_table = doc.add_table(rows=1, cols=4)
+    frt_loc_headers = ["Verification Stage & Scope", "Execution Command / Target", "Automated Assertions & Validation Criteria", "Test Result"]
+    frt_loc_data = [
+        [
+            "Stage 1: API Authentication",
+            "POST /auth/login\n(admin / Admin@123)",
+            "HTTP 200 OK. Acquired JWT token. Validated organization tenant scope and session storage injection.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 2: Summary Telemetry Audit",
+            "GET /api/freight/summary",
+            "HTTP 200 OK. Verified active contracts >= 2, total spend, total recoveries, and pending reconciliation queues.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 3: Transporter Rate Cards",
+            "GET /api/freight/contracts",
+            "HTTP 200 OK. Verified active contracts (V-Trans Logistics, Safexpress), origin/destination lanes, and tiered slabs.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 4: Deterministic Rating Engine",
+            "POST /api/freight/calculate",
+            "HTTP 200 OK. Calculated 350kg consignment on Lane DEL-MUM. Asserted base freight, surcharges, and formula trace.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 5: Admin Cost Bearer Invariant",
+            "GET /api/freight/policies",
+            "HTTP 200 OK. Verified Platform Admin bearer policy; confirmed Account 5200 binding and zero client GL debits.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 6: 3-Way Reconciliation Audit",
+            "GET /api/freight/reconciliation",
+            "HTTP 200 OK. Verified statement matching, tolerance checks (<= ₹200.00), and UNAPPROVED_EXCESS status tags.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 7: Headless Browser Init",
+            "Chrome Options: --headless=new\nViewport: 1440x950",
+            "WebDriver initialized with GPU disabled, no-sandbox, and session storage auth injection.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 8: Counter Workbench Launcher",
+            "driver.get('http://localhost:50005/')",
+            "Located #hub-btn-freight-management launcher tile on Counter Workbench. Captured verified_freight_homescreen_launcher.png.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 9: Rate Master & Sandbox [F4]",
+            "driver.get('http://localhost:50005/freight/contracts')",
+            "Verified 4 top KPI cards. Switched to Sandbox [F4], executed calculation, and captured verified_freight_rate_cards_catalog.png & verified_freight_calculation_sandbox.png.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 10: Reconciliation & Esc Modal",
+            "driver.get('http://localhost:50005/freight/reconciliation')",
+            "Verified reconciliation grid, opened #modal-enter-transporter-bill [F6], tested [Esc] dismissal. Captured verified_freight_reconciliation_desk.png.",
+            "100% PASS\n(Exit 0)"
+        ]
+    ]
+    style_table(frt_local_table, [1.2, 1.8, 2.6, 0.9], frt_loc_headers, frt_loc_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("21.5 Live Vercel Production Cloud Verification Suite (4 Stages - 100% PASS)")
+    add_p(
+        "Following local testing, the live production deployment on Vercel CDN (https://erp-rho-three.vercel.app) was "
+        "audited via verify_live_vercel_freight_audit.py using the automated demo authentication hook (#btn-demo-login). "
+        "All 4 stages completed with 100% pass rate confirming zero cloud regressions:"
+    )
+
+    frt_cloud_table = doc.add_table(rows=1, cols=4)
+    frt_cld_headers = ["Cloud Audit Stage & Scope", "Live Target URL & Trigger", "Automated Cloud Assertions & Validation Criteria", "Production Status"]
+    frt_cld_data = [
+        [
+            "Stage 1: Production Auth & Launcher",
+            "https://erp-rho-three.vercel.app/\nTrigger: #btn-demo-login",
+            "Authenticated as Admin. Located #hub-btn-freight-management on live Counter Workbench. Captured live_vercel_freight_homescreen_launcher.png.",
+            "100% PASS\n(Live Cloud)"
+        ],
+        [
+            "Stage 2: Live Rate Master Telemetry",
+            "https://erp-rho-three.vercel.app/freight/contracts",
+            "Verified 4 live telemetry KPI cards (#kpi-active-contracts, #kpi-freight-spend, etc.) on Vercel CDN. Captured live_vercel_freight_rate_master.png.",
+            "100% PASS\n(Live Cloud)"
+        ],
+        [
+            "Stage 3: Live Calculation Sandbox [F4]",
+            "https://erp-rho-three.vercel.app/freight/contracts\nTrigger: [F4] Sandbox Tab",
+            "Switched to Sandbox [F4], input test parameters, clicked #btn-execute-calc, verified formula breakdown. Captured live_vercel_freight_calculation_sandbox.png.",
+            "100% PASS\n(Live Cloud)"
+        ],
+        [
+            "Stage 4: Live Reconciliation Desk",
+            "https://erp-rho-three.vercel.app/freight/reconciliation",
+            "Verified live statement audit grid, 3-way variance status badges, and GL 5200 posting readiness. Captured live_vercel_freight_reconciliation.png.",
+            "100% PASS\n(Live Cloud)"
+        ]
+    ]
+    style_table(frt_cloud_table, [1.2, 1.8, 2.6, 0.9], frt_cld_headers, frt_cld_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("21.6 Visual Proof of Verification & Photographic Evidence (8 Production Screenshots)")
+    add_p(
+        "Below are the 8 publication-grade visual verification screenshots captured during automated local headless Selenium "
+        "and live Vercel production testing, providing indisputable proof of operational readiness, terminal ergonomics, and "
+        "zero-mouse hotkey execution for DOC-35:"
+    )
+
+    # 4 Local Verified Screenshots
+    add_screenshot(
+        "verified_freight_homescreen_launcher.png",
+        "Figure 21.1: Local Verified Counter Workbench (/) displaying the dedicated Freight & Logistics Cost Recovery launcher tile (#hub-btn-freight-management) mapped to global hotkey [Ctrl+2]."
+    )
+    add_screenshot(
+        "verified_freight_rate_cards_catalog.png",
+        "Figure 21.2: Local Verified Freight Rate Master (/freight/contracts) displaying 4 top telemetry KPI cards, carrier rate cards, and origin-destination lane pricing matrices."
+    )
+    add_screenshot(
+        "verified_freight_calculation_sandbox.png",
+        "Figure 21.3: Local Verified Calculation Sandbox [F4] displaying interactive parameter inputs, live tiered slab rating, ancillary breakdown, and formula explainability trace."
+    )
+    add_screenshot(
+        "verified_freight_reconciliation_desk.png",
+        "Figure 21.4: Local Verified Transporter Billing & Reconciliation Desk (/freight/reconciliation) displaying three-way match statement grid with variance status badges."
+    )
+
+    # 4 Live Vercel Production Cloud Screenshots
+    add_screenshot(
+        "live_vercel_freight_homescreen_launcher.png",
+        "Figure 21.5: Live Vercel Production Cloud Verification (https://erp-rho-three.vercel.app/) confirming seamless authentication and Counter Workbench launcher presence on production CDN."
+    )
+    add_screenshot(
+        "live_vercel_freight_rate_master.png",
+        "Figure 21.6: Live Vercel Production Cloud Freight Rate Master (/freight/contracts) validating live telemetry KPI cards and carrier rate matrices on production CDN."
+    )
+    add_screenshot(
+        "live_vercel_freight_calculation_sandbox.png",
+        "Figure 21.7: Live Vercel Production Cloud Calculation Sandbox [F4] validating live deterministic rate resolution and formula traces on production CDN."
+    )
+    add_screenshot(
+        "live_vercel_freight_reconciliation.png",
+        "Figure 21.8: Live Vercel Production Cloud Transporter Reconciliation Desk (/freight/reconciliation) validating three-way audit matching and GL 5200 posting readiness on production CDN."
+    )
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 

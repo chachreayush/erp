@@ -1122,13 +1122,30 @@ The main application header features a consolidated **Workflows (`[F4]`)** dropd
 | **Cargo Board (`/cargo`)** | `#drawer-consignment-detail` | Drawer | Slide-over drawer showing package barcodes, weights, and status advance. |
 | **Cargo Costs (`/cargo/costs`)** | `#toggle-combined-reporting` | Toggle | Switches between single-tenant and aggregated multi-client MIS view. |
 | **POD Desk (`/cargo/pod-exceptions`)** | `#btn-record-delivery-pod` | Button | Submits delivery POD with accepted vs short/damaged quantity validation. |
-| **Counter Workbench (`/`)** | `#hub-btn-freight-management` | Button `[Ctrl+2]` | Launches Freight & Rates Master Screen. |
 | **Freight Rate Master (`/freight/contracts`)** | `#kpi-active-contracts` | Card | Displays total active transporter rate contracts with tiered slabs. |
+| **Freight Rate Master (`/freight/contracts`)** | `#kpi-freight-spend` | Card | Displays gross Platform Admin freight spend. |
+| **Freight Rate Master (`/freight/contracts`)** | `#kpi-total-recoveries` | Card | Displays total customer/principal recoveries. |
+| **Freight Rate Master (`/freight/contracts`)** | `#kpi-logistics-margin` | Card | Displays net logistics margin (recoveries - costs). |
 | **Freight Rate Master (`/freight/contracts`)** | `#btn-switch-tab-sandbox` | Tab `[F4]` | Toggles interactive deterministic calculation sandbox. |
-| **Freight Rate Master (`/freight/contracts`)** | `#btn-execute-calc` | Button | Executes deterministic rate resolution engine. |
+| **Freight Rate Master (`/freight/contracts`)** | `#sandbox-origin-pincode` | Input | Origin pincode for deterministic lane resolution. |
+| **Freight Rate Master (`/freight/contracts`)** | `#sandbox-dest-pincode` | Input | Destination pincode for deterministic lane resolution. |
+| **Freight Rate Master (`/freight/contracts`)** | `#sandbox-weight-input` | Input | Parameter input for test gross weight in kg. |
+| **Freight Rate Master (`/freight/contracts`)** | `#sandbox-declared-value`| Input | Declared consignment invoice value for risk surcharges. |
+| **Freight Rate Master (`/freight/contracts`)** | `#btn-execute-calc` | Button `[Enter]` | Executes deterministic rate resolution engine. |
+| **Freight Rate Master (`/freight/contracts`)** | `#card-calc-result` | Card | Renders gross freight cost, formula trace, and cost bearer. |
+| **Freight Rate Master (`/freight/contracts`)** | `#sandbox-total-freight` | Output | Displays calculated total freight cost. |
+| **Freight Rate Master (`/freight/contracts`)** | `#sandbox-gl-account` | Badge | Shows bound General Ledger account (Account 5200). |
 | **Freight Rate Master (`/freight/contracts`)** | `#btn-new-contract` | Button `[F6]` | Opens modal to register new freight contract (`#modal-new-contract`). |
+| **Freight Rate Master (`/freight/contracts`)** | `#modal-new-contract` | Modal `[Esc]` | Form to create contract with lanes and rate rules. |
 | **Reconciliation Desk (`/freight/reconciliation`)** | `#kpi-total-recons` | Card | Displays total transporter statement count and three-way match status. |
+| **Reconciliation Desk (`/freight/reconciliation`)** | `#kpi-recons-matched` | Card | Displays exact match statements (0 variance). |
+| **Reconciliation Desk (`/freight/reconciliation`)** | `#kpi-recons-tolerable` | Card | Displays statements within ₹200 tolerable variance. |
+| **Reconciliation Desk (`/freight/reconciliation`)** | `#kpi-recons-disputed` | Card | Displays statements with unapproved excess charges. |
 | **Reconciliation Desk (`/freight/reconciliation`)** | `#btn-enter-transporter-bill` | Button `[F6]` | Opens modal to record manual transporter invoice (`#modal-enter-transporter-bill`). |
+| **Reconciliation Desk (`/freight/reconciliation`)** | `#modal-enter-transporter-bill` | Modal `[Esc]` | Form to record transporter bill for three-way audit. |
+| **Reconciliation Desk (`/freight/reconciliation`)** | `#btn-approve-bill` | Button | Approves carrier invoice within tolerable variance. |
+| **Reconciliation Desk (`/freight/reconciliation`)** | `#btn-dispute-bill` | Button | Flags carrier invoice into DISPUTED status. |
+| **Reconciliation Desk (`/freight/reconciliation`)** | `#btn-post-gl` | Button | Posts approved freight cost to GL Account 5200. |
 | **Counter Workbench (`/`)** | `#hub-btn-principal-management` | Button `[Ctrl+3]` | Launches Principal & C&F Operations Management Control Center. |
 | **Principal Control Center (`/principal`)** | `#kpi-active-principals` | Card | Displays active contract-validated principals. |
 | **Principal Control Center (`/principal`)** | `#kpi-total-stock-val` | Card | Displays custody stock valuation held across depots. |
@@ -1141,7 +1158,10 @@ The main application header features a consolidated **Workflows (`[F4]`)** dropd
 | **Principal Control Center (`/principal`)** | `#tab-btn-statement` | Tab `[F5]` | Opens Authoritative Business Statement. |
 | **Principal Control Center (`/principal`)** | `#tab-btn-mis` | Tab `[F6]` | Opens Commercial MIS & Operational Profitability. |
 | **Principal Control Center (`/principal`)** | `#btn-open-claim-modal` | Button `[F7]` | Opens modal to raise operational claim (`#modal-new-claim`). |
+| **Principal Control Center (`/principal`)** | `#modal-new-claim` | Modal `[Esc]` | Form to submit claim with batch provenance. |
+| **Principal Control Center (`/principal`)** | `#btn-run-reconciliation` | Button | Executes automated 3-way matching engine against external statements. |
 | **Principal Statement Desk (`/principal/statement`)** | `#select-statement-principal` | Dropdown | Selects active principal for period drill-down. |
+| **Principal Statement Desk (`/principal/statement`)** | `#table-statement-lines` | Grid | Renders reconstructed transaction lines across Inward, Sales, Returns, Claims, Freight. |
 
 ---
 
@@ -1165,55 +1185,111 @@ The main application header features a consolidated **Workflows (`[F4]`)** dropd
 | `test_freight_logistics_selenium.py` | 10 Stages (Freight & logistics cost engine) | 100% PASS: Rate contracts, tiered slabs, deterministic calculation, Admin GL 5200 segregation, 3-way transporter reconciliation, [Esc] lifecycle. |
 | `test_principal_operations_selenium.py` | 10 Stages (Principal & C&F operations engine) | 100% PASS: Agreement catalog, stock custody segregation, breakage claims workflow, 3-way reconciliation match, reconstructable statement desk, [Esc] lifecycle. |
 | `verify_live_vercel_receipt_payment_audit.py` | 10 Stages (Live cloud production audit) | 100% PASS: Live production verification on `https://erp-rho-three.vercel.app` with zero regressions and complete visual screenshot artifacts. |
+| `verify_live_vercel_freight_audit.py` | 4 Stages (Live cloud freight audit) | 100% PASS: Rate Master, Sandbox [F4], and Transporter Reconciliation on Vercel CDN. |
+| `verify_live_vercel_principal_audit.py` | 4 Stages (Live cloud principal audit) | 100% PASS: Control Center, Claims Desk [F3], Modal [F7], and Statement Desk on Vercel CDN. |
 
 ---
 
 ## 28. Freight & Logistics Cost Recovery User Operational Guide (DOC-35)
 
-### 28.1 Operating the Freight Rate Master (`/freight/contracts`)
-1. **Accessing the Desk**:
-   - Press **`Ctrl+2`** from anywhere on the Counter Workbench (`/`) or click the **Freight & Rates** tile (`#hub-btn-freight-management`).
-2. **Reviewing Transporter Rate Cards**:
-   - View active contract cards displaying carrier name, vehicle class (14ft, 32ft, Trailer), and configured route lanes.
-   - Inspect tiered weight slabs (e.g. 0–500kg @ ₹7.00/kg, 501–1,500kg @ ₹6.50/kg, >1,500kg @ ₹5.80/kg).
-3. **Simulating Live Calculations (Sandbox `[F4]`)**:
-   - Press **`F4`** to switch to the **Calculation Sandbox**.
-   - Input gross weight, package count, distance in km, and select applicable ancillary surcharges (Loading ₹300, Toll ₹450, Hamali ₹15/pkg).
-   - Click **Execute Deterministic Calculation** (`#btn-execute-calc`) to review the live gross transporter cost, recovery margin, and formula trace.
+### 28.1 Accessing the Freight Rate Master (`/freight/contracts`, `Ctrl+2`)
+1. Press **`Ctrl+2`** from anywhere on the Counter Workbench (`/`) or click the **Freight & Rates** tile (`#hub-btn-freight-management`).
+2. Review the 4 Top Telemetry KPI Cards:
+   - **Active Contracts**: Total number of registered carrier agreements currently active.
+   - **Gross Freight Spend**: Aggregate carrier logistics expenditure recognized under Platform Admin Account 5200.
+   - **Total Recoveries**: Customer freight charges and principal reimbursements billed.
+   - **Logistics Margin**: Net profitability calculated as `Total Recoveries - Carrier Freight Costs`.
 
-### 28.2 Operating the Transporter Reconciliation Desk (`/freight/reconciliation`)
-1. **Three-Way Matching**:
-   - Compare transporter billed statements against system-expected costs calculated during dispatch.
-2. **Variance Audits & Thresholds**:
-   - Statements with **₹0.00** variance are tagged `MATCHED`.
-   - Variances up to **₹200.00** are tagged `TOLERABLE` (fastag tolls, weight scale tolerances).
-   - Variances exceeding **₹200.00** are tagged `UNAPPROVED_EXCESS` and require dispute logging or supervisor override.
-3. **Taking Action**:
-   - Click **Approve** to accept the billed amount.
-   - Click **Dispute** to flag the invoice for rate-card audit.
-   - Click **Post GL** to record the approved expense directly into Account 5200 (Platform Admin General Ledger).
+### 28.2 Registering a New Carrier Contract (`[F6]`, `#modal-new-contract`)
+1. Press **`F6`** or click **New Contract** (`#btn-new-contract`).
+2. In the modal dialog (`#modal-new-contract`), input:
+   - **Contract Code**: e.g., `CTR-VTRANS-2026-001`.
+   - **Carrier / Transporter**: Select active logistics party (e.g., V-Trans Logistics, Safexpress).
+   - **Vehicle Class**: 14ft Closed Container, 32ft Multi-Axle, or Trailer.
+   - **Effective Dates**: `Valid From` and `Valid To`.
+   - **Rate Slabs**: 0–500kg @ ₹7.00/kg, 501–1,500kg @ ₹6.50/kg, >1,500kg @ ₹5.80/kg.
+   - **Ancillary Charges**: Loading/Unloading (₹300 flat), Highway Tolls (₹450 flat), Hamali (₹15/pkg).
+3. Press **`Enter`** to commit or **`Esc`** to cancel and dismiss without page navigation.
+
+### 28.3 Operating the Deterministic Calculation Sandbox (`[F4]`, `#btn-switch-tab-sandbox`)
+1. Press **`F4`** or click the **Calculation Sandbox** tab button (`#btn-switch-tab-sandbox`).
+2. Enter consignment routing and physical metrics:
+   - **Origin Pincode** (`#sandbox-origin-pincode`): e.g., `110001` (Delhi).
+   - **Destination Pincode** (`#sandbox-dest-pincode`): e.g., `400001` (Mumbai).
+   - **Gross Weight** (`#sandbox-weight-input`): e.g., `350.00` kg.
+   - **Declared Invoice Value** (`#sandbox-declared-value`): e.g., `50000.00` (for transit risk calculation).
+3. Click **Execute Deterministic Calculation** (`#btn-execute-calc`) or press **`Enter`**.
+4. The system renders the live result card (`#card-calc-result`):
+   - **Total Chargeable Freight**: e.g., ₹2,950.00.
+   - **Formula Trace**: Displays step-by-step resolution: `350 kg x ₹7.00/kg (Slab 1) + ₹300 Loading + ₹450 Toll + ₹250 Risk Cover`.
+   - **Bound Cost Bearer Badge** (`#sandbox-gl-account`): Displays `Platform Admin GL Account 5200 (Central Freight Expense)` confirming zero auto-debits to the client ledger.
+
+### 28.4 Operating the Transporter Reconciliation Desk (`/freight/reconciliation`)
+1. Navigate to `/freight/reconciliation` or click **Reconciliation Desk** in the navigation header.
+2. Review the 4 Statement Status KPI Cards:
+   - **Total Statements** (`#kpi-total-recons`): All carrier invoices queued for audit.
+   - **Matched Exact** (`#kpi-recons-matched`): Verified statements with ₹0.00 variance.
+   - **Tolerable Variance** (`#kpi-recons-tolerable`): Invoices with minor variance ($\le ₹200.00$) due to certified fastag tolls or scale tolerances.
+   - **Disputed / Unapproved Excess** (`#kpi-recons-disputed`): Statements with excess charges ($> ₹200.00$).
+3. **Auditing & Processing Carrier Invoices**:
+   - For `TOLERABLE` invoices: Click **Approve** (`#btn-approve-bill`) to accept the billed amount.
+   - For `UNAPPROVED_EXCESS` invoices: Click **Dispute** (`#btn-dispute-bill`) to generate an audit exception ticket.
+   - For approved statements: Click **Post GL** (`#btn-post-gl`) to generate an automated double-entry journal posting the approved freight directly to Account 5200 in the Platform Admin General Ledger.
+4. **Recording a Manual Transporter Bill (`[F6]`, `#modal-enter-transporter-bill`)**:
+   - Press **`F6`** to open the manual entry modal. Input carrier reference, billed amount, and linked LR numbers.
+   - Press **`Esc`** to dismiss the modal cleanly.
 
 ---
 
 ## 29. Principal & C&F Operations Management User Guide (DOC-36)
 
 ### 29.1 Accessing the Principal Operational Control Center (`/principal`, `Ctrl+3`)
-1. Press **`Ctrl+3`** from the Counter Workbench or click the **Principal Operational Control Centre** tile (`#hub-btn-principal-management`).
+1. Press **`Ctrl+3`** from anywhere on the Counter Workbench (`/`) or click the **Principal Operational Control Centre** tile (`#hub-btn-principal-management`).
 2. Review the 5 Top Telemetry KPI Cards:
-   - **Active Principals**: Validated pharmaceutical companies with signed agreements.
-   - **Custody Stock Value**: Valuation of inventory held in physical custody without title transfer.
-   - **Open Claims**: Pending breakage, expiry, and shortage claims.
-   - **Reconciliations**: Three-way reconciliation statements verified with zero variance.
-   - **Admin Freight Subsidy**: Freight expenditure recognized under GL Account 5200.
+   - **Active Principals** (`#kpi-active-principals`): Contract-validated pharmaceutical companies (e.g., Sun Pharma, Cipla).
+   - **Custody Stock Value** (`#kpi-total-stock-val`): Valuation of principal-owned consignment inventory held across depots without legal title transfer.
+   - **Open Claims Liability** (`#kpi-pending-claims`): Pending breakage, expiry, and shortage claims awaiting principal approval.
+   - **Reconciliation Health** (`#kpi-reconciled-health`): Approved 3-way reconciliation statements matched with zero net variance.
+   - **Admin Freight Subsidy** (`#kpi-freight-attribution`): Platform Admin freight logistics expenditure recognized under GL Account 5200.
 
-### 29.2 Tab Navigation & Hotkeys (`[F2]`-`[F7]`)
-- **`[F2]` Stock Ownership & Custody Matrix**: View SKU and batch-level stock quantities, unit rates, valuations, and depot locations segregated by Principal owner.
-- **`[F3]` Claims & Returns Desk**: Track pending and approved expiry/breakage claims with 1-click Approve, Dispute, and Settle actions.
-- **`[F4]` 3-Way Reconciliation Workspace**: Run automated reconciliation matching against external statements and lock audit periods.
-- **`[F5]` Authoritative Business Statement**: Review reconstructed financial and physical stock statements with zero manual balance overrides.
-- **`[F6]` Commercial MIS & Profitability**: Analyze net commissions accrued, gross margins, and attributed logistics overheads.
-- **`[F7]` Raise Claim Modal**: Instantly register a new breakage or expiry claim with batch provenance and automatic document numbering.
-- **`[Esc]` Hierarchical Dismissal**: Dismisses any open modal without navigating away from the page.
+### 29.2 Operating the 5 Functional Tabs (`[F2]`-`[F6]`)
+- **`[F2]` Stock Ownership & Custody Matrix (`#tab-btn-stock`)**:
+  - Displays inventory held in `CONSIGNMENT_CUSTODY` segregated by SKU, batch number, depot warehouse, and principal entity.
+  - Guarantees zero commingling when identical generic medicines are stocked for multiple principals in the same depot.
+- **`[F3]` Claims & Returns Desk (`#tab-btn-claims`)**:
+  - Displays operational claims register across all loss categories: `EXPIRY`, `BREAKAGE`, `SHORTAGE`, and `RATE_DIFFERENCE`.
+  - Inspect itemized batch provenance, source delivery documents, and evidence URLs.
+  - Action buttons: Click **Approve** to authorize claim settlement, or **Dispute** to flag variance for principal review.
+- **`[F4]` 3-Way Reconciliation Workspace (`#tab-btn-recon`)**:
+  - Compares internal ERP system valuations against external statement figures submitted by pharmaceutical principals.
+  - Click **Run Reconciliation** (`#btn-run-reconciliation`) to execute deterministic automated line matching.
+  - Statements with ₹0.00 variance transition to `APPROVED` status, locking the accounting period against retroactive modifications.
+- **`[F5]` Authoritative Reconstructable Statement (`#tab-btn-statement`)**:
+  - Embedded period statement reconstructing opening valuation, receipts, sales, returns, pending claims, and closing valuation.
+  - Strictly adheres to the **Zero Balance Override** invariant: all figures are dynamically computed from source vouchers.
+- **`[F6]` Commercial MIS & Profitability (`#tab-btn-mis`)**:
+  - Renders commercial throughput, commission earnings accrued across active agreements (e.g., Sun Pharma @ 6.5%, Cipla @ 5.0%), and attributed freight logistics overheads.
+
+### 29.3 Registering a New Operational Claim (`[F7]`, `#modal-new-claim`)
+1. Press **`F7`** or click **Raise Claim** (`#btn-open-claim-modal`).
+2. In the modal dialog (`#modal-new-claim`), select:
+   - **Principal**: Select active pharmaceutical principal.
+   - **Claim Type**: `BREAKAGE`, `EXPIRY`, `SHORTAGE`, or `RATE_DIFFERENCE`.
+   - **Product & Batch**: Select affected drug SKU and batch number (e.g., `Paracetamol 650mg`, `B-SUN-884`).
+   - **Claimed Quantity & Rate**: Enter damaged/expired units and invoice unit rate.
+   - **Reason**: Detail damage root cause (e.g., *Damaged in-transit ampoules during inter-warehouse dispatch*).
+3. Press **`Enter`** to submit the claim, auto-generating a unique number (`CLM-PRN-YYYY-XXXX`).
+4. Press **`Esc`** at any point to dismiss the modal cleanly without losing background page context.
+
+### 29.4 Operating the Full-Screen Principal Business Statement Desk (`/principal/statement`)
+1. Navigate directly to `/principal/statement` or click **Statement Desk** in the navigation header.
+2. Select the target pharmaceutical principal using the select dropdown (`#select-statement-principal`).
+3. Set the statement date range (`Period From` to `Period To`).
+4. The system reconstructs the authoritative transaction statement (`#table-statement-lines`):
+   - Categorized rows: `OPENING`, `INWARD`, `SALE`, `RETURN`, `CLAIM`, `FREIGHT`, and `CLOSING`.
+   - Itemized drill-down: Product name, batch number, movement quantities, and line amounts.
+   - Dataset hash signature confirming mathematical reconstructability and tamper protection.
+5. Use native browser print (`Ctrl+P`) for audit-sealed PDF export.
 
 ---
 

@@ -1230,17 +1230,25 @@ The following master catalog documents every functional UI selector across the E
 | **Freight Rate Master** | `/freight/contracts` | `#kpi-total-recoveries` | Card | Displays total customer/principal recoveries. |
 | **Freight Rate Master** | `/freight/contracts` | `#kpi-logistics-margin` | Card | Displays net logistics margin (recoveries - costs). |
 | **Freight Rate Master** | `/freight/contracts` | `#btn-switch-tab-sandbox` | Tab | Toggles interactive deterministic calculation sandbox `[F4]`. |
-| **Freight Rate Master** | `/freight/contracts` | `#input-test-weight` | Input | Parameter input for test gross weight in kg. |
-| **Freight Rate Master** | `/freight/contracts` | `#btn-execute-calc` | Button | Executes deterministic rate resolution engine. |
+| **Freight Rate Master** | `/freight/contracts` | `#sandbox-origin-pincode` | Input | Origin pincode for deterministic lane resolution. |
+| **Freight Rate Master** | `/freight/contracts` | `#sandbox-dest-pincode` | Input | Destination pincode for deterministic lane resolution. |
+| **Freight Rate Master** | `/freight/contracts` | `#sandbox-weight-input` | Input | Parameter input for test gross weight in kg. |
+| **Freight Rate Master** | `/freight/contracts` | `#sandbox-declared-value`| Input | Declared consignment invoice value for risk surcharges. |
+| **Freight Rate Master** | `/freight/contracts` | `#btn-execute-calc` | Button | Executes deterministic rate resolution engine `[Enter]`. |
 | **Freight Rate Master** | `/freight/contracts` | `#card-calc-result` | Card | Renders gross freight cost, formula trace, and cost bearer. |
+| **Freight Rate Master** | `/freight/contracts` | `#sandbox-total-freight` | Output | Displays calculated total freight cost. |
+| **Freight Rate Master** | `/freight/contracts` | `#sandbox-gl-account` | Badge | Shows bound General Ledger account (Account 5200). |
 | **Freight Rate Master** | `/freight/contracts` | `#btn-new-contract` | Button | Opens modal to register new freight contract `[F6]`. |
-| **Freight Rate Master** | `/freight/contracts` | `#modal-new-contract` | Modal | Form to create contract with lanes and rate rules. |
+| **Freight Rate Master** | `/freight/contracts` | `#modal-new-contract` | Modal | Form to create contract with lanes and rate rules `[Esc]`. |
 | **Reconciliation Desk** | `/freight/reconciliation` | `#kpi-total-recons` | Card | Displays total transporter statement count. |
 | **Reconciliation Desk** | `/freight/reconciliation` | `#kpi-recons-matched` | Card | Displays exact match statements (0 variance). |
 | **Reconciliation Desk** | `/freight/reconciliation` | `#kpi-recons-tolerable` | Card | Displays statements within ₹200 tolerable variance. |
 | **Reconciliation Desk** | `/freight/reconciliation` | `#kpi-recons-disputed` | Card | Displays statements with unapproved excess charges. |
 | **Reconciliation Desk** | `/freight/reconciliation` | `#btn-enter-transporter-bill` | Button | Opens modal to enter manual transporter invoice `[F6]`. |
-| **Reconciliation Desk** | `/freight/reconciliation` | `#modal-enter-transporter-bill` | Modal | Form to record transporter bill for three-way audit. |
+| **Reconciliation Desk** | `/freight/reconciliation` | `#modal-enter-transporter-bill` | Modal | Form to record transporter bill for three-way audit `[Esc]`. |
+| **Reconciliation Desk** | `/freight/reconciliation` | `#btn-approve-bill` | Button | Approves carrier invoice within tolerable variance. |
+| **Reconciliation Desk** | `/freight/reconciliation` | `#btn-dispute-bill` | Button | Flags carrier invoice into DISPUTED status. |
+| **Reconciliation Desk** | `/freight/reconciliation` | `#btn-post-gl` | Button | Posts approved freight cost to GL Account 5200. |
 | **Counter Workbench** | `/` | `#hub-btn-principal-management` | Button | Quick launcher navigating to Principal Control Center `[Ctrl+3]`. |
 | **Principal Control Center** | `/principal` | `#kpi-active-principals` | Card | Displays active contract-validated principals. |
 | **Principal Control Center** | `/principal` | `#kpi-total-stock-val` | Card | Displays custody stock valuation held across depots. |
@@ -1253,64 +1261,151 @@ The following master catalog documents every functional UI selector across the E
 | **Principal Control Center** | `/principal` | `#tab-btn-statement` | Tab | Opens Authoritative Business Statement `[F5]`. |
 | **Principal Control Center** | `/principal` | `#tab-btn-mis` | Tab | Opens Commercial MIS & Operational Profitability `[F6]`. |
 | **Principal Control Center** | `/principal` | `#btn-open-claim-modal` | Button | Opens modal to raise operational claim `[F7]`. |
-| **Principal Control Center** | `/principal` | `#modal-new-claim` | Modal | Form to submit claim with batch provenance. |
+| **Principal Control Center** | `/principal` | `#modal-new-claim` | Modal | Form to submit claim with batch provenance `[Esc]`. |
+| **Principal Control Center** | `/principal` | `#btn-run-reconciliation` | Button | Executes automated 3-way matching engine against external statements. |
 | **Principal Statement Desk** | `/principal/statement` | `#select-statement-principal` | Dropdown | Selects active principal for period drill-down. |
+| **Principal Statement Desk** | `/principal/statement` | `#table-statement-lines` | Grid | Renders reconstructed transaction lines across Inward, Sales, Returns, Claims, Freight. |
 
 ---
 
 ## 27. Automated QA Test Suites & Continuous Deployment Pipeline
 
 ### 27.1 Complete Automated Selenium Test Suites Matrix (16 Suites — 100% Pass)
-| Test Suite Script | Verified Module Scope | Assertion Target & Verification Method |
-| :--- | :--- | :--- |
-| `test_master_all_6_modules_selenium.py` | Sales, Purchase, DN, CN, BKI, BKR | 100% PASS: All 6 transaction modules with alphanumeric series continuation. |
-| `test_escape_and_workflows_selenium.py` | Workflows Dropdown, Cargo Links, Esc Exit | 100% PASS: Header Workflows `[F4]` dropdown, Cargo board navigation, Exit modal `[Esc]`. |
-| `test_receipt_payment_audit_redesign_selenium.py`| Receipt, Payment, Audit Trail, Governance | 100% PASS: Luxury UI, party picker `[F7]`, FIFO `[Alt+A]`, hash verification, diff drawer, holds. |
-| `test_cargo_consignment_selenium.py` | Consignment Board, Costs, POD Desk | 100% PASS: Volumetric CBM calculations, Admin freight bifurcation, 4-eyes POD. |
-| `test_freight_logistics_selenium.py` | Rate Contracts, Sandbox, 3-Way Reconciliation | 100% PASS: Tiered slabs, deterministic calculation, Admin GL 5200 segregation, variance approvals. |
-| `test_principal_operations_selenium.py` | Agreement Catalog, Custody Matrix, Claims Desk, 3-Way Reconciliation | 100% PASS: 16 models, custody segregation, breakage claims, reconstructable statement, [Esc] lifecycle. |
-| `test_audit_governance_selenium.py` | Audit Ledger, Chaining, Legal Holds | 100% PASS: SHA-256 seal verification, before/after diff drawer, retention schedules. |
-| `test_workflow_approval_automation_selenium.py` | Approvals Inbox, Task Actions, SLA | 100% PASS: Universal trigger, Maker-Checker 403, rejection reason modal, simulator. |
-| `test_dashboard_bi_control_center_selenium.py` | Counter Workbench, BI Dashboard | 100% PASS: Dual-screen architecture, 7-month comparative curve, map modal `#mapModal`. |
-| `test_gst_compliance_selenium.py` | GSTR-1, GSTR-2, GSTR-3B, E-Invoice | 100% PASS: GST tables, debit note ITC reversal, Gov offline JSON export, IRN signing. |
-| `test_reports_and_finance_selenium.py` | Day Book, Trial Balance, P&L, Balance Sheet | 100% PASS: Double-entry reports, account statements, custom report designer. |
-| `test_receipt_payment_settlement_selenium.py` | Receipts, Payments, FIFO Allocation | 100% PASS: Customer receipts `[F6]`, FIFO allocation, vendor payments `[F5]`. |
-| `test_journal_accrual_engine_selenium.py` | Journal Entry, Auto-Balance, Accruals | 100% PASS: Multi-leg cockpit, `[Ctrl+B]` auto-balance, scheduled reversals. |
-| `test_direct_expense_ui_selenium.py` | Operational Expenses, Live P&L Impact | 100% PASS: Direct expense vouchers, live P&L impact box, advance disbursements. |
-| `test_fixed_assets_selenium.py` | Asset Categories, Fixed Assets, Depreciation | 100% PASS: Asset registry, WDV/SLM depreciation run, automatic GL vouchers. |
-| `test_bank_recon_cash_selenium.py` | Bank Reconciliation, Cash Drawer Tally | 100% PASS: Statement auto-matching, currency denomination tally counting. |
+| Test Suite Script | Verified Module Scope | Assertion Target & Verification Method | Status |
+| :--- | :--- | :--- | :--- |
+| `test_master_all_6_modules_selenium.py` | Sales, Purchase, DN, CN, BKI, BKR | 100% PASS: All 6 transaction modules with alphanumeric series continuation. | 100% PASS |
+| `test_escape_and_workflows_selenium.py` | Workflows Dropdown, Cargo Links, Esc Exit | 100% PASS: Header Workflows `[F4]` dropdown, Cargo board navigation, Exit modal `[Esc]`. | 100% PASS |
+| `test_receipt_payment_audit_redesign_selenium.py`| Receipt, Payment, Audit Trail, Governance | 100% PASS: Luxury UI, party picker `[F7]`, FIFO `[Alt+A]`, hash verification, diff drawer, holds. | 100% PASS |
+| `test_cargo_consignment_selenium.py` | Consignment Board, Costs, POD Desk | 100% PASS: Volumetric CBM calculations, Admin freight bifurcation, 4-eyes POD. | 100% PASS |
+| `test_freight_logistics_selenium.py` | Rate Contracts, Sandbox, 3-Way Reconciliation | 100% PASS: Tiered slabs, deterministic calculation, Admin GL 5200 segregation, variance approvals. | 100% PASS |
+| `test_principal_operations_selenium.py` | Agreement Catalog, Custody Matrix, Claims Desk, 3-Way Reconciliation | 100% PASS: 16 models, custody segregation, breakage claims, reconstructable statement, [Esc] lifecycle. | 100% PASS |
+| `test_audit_governance_selenium.py` | Audit Ledger, Chaining, Legal Holds | 100% PASS: SHA-256 seal verification, before/after diff drawer, retention schedules. | 100% PASS |
+| `test_workflow_approval_automation_selenium.py` | Approvals Inbox, Task Actions, SLA | 100% PASS: Universal trigger, Maker-Checker 403, rejection reason modal, simulator. | 100% PASS |
+| `test_dashboard_bi_control_center_selenium.py` | Counter Workbench, BI Dashboard | 100% PASS: Dual-screen architecture, 7-month comparative curve, map modal `#mapModal`. | 100% PASS |
+| `test_gst_compliance_selenium.py` | GSTR-1, GSTR-2, GSTR-3B, E-Invoice | 100% PASS: GST tables, debit note ITC reversal, Gov offline JSON export, IRN signing. | 100% PASS |
+| `test_reports_and_finance_selenium.py` | Day Book, Trial Balance, P&L, Balance Sheet | 100% PASS: Double-entry reports, account statements, custom report designer. | 100% PASS |
+| `test_receipt_payment_settlement_selenium.py` | Receipts, Payments, FIFO Allocation | 100% PASS: Customer receipts `[F6]`, FIFO allocation, vendor payments `[F5]`. | 100% PASS |
+| `test_journal_accrual_engine_selenium.py` | Journal Entry, Auto-Balance, Accruals | 100% PASS: Multi-leg cockpit, `[Ctrl+B]` auto-balance, scheduled reversals. | 100% PASS |
+| `test_direct_expense_ui_selenium.py` | Operational Expenses, Live P&L Impact | 100% PASS: Direct expense vouchers, live P&L impact box, advance disbursements. | 100% PASS |
+| `test_fixed_assets_selenium.py` | Asset Categories, Fixed Assets, Depreciation | 100% PASS: Asset registry, WDV/SLM depreciation run, automatic GL vouchers. | 100% PASS |
+| `test_bank_recon_cash_selenium.py` | Bank Reconciliation, Cash Drawer Tally | 100% PASS: Statement auto-matching, currency denomination tally counting. | 100% PASS |
 
-### 27.2 Production Verification Scripts
+### 27.2 Production Cloud Verification Scripts (Live Vercel CDN)
 - `verify_live_vercel_escape_and_workflows.py`: Automated verification of live Vercel production deployment for Workflows dropdown and `Esc` navigation.
 - `verify_live_vercel_receipt_payment_audit.py`: Automated verification of live Vercel production deployment for Receipt Voucher, Payment Voucher, Audit Trail Explorer, and Governance Console.
-- `verify_live_vercel_freight_audit.py`: Automated verification of live Vercel production deployment for Freight Rate Master, Calculation Sandbox, and Transporter Reconciliation Desk.
-- `verify_live_vercel_principal_audit.py`: Automated verification of live Vercel production deployment for Principal Control Center, Claims Desk, and Statement Desk.
+- `verify_live_vercel_freight_audit.py`: Automated verification of live Vercel production deployment for Freight Rate Master, Calculation Sandbox, and Transporter Reconciliation Desk (4/4 Stages 100% PASS).
+- `verify_live_vercel_principal_audit.py`: Automated verification of live Vercel production deployment for Principal Control Center, Claims Desk, and Statement Desk (4/4 Stages 100% PASS).
 
 ---
 
 ## 28. Freight & Logistics Cost Recovery Engine (DOC-35)
 
-### 28.1 Overview & Architecture Position
-DOC-35 defines the centralized calculation, cost allocation, recovery, and three-way transporter billing reconciliation engine. It operates directly upon physical consignment records created in DOC-34 and prepares accounting posting instructions for DOC-08.
+### 28.1 Architectural Role & Subsystem Topology
+DOC-35 defines the centralized calculation, multi-tier rate resolution, cost allocation, commercial recovery, and three-way transporter billing reconciliation engine. It operates directly upon physical consignment records registered in DOC-34 (Cargo & Consignment Engine) and prepares accounting posting instructions for DOC-08 (General Ledger).
 
 ### 28.2 Inviolable Architectural Governance Rules
-1. **Strict Cost vs. Recovery Segregation**: Transporter freight cost is never silently offset or replaced by customer or principal recoveries. Gross transporter cost, commercial recovery, and net logistics margin remain separate fields across all database entities and reports.
-2. **Platform Admin-Funded Freight (Account 5200)**: When Platform Admin finances cargo for a client company, the expense is posted exclusively to Account 5200 in the Platform Admin General Ledger. The Client Company General Ledger is never auto-debited.
+1. **Strict Cost vs. Recovery Segregation**: Transporter freight cost is never silently offset or replaced by customer or principal recoveries. Gross transporter cost, commercial recovery, and net logistics margin remain separate immutable ledger items.
+2. **Platform Admin-Funded Freight (Account 5200)**: When Platform Admin finances cargo for a client company, the expense is posted exclusively to Account 5200 (`Central Freight & Logistics Expense`) in the Platform Admin General Ledger. The Client Company General Ledger maintains zero auto-debits.
 3. **Deterministic Explainability Snapshots**: Every rate calculation produces an immutable JSON snapshot (`FreightCalculationSnapshot`) capturing the inputs, formula trace, and rule version for historical auditability.
 4. **Three-Way Transporter Billing & Tolerable Variances**: Transporter invoices are reconciled against expected system costs. Variances $\le ₹200$ are flagged as `TOLERABLE`; variances $> ₹200$ require manager approval or dispute logging before posting to accounts payable.
+
+### 28.3 Relational Database Schema (11 PostgreSQL Models in `backend/models.py`)
+1. `FreightContract`: PK `id` (UUID), FK `organization_id`, `transporter_id`. Stores `contract_code`, `contract_name`, `valid_from`, `valid_to`, `priority`, `status`.
+2. `FreightLane`: PK `id` (UUID), FK `contract_id`. Stores `origin_pincode`, `dest_pincode`, `origin_zone`, `dest_zone`, `transit_days`, `distance_km`.
+3. `FreightRateRule`: PK `id` (UUID), FK `lane_id`. Stores `slab_min_kg`, `slab_max_kg`, `rate_per_kg`, `flat_rate`, `min_charge`, `calc_mode` (`PER_KG`, `FLAT`, `TIERED`).
+4. `FreightAncillaryRule`: PK `id` (UUID), FK `contract_id`. Stores `charge_code`, `charge_name`, `rate_type` (`FLAT`, `PERCENT`, `PER_PACKAGE`), `rate_value`, `is_mandatory`.
+5. `FreightCostEvent`: PK `id` (UUID), FK `organization_id`, `consignment_id`, `contract_id`. Stores `event_type`, `gross_cost`, `net_cost`, `currency`, `created_at`.
+6. `FreightCalculationSnapshot`: PK `id` (UUID), FK `event_id`. Stores `input_payload` (JSON), `rate_rule_applied` (JSON), `ancillary_breakdown` (JSON), `formula_trace` (Text), `sha256_hash`.
+7. `FreightAllocation`: PK `id` (UUID), FK `event_id`, `invoice_id`. Stores `allocation_method` (`WEIGHT`, `VALUE`, `PACKAGE`, `EQUAL`), `allocated_cost`, `allocated_pct`.
+8. `FreightRecovery`: PK `id` (UUID), FK `allocation_id`, `customer_id`, `principal_id`. Stores `recovery_target` (`CUSTOMER`, `PRINCIPAL`, `SUBSIDY`), `recovery_amount`, `billing_status`.
+9. `FreightReconciliation`: PK `id` (UUID), FK `contract_id`. Stores `statement_ref`, `carrier_billed_val`, `system_expected_val`, `variance_val`, `status` (`MATCHED`, `TOLERABLE`, `UNAPPROVED_EXCESS`, `DISPUTED`, `POSTED`).
+10. `FreightCostBearerPolicy`: PK `id` (UUID), FK `organization_id`. Stores `scope`, `bearer` (`ADMIN`, `CLIENT`, `RECIPIENT`), `gl_account_code` (`5200`), `is_active`.
+11. `FreightException`: PK `id` (UUID), FK `reconciliation_id`. Stores `exception_type` (`RATE_MISMATCH`, `WEIGHT_VARIANCE`, `UNAPPROVED_ANCILLARY`), `amount`, `status`.
+
+### 28.4 Deterministic Rate Resolution & Volumetric Rating Formulas
+- **Chargeable Weight Resolution**:
+  $$\text{Volumetric Weight (kg)} = \frac{L \,(\text{cm}) \times W \,(\text{cm}) \times H \,(\text{cm})}{5,000}$$
+  $$\text{Chargeable Weight} = \max(\text{Gross Weight}, \text{Volumetric Weight})$$
+- **Tiered Slab Calculation**:
+  - Slab 1 (0–500 kg): Base rate ₹7.00/kg (Minimum charge ₹500.00).
+  - Slab 2 (501–1,500 kg): Base rate ₹6.50/kg.
+  - Slab 3 (> 1,500 kg): Base rate ₹5.80/kg.
+- **Ancillary Surcharge Model**:
+  - Loading / Unloading: ₹300.00 flat.
+  - Highway Toll / Green Tax: ₹450.00 flat.
+  - Hamali / Labour: ₹15.00 per package.
+  - Transit Risk Cover: $0.5\%$ of Declared Invoice Value.
+  - Demurrage / Waiting: ₹500.00 per day after grace period.
+
+### 28.5 RESTful API Reference (`/api/freight/*`)
+| Method | Path | Request Body / Query | Success Response | Status | Invariant Impact |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/api/freight/summary` | None | `{summary: {...}}` | 200 | Aggregates gross spend, recoveries, margin. |
+| `GET` | `/api/freight/contracts` | `transporter_id?` | `{contracts: [...]}` | 200 | Returns carrier rate cards and lanes. |
+| `POST` | `/api/freight/contracts` | `FreightContractCreate` | `{status: "SUCCESS"}` | 201 | Registers carrier agreement and lanes. |
+| `POST` | `/api/freight/calculate` | `FreightCalculateRequest` | `{calculated_cost: {...}}`| 200 | Deterministic live rating with formula trace. |
+| `GET` | `/api/freight/events` | `consignment_id?` | `{events: [...]}` | 200 | Fact ledger of rated consignment events. |
+| `POST` | `/api/freight/allocate` | `FreightAllocateRequest` | `{status: "SUCCESS"}` | 200 | Multi-invoice proportional cost splitting. |
+| `GET` | `/api/freight/reconciliation` | `status?` | `{reconciliations: [...]}`| 200 | Transporter bill audit queue. |
+| `POST` | `/api/freight/reconciliation` | `FreightReconCreate` | `{reconciliation: {...}}` | 201 | Ingests carrier bill for 3-way match. |
+| `POST` | `/api/freight/reconciliation/{id}/action` | `{action: "APPROVE"\|"POST_GL"}`| `{status: "SUCCESS"}` | 200 | 1-click GL 5200 posting or dispute logging. |
+| `GET` | `/api/freight/policies` | None | `{policies: [...]}` | 200 | Validates Account 5200 cost-bearer binding. |
 
 ---
 
 ## 29. Principal & C&F Operations Management Engine (DOC-36)
 
-### 29.1 Overview & Architecture Position
-DOC-36 establishes the operational engine that transforms Principal and C&F relationships from static master definitions into a continuously auditable, traceable operating position. It orchestrates Principal context across DOC-12 (Master), DOC-14 (Schemes), DOC-16 (Stock Movement), DOC-08 (GL Postings), DOC-07 (Settlements), and DOC-35 (Freight).
+### 29.1 Architectural Role & Subsystem Topology
+DOC-36 establishes the institutional-grade operational engine that transforms static Principal and C&F master records into a continuously auditable, traceable, and reconstructable operating position. In modern pharmaceutical distribution, super-distributors and C&F agents hold consignment stocks for multiple drug manufacturers (Principals). Operating under diverse commercial agreements, tiered commission rates, strict credit windows, and complex freight recovery policies, enterprises face severe financial and statutory risks if stock ownership commingles or ledger reconciliations drift. DOC-36 orchestrates Principal context across DOC-12 (Master), DOC-14 (Schemes), DOC-16 (Stock Movement), DOC-08 (GL Postings), DOC-07 (Settlements), and DOC-35 (Freight).
 
 ### 29.2 Inviolable Architectural Governance Rules
-1. **Zero Duplicate Engines**: DOC-36 never creates duplicate transaction ledgers. All movements refer directly to DOC-16 batches, DOC-20 sales bills, and DOC-35 freight attributions.
+1. **Zero Duplicate Engines Rule**: DOC-36 never duplicates existing core transaction ledgers. All movements refer directly to DOC-16 batches, DOC-20 sales bills, and DOC-35 freight attributions.
 2. **Owner Separation at SKU/Batch Level**: Principal ownership is an explicit relational dimension (`PrincipalOwnershipRule`). Multiple Principals can stock identical SKUs in the same warehouse without cross-owner stock pollution or commingling.
 3. **Non-Editable Reconstructable Statements**: Principal stock statements and commercial balances are mathematically reconstructed from source movements and immutable events. Manual balance overrides are strictly prohibited.
 4. **Reconciliation Variance Immutability**: Reconciliation cannot alter historical transaction ledgers; variances generate audit trails and follow-up adjustment or claim documents with four-eyes approval.
+
+### 29.3 Relational Database Schema (16 PostgreSQL Models in `backend/models.py`)
+1. `PrincipalOperatingContext`: PK `id` (UUID), FK `company_id` -> `organizations.id`, `principal_id`, `branch_id`. Stores `principal_code`, `principal_name`, `agreement_version_id`, `status` (`ACTIVE`, `SUSPENDED`, `TERMINATED`).
+2. `PrincipalAgreementVersion`: PK `id` (UUID), FK `principal_id`. Stores `agreement_number`, `version_no`, `valid_from`, `valid_to`, `terms_json` (commission %, credit days, freight allowances), `status` (`DRAFT`, `ACTIVE`, `SUPERSEDED`).
+3. `PrincipalProductRule`: PK `id` (UUID), FK `principal_id`, `product_id`. Stores `product_name`, `sku_code`, `branch_id`, `warehouse_id`, `is_exclusive`, `status`.
+4. `PrincipalCustomerRule`: PK `id` (UUID), FK `principal_id`, `customer_id`. Stores `customer_group`, `territory_id`, `territory_name`, `status`.
+5. `PrincipalOwnershipRule`: PK `id` (UUID), FK `principal_id`. Stores `product_scope`, `warehouse_scope`, `mode` (`CONSIGNMENT_CUSTODY`, `OUTRIGHT_PURCHASE`, `PRINCIPAL_OWNED`).
+6. `PrincipalEvent`: PK `id` (UUID), FK `company_id`, `principal_id`. Stores `event_type`, `event_time`, `source_doc_type`, `source_doc_id`, `payload_json`, `payload_hash` (SHA-256).
+7. `PrincipalStockSnapshot`: PK `id` (UUID), FK `principal_id`, `product_id`. Stores `product_name`, `batch_no`, `warehouse_name`, `as_of`, `qty_on_hand`, `qty_reserved`, `qty_damage_breakage`, `unit_cost`, `total_valuation`.
+8. `PrincipalClaim`: PK `id` (UUID), Unique `claim_number`, FK `principal_id`. Stores `claim_type` (`EXPIRY`, `BREAKAGE`, `SHORTAGE`, `RATE_DIFFERENCE`), `source_doc_id`, `claimed_qty`, `claimed_amount`, `approved_amount`, `status` (`PENDING`, `APPROVED`, `DISPUTED`, `SETTLED`).
+9. `PrincipalClaimLine`: PK `id` (UUID), FK `claim_id` -> `principal_claims.id`, `product_id`. Stores `source_movement_id`, `batch_no`, `expiry_date`, `qty`, `rate`, `amount`, `approved_amount`.
+10. `PrincipalReconciliation`: PK `id` (UUID), Unique `recon_number`, FK `principal_id`. Stores `period_from`, `period_to`, `system_opening_val`, `external_opening_val`, `system_closing_val`, `external_closing_val`, `net_variance_val`, `matched_lines_count`, `variance_lines_count`, `status`.
+11. `PrincipalReconciliationLine`: PK `id` (UUID), FK `reconciliation_id`. Stores `source_key`, `source_type` (`SALE`, `INWARD`, `RETURN`, `CLAIM`), `system_qty`, `external_qty`, `variance_qty`, `system_val`, `external_val`, `variance_val`, `reason_code`, `status`.
+12. `PrincipalStatementRun`: PK `id` (UUID), Unique `run_number`, FK `principal_id`. Stores `period_from`, `period_to`, `filters_hash`, `source_versions`, `opening_stock_val`, `receipts_val`, `sales_val`, `returns_val`, `claims_pending_val`, `freight_cost_val`, `closing_stock_val`, `status`.
+13. `PrincipalStatementLine`: PK `id` (UUID), FK `run_id`. Stores `event_id`, `source_doc_id`, `category` (`OPENING`, `INWARD`, `SALE`, `RETURN`, `CLAIM`, `FREIGHT`, `CLOSING`), `product_name`, `batch_no`, `qty`, `amount`.
+14. `PrincipalCostAttribution`: PK `id` (UUID), FK `principal_id`, Ref `source_cost_id` -> DOC-35. Stores `bearer` (`ADMIN_COMPANY`, `PRINCIPAL`, `CLIENT_COMPANY`), `recovery_target`, `amount`, `policy_version`, `status`.
+15. `PrincipalCommissionRef`: PK `id` (UUID), FK `principal_id`, `source_event_id`, Ref `commission_doc_id` -> DOC-37. Stores `gross_sales_val`, `commission_rate_pct`, `commission_amount`, `status` (`ACCRUED`, `BILLED`, `SETTLED`).
+16. `PrincipalSyncCheckpoint`: PK `id` (UUID), FK `company_id`, `principal_id`. Stores `scope_key` (`STOCK`, `CLAIMS`, `RECON`, `EVENTS`), `cursor`, `hash` (SHA-256), `synced_at`.
+
+### 29.4 RESTful API Reference (`/api/principal/*`)
+| Method | Path | Request Body / Query | Success Response | Status | Invariant Impact |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/api/principal/summary` | None | `{summary: {...}}` | 200 | Feeds 5 top telemetry KPI cards on Control Center. |
+| `GET` | `/api/principal/list` | `search?` | `{principals: [...]}` | 200 | Searchable principal catalog with commission and stock. |
+| `GET` | `/api/principal/{id}/position` | Path: `id` (UUID) | `{position: {...}}` | 200 | SKU/batch custody segregation and sales velocity. |
+| `GET` | `/api/principal/{id}/statement`| Path: `id`, `period_from?`, `period_to?` | `{statement: {...}}` | 200 | Reconstructs non-editable statement from source vouchers. |
+| `POST` | `/api/principal/claims` | `ClaimCreateRequest` | `{claim: {...}}` | 200 | Logs operational claim with batch provenance (`CLM-PRN-YYYY-XXXX`). |
+| `POST` | `/api/principal/claims/{id}/action` | `{action: "APPROVE"\|"DISPUTE"}` | `{claim: {...}}` | 200 | 4-eyes approval workflow without ledger tampering. |
+| `GET` | `/api/principal/reconciliations` | `principal_id?` | `{reconciliations: [...]}` | 200 | Lists 3-way reconciliation runs with net variance. |
+| `POST` | `/api/principal/reconciliation/run` | `ReconciliationRunRequest` | `{reconciliation: {...}}` | 200 | Executes automated matching against external statements (`REC-PRN-YYYY-XXXX`). |
+
+### 29.5 Terminal Cockpits & Zero-Mouse Keyboard Layout
+- **Counter Workbench Launcher**: Added `#hub-btn-principal-management` tile to `/` with global hotkey `[Ctrl+3]`.
+- **Principal Operational Control Center (`/principal`)**:
+  - Telemetry Strip: 5 KPI metric cards (`#kpi-active-principals`, `#kpi-total-stock-val`, `#kpi-pending-claims`, `#kpi-reconciled-health`, `#kpi-freight-attribution`).
+  - `[F2]` Stock Ownership & Custody Matrix (`#tab-btn-stock`): SKU/batch segregation, custody mode (`CONSIGNMENT_CUSTODY`).
+  - `[F3]` Claims & Returns Desk (`#tab-btn-claims`): Operational claims tracking with 1-click Approve/Dispute actions.
+  - `[F4]` 3-Way Reconciliation Workspace (`#tab-btn-recon`): Automated matching runs against external statements.
+  - `[F5]` Authoritative Business Statement (`#tab-btn-statement`): Embedded reconstructed statement with drill-down line items.
+  - `[F6]` Commercial MIS & Profitability (`#tab-btn-mis`): Net commissions accrued, gross margins, attributed logistics.
+  - `[F7]` New Claim Modal (`#btn-open-claim-modal`, `#modal-new-claim`): Registers claims with batch provenance; clean `[Esc]` dismissal.
+- **Principal Business Statement Desk (`/principal/statement`)**:
+  - Full-screen statement workspace with principal selector (`#select-statement-principal`), date ranges, transaction category filters, native print formatting, and zero manual balance override guarantee.
 
 ---
 
