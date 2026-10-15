@@ -20,7 +20,11 @@ import {
   FileText,
   Calculator,
   Lock,
-  Layers
+  Layers,
+  Sparkles,
+  Check,
+  HelpCircle,
+  ExternalLink
 } from 'lucide-react';
 import {
   apiGetCommissionSummary,
@@ -73,7 +77,8 @@ const FALLBACK_AGREEMENTS: CommissionAgreementItem[] = [
       description: 'Standard C&F Master Agreement with 6.5% Net Commission & Loading Recovery',
       payment_cycle: 'MONTHLY',
       dispute_grace_days: 15,
-      minimum_guarantee_monthly: 25000.0
+      minimum_guarantee_monthly: 25000.0,
+      freight_recovery_allowed: true
     },
     rules: [
       {
@@ -128,7 +133,8 @@ const FALLBACK_AGREEMENTS: CommissionAgreementItem[] = [
       description: 'Consignment Distribution Agreement with 5.0% Gross Commission & Secondary Handling',
       payment_cycle: 'FORTNIGHTLY',
       dispute_grace_days: 10,
-      minimum_guarantee_monthly: 20000.0
+      minimum_guarantee_monthly: 20000.0,
+      freight_recovery_allowed: true
     },
     rules: [
       {
@@ -165,6 +171,7 @@ export const CommissionControlCenter: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [summary, setSummary] = useState<CommissionSummaryKPI>(FALLBACK_SUMMARY);
   const [agreements, setAgreements] = useState<CommissionAgreementItem[]>(FALLBACK_AGREEMENTS);
+  const [selectedPrincipalId, setSelectedPrincipalId] = useState<string>('');
   const [calculations, setCalculations] = useState<CommissionCalculationItem[]>([]);
   const [claims, setClaims] = useState<RecoveryClaimItem[]>([]);
   const [statements, setStatements] = useState<RecoveryStatementItem[]>([]);
@@ -204,10 +211,12 @@ export const CommissionControlCenter: React.FC = () => {
       if (sumRes && sumRes.data) setSummary(sumRes.data);
       if (agrRes && agrRes.data && agrRes.data.length > 0) {
         setAgreements(agrRes.data);
+        if (!selectedPrincipalId) setSelectedPrincipalId(agrRes.data[0].principal_id);
         if (!sandboxPrincipalId) setSandboxPrincipalId(agrRes.data[0].principal_id);
         if (!claimPrincipalId) setClaimPrincipalId(agrRes.data[0].principal_id);
       } else {
         setAgreements(FALLBACK_AGREEMENTS);
+        setSelectedPrincipalId(FALLBACK_AGREEMENTS[0].principal_id);
         setSandboxPrincipalId(FALLBACK_AGREEMENTS[0].principal_id);
         setClaimPrincipalId(FALLBACK_AGREEMENTS[0].principal_id);
       }
@@ -346,391 +355,392 @@ export const CommissionControlCenter: React.FC = () => {
     }
   };
 
+  const activePrincipal = agreements.find(a => a.principal_id === selectedPrincipalId) || agreements[0];
+
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans select-none">
-      {/* ── TOP MARG ERP 9+ HEADER ──────────────────────────── */}
-      <header className="bg-gradient-to-r from-blue-900 via-indigo-950 to-slate-900 border-b border-blue-700/60 px-4 py-2.5 flex items-center justify-between shadow-md">
+    <div className="min-h-screen bg-[#f4f6f4] p-4 text-gray-800 font-sans select-none">
+      {/* ── TOP OPERATIONAL HEADER ──────────────────────────── */}
+      <div className="bg-[#1b4332] text-white p-4 rounded-xl shadow-md mb-4 flex flex-col md:flex-row md:items-center justify-between gap-3 border border-emerald-800">
         <div className="flex items-center space-x-3">
-          <div className="p-1.5 bg-blue-600/30 rounded border border-blue-400/40 text-blue-300">
-            <Calculator className="w-5 h-5" />
+          <div className="p-2.5 bg-emerald-600/90 rounded-lg shadow-inner">
+            <Calculator className="w-6 h-6 text-white" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <span className="font-bold text-base tracking-wide text-white uppercase font-mono">
-                Principal & C&F Commission & Recovery Engine
+              <span className="text-xs font-bold uppercase tracking-wider bg-emerald-800 text-emerald-200 px-2 py-0.5 rounded">
+                DOC-37 Engine v2.0
               </span>
-              <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold px-2 py-0.5 rounded border border-emerald-500/30 font-mono">
-                DOC-37 v2.0
-              </span>
-              <span className="bg-blue-500/20 text-blue-300 text-[10px] font-semibold px-2 py-0.5 rounded border border-blue-400/30 font-mono">
-                ZERO DUPLICATE LEDGERS
+              <span className="text-xs text-emerald-300 font-medium">
+                ZERO DUPLICATE LEDGERS • DETERMINISTIC TRACE
               </span>
             </div>
-            <div className="text-[11px] text-slate-400 font-mono flex items-center space-x-2">
-              <span>Earned Commissions • Recoverable Expenses • 4-Eyes Claims • Deterministic Hash Audits</span>
-            </div>
+            <h1 className="text-xl font-extrabold tracking-tight text-white mt-0.5">
+              Principal & C&F Commission & Recovery Engine
+            </h1>
           </div>
         </div>
 
-        {/* Global Keyboard Legend */}
-        <div className="hidden xl:flex items-center space-x-2 text-xs">
-          <button
-            onClick={() => setActiveTab('AGREEMENTS')}
-            className={`px-2 py-1 rounded border text-[11px] font-mono transition-colors ${
-              activeTab === 'AGREEMENTS' ? 'bg-blue-600 text-white border-blue-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
-            }`}
+        {/* Global Controls & Keyboard Legend */}
+        <div className="flex items-center space-x-2.5">
+          <div className="relative">
+            <Search className="w-4 h-4 text-emerald-300 absolute left-3 top-2.5" />
+            <input
+              id="input-commission-search"
+              type="text"
+              placeholder="Search agreement/rule..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-[#2d6a4f] text-white placeholder-emerald-200 text-xs rounded-lg pl-9 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 w-52 shadow-inner"
+            />
+          </div>
+
+          <select
+            id="select-active-principal"
+            value={selectedPrincipalId}
+            onChange={(e) => {
+              setSelectedPrincipalId(e.target.value);
+              setSandboxPrincipalId(e.target.value);
+              setClaimPrincipalId(e.target.value);
+            }}
+            className="bg-white text-gray-900 font-bold text-xs rounded-lg px-3 py-2 border-0 shadow focus:ring-2 focus:ring-emerald-400"
           >
-            [F2] Agreements
-          </button>
-          <button
-            onClick={() => setActiveTab('CALCULATIONS')}
-            className={`px-2 py-1 rounded border text-[11px] font-mono transition-colors ${
-              activeTab === 'CALCULATIONS' ? 'bg-blue-600 text-white border-blue-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
-            }`}
-          >
-            [F3] Sandbox
-          </button>
-          <button
-            onClick={() => setActiveTab('CLAIMS')}
-            className={`px-2 py-1 rounded border text-[11px] font-mono transition-colors ${
-              activeTab === 'CLAIMS' ? 'bg-blue-600 text-white border-blue-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
-            }`}
-          >
-            [F4] Claims Desk
-          </button>
-          <button
-            onClick={() => setActiveTab('STATEMENTS')}
-            className={`px-2 py-1 rounded border text-[11px] font-mono transition-colors ${
-              activeTab === 'STATEMENTS' ? 'bg-blue-600 text-white border-blue-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
-            }`}
-          >
-            [F5] Statements
-          </button>
-          <button
-            onClick={() => setActiveTab('EXCEPTIONS')}
-            className={`px-2 py-1 rounded border text-[11px] font-mono transition-colors ${
-              activeTab === 'EXCEPTIONS' ? 'bg-blue-600 text-white border-blue-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
-            }`}
-          >
-            [F6] Audits
-          </button>
+            {agreements.map((a) => (
+              <option key={a.principal_id} value={a.principal_id}>
+                {a.principal_code} — {a.principal_name}
+              </option>
+            ))}
+          </select>
+
           <button
             id="btn-open-claim-modal"
             onClick={() => setIsClaimModalOpen(true)}
-            className="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded border border-emerald-400 text-[11px] font-mono flex items-center space-x-1"
+            className="bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs px-3 py-2 rounded-lg shadow transition-all flex items-center space-x-1.5"
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-3.5 h-3.5" />
             <span>[F7] New Claim</span>
           </button>
+
           <button
             onClick={() => navigate('/')}
-            className="px-2 py-1 bg-red-950/80 hover:bg-red-900 text-red-200 rounded border border-red-700/60 text-[11px] font-mono"
+            className="text-xs bg-[#0f2e21] hover:bg-[#091f16] px-3 py-2 rounded-lg text-emerald-200 font-semibold transition-all border border-emerald-900/60"
           >
             [Esc] Hub
           </button>
+
           <button
             onClick={loadData}
-            title="Refresh All Data"
-            className="p-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700"
+            title="Refresh All Telemetry"
+            className="p-2 bg-[#2d6a4f] hover:bg-[#22543d] text-emerald-100 rounded-lg transition-all shadow"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
-      </header>
+      </div>
 
-      {/* ── 6 EXECUTIVE KPI CARDS ────────────────────────────── */}
-      <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 p-3 bg-slate-950/80 border-b border-slate-800 text-xs">
+      {/* ── 6-CARD EXECUTIVE KPI TELEMETRY STRIP ─────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
         {/* Card 1: Earned Commission */}
-        <div className="bg-slate-900/90 p-2.5 rounded border border-blue-600/30 hover:border-blue-500/60 transition-all flex flex-col justify-between shadow-sm">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="font-medium text-[11px] uppercase tracking-wider text-blue-400">Earned Commission</span>
-            <DollarSign className="w-3.5 h-3.5 text-blue-400" />
-          </div>
-          <div className="text-base font-bold text-white font-mono">
+        <div id="kpi-earned-commission" className="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-emerald-600 flex flex-col justify-between">
+          <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Earned Commission</div>
+          <div className="text-xl font-black text-gray-900 mt-1">
             ₹{summary.total_earned_commission.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </div>
-          <div className="text-[10px] text-emerald-400 flex items-center mt-1">
-            <CheckCircle2 className="w-3 h-3 mr-1" />
-            <span>Active turnover revenue</span>
+          <div className="text-[10px] text-emerald-700 font-medium flex items-center mt-1">
+            <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
+            <span>Sales turnover revenue</span>
           </div>
         </div>
 
         {/* Card 2: Recoverable Expenses */}
-        <div className="bg-slate-900/90 p-2.5 rounded border border-indigo-600/30 hover:border-indigo-500/60 transition-all flex flex-col justify-between shadow-sm">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="font-medium text-[11px] uppercase tracking-wider text-indigo-400">Recoverable Ancillaries</span>
-            <TrendingUp className="w-3.5 h-3.5 text-indigo-400" />
-          </div>
-          <div className="text-base font-bold text-white font-mono">
+        <div id="kpi-recoverable-ancillaries" className="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-blue-600 flex flex-col justify-between">
+          <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Recoverable Ancillaries</div>
+          <div className="text-xl font-black text-gray-900 mt-1">
             ₹{summary.total_recoverable_expenses.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </div>
-          <div className="text-[10px] text-indigo-300 flex items-center mt-1">
-            <Layers className="w-3 h-3 mr-1" />
+          <div className="text-[10px] text-blue-700 font-medium flex items-center mt-1">
+            <Layers className="w-3 h-3 mr-1 text-blue-600" />
             <span>Freight & handling recharges</span>
           </div>
         </div>
 
         {/* Card 3: Net Commercial Total */}
-        <div className="bg-slate-900/90 p-2.5 rounded border border-emerald-600/40 hover:border-emerald-500/70 transition-all flex flex-col justify-between shadow-sm">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="font-medium text-[11px] uppercase tracking-wider text-emerald-400">Net Commercial Total</span>
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-          </div>
-          <div className="text-base font-bold text-emerald-300 font-mono">
+        <div id="kpi-net-commercial" className="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-indigo-600 flex flex-col justify-between">
+          <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Net Commercial Total</div>
+          <div className="text-xl font-black text-indigo-900 mt-1">
             ₹{summary.net_commercial_total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </div>
-          <div className="text-[10px] text-slate-400 flex items-center mt-1">
+          <div className="text-[10px] text-indigo-700 font-medium flex items-center mt-1">
+            <ShieldCheck className="w-3 h-3 mr-1 text-indigo-600" />
             <span>Earned + Recoverable Sum</span>
           </div>
         </div>
 
-        {/* Card 4: Open Claims */}
-        <div className="bg-slate-900/90 p-2.5 rounded border border-amber-600/30 hover:border-amber-500/60 transition-all flex flex-col justify-between shadow-sm">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="font-medium text-[11px] uppercase tracking-wider text-amber-400">Open Claims Desk</span>
-            <Clock className="w-3.5 h-3.5 text-amber-400" />
-          </div>
-          <div className="text-base font-bold text-amber-300 font-mono">
+        {/* Card 4: Open Claims Desk */}
+        <div id="kpi-open-claims" className="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-amber-500 flex flex-col justify-between">
+          <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Open Claims Desk</div>
+          <div className="text-xl font-black text-amber-900 mt-1">
             ₹{summary.open_claims_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </div>
-          <div className="text-[10px] text-amber-400/90 flex items-center mt-1">
+          <div className="text-[10px] text-amber-700 font-medium flex items-center mt-1">
+            <Clock className="w-3 h-3 mr-1 text-amber-600" />
             <span>{summary.open_claims_count} claim(s) pending audit</span>
           </div>
         </div>
 
         {/* Card 5: Settled Remittances */}
-        <div className="bg-slate-900/90 p-2.5 rounded border border-cyan-600/30 hover:border-cyan-500/60 transition-all flex flex-col justify-between shadow-sm">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="font-medium text-[11px] uppercase tracking-wider text-cyan-400">Settled Remittances</span>
-            <Receipt className="w-3.5 h-3.5 text-cyan-400" />
-          </div>
-          <div className="text-base font-bold text-white font-mono">
+        <div id="kpi-settled-remittances" className="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-cyan-600 flex flex-col justify-between">
+          <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Settled Remittances</div>
+          <div className="text-xl font-black text-gray-900 mt-1">
             ₹{summary.total_settled.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </div>
-          <div className="text-[10px] text-slate-400 flex items-center mt-1">
-            <span>₹{summary.total_outstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })} outstanding</span>
+          <div className="text-[10px] text-cyan-700 font-medium flex items-center mt-1">
+            <Receipt className="w-3 h-3 mr-1 text-cyan-600" />
+            <span>₹{summary.total_outstanding.toLocaleString('en-IN', { minimumFractionDigits: 2 })} due</span>
           </div>
         </div>
 
-        {/* Card 6: Agreements & Integrity */}
-        <div className="bg-slate-900/90 p-2.5 rounded border border-purple-600/30 hover:border-purple-500/60 transition-all flex flex-col justify-between shadow-sm">
-          <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="font-medium text-[11px] uppercase tracking-wider text-purple-400">Active Agreements</span>
-            <Lock className="w-3.5 h-3.5 text-purple-400" />
-          </div>
-          <div className="text-base font-bold text-white font-mono">
+        {/* Card 6: Active Agreements */}
+        <div id="kpi-active-agreements" className="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-purple-600 flex flex-col justify-between">
+          <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Active Agreements</div>
+          <div className="text-xl font-black text-purple-900 mt-1">
             {summary.active_agreements_count} Principals
           </div>
-          <div className="text-[10px] text-purple-300 flex items-center mt-1">
-            <ShieldCheck className="w-3 h-3 mr-1" />
+          <div className="text-[10px] text-purple-700 font-medium flex items-center mt-1">
+            <Lock className="w-3 h-3 mr-1 text-purple-600" />
             <span>SHA-256 Validated</span>
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* ── TAB BAR ─────────────────────────────────────────── */}
-      <div className="bg-slate-800/80 border-b border-slate-700/80 px-4 py-1.5 flex items-center justify-between">
+      {/* ── PRINCIPAL CONTEXT BANNER ───────────────────────── */}
+      {activePrincipal && (
+        <div className="bg-white border border-gray-200 p-3.5 rounded-xl shadow-sm mb-4 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center space-x-3">
+            <span className="font-extrabold text-sm text-[#1b4332]">{activePrincipal.principal_name}</span>
+            <span className="bg-emerald-50 text-emerald-800 font-mono font-bold px-2.5 py-0.5 rounded border border-emerald-200">
+              {activePrincipal.principal_code}
+            </span>
+            <span className="bg-gray-100 text-gray-700 font-semibold px-2.5 py-0.5 rounded border border-gray-200">
+              {activePrincipal.agreement_code} ({activePrincipal.version_no})
+            </span>
+            <span className="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded">
+              {activePrincipal.status}
+            </span>
+          </div>
+
+          <div className="flex items-center space-x-4 text-gray-600 font-medium">
+            <div>Payment: <span className="text-gray-900 font-bold">{activePrincipal.terms_json?.payment_cycle || 'MONTHLY'}</span></div>
+            <div>Dispute Window: <span className="text-gray-900 font-bold">{activePrincipal.terms_json?.dispute_grace_days || 15} Days</span></div>
+            <div>Monthly Floor: <span className="text-emerald-700 font-bold">₹{activePrincipal.terms_json?.minimum_guarantee_monthly || 0}/mo</span></div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB NAVIGATION BAR ──────────────────────────────── */}
+      <div className="bg-white border border-gray-200 rounded-xl p-1 mb-4 shadow-sm flex items-center justify-between">
         <div className="flex items-center space-x-1">
           <button
+            id="tab-btn-agreements"
             onClick={() => setActiveTab('AGREEMENTS')}
-            className={`px-3 py-1.5 rounded-t text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold flex items-center space-x-2 transition-all ${
               activeTab === 'AGREEMENTS'
-                ? 'bg-slate-900 text-blue-400 border-t-2 border-blue-500 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                ? 'bg-[#1b4332] text-white shadow'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
             }`}
           >
-            <Building2 className="w-3.5 h-3.5" />
-            <span>Agreements & Rate Cards</span>
+            <Building2 className="w-4 h-4" />
+            <span>[F2] Agreements & Rate Cards</span>
           </button>
+
           <button
+            id="tab-btn-calculations"
             onClick={() => setActiveTab('CALCULATIONS')}
-            className={`px-3 py-1.5 rounded-t text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold flex items-center space-x-2 transition-all ${
               activeTab === 'CALCULATIONS'
-                ? 'bg-slate-900 text-blue-400 border-t-2 border-blue-500 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                ? 'bg-[#1b4332] text-white shadow'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
             }`}
           >
-            <Calculator className="w-3.5 h-3.5" />
-            <span>Calculation Sandbox & Trace</span>
+            <Calculator className="w-4 h-4" />
+            <span>[F3] Sandbox & Trace</span>
           </button>
+
           <button
+            id="tab-btn-claims"
             onClick={() => setActiveTab('CLAIMS')}
-            className={`px-3 py-1.5 rounded-t text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold flex items-center space-x-2 transition-all ${
               activeTab === 'CLAIMS'
-                ? 'bg-slate-900 text-blue-400 border-t-2 border-blue-500 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                ? 'bg-[#1b4332] text-white shadow'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
             }`}
           >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Recovery Claims Desk</span>
+            <FileText className="w-4 h-4" />
+            <span>[F4] Recovery Claims Desk</span>
           </button>
+
           <button
+            id="tab-btn-statements"
             onClick={() => setActiveTab('STATEMENTS')}
-            className={`px-3 py-1.5 rounded-t text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold flex items-center space-x-2 transition-all ${
               activeTab === 'STATEMENTS'
-                ? 'bg-slate-900 text-blue-400 border-t-2 border-blue-500 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                ? 'bg-[#1b4332] text-white shadow'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
             }`}
           >
-            <Receipt className="w-3.5 h-3.5" />
-            <span>Principal Statements</span>
+            <Receipt className="w-4 h-4" />
+            <span>[F5] Principal Statements</span>
           </button>
+
           <button
+            id="tab-btn-exceptions"
             onClick={() => setActiveTab('EXCEPTIONS')}
-            className={`px-3 py-1.5 rounded-t text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold flex items-center space-x-2 transition-all ${
               activeTab === 'EXCEPTIONS'
-                ? 'bg-slate-900 text-blue-400 border-t-2 border-blue-500 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                ? 'bg-[#1b4332] text-white shadow'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
             }`}
           >
-            <AlertTriangle className="w-3.5 h-3.5" />
-            <span>Exceptions & Audit Trail</span>
+            <AlertTriangle className="w-4 h-4" />
+            <span>[F6] Exceptions & Audits</span>
           </button>
         </div>
 
-        {/* Search filter */}
-        <div className="relative w-56">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2 top-2" />
-          <input
-            type="text"
-            placeholder="Search agreement/doc..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-900 text-slate-200 text-xs pl-7 pr-2 py-1 rounded border border-slate-700 focus:outline-none focus:border-blue-500"
-          />
+        <div className="hidden lg:flex items-center text-xs text-gray-400 font-mono pr-2">
+          <span>Zero Mouse Keyboard Nav Active</span>
         </div>
       </div>
 
-      {/* ── TAB CONTENT AREA ────────────────────────────────── */}
-      <main className="flex-1 p-4 overflow-y-auto bg-slate-900/60">
-        {/* TAB 1: AGREEMENTS */}
+      {/* ── TAB CONTENT WORKSPACE ───────────────────────────── */}
+      <div className="space-y-4">
+        {/* TAB 1: AGREEMENTS & RATE CARDS */}
         {activeTab === 'AGREEMENTS' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
-                  Principal Commission Master Agreements
-                </h2>
-                <p className="text-xs text-slate-400">
-                  Legally binding commission percentages, guaranteed floors, and recoverable handling cards.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {agreements.map((agr) => (
-                <div
-                  key={agr.id}
-                  className="bg-slate-950/70 border border-slate-800 rounded-lg p-4 shadow-sm hover:border-slate-700 transition-all flex flex-col justify-between"
-                >
-                  <div>
-                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5 mb-3">
-                      <div>
-                        <div className="text-sm font-bold text-blue-300 font-mono flex items-center space-x-2">
-                          <span>{agr.principal_name}</span>
-                          <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400 border border-slate-700">
-                            {agr.principal_code}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-400 font-mono mt-0.5">
-                          {agr.agreement_code} • Version {agr.version_no}
-                        </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {agreements.map((agr) => (
+              <div
+                key={agr.id}
+                className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
+                    <div>
+                      <div className="text-base font-extrabold text-[#1b4332] flex items-center space-x-2">
+                        <span>{agr.principal_name}</span>
+                        <span className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600 font-mono font-bold">
+                          {agr.principal_code}
+                        </span>
                       </div>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-700/60 font-mono">
-                        {agr.status}
-                      </span>
-                    </div>
-
-                    {/* Terms highlight */}
-                    <div className="bg-slate-900/80 p-2.5 rounded border border-slate-800 text-xs mb-3 space-y-1">
-                      <div className="text-[11px] text-slate-300 font-medium">
-                        {agr.terms_json?.description || 'Standard contractual commission & expense terms'}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-400 font-mono mt-1 pt-1 border-t border-slate-800">
-                        <div>Payment Cycle: <span className="text-slate-200">{agr.terms_json?.payment_cycle || 'MONTHLY'}</span></div>
-                        <div>Dispute Window: <span className="text-slate-200">{agr.terms_json?.dispute_grace_days || 15} Days</span></div>
-                        <div>Min Guarantee: <span className="text-emerald-300">₹{agr.terms_json?.minimum_guarantee_monthly || 0}/mo</span></div>
-                        <div>Freight Recharge: <span className="text-blue-300">AUTHORIZED</span></div>
+                      <div className="text-xs text-gray-500 mt-0.5 font-medium">
+                        {agr.agreement_code} • Version {agr.version_no}
                       </div>
                     </div>
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                      {agr.status}
+                    </span>
+                  </div>
 
-                    {/* Rule Cards */}
-                    <div className="space-y-1.5">
-                      <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                        Commission & Recovery Rules
-                      </div>
-                      {agr.rules && agr.rules.map((r) => (
-                        <div
-                          key={r.id}
-                          className="bg-slate-900/50 p-2 rounded border border-slate-800 flex items-center justify-between text-xs font-mono"
-                        >
-                          <div>
-                            <div className="text-slate-200 font-semibold">{r.rule_name}</div>
-                            <div className="text-[10px] text-slate-400">
-                              Type: {r.rule_type} • Code: {r.rule_code}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            {r.rule_type === 'PERCENTAGE' && (
-                              <span className="text-emerald-400 font-bold text-sm">{r.rate_pct}%</span>
-                            )}
-                            {r.rule_type === 'PER_UNIT' && (
-                              <span className="text-blue-400 font-bold text-sm">₹{r.unit_rate}/unit</span>
-                            )}
-                            {r.rule_type === 'MINIMUM_GUARANTEE' && (
-                              <span className="text-amber-400 font-bold text-sm">₹{r.min_guarantee_amount} Floor</span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                  {/* Contract terms card */}
+                  <div className="bg-emerald-50/50 border border-emerald-100 p-3 rounded-lg text-xs text-gray-700 mb-3 space-y-1">
+                    <div className="font-semibold text-emerald-950">
+                      {agr.terms_json?.description || 'Standard contractual commission & expense terms'}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600 pt-1.5 border-t border-emerald-100/60">
+                      <div>Payment Cycle: <span className="font-bold text-gray-900">{agr.terms_json?.payment_cycle || 'MONTHLY'}</span></div>
+                      <div>Dispute Grace: <span className="font-bold text-gray-900">{agr.terms_json?.dispute_grace_days || 15} Days</span></div>
+                      <div>Min Guarantee: <span className="font-bold text-emerald-800">₹{agr.terms_json?.minimum_guarantee_monthly || 0}/mo</span></div>
+                      <div>Freight Recharges: <span className="font-bold text-blue-700">AUTHORIZED</span></div>
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs">
-                    <span className="text-[10px] text-slate-500 font-mono">
-                      Validity: {agr.valid_from ? new Date(agr.valid_from).toLocaleDateString() : 'N/A'} - {agr.valid_to ? new Date(agr.valid_to).toLocaleDateString() : 'Active'}
-                    </span>
-                    <button
-                      onClick={() => {
-                        setSandboxPrincipalId(agr.principal_id);
-                        setActiveTab('CALCULATIONS');
-                      }}
-                      className="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center space-x-1"
-                    >
-                      <span>Simulate in Sandbox</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
+                  {/* Rules list */}
+                  <div className="space-y-2">
+                    <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      Contractual Rate Rules & Ancillaries
+                    </div>
+                    {agr.rules && agr.rules.map((r) => (
+                      <div
+                        key={r.id}
+                        className="bg-gray-50 p-2.5 rounded-lg border border-gray-200 flex items-center justify-between text-xs"
+                      >
+                        <div>
+                          <div className="font-bold text-gray-900">{r.rule_name}</div>
+                          <div className="text-[11px] text-gray-500 font-mono">
+                            Type: {r.rule_type} • Code: {r.rule_code}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          {r.rule_type === 'PERCENTAGE' && (
+                            <span className="bg-emerald-100 text-emerald-800 font-extrabold text-sm px-2.5 py-1 rounded">
+                              {r.rate_pct}%
+                            </span>
+                          )}
+                          {r.rule_type === 'PER_UNIT' && (
+                            <span className="bg-blue-100 text-blue-800 font-extrabold text-sm px-2.5 py-1 rounded">
+                              ₹{r.unit_rate}/unit
+                            </span>
+                          )}
+                          {r.rule_type === 'MINIMUM_GUARANTEE' && (
+                            <span className="bg-amber-100 text-amber-800 font-extrabold text-sm px-2.5 py-1 rounded">
+                              ₹{r.min_guarantee_amount} Floor
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
+
+                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
+                  <span className="text-gray-400 font-mono">
+                    Validity: {agr.valid_from ? new Date(agr.valid_from).toLocaleDateString() : 'N/A'} to {agr.valid_to ? new Date(agr.valid_to).toLocaleDateString() : 'Active'}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setSandboxPrincipalId(agr.principal_id);
+                      setSelectedPrincipalId(agr.principal_id);
+                      setActiveTab('CALCULATIONS');
+                    }}
+                    className="text-emerald-700 hover:text-emerald-900 font-bold flex items-center space-x-1"
+                  >
+                    <span>Simulate in Sandbox</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
         {/* TAB 2: CALCULATIONS & SANDBOX */}
         {activeTab === 'CALCULATIONS' && (
           <div className="space-y-4">
-            {/* Sandbox input controls */}
-            <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
+            {/* Sandbox Card */}
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
                 <div className="flex items-center space-x-2">
-                  <Calculator className="w-4 h-4 text-blue-400" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-white font-mono">
-                    Deterministic Commission Sandbox
-                  </h3>
+                  <div className="p-1.5 bg-emerald-100 rounded text-emerald-800">
+                    <Calculator className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-wide">
+                      Deterministic Commission Sandbox
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Simulate on-the-fly turnover commissions or recoverable ancillaries with frozen SHA-256 explainability.
+                    </p>
+                  </div>
                 </div>
-                <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-400 font-mono">
-                  SHA-256 HASH VERIFIED
+                <span className="bg-emerald-50 text-emerald-800 text-xs font-mono font-bold px-2.5 py-1 rounded border border-emerald-200">
+                  SHA-256 AUDIT GUARANTEE
                 </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-6 gap-3 text-xs">
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1 font-mono">Principal</label>
+                  <label className="block text-gray-700 font-bold mb-1">Principal</label>
                   <select
                     value={sandboxPrincipalId}
                     onChange={(e) => setSandboxPrincipalId(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 text-xs font-mono"
+                    className="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-2 text-gray-900 font-medium focus:ring-2 focus:ring-emerald-400 focus:bg-white"
                   >
                     {agreements.map((a) => (
                       <option key={a.principal_id} value={a.principal_id}>
@@ -741,7 +751,7 @@ export const CommissionControlCenter: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1 font-mono">Event Type</label>
+                  <label className="block text-gray-700 font-bold mb-1">Event Type</label>
                   <select
                     value={sandboxEventType}
                     onChange={(e) => {
@@ -752,7 +762,7 @@ export const CommissionControlCenter: React.FC = () => {
                         setSandboxCategory('EARNED_COMMISSION');
                       }
                     }}
-                    className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 text-xs font-mono"
+                    className="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-2 text-gray-900 font-medium focus:ring-2 focus:ring-emerald-400 focus:bg-white"
                   >
                     <option value="SALES_BILL">SALES_BILL (Net Turnover)</option>
                     <option value="SALES_RETURN">SALES_RETURN (Reduction)</option>
@@ -763,32 +773,32 @@ export const CommissionControlCenter: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1 font-mono">Source Doc ID</label>
+                  <label className="block text-gray-700 font-bold mb-1">Source Doc ID</label>
                   <input
                     type="text"
                     value={sandboxDocId}
                     onChange={(e) => setSandboxDocId(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 text-xs font-mono"
+                    className="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-2 text-gray-900 font-mono font-medium focus:ring-2 focus:ring-emerald-400 focus:bg-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1 font-mono">Base Value (₹)</label>
+                  <label className="block text-gray-700 font-bold mb-1">Base Value (₹)</label>
                   <input
                     type="number"
                     value={sandboxBaseVal}
                     onChange={(e) => setSandboxBaseVal(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 text-xs font-mono"
+                    className="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-2 text-gray-900 font-mono font-bold focus:ring-2 focus:ring-emerald-400 focus:bg-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1 font-mono">Quantity / Units</label>
+                  <label className="block text-gray-700 font-bold mb-1">Quantity / Units</label>
                   <input
                     type="number"
                     value={sandboxQty}
                     onChange={(e) => setSandboxQty(parseFloat(e.target.value) || 1)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 text-xs font-mono"
+                    className="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-2 text-gray-900 font-mono font-bold focus:ring-2 focus:ring-emerald-400 focus:bg-white"
                   />
                 </div>
 
@@ -796,113 +806,117 @@ export const CommissionControlCenter: React.FC = () => {
                   <button
                     id="btn-run-sandbox"
                     onClick={handleRunSandbox}
-                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded text-xs transition-colors flex items-center justify-center space-x-1"
+                    className="w-full bg-[#1b4332] hover:bg-[#143627] text-white font-extrabold py-2 px-3 rounded-lg text-xs transition-all shadow flex items-center justify-center space-x-1.5"
                   >
-                    <Calculator className="w-3.5 h-3.5" />
-                    <span>Run Calc</span>
+                    <Calculator className="w-4 h-4" />
+                    <span>Run Calculation</span>
                   </button>
                 </div>
               </div>
 
               {/* Simulation Result Banner */}
               {sandboxOutput && (
-                <div className="mt-3 bg-blue-950/40 border border-blue-500/40 rounded p-3 text-xs font-mono">
-                  <div className="flex items-center justify-between text-blue-300 font-bold">
-                    <span>Generated {sandboxOutput.calculation_number}</span>
-                    <span className="text-emerald-400 text-sm">
+                <div className="mt-4 bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-xs">
+                  <div className="flex items-center justify-between text-emerald-950 font-bold">
+                    <span className="text-sm font-extrabold">Calculation Success: {sandboxOutput.calculation_number}</span>
+                    <span className="text-lg font-black text-emerald-800">
                       ₹{sandboxOutput.calculated_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
-                  <div className="text-slate-300 text-[11px] mt-1">{sandboxOutput.formula_trace}</div>
-                  <div className="text-slate-500 text-[10px] mt-1 truncate">SHA-256: {sandboxOutput.sha256_hash}</div>
+                  <div className="text-gray-700 font-medium mt-1">{sandboxOutput.formula_trace}</div>
+                  <div className="text-gray-500 font-mono text-[10px] mt-1 truncate">
+                    Frozen SHA-256 Hash: {sandboxOutput.sha256_hash}
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Calculations Ledger Table */}
-            <div className="bg-slate-950/70 border border-slate-800 rounded-lg overflow-hidden">
-              <div className="px-4 py-2 bg-slate-900/80 border-b border-slate-800 flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-300 font-mono">
-                  Calculations Ledger ({calculations.length})
-                </span>
-                <span className="text-[10px] text-slate-400 font-mono">
-                  Approved records ready for claim batching
-                </span>
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+              <div className="px-5 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-extrabold uppercase tracking-wide text-gray-900">
+                    Calculations Ledger ({calculations.length})
+                  </span>
+                  <span className="text-xs text-gray-500 ml-2">
+                    Audit-ready records for claims batching
+                  </span>
+                </div>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs font-mono">
-                  <thead className="bg-slate-900 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-gray-100 text-gray-600 uppercase text-[10px] border-b border-gray-200">
                     <tr>
-                      <th className="px-3 py-2">Calc Number</th>
-                      <th className="px-3 py-2">Principal</th>
-                      <th className="px-3 py-2">Category</th>
-                      <th className="px-3 py-2">Base Value</th>
-                      <th className="px-3 py-2">Rate Applied</th>
-                      <th className="px-3 py-2">Calculated (₹)</th>
-                      <th className="px-3 py-2">Status</th>
-                      <th className="px-3 py-2">Formula Trace</th>
-                      <th className="px-3 py-2 text-right">Actions</th>
+                      <th className="px-4 py-2.5">Calc Number</th>
+                      <th className="px-4 py-2.5">Principal</th>
+                      <th className="px-4 py-2.5">Category</th>
+                      <th className="px-4 py-2.5">Base Value</th>
+                      <th className="px-4 py-2.5">Rate Applied</th>
+                      <th className="px-4 py-2.5">Calculated (₹)</th>
+                      <th className="px-4 py-2.5">Status</th>
+                      <th className="px-4 py-2.5">Formula Trace</th>
+                      <th className="px-4 py-2.5 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/80">
+                  <tbody className="divide-y divide-gray-100">
                     {calculations.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="px-4 py-6 text-center text-slate-500">
-                          No calculations recorded. Run a calculation above to generate entries.
+                        <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
+                          No calculations recorded yet. Use the sandbox above to run calculations.
                         </td>
                       </tr>
                     ) : (
                       calculations.map((c) => (
-                        <tr key={c.id} className="hover:bg-slate-900/50 transition-colors">
-                          <td className="px-3 py-2 font-bold text-blue-300">{c.calculation_number}</td>
-                          <td className="px-3 py-2 text-slate-200">{c.principal_name}</td>
-                          <td className="px-3 py-2">
+                        <tr key={c.id} className="hover:bg-gray-50/80 transition-colors">
+                          <td className="px-4 py-2.5 font-bold text-emerald-800 font-mono">{c.calculation_number}</td>
+                          <td className="px-4 py-2.5 font-medium text-gray-900">{c.principal_name}</td>
+                          <td className="px-4 py-2.5">
                             <span
-                              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                                 c.category === 'EARNED_COMMISSION'
-                                  ? 'bg-emerald-950 text-emerald-300 border border-emerald-700/60'
-                                  : 'bg-indigo-950 text-indigo-300 border border-indigo-700/60'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-blue-100 text-blue-800'
                               }`}
                             >
                               {c.category}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-slate-300">₹{c.base_value.toLocaleString('en-IN')}</td>
-                          <td className="px-3 py-2 text-slate-300">{c.rate_applied}%</td>
-                          <td className="px-3 py-2 font-bold text-white">
+                          <td className="px-4 py-2.5 text-gray-800 font-mono">₹{c.base_value.toLocaleString('en-IN')}</td>
+                          <td className="px-4 py-2.5 text-gray-800 font-mono">{c.rate_applied}%</td>
+                          <td className="px-4 py-2.5 font-bold text-gray-900 font-mono">
                             ₹{c.calculated_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </td>
-                          <td className="px-3 py-2">
+                          <td className="px-4 py-2.5">
                             <span
-                              className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                                 c.state === 'APPROVED'
-                                  ? 'bg-emerald-900 text-emerald-200'
+                                  ? 'bg-emerald-100 text-emerald-800'
                                   : c.state === 'BATCHED'
-                                  ? 'bg-purple-900 text-purple-200'
+                                  ? 'bg-purple-100 text-purple-800'
                                   : c.state === 'DISPUTED'
-                                  ? 'bg-red-900 text-red-200'
-                                  : 'bg-blue-900 text-blue-200'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-amber-100 text-amber-800'
                               }`}
                             >
                               {c.state}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-slate-400 text-[11px] max-w-xs truncate" title={c.formula_trace}>
+                          <td className="px-4 py-2.5 text-gray-600 text-[11px] max-w-xs truncate" title={c.formula_trace}>
                             {c.formula_trace}
                           </td>
-                          <td className="px-3 py-2 text-right space-x-1">
+                          <td className="px-4 py-2.5 text-right space-x-1">
                             {c.state === 'CALCULATED' && (
                               <>
                                 <button
                                   onClick={() => handleCalcAction(c.id, 'APPROVE')}
-                                  className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px]"
+                                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px] font-bold shadow-sm"
                                 >
                                   Approve
                                 </button>
                                 <button
                                   onClick={() => handleCalcAction(c.id, 'DISPUTE')}
-                                  className="px-2 py-0.5 bg-red-800 hover:bg-red-700 text-white rounded text-[10px]"
+                                  className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-[10px] font-bold shadow-sm"
                                 >
                                   Dispute
                                 </button>
@@ -924,54 +938,54 @@ export const CommissionControlCenter: React.FC = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
-                  Principal Recovery Claims Desk (4-Eyes Approval)
+                <h2 className="text-sm font-extrabold text-gray-900 uppercase tracking-wide">
+                  Principal Recovery Claims Desk (4-Eyes Approval Workflow)
                 </h2>
-                <p className="text-xs text-slate-400">
-                  Batch approved earned commissions and recoverable expenses into formal recovery claim submissions.
+                <p className="text-xs text-gray-500">
+                  Aggregate approved earned commissions and recoverable expenses into formal recovery claim packages.
                 </p>
               </div>
               <button
                 onClick={() => setIsClaimModalOpen(true)}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded text-xs flex items-center space-x-1 font-mono"
+                className="bg-[#1b4332] hover:bg-[#143627] text-white font-bold px-3.5 py-2 rounded-lg text-xs flex items-center space-x-1.5 shadow"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4" />
                 <span>Create New Claim Batch</span>
               </button>
             </div>
 
             <div className="space-y-3">
               {claims.length === 0 ? (
-                <div className="bg-slate-950/70 border border-slate-800 rounded-lg p-8 text-center text-slate-500 font-mono text-xs">
-                  No recovery claims currently registered. Use [F7] or the button above to generate a claim.
+                <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-gray-400 text-xs">
+                  No recovery claims currently registered. Use [F7] or the button above to generate a claim batch.
                 </div>
               ) : (
                 claims.map((clm) => (
                   <div
                     key={clm.id}
-                    className="bg-slate-950/80 border border-slate-800 rounded-lg p-4 hover:border-slate-700 transition-all font-mono text-xs"
+                    className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-all text-xs"
                   >
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
                       <div>
                         <div className="flex items-center space-x-2">
-                          <span className="font-bold text-sm text-blue-300">{clm.claim_number}</span>
-                          <span className="text-slate-400">• {clm.principal_name}</span>
+                          <span className="font-extrabold text-sm text-[#1b4332] font-mono">{clm.claim_number}</span>
+                          <span className="text-gray-600 font-medium">• {clm.principal_name}</span>
                         </div>
-                        <div className="text-[10px] text-slate-500">
+                        <div className="text-[11px] text-gray-400 mt-0.5">
                           Period: {new Date(clm.period_from).toLocaleDateString()} to {new Date(clm.period_to).toLocaleDateString()}
                         </div>
                       </div>
 
                       <div className="flex items-center space-x-2">
                         <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          className={`px-3 py-1 rounded-full text-xs font-bold ${
                             clm.status === 'APPROVED'
-                              ? 'bg-emerald-950 text-emerald-300 border border-emerald-700/60'
+                              ? 'bg-emerald-100 text-emerald-800'
                               : clm.status === 'SUBMITTED'
-                              ? 'bg-blue-950 text-blue-300 border border-blue-700/60'
+                              ? 'bg-blue-100 text-blue-800'
                               : clm.status === 'RECOVERY_CREATED'
-                              ? 'bg-purple-950 text-purple-300 border border-purple-700/60'
-                              : 'bg-amber-950 text-amber-300 border border-amber-700/60'
+                              ? 'bg-purple-100 text-purple-800'
+                              : 'bg-amber-100 text-amber-800'
                           }`}
                         >
                           {clm.status}
@@ -980,7 +994,7 @@ export const CommissionControlCenter: React.FC = () => {
                         {clm.status === 'DRAFT' && (
                           <button
                             onClick={() => handleClaimAction(clm.id, 'SUBMIT')}
-                            className="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-[10px] font-semibold"
+                            className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold shadow"
                           >
                             Submit
                           </button>
@@ -988,7 +1002,7 @@ export const CommissionControlCenter: React.FC = () => {
                         {clm.status === 'SUBMITTED' && (
                           <button
                             onClick={() => handleClaimAction(clm.id, 'APPROVE')}
-                            className="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px] font-semibold"
+                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow"
                           >
                             Approve
                           </button>
@@ -996,7 +1010,7 @@ export const CommissionControlCenter: React.FC = () => {
                         {clm.status === 'APPROVED' && (
                           <button
                             onClick={() => handleClaimAction(clm.id, 'CREATE_DOCUMENT')}
-                            className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-semibold"
+                            className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold shadow"
                           >
                             Create Service Invoice
                           </button>
@@ -1004,46 +1018,46 @@ export const CommissionControlCenter: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3 bg-slate-900/60 p-2.5 rounded border border-slate-800">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 bg-gray-50 p-3 rounded-lg border border-gray-100">
                       <div>
-                        <div className="text-[10px] text-slate-400">Total Claimed</div>
-                        <div className="text-white font-bold text-sm">
+                        <div className="text-[11px] font-bold text-gray-500 uppercase">Total Claimed</div>
+                        <div className="text-gray-900 font-extrabold text-sm font-mono mt-0.5">
                           ₹{clm.total_claimed_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </div>
                       </div>
                       <div>
-                        <div className="text-[10px] text-slate-400">Earned Turnover</div>
-                        <div className="text-emerald-300 font-bold">
+                        <div className="text-[11px] font-bold text-gray-500 uppercase">Earned Turnover</div>
+                        <div className="text-emerald-700 font-extrabold text-sm font-mono mt-0.5">
                           ₹{clm.total_earned_commission.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </div>
                       </div>
                       <div>
-                        <div className="text-[10px] text-slate-400">Recoverable Expenses</div>
-                        <div className="text-indigo-300 font-bold">
+                        <div className="text-[11px] font-bold text-gray-500 uppercase">Recoverable Ancillaries</div>
+                        <div className="text-blue-700 font-extrabold text-sm font-mono mt-0.5">
                           ₹{clm.total_recoverable_expenses.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </div>
                       </div>
                       <div>
-                        <div className="text-[10px] text-slate-400">Approved Total</div>
-                        <div className="text-cyan-300 font-bold">
+                        <div className="text-[11px] font-bold text-gray-500 uppercase">Approved Total</div>
+                        <div className="text-indigo-700 font-extrabold text-sm font-mono mt-0.5">
                           ₹{clm.approved_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </div>
                       </div>
                     </div>
 
-                    {/* Claim Lines breakdown */}
-                    <div className="space-y-1">
-                      <div className="text-[10px] uppercase font-bold text-slate-400">Claim Line Items ({clm.lines.length})</div>
+                    {/* Claim Lines */}
+                    <div className="space-y-1.5">
+                      <div className="text-[11px] font-bold text-gray-500 uppercase">Itemized Claim Lines ({clm.lines.length})</div>
                       {clm.lines.map((l) => (
                         <div
                           key={l.id}
-                          className="flex items-center justify-between text-[11px] bg-slate-900/40 px-2.5 py-1 rounded border border-slate-800/80"
+                          className="flex items-center justify-between text-xs bg-gray-50/60 px-3 py-1.5 rounded-lg border border-gray-200"
                         >
                           <div className="truncate max-w-md">
-                            <span className="text-slate-200 font-semibold">{l.source_doc_id}</span> •{' '}
-                            <span className="text-slate-400">{l.line_description}</span>
+                            <span className="font-bold text-gray-900">{l.source_doc_id}</span> •{' '}
+                            <span className="text-gray-600">{l.line_description}</span>
                           </div>
-                          <div className="font-bold text-slate-200">
+                          <div className="font-extrabold text-gray-900 font-mono">
                             ₹{l.requested_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </div>
                         </div>
@@ -1052,12 +1066,12 @@ export const CommissionControlCenter: React.FC = () => {
 
                     {/* Linked Docs */}
                     {clm.linked_documents && clm.linked_documents.length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-slate-800 flex items-center space-x-2 text-[10px]">
-                        <span className="text-slate-400 font-bold">Linked Commercial Documents:</span>
+                      <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center space-x-2 text-xs">
+                        <span className="text-gray-500 font-bold">Linked Commercial Document:</span>
                         {clm.linked_documents.map((d) => (
                           <span
                             key={d.id}
-                            className="bg-indigo-950 text-indigo-300 border border-indigo-700/60 px-2 py-0.5 rounded font-bold"
+                            className="bg-indigo-50 text-indigo-800 border border-indigo-200 px-2.5 py-0.5 rounded font-bold"
                           >
                             {d.document_type}: {d.document_number} (₹{d.amount.toLocaleString('en-IN')})
                           </span>
@@ -1076,20 +1090,20 @@ export const CommissionControlCenter: React.FC = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
+                <h2 className="text-sm font-extrabold text-gray-900 uppercase tracking-wide">
                   Principal Recovery Statements (Consolidated Periodic Run)
                 </h2>
-                <p className="text-xs text-slate-400">
-                  Consolidated ledger reconciling earned commissions, recoverable expenses, payments received, and outstanding principal balances.
+                <p className="text-xs text-gray-500">
+                  Consolidated ledger reconciling turnover commissions, expense recoveries, payments, and outstanding balances.
                 </p>
               </div>
 
               {agreements.length > 0 && (
                 <button
                   onClick={() => handleGenerateStatement(agreements[0].principal_id)}
-                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded text-xs flex items-center space-x-1 font-mono"
+                  className="bg-[#1b4332] hover:bg-[#143627] text-white font-bold px-3.5 py-2 rounded-lg text-xs flex items-center space-x-1.5 shadow"
                 >
-                  <Receipt className="w-3.5 h-3.5" />
+                  <Receipt className="w-4 h-4" />
                   <span>Generate Period Statement</span>
                 </button>
               )}
@@ -1099,71 +1113,71 @@ export const CommissionControlCenter: React.FC = () => {
               {statements.map((stm) => (
                 <div
                   key={stm.id}
-                  className="bg-slate-950/80 border border-slate-800 rounded-lg p-4 font-mono text-xs"
+                  className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm text-xs"
                 >
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                  <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
                     <div>
-                      <div className="text-sm font-bold text-white flex items-center space-x-2">
-                        <span>{stm.statement_number}</span>
-                        <span className="text-blue-300 font-normal">• {stm.principal_name}</span>
+                      <div className="text-base font-extrabold text-gray-900 flex items-center space-x-2">
+                        <span className="text-[#1b4332] font-mono">{stm.statement_number}</span>
+                        <span className="text-gray-600 font-medium">• {stm.principal_name}</span>
                       </div>
-                      <div className="text-[10px] text-slate-500">
+                      <div className="text-[11px] text-gray-400 mt-0.5">
                         Period: {new Date(stm.period_from).toLocaleDateString()} to {new Date(stm.period_to).toLocaleDateString()}
                       </div>
                     </div>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-700/60">
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
                       {stm.status}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3 bg-slate-900/60 p-2.5 rounded border border-slate-800">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 bg-gray-50 p-3 rounded-lg border border-gray-100">
                     <div>
-                      <div className="text-[10px] text-slate-400">Earned Turnover</div>
-                      <div className="text-emerald-300 font-bold">
+                      <div className="text-[11px] font-bold text-gray-500 uppercase">Earned Turnover</div>
+                      <div className="text-emerald-700 font-extrabold text-sm font-mono mt-0.5">
                         ₹{stm.earned_commission.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-slate-400">Expense Recovery</div>
-                      <div className="text-indigo-300 font-bold">
+                      <div className="text-[11px] font-bold text-gray-500 uppercase">Expense Recovery</div>
+                      <div className="text-blue-700 font-extrabold text-sm font-mono mt-0.5">
                         ₹{stm.expense_recovery.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-slate-400">Invoiced Commercial</div>
-                      <div className="text-white font-bold">
+                      <div className="text-[11px] font-bold text-gray-500 uppercase">Invoiced Total</div>
+                      <div className="text-gray-900 font-extrabold text-sm font-mono mt-0.5">
                         ₹{stm.invoiced_total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-slate-400">Settled (Remittances)</div>
-                      <div className="text-cyan-300 font-bold">
+                      <div className="text-[11px] font-bold text-gray-500 uppercase">Settled (Remittances)</div>
+                      <div className="text-cyan-700 font-extrabold text-sm font-mono mt-0.5">
                         ₹{stm.settled_total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-slate-400">Outstanding Balance</div>
-                      <div className="text-amber-300 font-bold">
+                      <div className="text-[11px] font-bold text-gray-500 uppercase">Outstanding Balance</div>
+                      <div className="text-amber-700 font-extrabold text-sm font-mono mt-0.5">
                         ₹{stm.outstanding_balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </div>
                     </div>
                   </div>
 
-                  {/* Statement Lines */}
-                  <div className="space-y-1">
-                    <div className="text-[10px] uppercase font-bold text-slate-400">Statement Transactions</div>
+                  {/* Statement lines */}
+                  <div className="space-y-1.5">
+                    <div className="text-[11px] font-bold text-gray-500 uppercase">Statement Movements</div>
                     {stm.lines.map((l) => (
                       <div
                         key={l.id}
-                        className="flex items-center justify-between text-[11px] bg-slate-900/40 px-2.5 py-1 rounded border border-slate-800/80"
+                        className="flex items-center justify-between text-xs bg-gray-50/60 px-3 py-1.5 rounded-lg border border-gray-200"
                       >
                         <div>
-                          <span className="text-slate-300 font-semibold">{l.category}</span> •{' '}
-                          <span className="text-slate-400">{l.description}</span> ({l.reference_doc_id})
+                          <span className="font-bold text-gray-800">{l.category}</span> •{' '}
+                          <span className="text-gray-600">{l.description}</span> ({l.reference_doc_id})
                         </div>
                         <div
-                          className={`font-bold ${
-                            l.amount < 0 ? 'text-cyan-400' : 'text-slate-200'
+                          className={`font-extrabold font-mono ${
+                            l.amount < 0 ? 'text-cyan-700' : 'text-gray-900'
                           }`}
                         >
                           ₹{l.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -1172,8 +1186,8 @@ export const CommissionControlCenter: React.FC = () => {
                     ))}
                   </div>
 
-                  <div className="mt-3 pt-2 border-t border-slate-800 text-[10px] text-slate-500 truncate">
-                    Integrity Hash: {stm.statement_hash}
+                  <div className="mt-3 pt-2.5 border-t border-gray-100 text-[11px] text-gray-400 font-mono truncate">
+                    SHA-256 Integrity Hash: {stm.statement_hash}
                   </div>
                 </div>
               ))}
@@ -1185,11 +1199,11 @@ export const CommissionControlCenter: React.FC = () => {
         {activeTab === 'EXCEPTIONS' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Exceptions Queue */}
-            <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-4 font-mono text-xs">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm text-xs">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
                 <div className="flex items-center space-x-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-400" />
-                  <span className="font-bold text-white uppercase tracking-wider">
+                  <AlertTriangle className="w-5 h-5 text-amber-500" />
+                  <span className="font-extrabold text-gray-900 uppercase tracking-wide">
                     Exceptions Queue ({exceptions.length})
                   </span>
                 </div>
@@ -1199,21 +1213,21 @@ export const CommissionControlCenter: React.FC = () => {
                 {exceptions.map((ex) => (
                   <div
                     key={ex.id}
-                    className="bg-slate-900/60 p-2.5 rounded border border-slate-800 flex items-start justify-between"
+                    className="bg-gray-50 p-3 rounded-lg border border-gray-200 flex items-start justify-between"
                   >
                     <div>
                       <div className="flex items-center space-x-2">
-                        <span className="text-slate-200 font-bold">{ex.source_id}</span>
-                        <span className="text-[10px] bg-amber-950 text-amber-300 px-1.5 py-0.5 rounded border border-amber-700/60">
+                        <span className="font-bold text-gray-900">{ex.source_id}</span>
+                        <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded">
                           {ex.exception_type}
                         </span>
                       </div>
-                      <div className="text-[11px] text-slate-400 mt-1">{ex.description}</div>
+                      <div className="text-gray-600 mt-1">{ex.description}</div>
                     </div>
                     {ex.state === 'OPEN' && (
                       <button
                         onClick={() => handleResolveException(ex.id)}
-                        className="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-[10px] font-semibold"
+                        className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-sm"
                       >
                         Resolve
                       </button>
@@ -1224,27 +1238,27 @@ export const CommissionControlCenter: React.FC = () => {
             </div>
 
             {/* Audit Trail */}
-            <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-4 font-mono text-xs">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm text-xs">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
                 <div className="flex items-center space-x-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  <span className="font-bold text-white uppercase tracking-wider">
+                  <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                  <span className="font-extrabold text-gray-900 uppercase tracking-wide">
                     Immutable Audit Trail ({audits.length})
                   </span>
                 </div>
               </div>
 
-              <div className="space-y-2 max-h-96 overflow-y-auto">
+              <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
                 {audits.map((a) => (
-                  <div key={a.id} className="bg-slate-900/60 p-2 rounded border border-slate-800 text-[11px]">
-                    <div className="flex items-center justify-between text-slate-300 font-bold">
+                  <div key={a.id} className="bg-gray-50 p-2.5 rounded-lg border border-gray-200 text-xs">
+                    <div className="flex items-center justify-between text-gray-900 font-bold">
                       <span>{a.action} on {a.object_type} ({a.object_id})</span>
-                      <span className="text-[10px] text-slate-500">
+                      <span className="text-[10px] text-gray-400 font-mono">
                         {new Date(a.created_at).toLocaleTimeString()}
                       </span>
                     </div>
-                    <div className="text-slate-400 text-[10px] mt-0.5">
-                      Actor: {a.actor_username} • Hash: {a.after_hash ? a.after_hash.slice(0, 16) : 'N/A'}...
+                    <div className="text-gray-500 text-[11px] font-mono mt-0.5">
+                      Actor: <span className="text-gray-800 font-semibold">{a.actor_username}</span> • Hash: {a.after_hash ? a.after_hash.slice(0, 16) : 'N/A'}...
                     </div>
                   </div>
                 ))}
@@ -1252,34 +1266,36 @@ export const CommissionControlCenter: React.FC = () => {
             </div>
           </div>
         )}
-      </main>
+      </div>
 
-      {/* ── NEW CLAIM MODAL ─────────────────────────────────── */}
+      {/* ── NEW CLAIM BATCH MODAL ───────────────────────────── */}
       {isClaimModalOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-950 border border-slate-700 rounded-lg max-w-lg w-full p-5 shadow-2xl font-mono text-xs space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white border border-gray-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl text-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
               <div className="flex items-center space-x-2">
-                <FileText className="w-4 h-4 text-emerald-400" />
-                <span className="font-bold text-sm text-white uppercase tracking-wider">
+                <div className="p-1.5 bg-emerald-100 rounded text-emerald-800">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <span className="font-extrabold text-sm text-gray-900 uppercase tracking-wide">
                   Create Principal Recovery Claim Batch
                 </span>
               </div>
               <button
                 onClick={() => setIsClaimModalOpen(false)}
-                className="text-slate-400 hover:text-slate-200"
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3.5">
               <div>
-                <label className="block text-slate-400 mb-1">Target Principal</label>
+                <label className="block text-gray-700 font-bold mb-1">Target Principal</label>
                 <select
                   value={claimPrincipalId}
                   onChange={(e) => setClaimPrincipalId(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200"
+                  className="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-gray-900 font-medium focus:ring-2 focus:ring-emerald-400 focus:bg-white"
                 >
                   {agreements.map((a) => (
                     <option key={a.principal_id} value={a.principal_id}>
@@ -1290,24 +1306,24 @@ export const CommissionControlCenter: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">Batch Description / Notes</label>
+                <label className="block text-gray-700 font-bold mb-1">Batch Description / Narration</label>
                 <input
                   type="text"
                   value={claimNotes}
                   onChange={(e) => setClaimNotes(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200"
+                  className="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-gray-900 font-medium focus:ring-2 focus:ring-emerald-400 focus:bg-white"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">
+                <label className="block text-gray-700 font-bold mb-1">
                   Select Approved Calculations to Include ({selectedCalcIds.length} selected)
                 </label>
-                <div className="max-h-36 overflow-y-auto bg-slate-900 border border-slate-800 rounded p-2 space-y-1">
+                <div className="max-h-40 overflow-y-auto bg-gray-50 border border-gray-200 rounded-lg p-2.5 space-y-1.5">
                   {calculations
                     .filter((c) => c.state === 'APPROVED' || c.state === 'CALCULATED')
                     .map((c) => (
-                      <label key={c.id} className="flex items-center space-x-2 cursor-pointer hover:bg-slate-800/50 p-1 rounded">
+                      <label key={c.id} className="flex items-center space-x-2.5 cursor-pointer hover:bg-white p-1.5 rounded-md border border-transparent hover:border-gray-200 transition-all">
                         <input
                           type="checkbox"
                           checked={selectedCalcIds.includes(c.id)}
@@ -1318,29 +1334,29 @@ export const CommissionControlCenter: React.FC = () => {
                               setSelectedCalcIds(selectedCalcIds.filter((id) => id !== c.id));
                             }
                           }}
-                          className="rounded border-slate-700 text-blue-600 focus:ring-0"
+                          className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4"
                         />
-                        <span className="text-[11px] text-slate-200">{c.calculation_number}</span>
-                        <span className="text-[10px] text-slate-400">({c.category} - ₹{c.calculated_amount})</span>
+                        <span className="font-bold text-gray-900 font-mono">{c.calculation_number}</span>
+                        <span className="text-gray-500">({c.category} - ₹{c.calculated_amount.toLocaleString('en-IN')})</span>
                       </label>
                     ))}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-800">
+            <div className="flex items-center justify-end space-x-2.5 pt-3 border-t border-gray-100">
               <button
                 onClick={() => setIsClaimModalOpen(false)}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded"
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-lg transition-all"
               >
                 Cancel [Esc]
               </button>
               <button
                 id="btn-submit-claim-modal"
                 onClick={handleCreateClaim}
-                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded flex items-center space-x-1"
+                className="px-4 py-2 bg-[#1b4332] hover:bg-[#143627] text-white font-extrabold rounded-lg shadow flex items-center space-x-1.5 transition-all"
               >
-                <CheckCircle2 className="w-3.5 h-3.5" />
+                <CheckCircle2 className="w-4 h-4" />
                 <span>Create Claim Batch</span>
               </button>
             </div>
