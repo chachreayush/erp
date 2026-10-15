@@ -3126,6 +3126,252 @@ export async function apiRunPrincipalReconciliation(payload: {
   return response.data;
 }
 
+// ==========================================
+// DOC-37: PRINCIPAL COMMISSION & RECOVERY ENGINE APIS
+// ==========================================
+
+export interface CommissionSummaryKPI {
+  total_earned_commission: number;
+  total_recoverable_expenses: number;
+  net_commercial_total: number;
+  open_claims_count: number;
+  open_claims_amount: number;
+  approved_claims_count: number;
+  approved_claims_amount: number;
+  total_disputed_amount: number;
+  active_agreements_count: number;
+  open_exceptions_count: number;
+  total_settled: number;
+  total_outstanding: number;
+  as_of?: string;
+}
+
+export interface CommissionRuleItem {
+  id: string;
+  rule_code: string;
+  rule_name: string;
+  priority: number;
+  rule_type: string;
+  rate_pct: number;
+  unit_rate: number;
+  fixed_amount: number;
+  min_guarantee_amount: number;
+  formula_config?: any;
+  status: string;
+  scopes?: {
+    id: string;
+    product_scope: string;
+    customer_scope: string;
+    territory_scope: string;
+  }[];
+}
+
+export interface CommissionAgreementItem {
+  id: string;
+  principal_id: string;
+  principal_code: string;
+  principal_name: string;
+  agreement_code: string;
+  version_no: string;
+  valid_from: string;
+  valid_to: string;
+  status: string;
+  terms_json?: any;
+  rules: CommissionRuleItem[];
+}
+
+export interface CommissionCalculationItem {
+  id: string;
+  calculation_number: string;
+  principal_id: string;
+  principal_name: string;
+  category: 'EARNED_COMMISSION' | 'RECOVERABLE_EXPENSE' | 'SERVICE_FEE';
+  base_value: number;
+  rate_applied: number;
+  calculated_amount: number;
+  currency: string;
+  formula_trace: string;
+  state: 'CALCULATED' | 'REVIEW_REQUIRED' | 'APPROVED' | 'BATCHED' | 'RECOVERY_CREATED' | 'DISPUTED' | 'SETTLED' | 'CANCELLED';
+  sha256_hash: string;
+  created_at: string;
+}
+
+export interface RecoveryClaimLineItem {
+  id: string;
+  calc_id?: string;
+  source_doc_type: string;
+  source_doc_id: string;
+  line_description: string;
+  requested_amount: number;
+  approved_amount: number;
+  disputed_amount: number;
+  status: string;
+}
+
+export interface RecoveryClaimItem {
+  id: string;
+  claim_number: string;
+  principal_id: string;
+  principal_name: string;
+  period_from: string;
+  period_to: string;
+  total_earned_commission: number;
+  total_recoverable_expenses: number;
+  total_claimed_amount: number;
+  approved_amount: number;
+  disputed_amount: number;
+  status: 'DRAFT' | 'READY' | 'SUBMITTED' | 'ACKNOWLEDGED' | 'APPROVED' | 'PARTIALLY_APPROVED' | 'DISPUTED' | 'RECOVERY_CREATED' | 'SETTLED' | 'REJECTED';
+  submitted_at?: string;
+  approved_at?: string;
+  created_at: string;
+  lines: RecoveryClaimLineItem[];
+  linked_documents?: {
+    id: string;
+    document_type: string;
+    document_number: string;
+    amount: number;
+    linked_at: string;
+  }[];
+}
+
+export interface RecoveryStatementLineItem {
+  id: string;
+  category: string;
+  reference_doc_id: string;
+  description: string;
+  amount: number;
+}
+
+export interface RecoveryStatementItem {
+  id: string;
+  statement_number: string;
+  principal_id: string;
+  principal_name: string;
+  period_from: string;
+  period_to: string;
+  earned_commission: number;
+  service_fees: number;
+  expense_recovery: number;
+  adjustments: number;
+  approved_commercial: number;
+  invoiced_total: number;
+  settled_total: number;
+  outstanding_balance: number;
+  disputed_total: number;
+  statement_hash: string;
+  status: string;
+  created_at: string;
+  lines: RecoveryStatementLineItem[];
+}
+
+export async function apiGetCommissionSummary(): Promise<{ status: string; data: CommissionSummaryKPI }> {
+  const response = await apiClient.get('/api/commission/summary');
+  return response.data;
+}
+
+export async function apiGetCommissionAgreements(params?: { principal_id?: string; status?: string }): Promise<{ status: string; count: number; data: CommissionAgreementItem[] }> {
+  const response = await apiClient.get('/api/commission/agreements', { params });
+  return response.data;
+}
+
+export async function apiExecuteCommissionCalculation(payload: {
+  principal_id: string;
+  event_type?: string;
+  source_doc_type?: string;
+  source_doc_id: string;
+  base_value: number;
+  quantity?: number;
+  category?: string;
+  custom_rate?: number;
+  rule_id?: string;
+  description?: string;
+}): Promise<{ status: string; message: string; data: CommissionCalculationItem }> {
+  const response = await apiClient.post('/api/commission/calculate', payload);
+  return response.data;
+}
+
+export async function apiGetCommissionCalculations(params?: {
+  principal_id?: string;
+  category?: string;
+  state?: string;
+  limit?: number;
+}): Promise<{ status: string; count: number; data: CommissionCalculationItem[] }> {
+  const response = await apiClient.get('/api/commission/calculations', { params });
+  return response.data;
+}
+
+export async function apiTakeCalculationAction(
+  calcId: string,
+  payload: { action: string; delta_amount?: number; reason?: string }
+): Promise<{ status: string; message: string; data: any }> {
+  const response = await apiClient.post(`/api/commission/calculations/${calcId}/action`, payload);
+  return response.data;
+}
+
+export async function apiGetRecoveryClaims(params?: {
+  principal_id?: string;
+  status?: string;
+}): Promise<{ status: string; count: number; data: RecoveryClaimItem[] }> {
+  const response = await apiClient.get('/api/commission/claims', { params });
+  return response.data;
+}
+
+export async function apiCreateRecoveryClaim(payload: {
+  principal_id: string;
+  period_from?: string;
+  period_to?: string;
+  calc_ids?: string[];
+  lines?: any[];
+  notes?: string;
+}): Promise<{ status: string; message: string; data: any }> {
+  const response = await apiClient.post('/api/commission/claims', payload);
+  return response.data;
+}
+
+export async function apiTakeRecoveryClaimAction(
+  claimId: string,
+  payload: {
+    action: string;
+    approved_amount?: number;
+    disputed_amount?: number;
+    document_type?: string;
+    notes?: string;
+  }
+): Promise<{ status: string; message: string; data: any }> {
+  const response = await apiClient.post(`/api/commission/claims/${claimId}/action`, payload);
+  return response.data;
+}
+
+export async function apiGetRecoveryStatements(principalId?: string): Promise<{ status: string; count: number; data: RecoveryStatementItem[] }> {
+  const response = await apiClient.get('/api/commission/statements', { params: principalId ? { principal_id: principalId } : {} });
+  return response.data;
+}
+
+export async function apiGenerateRecoveryStatement(payload: {
+  principal_id: string;
+  period_from?: string;
+  period_to?: string;
+}): Promise<{ status: string; message: string; data: any }> {
+  const response = await apiClient.post('/api/commission/statements/generate', payload);
+  return response.data;
+}
+
+export async function apiGetCommissionExceptions(state?: string): Promise<{ status: string; count: number; data: any[] }> {
+  const response = await apiClient.get('/api/commission/exceptions', { params: state ? { state } : {} });
+  return response.data;
+}
+
+export async function apiResolveCommissionException(exId: string): Promise<{ status: string; message: string }> {
+  const response = await apiClient.post(`/api/commission/exceptions/${exId}/resolve`);
+  return response.data;
+}
+
+export async function apiGetCommissionAudits(limit?: number): Promise<{ status: string; count: number; data: any[] }> {
+  const response = await apiClient.get('/api/commission/audits', { params: limit ? { limit } : {} });
+  return response.data;
+}
+
+
 
 
 

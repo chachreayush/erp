@@ -234,6 +234,10 @@ app.include_router(freight_router, prefix="/api/freight")
 from api.principal import router as principal_router
 app.include_router(principal_router, prefix="/api/principal")
 
+# DOC-37: Principal & C&F Commission & Recovery Engine
+from api.commission import router as commission_router
+app.include_router(commission_router, prefix="/api/commission")
+
 # Future routers will be added here as modules are built:
 # app.include_router(hr_router)
 

@@ -2573,5 +2573,232 @@ class PrincipalSyncCheckpoint(Base):
     synced_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
+# ==============================================================================
+# DOC-37: PRINCIPAL & C&F COMMISSION & RECOVERY ENGINE MODELS
+# ==============================================================================
+
+class PrincipalCommissionAgreement(Base):
+    __tablename__ = "principal_commission_agreements"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    principal_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    principal_code = Column(String(50), nullable=False, index=True)
+    principal_name = Column(String(200), nullable=False)
+    agreement_code = Column(String(80), nullable=False, index=True)
+    version_no = Column(String(20), nullable=False, default="v1.0")
+    valid_from = Column(DateTime, default=datetime.utcnow, nullable=False)
+    valid_to = Column(DateTime, nullable=True)
+    status = Column(String(40), nullable=False, default="ACTIVE") # DRAFT, ACTIVE, SUPERSEDED, TERMINATED
+    terms_json = Column(JSON, nullable=True) # commission %, minimum guarantees, recoverable ancillaries
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class CommissionRule(Base):
+    __tablename__ = "commission_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    agreement_id = Column(UUID(as_uuid=True), ForeignKey("principal_commission_agreements.id", ondelete="CASCADE"), nullable=False, index=True)
+    rule_code = Column(String(50), nullable=False, index=True)
+    rule_name = Column(String(150), nullable=False)
+    priority = Column(Integer, default=1, nullable=False)
+    rule_type = Column(String(50), nullable=False, default="PERCENTAGE") # PERCENTAGE, PER_UNIT, FIXED_PERIOD, SLAB, MINIMUM_GUARANTEE, CAP_FLOOR, HYBRID
+    rate_pct = Column(Numeric(6, 2), default=0.0, nullable=False)
+    unit_rate = Column(Numeric(12, 2), default=0.0, nullable=False)
+    fixed_amount = Column(Numeric(14, 2), default=0.0, nullable=False)
+    min_guarantee_amount = Column(Numeric(14, 2), default=0.0, nullable=False)
+    cap_amount = Column(Numeric(14, 2), default=0.0, nullable=False)
+    floor_amount = Column(Numeric(14, 2), default=0.0, nullable=False)
+    formula_config = Column(JSON, nullable=True)
+    status = Column(String(30), default="ACTIVE", nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class CommissionScope(Base):
+    __tablename__ = "commission_scopes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    rule_id = Column(UUID(as_uuid=True), ForeignKey("commission_rules.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_scope = Column(String(50), default="ALL", nullable=False) # ALL, CATEGORY, SKU
+    customer_scope = Column(String(50), default="ALL", nullable=False) # ALL, TIER, SPECIFIC
+    territory_scope = Column(String(50), default="ALL", nullable=False)
+    branch_id = Column(UUID(as_uuid=True), nullable=True)
+    scope_filter_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class CommissionEvent(Base):
+    __tablename__ = "commission_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    principal_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    event_type = Column(String(60), nullable=False, index=True) # SALES_BILL, SALES_RETURN, FREIGHT_COST, STORAGE_CHARGE, LOADING_CHARGE
+    event_date = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    source_doc_type = Column(String(50), nullable=False) # INVOICE, RETURN, FREIGHT_EVENT, CONSIGNMENT
+    source_doc_id = Column(String(100), nullable=False, index=True)
+    source_line_id = Column(String(100), nullable=True)
+    idempotency_key = Column(String(120), nullable=False, unique=True, index=True)
+    payload_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class CommissionMeasure(Base):
+    __tablename__ = "commission_measures"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_id = Column(UUID(as_uuid=True), ForeignKey("commission_events.id", ondelete="CASCADE"), nullable=False, index=True)
+    measure_type = Column(String(50), nullable=False) # NET_SALES_VALUE, GROSS_SALES_VALUE, QUANTITY_UNITS, WEIGHT_KG, PACKAGE_COUNT
+    base_amount = Column(Numeric(14, 2), default=0.0, nullable=False)
+    base_quantity = Column(Numeric(14, 2), default=0.0, nullable=False)
+    uom = Column(String(20), default="INR", nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class CommissionCalculation(Base):
+    __tablename__ = "commission_calculations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    calculation_number = Column(String(80), nullable=False, unique=True, index=True)
+    event_id = Column(UUID(as_uuid=True), ForeignKey("commission_events.id", ondelete="CASCADE"), nullable=False, index=True)
+    rule_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    principal_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    principal_name = Column(String(200), nullable=False)
+    category = Column(String(40), default="EARNED_COMMISSION", nullable=False) # EARNED_COMMISSION, RECOVERABLE_EXPENSE, SERVICE_FEE
+    base_value = Column(Numeric(14, 2), default=0.0, nullable=False)
+    rate_applied = Column(Numeric(8, 4), default=0.0, nullable=False)
+    calculated_amount = Column(Numeric(14, 2), default=0.0, nullable=False)
+    currency = Column(String(10), default="INR", nullable=False)
+    formula_trace = Column(Text, nullable=True)
+    state = Column(String(40), default="CALCULATED", nullable=False, index=True) # CALCULATED, REVIEW_REQUIRED, APPROVED, BATCHED, RECOVERY_CREATED, DISPUTED, SETTLED, CANCELLED
+    sha256_hash = Column(String(64), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class CommissionAdjustment(Base):
+    __tablename__ = "commission_adjustments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    original_calc_id = Column(UUID(as_uuid=True), ForeignKey("commission_calculations.id", ondelete="CASCADE"), nullable=False, index=True)
+    delta_amount = Column(Numeric(14, 2), default=0.0, nullable=False)
+    reason_code = Column(String(100), nullable=False) # RETURN_REDUCTION, RATE_CORRECTION, DISPUTE_RESOLUTION, RETRO_SLAB
+    description = Column(Text, nullable=True)
+    approved_by_id = Column(UUID(as_uuid=True), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class RecoveryClaim(Base):
+    __tablename__ = "recovery_claims"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    claim_number = Column(String(80), nullable=False, unique=True, index=True)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    principal_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    principal_name = Column(String(200), nullable=False)
+    period_from = Column(DateTime, nullable=False)
+    period_to = Column(DateTime, nullable=False)
+    total_earned_commission = Column(Numeric(14, 2), default=0.0, nullable=False)
+    total_recoverable_expenses = Column(Numeric(14, 2), default=0.0, nullable=False)
+    total_claimed_amount = Column(Numeric(14, 2), default=0.0, nullable=False)
+    approved_amount = Column(Numeric(14, 2), default=0.0, nullable=False)
+    disputed_amount = Column(Numeric(14, 2), default=0.0, nullable=False)
+    status = Column(String(40), default="DRAFT", nullable=False, index=True) # DRAFT, READY, SUBMITTED, ACKNOWLEDGED, APPROVED, PARTIALLY_APPROVED, DISPUTED, RECOVERY_CREATED, SETTLED, REJECTED
+    submitted_at = Column(DateTime, nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class RecoveryClaimLine(Base):
+    __tablename__ = "recovery_claim_lines"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    claim_id = Column(UUID(as_uuid=True), ForeignKey("recovery_claims.id", ondelete="CASCADE"), nullable=False, index=True)
+    calc_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    source_doc_type = Column(String(50), nullable=False)
+    source_doc_id = Column(String(100), nullable=False, index=True)
+    line_description = Column(String(255), nullable=False)
+    requested_amount = Column(Numeric(14, 2), default=0.0, nullable=False)
+    approved_amount = Column(Numeric(14, 2), default=0.0, nullable=False)
+    disputed_amount = Column(Numeric(14, 2), default=0.0, nullable=False)
+    status = Column(String(30), default="PENDING", nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class RecoveryDocumentLink(Base):
+    __tablename__ = "recovery_document_links"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    claim_id = Column(UUID(as_uuid=True), ForeignKey("recovery_claims.id", ondelete="CASCADE"), nullable=False, index=True)
+    document_type = Column(String(50), nullable=False) # SERVICE_INVOICE, CREDIT_NOTE, DEBIT_NOTE, RECOVERY_REQUEST
+    document_number = Column(String(100), nullable=False, index=True)
+    amount = Column(Numeric(14, 2), default=0.0, nullable=False)
+    linked_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class RecoveryStatement(Base):
+    __tablename__ = "recovery_statements"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    statement_number = Column(String(80), nullable=False, unique=True, index=True)
+    principal_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    principal_name = Column(String(200), nullable=False)
+    period_from = Column(DateTime, nullable=False)
+    period_to = Column(DateTime, nullable=False)
+    earned_commission = Column(Numeric(14, 2), default=0.0, nullable=False)
+    service_fees = Column(Numeric(14, 2), default=0.0, nullable=False)
+    expense_recovery = Column(Numeric(14, 2), default=0.0, nullable=False)
+    adjustments = Column(Numeric(14, 2), default=0.0, nullable=False)
+    approved_commercial = Column(Numeric(14, 2), default=0.0, nullable=False)
+    invoiced_total = Column(Numeric(14, 2), default=0.0, nullable=False)
+    settled_total = Column(Numeric(14, 2), default=0.0, nullable=False)
+    outstanding_balance = Column(Numeric(14, 2), default=0.0, nullable=False)
+    disputed_total = Column(Numeric(14, 2), default=0.0, nullable=False)
+    statement_hash = Column(String(64), nullable=True)
+    status = Column(String(30), default="GENERATED", nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class RecoveryStatementLine(Base):
+    __tablename__ = "recovery_statement_lines"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    statement_id = Column(UUID(as_uuid=True), ForeignKey("recovery_statements.id", ondelete="CASCADE"), nullable=False, index=True)
+    category = Column(String(50), nullable=False) # EARNED_COMMISSION, SERVICE_FEE, EXPENSE_RECOVERY, ADJUSTMENT, SETTLEMENT
+    reference_doc_id = Column(String(100), nullable=False, index=True)
+    description = Column(String(255), nullable=False)
+    amount = Column(Numeric(14, 2), default=0.0, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class CommissionException(Base):
+    __tablename__ = "commission_exceptions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_id = Column(String(100), nullable=False, index=True)
+    exception_type = Column(String(60), nullable=False) # UNMAPPED_PRODUCT, EXPIRED_AGREEMENT, MISSING_RATE_CARD, UNAPPROVED_ANCILLARY
+    severity = Column(String(20), default="WARNING", nullable=False) # INFO, WARNING, ERROR, CRITICAL
+    description = Column(Text, nullable=False)
+    state = Column(String(30), default="OPEN", nullable=False) # OPEN, RESOLVED, WAIVED
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class CommissionAudit(Base):
+    __tablename__ = "commission_audits"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    object_type = Column(String(60), nullable=False) # CALCULATION, CLAIM, STATEMENT, AGREEMENT
+    object_id = Column(String(100), nullable=False, index=True)
+    action = Column(String(50), nullable=False) # CALCULATE, APPROVE, DISPUTE, SUBMIT, RECONCILE, RECALCULATE
+    actor_username = Column(String(100), default="admin", nullable=False)
+    before_hash = Column(String(64), nullable=True)
+    after_hash = Column(String(64), nullable=True)
+    details_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+
 
 

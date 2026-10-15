@@ -31,6 +31,7 @@ import { FreightRateMaster } from './pages/cargo/FreightRateMaster';
 import { FreightReconciliationDesk } from './pages/cargo/FreightReconciliationDesk';
 import { PrincipalControlCenter } from './pages/principal/PrincipalControlCenter';
 import { PrincipalStatementDesk } from './pages/principal/PrincipalStatementDesk';
+import { CommissionControlCenter } from './pages/commission/CommissionControlCenter';
 
 
 
@@ -267,6 +268,10 @@ function App() {
         <Route path="principal" element={<PrincipalControlCenter />} />
         <Route path="principal/operations" element={<PrincipalControlCenter />} />
         <Route path="principal/statement" element={<PrincipalStatementDesk />} />
+
+        {/* DOC-37 Principal Commission & Recovery Engine Routes */}
+        <Route path="commission" element={<CommissionControlCenter />} />
+        <Route path="commission/recovery" element={<CommissionControlCenter />} />
       </Route>
 
 

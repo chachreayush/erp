@@ -20,6 +20,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Workflows [F4]', path: '/workflow/inbox', module: undefined },
   { label: 'Audit Trail', path: '/audit', module: undefined },
   { label: 'Cargo & Consignments', path: '/cargo', module: undefined },
+  { label: 'Principal & C&F Ops', path: '/principal', module: undefined },
+  { label: 'Commission Engine', path: '/commission', module: undefined },
   { label: 'CRM & Admin', path: '/crm', module: 'crm' },
   { label: 'GST & Compliance', path: '/gst', module: undefined },
   { label: 'HR Management', path: '/hr', module: 'hr' },
