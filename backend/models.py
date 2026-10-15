@@ -31,7 +31,8 @@ from sqlalchemy import (
     Enum as SAEnum,  # A column that only accepts specific values
     Integer,
     Numeric,
-    Float
+    Float,
+    JSON
 )
 from sqlalchemy.orm import relationship  # Defines relationships between tables
 from sqlalchemy.dialects.postgresql import UUID, JSONB  # PostgreSQL-specific types
@@ -2296,6 +2297,281 @@ class FreightException(Base):
     resolution_notes = Column(Text, nullable=True)
     resolved_by_id = Column(UUID(as_uuid=True), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+# ==============================================================================
+# DOC-36: PRINCIPAL & C&F OPERATIONS MANAGEMENT MODELS
+# ==============================================================================
+
+class PrincipalOperatingContext(Base):
+    __tablename__ = "principal_operating_contexts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    principal_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    principal_code = Column(String(50), nullable=False, index=True)
+    principal_name = Column(String(200), nullable=False)
+    branch_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    agreement_version_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    status = Column(String(40), nullable=False, default="ACTIVE") # ACTIVE, SUSPENDED, TERMINATED
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class PrincipalAgreementVersion(Base):
+    __tablename__ = "principal_agreement_versions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    principal_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    agreement_number = Column(String(80), nullable=False, index=True)
+    version_no = Column(String(20), nullable=False, default="v1.0")
+    valid_from = Column(DateTime, default=datetime.utcnow, nullable=False)
+    valid_to = Column(DateTime, nullable=True)
+    terms_json = Column(JSON, nullable=True) # Commission %, freight terms, claim window, credit days
+    status = Column(String(30), nullable=False, default="ACTIVE") # DRAFT, ACTIVE, SUPERSEDED, EXPIRED
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PrincipalProductRule(Base):
+    __tablename__ = "principal_product_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    principal_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    product_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    product_name = Column(String(200), nullable=False)
+    sku_code = Column(String(100), nullable=False, index=True)
+    branch_id = Column(UUID(as_uuid=True), nullable=True)
+    warehouse_id = Column(UUID(as_uuid=True), nullable=True)
+    valid_from = Column(DateTime, default=datetime.utcnow, nullable=False)
+    valid_to = Column(DateTime, nullable=True)
+    is_exclusive = Column(Boolean, default=False, nullable=False)
+    status = Column(String(30), default="ACTIVE", nullable=False) # ACTIVE, INACTIVE, RESTRICTED
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PrincipalCustomerRule(Base):
+    __tablename__ = "principal_customer_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    principal_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    customer_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    customer_group = Column(String(100), nullable=True)
+    territory_id = Column(String(100), nullable=True, index=True)
+    territory_name = Column(String(200), nullable=True)
+    valid_from = Column(DateTime, default=datetime.utcnow, nullable=False)
+    valid_to = Column(DateTime, nullable=True)
+    status = Column(String(30), default="ACTIVE", nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PrincipalOwnershipRule(Base):
+    __tablename__ = "principal_ownership_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    principal_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    product_scope = Column(String(50), default="ALL", nullable=False) # ALL, CATEGORY, SPECIFIC_SKU
+    warehouse_scope = Column(String(50), default="ALL", nullable=False) # ALL, SPECIFIC_WH
+    mode = Column(String(50), default="CONSIGNMENT_CUSTODY", nullable=False) # CONSIGNMENT_CUSTODY, OUTRIGHT_PURCHASE, PRINCIPAL_OWNED
+    valid_from = Column(DateTime, default=datetime.utcnow, nullable=False)
+    valid_to = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PrincipalEvent(Base):
+    __tablename__ = "principal_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    principal_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    event_type = Column(String(60), nullable=False, index=True) # INWARD_RECEIPT, DISPATCH_SALE, RETURN_INWARD, EXPIRY_CLAIM, RECONCILIATION_MATCH
+    event_time = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    source_doc_type = Column(String(50), nullable=False) # INWARD, INVOICE, CHALLAN, RETURN, CLAIM, RECON
+    source_doc_id = Column(String(100), nullable=False, index=True)
+    payload_json = Column(JSON, nullable=True)
+    payload_hash = Column(String(64), nullable=True) # SHA-256 integrity hash
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PrincipalStockSnapshot(Base):
+    __tablename__ = "principal_stock_snapshots"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    principal_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    product_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    product_name = Column(String(200), nullable=False)
+    batch_no = Column(String(100), nullable=False, index=True)
+    warehouse_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    warehouse_name = Column(String(100), default="Central C&F Depot", nullable=False)
+    as_of = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    qty_on_hand = Column(Numeric(14, 2), default=0.0, nullable=False)
+    qty_reserved = Column(Numeric(14, 2), default=0.0, nullable=False)
+    qty_damage_breakage = Column(Numeric(14, 2), default=0.0, nullable=False)
+    unit_cost = Column(Numeric(14, 2), default=0.0, nullable=False)
+    total_valuation = Column(Numeric(18, 2), default=0.0, nullable=False)
+    source_version = Column(String(50), default="v1.0", nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PrincipalClaim(Base):
+    __tablename__ = "principal_claims"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    claim_number = Column(String(80), nullable=False, unique=True, index=True)
+    principal_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    principal_name = Column(String(200), nullable=False)
+    claim_type = Column(String(50), nullable=False, index=True) # EXPIRY, BREAKAGE, SHORTAGE, RATE_DIFFERENCE, SCHEME_REIMBURSEMENT
+    source_doc_type = Column(String(50), default="RETURN", nullable=False)
+    source_doc_id = Column(String(100), nullable=False, index=True)
+    product_id = Column(UUID(as_uuid=True), nullable=True)
+    product_name = Column(String(200), nullable=True)
+    batch_no = Column(String(100), nullable=True)
+    claimed_qty = Column(Numeric(14, 2), default=0.0, nullable=False)
+    claimed_amount = Column(Numeric(18, 2), default=0.0, nullable=False)
+    approved_amount = Column(Numeric(18, 2), default=0.0, nullable=False)
+    reason = Column(Text, nullable=True)
+    evidence_url = Column(String(500), nullable=True)
+    status = Column(String(40), default="PENDING", nullable=False, index=True) # PENDING, UNDER_REVIEW, APPROVED, REJECTED, PASSED_TO_SETTLEMENT, SETTLED
+    settlement_doc_id = Column(String(100), nullable=True) # Reference to DOC-07 settlement voucher
+    approved_by_id = Column(UUID(as_uuid=True), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PrincipalClaimLine(Base):
+    __tablename__ = "principal_claim_lines"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    claim_id = Column(UUID(as_uuid=True), ForeignKey("principal_claims.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_movement_id = Column(String(100), nullable=True)
+    product_id = Column(UUID(as_uuid=True), nullable=False)
+    batch_no = Column(String(100), nullable=False)
+    expiry_date = Column(DateTime, nullable=True)
+    qty = Column(Numeric(14, 2), default=0.0, nullable=False)
+    eligible_qty = Column(Numeric(14, 2), default=0.0, nullable=False)
+    rate = Column(Numeric(14, 2), default=0.0, nullable=False)
+    amount = Column(Numeric(18, 2), default=0.0, nullable=False)
+    approved_amount = Column(Numeric(18, 2), default=0.0, nullable=False)
+    status = Column(String(30), default="PENDING", nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PrincipalReconciliation(Base):
+    __tablename__ = "principal_reconciliations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    recon_number = Column(String(80), nullable=False, unique=True, index=True)
+    principal_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    principal_name = Column(String(200), nullable=False)
+    period_from = Column(DateTime, nullable=False)
+    period_to = Column(DateTime, nullable=False)
+    system_opening_val = Column(Numeric(18, 2), default=0.0, nullable=False)
+    external_opening_val = Column(Numeric(18, 2), default=0.0, nullable=False)
+    system_closing_val = Column(Numeric(18, 2), default=0.0, nullable=False)
+    external_closing_val = Column(Numeric(18, 2), default=0.0, nullable=False)
+    net_variance_val = Column(Numeric(18, 2), default=0.0, nullable=False)
+    matched_lines_count = Column(Integer, default=0, nullable=False)
+    variance_lines_count = Column(Integer, default=0, nullable=False)
+    version = Column(String(20), default="v1.0", nullable=False)
+    status = Column(String(40), default="DRAFT", nullable=False, index=True) # DRAFT, UNDER_REVIEW, APPROVED, FROZEN, DISPUTED
+    approved_by_id = Column(UUID(as_uuid=True), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PrincipalReconciliationLine(Base):
+    __tablename__ = "principal_reconciliation_lines"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    reconciliation_id = Column(UUID(as_uuid=True), ForeignKey("principal_reconciliations.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_key = Column(String(100), nullable=False, index=True) # Transaction ref, invoice, dispatch
+    source_type = Column(String(50), nullable=False) # SALE, INWARD, RETURN, CLAIM, EXPENSE
+    system_qty = Column(Numeric(14, 2), default=0.0, nullable=False)
+    external_qty = Column(Numeric(14, 2), default=0.0, nullable=False)
+    variance_qty = Column(Numeric(14, 2), default=0.0, nullable=False)
+    system_val = Column(Numeric(18, 2), default=0.0, nullable=False)
+    external_val = Column(Numeric(18, 2), default=0.0, nullable=False)
+    variance_val = Column(Numeric(18, 2), default=0.0, nullable=False)
+    reason_code = Column(String(100), nullable=True) # RATE_MISMATCH, PROOF_SHORTAGE, UNPOSTED_RETURN
+    status = Column(String(30), default="MATCHED", nullable=False) # MATCHED, VARIANCE, INVESTIGATION, RESOLVED
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PrincipalStatementRun(Base):
+    __tablename__ = "principal_statement_runs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    run_number = Column(String(80), nullable=False, unique=True, index=True)
+    principal_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    period_from = Column(DateTime, nullable=False)
+    period_to = Column(DateTime, nullable=False)
+    filters_hash = Column(String(64), nullable=True)
+    source_versions = Column(String(100), default="DOC16:v1,DOC08:v1", nullable=False)
+    opening_stock_val = Column(Numeric(18, 2), default=0.0, nullable=False)
+    receipts_val = Column(Numeric(18, 2), default=0.0, nullable=False)
+    sales_val = Column(Numeric(18, 2), default=0.0, nullable=False)
+    returns_val = Column(Numeric(18, 2), default=0.0, nullable=False)
+    claims_pending_val = Column(Numeric(18, 2), default=0.0, nullable=False)
+    freight_cost_val = Column(Numeric(18, 2), default=0.0, nullable=False)
+    closing_stock_val = Column(Numeric(18, 2), default=0.0, nullable=False)
+    status = Column(String(30), default="COMPLETED", nullable=False) # GENERATING, COMPLETED, ARCHIVED
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PrincipalStatementLine(Base):
+    __tablename__ = "principal_statement_lines"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    run_id = Column(UUID(as_uuid=True), ForeignKey("principal_statement_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    event_id = Column(UUID(as_uuid=True), nullable=True)
+    source_doc_id = Column(String(100), nullable=False, index=True)
+    category = Column(String(50), nullable=False) # OPENING, INWARD, SALE, RETURN, CLAIM, FREIGHT, COMMISSION, CLOSING
+    product_name = Column(String(200), nullable=True)
+    batch_no = Column(String(100), nullable=True)
+    qty = Column(Numeric(14, 2), default=0.0, nullable=False)
+    amount = Column(Numeric(18, 2), default=0.0, nullable=False)
+    status = Column(String(30), default="POSTED", nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PrincipalCostAttribution(Base):
+    __tablename__ = "principal_cost_attributions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    principal_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    source_cost_id = Column(String(100), nullable=False, index=True) # Links to DOC-35 FreightCostEvent
+    bearer = Column(String(40), nullable=False, default="ADMIN_COMPANY") # ADMIN_COMPANY, PRINCIPAL, CLIENT_COMPANY
+    recovery_target = Column(String(50), default="PRINCIPAL_CLAIM", nullable=False) # PRINCIPAL_CLAIM, CUSTOMER_INVOICE, SUBSIDY
+    amount = Column(Numeric(18, 2), default=0.0, nullable=False)
+    policy_version = Column(String(50), default="v2.0", nullable=False)
+    status = Column(String(30), default="ATTRIBUTED", nullable=False) # ATTRIBUTED, RECOVERED, ABSORBED
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PrincipalCommissionRef(Base):
+    __tablename__ = "principal_commission_refs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    principal_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    source_event_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    commission_doc_id = Column(String(100), nullable=False, index=True) # Links to DOC-37 commission voucher
+    gross_sales_val = Column(Numeric(18, 2), default=0.0, nullable=False)
+    commission_rate_pct = Column(Numeric(6, 2), default=5.0, nullable=False)
+    commission_amount = Column(Numeric(18, 2), default=0.0, nullable=False)
+    status = Column(String(30), default="ACCRUED", nullable=False) # ACCRUED, BILLED, SETTLED
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class PrincipalSyncCheckpoint(Base):
+    __tablename__ = "principal_sync_checkpoints"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    principal_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+    scope_key = Column(String(100), nullable=False, index=True) # STOCK, CLAIMS, RECON, EVENTS
+    cursor = Column(String(100), nullable=False)
+    hash = Column(String(64), nullable=False)
+    synced_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
 
 
 

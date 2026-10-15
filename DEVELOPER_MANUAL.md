@@ -1241,12 +1241,26 @@ The following master catalog documents every functional UI selector across the E
 | **Reconciliation Desk** | `/freight/reconciliation` | `#kpi-recons-disputed` | Card | Displays statements with unapproved excess charges. |
 | **Reconciliation Desk** | `/freight/reconciliation` | `#btn-enter-transporter-bill` | Button | Opens modal to enter manual transporter invoice `[F6]`. |
 | **Reconciliation Desk** | `/freight/reconciliation` | `#modal-enter-transporter-bill` | Modal | Form to record transporter bill for three-way audit. |
+| **Counter Workbench** | `/` | `#hub-btn-principal-management` | Button | Quick launcher navigating to Principal Control Center `[Ctrl+3]`. |
+| **Principal Control Center** | `/principal` | `#kpi-active-principals` | Card | Displays active contract-validated principals. |
+| **Principal Control Center** | `/principal` | `#kpi-total-stock-val` | Card | Displays custody stock valuation held across depots. |
+| **Principal Control Center** | `/principal` | `#kpi-pending-claims` | Card | Displays open expiry and breakage claims awaiting action. |
+| **Principal Control Center** | `/principal` | `#kpi-reconciled-health` | Card | Displays approved reconciliations count. |
+| **Principal Control Center** | `/principal` | `#kpi-freight-attribution` | Card | Displays Admin-funded freight subsidies under GL 5200. |
+| **Principal Control Center** | `/principal` | `#tab-btn-stock` | Tab | Opens Stock Ownership & Custody Matrix `[F2]`. |
+| **Principal Control Center** | `/principal` | `#tab-btn-claims` | Tab | Opens Claims & Returns Desk `[F3]`. |
+| **Principal Control Center** | `/principal` | `#tab-btn-recon` | Tab | Opens 3-Way Reconciliation Workspace `[F4]`. |
+| **Principal Control Center** | `/principal` | `#tab-btn-statement` | Tab | Opens Authoritative Business Statement `[F5]`. |
+| **Principal Control Center** | `/principal` | `#tab-btn-mis` | Tab | Opens Commercial MIS & Operational Profitability `[F6]`. |
+| **Principal Control Center** | `/principal` | `#btn-open-claim-modal` | Button | Opens modal to raise operational claim `[F7]`. |
+| **Principal Control Center** | `/principal` | `#modal-new-claim` | Modal | Form to submit claim with batch provenance. |
+| **Principal Statement Desk** | `/principal/statement` | `#select-statement-principal` | Dropdown | Selects active principal for period drill-down. |
 
 ---
 
 ## 27. Automated QA Test Suites & Continuous Deployment Pipeline
 
-### 27.1 Complete Automated Selenium Test Suites Matrix (15 Suites — 100% Pass)
+### 27.1 Complete Automated Selenium Test Suites Matrix (16 Suites — 100% Pass)
 | Test Suite Script | Verified Module Scope | Assertion Target & Verification Method |
 | :--- | :--- | :--- |
 | `test_master_all_6_modules_selenium.py` | Sales, Purchase, DN, CN, BKI, BKR | 100% PASS: All 6 transaction modules with alphanumeric series continuation. |
@@ -1254,6 +1268,7 @@ The following master catalog documents every functional UI selector across the E
 | `test_receipt_payment_audit_redesign_selenium.py`| Receipt, Payment, Audit Trail, Governance | 100% PASS: Luxury UI, party picker `[F7]`, FIFO `[Alt+A]`, hash verification, diff drawer, holds. |
 | `test_cargo_consignment_selenium.py` | Consignment Board, Costs, POD Desk | 100% PASS: Volumetric CBM calculations, Admin freight bifurcation, 4-eyes POD. |
 | `test_freight_logistics_selenium.py` | Rate Contracts, Sandbox, 3-Way Reconciliation | 100% PASS: Tiered slabs, deterministic calculation, Admin GL 5200 segregation, variance approvals. |
+| `test_principal_operations_selenium.py` | Agreement Catalog, Custody Matrix, Claims Desk, 3-Way Reconciliation | 100% PASS: 16 models, custody segregation, breakage claims, reconstructable statement, [Esc] lifecycle. |
 | `test_audit_governance_selenium.py` | Audit Ledger, Chaining, Legal Holds | 100% PASS: SHA-256 seal verification, before/after diff drawer, retention schedules. |
 | `test_workflow_approval_automation_selenium.py` | Approvals Inbox, Task Actions, SLA | 100% PASS: Universal trigger, Maker-Checker 403, rejection reason modal, simulator. |
 | `test_dashboard_bi_control_center_selenium.py` | Counter Workbench, BI Dashboard | 100% PASS: Dual-screen architecture, 7-month comparative curve, map modal `#mapModal`. |
@@ -1268,6 +1283,8 @@ The following master catalog documents every functional UI selector across the E
 ### 27.2 Production Verification Scripts
 - `verify_live_vercel_escape_and_workflows.py`: Automated verification of live Vercel production deployment for Workflows dropdown and `Esc` navigation.
 - `verify_live_vercel_receipt_payment_audit.py`: Automated verification of live Vercel production deployment for Receipt Voucher, Payment Voucher, Audit Trail Explorer, and Governance Console.
+- `verify_live_vercel_freight_audit.py`: Automated verification of live Vercel production deployment for Freight Rate Master, Calculation Sandbox, and Transporter Reconciliation Desk.
+- `verify_live_vercel_principal_audit.py`: Automated verification of live Vercel production deployment for Principal Control Center, Claims Desk, and Statement Desk.
 
 ---
 
@@ -1281,6 +1298,19 @@ DOC-35 defines the centralized calculation, cost allocation, recovery, and three
 2. **Platform Admin-Funded Freight (Account 5200)**: When Platform Admin finances cargo for a client company, the expense is posted exclusively to Account 5200 in the Platform Admin General Ledger. The Client Company General Ledger is never auto-debited.
 3. **Deterministic Explainability Snapshots**: Every rate calculation produces an immutable JSON snapshot (`FreightCalculationSnapshot`) capturing the inputs, formula trace, and rule version for historical auditability.
 4. **Three-Way Transporter Billing & Tolerable Variances**: Transporter invoices are reconciled against expected system costs. Variances $\le ₹200$ are flagged as `TOLERABLE`; variances $> ₹200$ require manager approval or dispute logging before posting to accounts payable.
+
+---
+
+## 29. Principal & C&F Operations Management Engine (DOC-36)
+
+### 29.1 Overview & Architecture Position
+DOC-36 establishes the operational engine that transforms Principal and C&F relationships from static master definitions into a continuously auditable, traceable operating position. It orchestrates Principal context across DOC-12 (Master), DOC-14 (Schemes), DOC-16 (Stock Movement), DOC-08 (GL Postings), DOC-07 (Settlements), and DOC-35 (Freight).
+
+### 29.2 Inviolable Architectural Governance Rules
+1. **Zero Duplicate Engines**: DOC-36 never creates duplicate transaction ledgers. All movements refer directly to DOC-16 batches, DOC-20 sales bills, and DOC-35 freight attributions.
+2. **Owner Separation at SKU/Batch Level**: Principal ownership is an explicit relational dimension (`PrincipalOwnershipRule`). Multiple Principals can stock identical SKUs in the same warehouse without cross-owner stock pollution or commingling.
+3. **Non-Editable Reconstructable Statements**: Principal stock statements and commercial balances are mathematically reconstructed from source movements and immutable events. Manual balance overrides are strictly prohibited.
+4. **Reconciliation Variance Immutability**: Reconciliation cannot alter historical transaction ledgers; variances generate audit trails and follow-up adjustment or claim documents with four-eyes approval.
 
 ---
 

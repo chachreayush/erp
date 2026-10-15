@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { 
   HelpCircle, Monitor, 
-  Search, LayoutDashboard, Receipt, Package, ShoppingCart, Users, UserCheck, BarChart3, Settings, Boxes, CheckCircle2, ShieldCheck, Truck, Scale
+  Search, LayoutDashboard, Receipt, Package, ShoppingCart, Users, UserCheck, BarChart3, Settings, Boxes, CheckCircle2, ShieldCheck, Truck, Scale, Building2
 } from 'lucide-react'
 import './MargAppShell.css'
 import GlobalSearch from '../GlobalSearch'
@@ -37,6 +37,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Cargo & Consignments', path: '/cargo', icon: <Truck size={14} /> },
   { label: 'Freight & Rates', path: '/freight/contracts', icon: <Scale size={14} /> },
   { label: 'Transporter Recon', path: '/freight/reconciliation', icon: <Scale size={14} /> },
+  { label: 'Principal & C&F Ops', path: '/principal', icon: <Building2 size={14} /> },
   { label: 'CRM', path: '/crm', icon: <Users size={14} />, module: 'crm' },
 
   { label: 'HR Management', path: '/hr', icon: <UserCheck size={14} />, module: 'hr' },
@@ -62,6 +63,9 @@ const MargAppShell = () => {
       } else if (e.ctrlKey && e.key === '2') {
         e.preventDefault()
         navigate('/freight/contracts')
+      } else if (e.ctrlKey && e.key === '3') {
+        e.preventDefault()
+        navigate('/principal')
       }
     }
     window.addEventListener('keydown', handleGlobalKeys)

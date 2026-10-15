@@ -230,6 +230,10 @@ app.include_router(cargo_router, prefix="/api/cargo")
 from api.freight import router as freight_router
 app.include_router(freight_router, prefix="/api/freight")
 
+# DOC-36: Principal & C&F Operations Management Engine
+from api.principal import router as principal_router
+app.include_router(principal_router, prefix="/api/principal")
+
 # Future routers will be added here as modules are built:
 # app.include_router(hr_router)
 

@@ -763,6 +763,7 @@ def create_full_software_walkthrough():
         ["test_cargo_consignment_selenium.py", "10 Stages (Cargo & consignment engine)", "100% PASS: Consignment registry, volumetric CBM, [Ctrl+1] Board, drawer inspection, cost center combined toggle, 4-eyes POD & exception claims."],
         ["test_esc_navigation_and_cargo_flow_selenium.py", "10 Stages (Escape lifecycle & workflows)", "100% PASS: Universal Esc key navigation, Home Screen exit modal, header workflows dropdown, and quick launcher tiles."],
         ["test_freight_logistics_selenium.py", "10 Stages (Freight & logistics cost engine)", "100% PASS: Rate contracts, tiered slabs, deterministic calculation, Admin GL 5200 segregation, 3-way transporter reconciliation, [Esc] lifecycle."],
+        ["test_principal_operations_selenium.py", "10 Stages (Principal & C&F operations engine)", "100% PASS: Agreement catalog, stock custody segregation, breakage claims workflow, 3-way reconciliation match, reconstructable statement desk, [Esc] lifecycle."],
         ["verify_live_vercel_receipt_payment_audit.py", "10 Stages (Live cloud production audit)", "100% PASS: Live production verification on https://erp-rho-three.vercel.app with zero regressions and complete visual screenshot artifacts."]
     ]
     style_table(matrix_table, [2.2, 1.2, 3.1], mat_headers, mat_data)
@@ -796,6 +797,40 @@ def create_full_software_walkthrough():
     add_p("1. Freight Rate Master (/freight/contracts): 4 Top KPI cards, rate card matrix, and an interactive Calculation Sandbox with live parameter inputs and formula trace rendering.")
     add_p("2. Transporter Billing & Reconciliation Desk (/freight/reconciliation): Complete statement audit grid with variance thresholds, dispute logging, and 1-click GL posting to Account 5200.")
     add_p("3. Zero-Mouse Operational Guarantee: 100% keyboard navigable with [F6] New Contract/Bill modal, [F4] Sandbox toggle, [Esc] hierarchical dismissal, and [Ctrl+2] Counter Workbench hotkey.")
+
+    doc.add_paragraph().paragraph_format.space_after = Pt(12)
+
+    # ==========================================
+    # SECTION 22: PRINCIPAL & C&F OPERATIONS MANAGEMENT ENGINE (DOC-36)
+    # ==========================================
+    add_h1("22. Principal & C&F Operations Management Engine (DOC-36)")
+    add_p("DOC-36 establishes the operational engine that transforms Principal and C&F relationships from static master definitions into a continuously auditable, traceable operating position.")
+
+    add_callout(
+        "DOC-36 ARCHITECTURAL INVARIANTS & CORE DESIGN PRINCIPLES:\n"
+        "1. Zero Duplicate Engines: DOC-36 orchestrates Principal context across DOC-12 (Master), DOC-14 (Schemes), DOC-16 (Stock Movement), DOC-08 (GL Postings), DOC-07 (Settlements), and DOC-35 (Freight) without duplicate ledgers.\n"
+        "2. Owner Separation at SKU/Batch Level: Principal ownership is an explicit relational dimension. Multiple Principals can stock identical SKUs in the same warehouse without cross-owner stock pollution or commingling.\n"
+        "3. Non-Editable Reconstructable Statements: Principal stock statements and commercial balances are mathematically reconstructed from source movements and immutable events. Manual balance overrides are strictly prohibited.\n"
+        "4. Reconciliation Variance Immutability: Reconciliation cannot alter historical transaction ledgers; variances generate audit trails and follow-up adjustment or claim documents with four-eyes approval.",
+        prefix="DOC-36 CORE MANDATE: "
+    )
+
+    add_h2("22.1 Implemented Relational Schema & Backend Services")
+    add_p("DOC-36 introduces 16 relational entities mapped via SQLAlchemy 2.0 and mounted under /api/principal:")
+    add_p("• PrincipalOperatingContext & PrincipalAgreementVersion: Master operational context with effective-dated terms, commission rates, and logistics policies.")
+    add_p("• PrincipalProductRule, PrincipalCustomerRule & PrincipalOwnershipRule: Authorized product catalog, territory eligibility, and stock ownership custody modes (CONSIGNMENT_CUSTODY).")
+    add_p("• PrincipalEvent & PrincipalStockSnapshot: Cryptographically hashed commercial event log and point-in-time cached stock positions segregated by SKU and batch.")
+    add_p("• PrincipalClaim & PrincipalClaimLine: Operational claims (Expiry, Breakage, Shortage, Rate Difference) with batch provenance and multi-stage approval workflows.")
+    add_p("• PrincipalReconciliation & PrincipalReconciliationLine: 3-way automated matching engine comparing physical stock against external Principal statements.")
+    add_p("• PrincipalStatementRun & PrincipalStatementLine: Authoritative period statements with drill-down line items.")
+    add_p("• PrincipalCostAttribution & PrincipalCommissionRef: Attributed logistics costs (DOC-35 integration) and commission links (DOC-37).")
+
+    add_h2("22.2 Interactive UI Cockpits & Verification Proof")
+    add_p("The frontend delivers two dedicated luxury Marg-themed cockpits:")
+    add_p("1. Principal Operational Control Center (/principal): 5 Top KPI cards, Stock Ownership & Custody Matrix [F2], Claims & Returns Desk [F3], 3-Way Reconciliation Workspace [F4], Authoritative Statement [F5], Commercial MIS [F6], and New Claim Modal [F7].")
+    add_p("2. Principal Business Statement Desk (/principal/statement): Full-screen drill-down statement screen showing source transactions, batches, and settlement links.")
+    add_p("3. Counter Workbench Launcher (#hub-btn-principal-management): Instant access via global hotkey [Ctrl+3].")
+    add_p("4. Zero-Mouse Operational Guarantee: 100% keyboard navigable with [F2]-[F7] hotkeys and [Esc] hierarchical dismissal.")
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 

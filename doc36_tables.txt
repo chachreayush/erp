@@ -1,0 +1,357 @@
+=== TABLE 0 (15x2) ===
+Document Control | Value
+Document ID | DOC-36
+Version | 2.0 — Detailed implementation specification
+Status | Authoritative design baseline for implementation
+Primary scope | Principal agreements, operational control, principal-owned stock, claims, reconciliation, statements and MIS
+Applies to | Platform Admin, Client Companies, branches, warehouses, principals, customers, transporters and authorized users
+Depends on | DOC-01/03/04/05/06/07/08/10/11/12/14/15/16/17/19/20/21/22/23/24/29/30/31/32/33/34/35
+Accounting authority | DOC-08
+Settlement authority | DOC-07
+Principal master authority | DOC-12
+Scheme/allowance authority | DOC-14
+Inventory authority | DOC-16
+Reporting authority | DOC-30 / DOC-31
+Workflow authority | DOC-32
+Audit authority | DOC-33
+
+=== TABLE 1 (1x1) ===
+PRINCIPAL MASTER / AGREEMENT (DOC-12)                 |                 v PRODUCT + TERRITORY + CUSTOMER + WAREHOUSE RULES                 |                 v STOCK OWNERSHIP + MOVEMENT + SALES/RETURNS                 |         +-------+--------+------------------+         |                |                  |         v                v                  v SCHEMES / ALLOWANCE   CLAIMS / RECOVERY   COST / FREIGHT         |                |                  |         +----------------+------------------+                          |                          v                  PRINCIPAL RECONCILIATION                          |                          v               PRINCIPAL STATEMENT / MIS                          |         +----------------+--------------------+         |                |                    |         v                v                    v     DOC-07            DOC-08            DOC-30 / DOC-31   Settlement         Accounting        Reports/Dashboard
+
+=== TABLE 2 (14x3) ===
+Domain | Authoritative engine | DOC-36 responsibility
+Principal identity | DOC-12 | Consume Principal master, agreement and master status.
+Agreement terms | DOC-12 + DOC-36 operational version context | Resolve active term set for transaction-time decisions.
+Product/batch | DOC-11/16 | Resolve Principal ownership and operational mapping.
+Schemes/allowances | DOC-14 | Reference entitlement, consumption and claim state.
+Stock | DOC-16 | Consume movements and produce Principal stock views/reconciliation.
+Purchase/inward | DOC-17 | Consume receipts, vendor provenance and inward events.
+Sales/challan | DOC-18/19/20 | Consume sales/dispatch evidence for Principal statement.
+Returns/claims | DOC-21/22/23 | Consume return, CN/DN and commercial adjustments.
+Settlement | DOC-07 | Create settlement intent only; no duplicate allocations.
+Accounting | DOC-08 | Create posting intent; posting engine remains authoritative.
+Freight/logistics | DOC-35 | Consume cost and recovery facts; preserve attribution.
+Reports/dashboard | DOC-30/31 | Publish normalized Principal facts/KPIs.
+Audit | DOC-33 | Emit event/field-change evidence.
+
+=== TABLE 3 (9x3) ===
+Layer | Examples | Required behavior
+Identity | Legal name, code, registrations, contacts | Managed by DOC-12; immutable reference ID.
+Agreement | Validity, territory, commission, service terms | Effective-dated; historical version retained.
+Commercial map | Products, price lists, customers, customer type | Rules are resolved at transaction time.
+Physical/custody | Depots, warehouses, locations, owner | Ownership and location remain separate.
+Operational flow | Inward, dispatch, return, expiry, claim | Every flow references Principal context.
+Commercial benefit | Scheme/free goods/allowance | Handled by DOC-14.
+Service economics | Commission, handling, freight recovery | Consumed from DOC-35/DOC-37.
+Control | Reconciliation, disputes, approvals | DOC-36 control layer.
+
+=== TABLE 4 (1x1) ===
+PRINCIPAL P-001   ├─ Agreement A-03 (01-Apr-2026 to 31-Mar-2027)   ├─ Products: A, B, C   ├─ Customer scope: District/Category rules   ├─ Stock ownership: Principal-owned   ├─ Scheme family → DOC-14   ├─ Freight rule → DOC-35   ├─ Commission rule → DOC-37   └─ Statement → DOC-36 reconstructed view
+
+=== TABLE 5 (11x2) ===
+Term family | Fields / controls
+Validity | Agreement no., version, effective-from, effective-to, status, renewal/reference.
+Territory | State/district/zone/customer segment/route restrictions.
+Product | Product/category/brand, UOM, batch conditions, restricted products.
+Commercial | Price list, discount family, scheme family, commission/service rates.
+Stock | Ownership mode, consignment/custodial rules, minimum/maximum holding.
+Service | Handling, warehousing, dispatch, reporting, service-level terms.
+Claims | Expiry/breakage, shortage, transport damage, documentation requirements.
+Cost bearing | Freight, loading, unloading, special logistics cost responsibility.
+Settlement | Payment/recovery conventions; authoritative allocation remains DOC-07.
+Approval | Maker/checker, change reason, authorized effective date.
+
+=== TABLE 6 (8x2) ===
+Mapping | Purpose
+Principal ↔ Product | Defines products the Principal is authorized to operate.
+Principal ↔ Product ↔ Branch | Branch-specific enablement.
+Principal ↔ Product ↔ Warehouse | Allowed custody locations.
+Principal ↔ Product ↔ Customer group | Customer restrictions/priority.
+Principal ↔ Product ↔ Territory | Geographical permission.
+Principal ↔ Product ↔ Price list | Pricing source; DOC-15 remains authoritative.
+Principal ↔ Product ↔ Scheme family | Scheme linkage; DOC-14 remains authoritative.
+
+=== TABLE 7 (6x3) ===
+Ownership mode | Meaning | Default accounting/operational implication
+Principal-owned / C&F held | Principal owns stock; C&F stores/handles it | Principal remains owner dimension; C&F reports custody.
+C&F-owned | Client company owns stock | Normal company inventory behavior.
+Consignment | Ownership governed by consignment terms | Special movement/settlement conditions required.
+Mixed / split owner | Different quantities of same product have different owners | Owner must exist at stock-lot/batch/quantity allocation level.
+Disputed ownership | Ownership not yet proven | Quarantine/hold from commercial dispatch unless policy allows.
+
+=== TABLE 8 (1x1) ===
+Opening Principal Stock + Principal Receipts / Accepted Inward + Approved Customer Returns to Principal Stock + Approved Replacement / Replenishment - Customer Sales / Dispatch - Approved Principal Returns / Vendor Returns - Expiry / Breakage / Damage Disposition +/- Stock Adjustments / Reconciliation Corrections = Closing Principal Stock
+
+=== TABLE 9 (8x3) ===
+Flow | DOC-36 action | Source of truth
+Principal stock receipt | Attach Principal, agreement, ownership and batch context | DOC-17 + DOC-16
+Sales dispatch | Capture Principal/owner and commercial context | DOC-19/20 + DOC-16
+Customer return | Determine Principal ownership/provenance | DOC-21 + DOC-16
+Vendor/Principal return | Attach claim/ownership and destination | DOC-22 + DOC-16
+Expiry/breakage | Move to non-sellable status and claim candidate | DOC-16
+Inter-warehouse transfer | Preserve owner through movement | DOC-16
+Adjustment | Only through controlled stock adjustment | DOC-16 + DOC-33 audit
+
+=== TABLE 10 (8x2) ===
+Event | Required Principal context
+INWARD_ACCEPTED | Principal, agreement, product/batch, warehouse, quantity, ownership, source doc
+DISPATCHED | Principal, sales document, customer, warehouse, batch, quantity
+RETURN_RECEIVED | Principal, return document, batch, disposition, source sale if known
+CLAIM_RAISED | Principal, claim type, source batch/document, amount/qty
+CLAIM_RESOLVED | Principal, resolution, reimbursement/credit reference
+RECONCILIATION_COMPLETED | Principal, period, book qty/value, counted qty/value, variance
+AGREEMENT_CHANGED | Principal, old/new version, effective date, approver
+
+=== TABLE 11 (1x1) ===
+Purchase Product C = 10 units Principal grants extra Product A = 3 units Product A is issued free to the C&F for sale DOC-14 tracks entitlement / consumption / claimability DOC-36 shows Principal operational position DOC-07 settles approved reimbursement DOC-08 posts approved commercial effect
+
+=== TABLE 12 (7x3) ===
+Claim type | Typical source | Resolution options
+Expiry | DOC-16 batch/expiry | Replacement, CN/DN, payment, approved write-off.
+Breakage/damage | DOC-16 inspection | Replacement, credit, debit, payment, controlled disposal.
+Shortage | Receipt/count/transport evidence | Vendor/Principal claim, reconciliation, approved adjustment.
+Transport damage | DOC-34/DOC-35 evidence | Transporter recovery, Principal claim, customer recovery as applicable.
+Scheme/allowance reimbursement | DOC-14 | CN, DN, payment, replacement, approved adjustment.
+Service/freight recovery | DOC-35 / DOC-37 | Principal/customer recharge or settlement.
+
+=== TABLE 13 (1x1) ===
+DRAFT → SUBMITTED → UNDER REVIEW → EVIDENCE REQUIRED → ACCEPTED                               |                  |                               v                  v                            REJECTED          PARTIALLY APPROVED                                                    |                                                    v                                              APPROVED                                                 |                               +-----------------+----------------+                               |                 |                |                            CREDIT/DN         PAYMENT        REPLACEMENT                               |                 |                |                               +-----------------+----------------+                                                 |                                               SETTLED
+
+=== TABLE 14 (6x3) ===
+Cost category | Source | Principal view
+Freight | DOC-35 | Principal-borne / customer-borne / C&F-borne / admin-borne status.
+Loading/unloading | DOC-35 | Attributed per Principal/consignment as configured.
+Warehouse handling | DOC-35 or DOC-26 | Principal-specific allocation where policy requires.
+Claim processing cost | DOC-26 | Optional analytical attribution; accounting remains DOC-08.
+Service expense | DOC-26/27/28 | Allocated only under configured management policy.
+
+=== TABLE 15 (5x3) ===
+Event | DOC-36 output | DOC-37 role
+Eligible sales | Principal + customer + product + quantity/value context | Calculate commission/service revenue.
+Returns | Reverse/adjust Principal attribution | Recalculate or reverse eligible commission.
+Claims/recovery | Approved claim/recovery context | Calculate related recovery/service fee where configured.
+Freight recovery | Principal recovery context | Calculate commission/recovery impact if contract specifies.
+
+=== TABLE 16 (10x2) ===
+Layer | Comparison
+Stock quantity | System quantity vs physical count / Principal statement
+Stock value | System valuation vs Principal-reported value, where available
+Sales | ERP dispatch/invoice vs Principal sales report
+Returns | ERP return vs Principal credit/return confirmation
+Claims | Open ERP claims vs Principal approved/rejected claims
+Reimbursement | Approved entitlement vs payment/CN/DN/credit received
+Commission | Calculated/approved service revenue vs Principal statement
+Freight/recovery | ERP cost/recovery vs Principal charge/recovery statement
+Overall balance | Derived net Principal position vs external statement
+
+=== TABLE 17 (10x2) ===
+Section | Typical rows
+Opening | Opening stock qty/value, open claims, opening recoveries/advances where applicable
+Receipts | Principal inward, replacements, approved receipts
+Sales/dispatch | Sales qty/value, free/scheme qty, returns
+Stock adjustments | Expiry, breakage, shortage, reconciliations
+Claims | Raised, approved, rejected, settled, outstanding
+Expenses/recoveries | Freight, handling, service recoveries
+Commission | Earned, adjusted, settled
+Financial settlement | CN/DN/payment/receipt allocations via DOC-07
+Closing | Closing stock/claims/recovery/commission position
+
+=== TABLE 18 (9x2) ===
+View | Measures
+Principal performance | Sales value, units, dispatches, returns, active customers
+Stock position | Opening, receipts, sales, returns, closing, expiry, slow/non-moving
+Claims | Raised, approved, rejected, pending aging, recovered amount
+Scheme/allowance | Entitled, consumed, claimable, settled, pending
+Freight economics | Cost, recovery, subsidy, variance, cost per unit/kg/order
+Service revenue | Commission/handling/service earnings from DOC-37
+Operational profitability | Eligible revenue less configured attributable costs
+Reconciliation health | Matched lines, open variance, aged discrepancy
+
+=== TABLE 19 (1x1) ===
+┌─────────────────────────────────────────────────────────────────────┐ │ PRINCIPAL CONTROL CENTRE     Search [Principal / Product / Claim]  │ ├─────────────────────────────────────────────────────────────────────┤ │ Active Agreement │ Stock │ Claims │ Schemes │ Commission │ Reco    │ ├─────────────────────────────────────────────────────────────────────┤ │ STOCK POSITION        SALES / DISPATCH        OPEN CLAIMS           │ │ Opening | In | Out    Qty | Value | Return   Pending | Aging      │ ├─────────────────────────────────────────────────────────────────────┤ │ COST & FREIGHT        RECOVERY               EXCEPTIONS             │ │ Cost | Recovery | Δ   Due | Settled | Due     Holds | Variance    │ ├─────────────────────────────────────────────────────────────────────┤ │ [F2] Stock  [F3] Claims  [F4] Reconcile  [F5] Statement  [F6] MIS  │ └─────────────────────────────────────────────────────────────────────┘
+
+=== TABLE 20 (8x2) ===
+Trigger | Typical rule
+Agreement change | Approval above configured amount/scope.
+Ownership override | Mandatory approval.
+Principal claim | Approval by assigned commercial authority.
+Stock variance | Threshold-based approval.
+Freight bearer override | Approval when outside agreement rule.
+Manual commission override | Approval and reason required.
+Large write-off/adjustment | Threshold and maker-checker.
+
+=== TABLE 21 (6x2) ===
+Business event | Accounting/settlement intent
+Principal claim approved | Claim receivable/payable/adjustment intent depending contract direction.
+Commission earned | Service revenue/receivable intent via DOC-37.
+Principal recovery approved | Recovery/receivable intent; settle via DOC-07.
+Stock/cost adjustment approved | Inventory/expense/claim accounting intent according to DOC-16 + DOC-08.
+Admin-borne freight | Admin Company expense intent via DOC-35; client attribution remains analytical unless chargeback.
+
+=== TABLE 22 (7x2) ===
+Scenario | Required behavior
+Same SKU, two Principals | Owner dimension separates stock; dispatch must select/resolve owner.
+Customer expiry return | DOC-16 determines provenance; DOC-36 attributes Principal and claim candidate.
+Breakage | Separate non-sellable status; Principal claim where agreement allows.
+Principal return | Return quantity leaves available stock and is linked to source movement.
+Stock transfer | Owner remains unchanged across warehouse movement unless approved ownership transfer event exists.
+Expiry after agreement end | Claim eligibility checked against historical agreement and acquisition/sale dates, not current agreement only.
+
+=== TABLE 23 (7x2) ===
+Module | Integration
+DOC-18 Sales Order | Principal resolved before reservation where Principal-linked stock/rules apply.
+DOC-19 Challan/Dispatch | Principal shown on dispatch, batch and custody screens.
+DOC-20 Billing | Principal context carried into invoice and commercial analysis.
+DOC-21 Sales Return | Principal provenance resolved for returned stock/credit.
+DOC-34 Cargo | Principal can be attributed to consignment/cargo segments.
+DOC-35 Freight | Principal cost bearer, recovery and freight allocation consumed into Principal MIS/statement.
+
+=== TABLE 24 (17x3) ===
+Entity | Key fields | Purpose
+principal_operating_context | context_id, company_id, principal_id, branch_id, agreement_version_id, status | Resolved operational context for a Principal transaction.
+principal_agreement_version | agreement_version_id, principal_id, valid_from, valid_to, version_no, status | Effective-dated agreement snapshot.
+principal_product_rule | rule_id, principal_id, product_id, branch_id, warehouse_id, valid_from/to, status | Operational product authorization and constraints.
+principal_customer_rule | rule_id, principal_id, customer_id/group_id, territory_id, valid_from/to, status | Customer/territory eligibility.
+principal_ownership_rule | ownership_rule_id, principal_id, product_scope, warehouse_scope, mode, valid_from/to | Ownership/custody rules.
+principal_event | event_id, company_id, principal_id, event_type, event_time, source_doc_type/id, payload_hash | Append-only Principal event/index record.
+principal_stock_snapshot | snapshot_id, principal_id, product_id, batch_id, warehouse_id, as_of, qty, value, source_version | Point-in-time statement snapshot/cache.
+principal_claim | claim_id, principal_id, claim_type, source_doc_id, product_id, batch_id, qty, amount, status | Claim lifecycle and evidence linkage.
+principal_claim_line | claim_line_id, claim_id, source_movement_id, qty, eligible_qty, amount, approved_amount | Line-level provenance and eligibility.
+principal_reconciliation | reconciliation_id, principal_id, period_from/to, status, version, approved_by | Reconciliation header.
+principal_reconciliation_line | line_id, reconciliation_id, source_key, system_qty/value, external_qty/value, variance, reason_code | Detailed match/variance.
+principal_statement_run | run_id, principal_id, period_from/to, filters_hash, source_versions, status | Reproducible statement run/snapshot.
+principal_statement_line | line_id, run_id, event_id/source_doc_id, category, qty, amount, status | Normalized statement lines.
+principal_cost_attribution | attribution_id, principal_id, source_cost_id, bearer, recovery_target, amount, policy_version | Principal cost/recovery analysis.
+principal_commission_ref | ref_id, principal_id, source_event_id, commission_doc_id, status | Cross-reference to DOC-37.
+principal_sync_checkpoint | checkpoint_id, company_id, principal_id, scope_key, cursor, hash | Sync/reconciliation checkpoint.
+
+=== TABLE 25 (1x1) ===
+PRINCIPAL   ├── AGREEMENT_VERSION (1:N)   ├── PRODUCT_RULE (1:N)   ├── CUSTOMER_RULE (1:N)   ├── OWNERSHIP_RULE (1:N)   ├── OPERATING_EVENT (1:N)   ├── CLAIM (1:N) ── CLAIM_LINE (1:N)   ├── RECONCILIATION (1:N) ── RECONCILIATION_LINE (1:N)   ├── STATEMENT_RUN (1:N) ── STATEMENT_LINE (1:N)   └── COST_ATTRIBUTION / COMMISSION_REF (1:N)
+
+=== TABLE 26 (1x1) ===
+RESOLVED → VALIDATED → USED_ON_TRANSACTION → FROZEN                          |                          v                       EXCEPTION                          |                          v                     OVERRIDE → APPROVED
+
+=== TABLE 27 (1x1) ===
+DRAFT → IMPORTED → MATCHING → VARIANCE_REVIEW → APPROVED → LOCKED                               |                  |                               v                  v                            REOPENED ← REJECTED / RETURNED
+
+=== TABLE 28 (1x1) ===
+DRAFT → SUBMITTED → REVIEW → EVIDENCE_REQUIRED → ACCEPTED                                  |                 |                                  v                 v                               REJECTED      PARTIALLY_APPROVED                                                        |                                                        v                                                     APPROVED                                                        |                                                        v                                                     SETTLED
+
+=== TABLE 29 (8x2) ===
+Role / scope | Typical rights
+Platform Admin | Cross-client visibility per platform policy; manage platform-level access; audited administrative access.
+Client Admin | Configure Principal users/roles within the permission ceiling granted by Platform Admin.
+Principal Operations User | View/update operational Principal records allowed by company/branch scope.
+Stock Controller | Principal stock/reconciliation operations without necessarily having financial approval rights.
+Claims Officer | Create/review/track claims within assigned scope.
+Accounts User | View accounting/settlement status; actual posting remains DOC-08/DOC-07.
+Auditor | Read-only source-to-statement/audit access within authorized scope.
+
+=== TABLE 30 (1x1) ===
+LAN USER → CREATE CLAIM → LOCAL COMMIT        |        v OUTBOX EVENT {claim_id, version, idempotency_key}        |        v CLOUD TRANSACTIONAL LAYER        |        v REMOTE USER SEES SAME CLAIM / VERSION        |        v ACK → LOCAL OUTBOX MARKED SYNCED
+
+=== TABLE 31 (17x2) ===
+Edge case | System response
+Inactive Principal used for new transaction | Block or exception-route according to company policy; never silently reactivate.
+Agreement expired | Resolve historical version for existing docs; block new usage unless renewal/manual exception exists.
+Two overlapping agreements | Use priority/scope if unambiguous; otherwise configuration conflict.
+Same SKU supplied by multiple Principals | Require ownership dimension at selection/allocation level.
+Batch has missing Principal provenance | Quarantine/exception for Principal-sensitive actions; do not guess.
+Customer return cannot prove original sale | Use policy-based market-return path; mark provenance confidence and claim eligibility separately.
+Claim exceeds eligible quantity | Cap eligible amount; allow residual as disputed/non-eligible with approval.
+Duplicate claim | Detect by source movement/document/product/batch/reason fingerprint; block or route to review.
+Principal statement disagrees with ERP | Create reconciliation variance; do not edit balances.
+Principal changes mid-period | Version boundary applies by effective date; old transactions retain old version.
+Warehouse transfer during disagreement | Preserve owner; hold financial/claim action if ownership unresolved.
+Freight cost changes after Principal statement | Mark statement dependent on updated DOC-35 version and require controlled re-run.
+Claim approved but settlement unavailable | Keep claim APPROVED / UNSETTLED; do not mark settled.
+Payment allocated to wrong claim | Correct through DOC-07 unapply/reapply; preserve audit trail.
+Remote conflict on reconciliation | Version conflict; user resolves after viewing both versions.
+Crash during reconciliation approval | Transaction is idempotent; resume from last committed state.
+
+=== TABLE 32 (10x3) ===
+Report / KPI | Core dimensions | Source / authority
+Principal Stock Statement | Principal, branch, warehouse, product, batch, date | DOC-16 + DOC-36
+Principal Sales Register | Principal, customer, product, batch, date | DOC-18/20 + DOC-36
+Principal Return Register | Principal, customer/product/batch/reason | DOC-21 + DOC-36
+Principal Claim Aging | Principal, claim type, age, amount | DOC-36 + DOC-07
+Scheme/Allowance Position | Principal, entitlement, consumed, claimable, settled | DOC-14 + DOC-36
+Freight & Recovery | Principal, consignment, transporter, route | DOC-35 + DOC-36
+Commission Statement | Principal, customer, period | DOC-37 + DOC-36
+Reconciliation Health | Principal, period, variance, aging | DOC-36
+Principal Profitability | Principal, period, configured cost/revenue measures | DOC-30 analytical model
+
+=== TABLE 33 (4x2) ===
+Mode | Configuration
+Small | Single company/branch, simple Principal agreements, one/few warehouses, basic claims and monthly reconciliation.
+Medium | Multiple branches/warehouses, agreement versioning, batch-level ownership, claim workflows, automated reconciliation imports.
+Large | Many Principals/branches, fine-grained permissions, multi-level approvals, automated statement imports, high-volume event processing, API connectors, advanced profitability and audit controls.
+
+=== TABLE 34 (12x2) ===
+Service / module | DOC-36 contract
+Principal Master (DOC-12) | Resolve identity, status, agreement definitions and authorized contacts.
+Inventory (DOC-16) | Query stock, movement, batch, expiry, ownership and disposition facts.
+Scheme Engine (DOC-14) | Query entitlement, consumption, claimability, reimbursement and settlement status.
+Settlement (DOC-07) | Receive approved financial allocation intents; read settlement status.
+Posting (DOC-08) | Receive accounting posting intents; read posted/reversed status.
+Freight (DOC-35) | Read freight cost, bearer, recovery, transporter and variance facts.
+Commission (DOC-37) | Send eligible Principal operational events; receive commission results.
+Reporting (DOC-30) | Publish normalized fact tables/measures.
+Dashboard (DOC-31) | Publish KPI feed with scope and policy tags.
+Workflow (DOC-32) | Create approval tasks/escalations according to configured rules.
+Audit (DOC-33) | Emit audit events and query audit evidence.
+
+=== TABLE 35 (1x1) ===
+GET  principal/{id}/operating-context?date=...&branch=... GET  principal/{id}/stock-position?... GET  principal/{id}/statement?... POST principal/{id}/claim POST principal/{id}/reconciliation/start POST principal/{id}/reconciliation/{id}/approve GET  principal/{id}/exceptions EVENT PrincipalClaimApproved EVENT PrincipalReconciliationLocked EVENT PrincipalAgreementVersionActivated
+
+=== TABLE 36 (17x3) ===
+ID | Acceptance test | Expected result
+P36-01 | Create Principal agreement with effective dates | Version is active only in valid period and is auditable.
+P36-02 | Same SKU held for two Principals | Stock remains separated by owner and is selectable only under valid rules.
+P36-03 | Receive Principal stock with batch/expiry | DOC-16 movement contains Principal ownership/provenance.
+P36-04 | Dispatch Principal stock | Principal statement reflects exact source dispatch and batch quantities.
+P36-05 | Customer expiry return | System identifies provenance/claim candidate or shows controlled non-original-sale path.
+P36-06 | Create allowance reimbursement | DOC-14 remains authority; DOC-36 shows pending/settled status.
+P36-07 | Approve claim | Claim moves to approved, but settlement remains pending until DOC-07 is completed.
+P36-08 | Wrong payment allocation | Correction occurs through DOC-07, not direct Principal editing.
+P36-09 | Admin-funded freight | Admin expense/Client beneficiary behavior follows DOC-35 policy.
+P36-10 | Principal reconciliation variance | Variance is recorded and source balances remain unchanged.
+P36-11 | Historical agreement change | Old transaction retains old agreement/rule version.
+P36-12 | Offline claim creation | Claim is durable locally, syncable, idempotent and visible after cloud synchronization.
+P36-13 | Concurrent reconciliation edit | Second writer receives version conflict; no silent overwrite.
+P36-14 | Principal deactivated | New usage is blocked/exception-routed while historical reporting remains available.
+P36-15 | Large Principal statement | Statement produces from indexed/source data without editable balance shortcuts.
+P36-16 | Audit drill-down | Every material change shows actor, old/new values, reason and source document.
+
+=== TABLE 37 (10x3) ===
+Decision | Baseline decision | Configuration allowed?
+Principal stock ownership | Explicit owner dimension linked to stock movement | Yes, by agreement/policy; never implicit.
+Agreement overlap | Resolve by scope/priority; otherwise conflict | Yes, priority model configurable.
+Claim tolerance | Configurable quantity/value/date tolerance | Yes.
+Reconciliation method | Source-to-external matching with controlled variances | Yes.
+Principal statement frequency | Daily/weekly/monthly/ad hoc | Yes.
+Cost allocation | Consume DOC-35 cost allocation result | Yes, via DOC-35 rules.
+Commission | Delegated to DOC-37 | Yes, in DOC-37.
+Admin-funded cost | Use DOC-35 cost-bearer policy | Yes, with explicit chargeback option.
+Dashboard exclusion | Per DOC-31 dashboard policy | Yes, analytical only.
+
+=== TABLE 38 (1x1) ===
+1. Principal P-001 agreement A-2026 is active. 2. Product C is mapped to P-001 and Warehouse W1. 3. 100 units received; DOC-16 records P-001 ownership and batch B01. 4. 20 units dispatched on three challans to two customers. 5. DOC-20 consolidates eligible challans into one invoice. 6. DOC-14 gives an extra 3 units of Product A allowance. 7. 3 units are consumed under the Principal allowance; claim becomes eligible. 8. DOC-35 calculates freight Rs 2,400; policy says Principal bears Rs 1,800 and Admin funds Rs 600. 9. A customer returns 2 expired units from batch B01; DOC-16 preserves non-sellable status and provenance. 10. DOC-36 raises Principal expiry claim for eligible quantity/value. 11. Principal statement shows stock, sales, allowance, expiry claim and freight attribution. 12. Claim approved for Rs 450; DOC-07 later allocates the credit/payment. 13. DOC-08 posts approved accounting events. 14. Reconciliation matches ERP statement to Principal statement; variance is zero or recorded with reason.
+
+=== TABLE 39 (7x2) ===
+Area | Result
+Stock | Opening + receipts - dispatch - approved returns/disposition = closing.
+Scheme | Extra allowance separately identified from official scheme.
+Expiry claim | Eligible claim linked to batch/sale provenance.
+Freight | Gross cost, Principal portion and Admin-funded portion remain separate.
+Settlement | Approved claim remains unsettled until DOC-07 confirms allocation.
+Audit | All major actions have source references and actor/effective version.
+
+=== TABLE 40 (1x1) ===
+┌────────────────────────────────────────────────────────────────────┐ │ PRINCIPAL SEARCH   [P-001________________]  [Active ▼] [Enter]    │ ├────────────────────────────────────────────────────────────────────┤ │ Code     Name                 Agreement      Stock   Claims        │ │ P-001    Example Pharma       A-2026         12,400  3 Pending     │ │ P-002    Example Healthcare   A-2025         8,240   0             │ ├────────────────────────────────────────────────────────────────────┤ │ Enter Open  F2 Stock  F3 Claims  F4 Reconcile  F5 Statement       │ └────────────────────────────────────────────────────────────────────┘
+
+=== TABLE 41 (1x1) ===
+┌────────────────────────────────────────────────────────────────────┐ │ RECONCILIATION  Principal [P-001] Period [01-09-2026]            │ ├────────────┬────────┬────────┬────────┬─────────────┬────────────┤ │ Source     │ System │ External│ Var    │ Reason      │ Status     │ ├────────────┼────────┼────────┼────────┼─────────────┼────────────┤ │ Sale INV01 │ 120.0  │ 120.0  │ 0.0    │ —           │ Matched    │ │ Return RT02│ 4.0    │ 3.0    │ -1.0   │ Proof short │ Review     │ ├────────────┴────────┴────────┴────────┴─────────────┴────────────┤ │ [F6 Match] [F7 Evidence] [F8 Create Claim] [Ctrl+Enter Approve] │ └────────────────────────────────────────────────────────────────────┘
+
+=== TABLE 42 (1x1) ===
+┌────────────────────────────────────────────────────────────────────┐ │ PRINCIPAL STATEMENT P-001   Agreement A-2026  Sep-2026           │ ├────────────────────────────────────────────────────────────────────┤ │ Opening Stock     Receipts       Sales/Out       Closing Stock     │ │ 5,200             +1,000        -780            5,420             │ ├────────────────────────────────────────────────────────────────────┤ │ Claims Pending    Claims Settled  Freight Cost   Recovery          │ │ Rs 45,000         Rs 12,000       Rs 28,000      Rs 22,500         │ ├────────────────────────────────────────────────────────────────────┤ │ Drill down → source document / batch / claim / settlement        │ └────────────────────────────────────────────────────────────────────┘

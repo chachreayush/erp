@@ -635,10 +635,57 @@ Implemented and verified the production-grade Freight & Logistics Cost Recovery 
 | **Freight Reconciliation (`/freight/reconciliation`)** | `#btn-approve-bill` | Button | Approves carrier bill within allowable tolerance. |
 | **Freight Reconciliation (`/freight/reconciliation`)** | `#btn-dispute-bill` | Button | Marks unapproved excess bill into DISPUTED state. |
 | **Freight Reconciliation (`/freight/reconciliation`)** | `#btn-post-gl` | Button | Posts approved freight cost to GL Account 5200. |
+| **Counter Workbench (`/`)** | `#hub-btn-principal-management` | Button `[Ctrl+3]` | Launches Principal & C&F Operations Management Control Center. |
+| **Principal Control Center (`/principal`)** | `#kpi-active-principals` | Metric Card | Active validated principal pharmaceutical companies. |
+| **Principal Control Center (`/principal`)** | `#kpi-total-stock-val` | Metric Card | Total valuation of principal-owned stock held in consignment custody. |
+| **Principal Control Center (`/principal`)** | `#kpi-pending-claims` | Metric Card | Pending breakage, expiry, and shortage claims awaiting principal approval. |
+| **Principal Control Center (`/principal`)** | `#kpi-reconciled-health` | Metric Card | Count of 3-way reconciliation statements matched with 0 variance. |
+| **Principal Control Center (`/principal`)** | `#kpi-freight-attribution` | Metric Card | Platform Admin freight subsidy recognized under GL Account 5200. |
+| **Principal Control Center (`/principal`)** | `#tab-btn-stock` | Tab `[F2]` | Opens Principal Stock Ownership & Custody matrix with batch provenance. |
+| **Principal Control Center (`/principal`)** | `#tab-btn-claims` | Tab `[F3]` | Opens Claims & Returns Desk for expiry, breakage, and shortage claims. |
+| **Principal Control Center (`/principal`)** | `#tab-btn-recon` | Tab `[F4]` | Opens 3-Way Reconciliation Workspace with external statement matching. |
+| **Principal Control Center (`/principal`)** | `#tab-btn-statement` | Tab `[F5]` | Opens Reconstructable Principal Statement with non-editable movements. |
+| **Principal Control Center (`/principal`)** | `#tab-btn-mis` | Tab `[F6]` | Opens Commercial MIS & Operational Profitability console. |
+| **Principal Control Center (`/principal`)** | `#btn-open-claim-modal` | Button `[F7]` | Opens modal to raise new operational claim (`#modal-new-claim`). |
+| **Principal Control Center (`/principal`)** | `#btn-run-reconciliation` | Button | Executes automated 3-way matching engine against external statements. |
+| **Principal Statement Desk (`/principal/statement`)** | `#select-statement-principal` | Dropdown | Selects active principal for detailed period statement reconstruction. |
 
 ---
 
-## Complete 15-Suite Automated Selenium Verification Matrix & Live Production Audit
+## Principal & C&F Operations Management Engine (DOC-36)
+
+Implemented and verified the production-grade Principal & C&F Operations Management Engine:
+1. **First-Class Relational Models (16 PostgreSQL Models in `backend/models.py`)**:
+   - `PrincipalOperatingContext`, `PrincipalAgreementVersion`, `PrincipalProductRule`, `PrincipalCustomerRule`, `PrincipalOwnershipRule`, `PrincipalEvent`, `PrincipalStockSnapshot`, `PrincipalClaim`, `PrincipalClaimLine`, `PrincipalReconciliation`, `PrincipalReconciliationLine`, `PrincipalStatementRun`, `PrincipalStatementLine`, `PrincipalCostAttribution`, `PrincipalCommissionRef`, `PrincipalSyncCheckpoint`.
+2. **Inviolable Architectural Invariants**:
+   - **Zero Duplicate Engines**: DOC-36 orchestrates Principal context across DOC-12 (Master), DOC-14 (Schemes), DOC-16 (Stock Movement), DOC-08 (GL Postings), DOC-07 (Settlements), and DOC-35 (Freight). It never creates redundant ledgers.
+   - **Owner Separation at SKU/Batch Level**: Principal ownership is an explicit dimension. Two Principals can stock identical SKUs in the same warehouse without cross-owner stock pollution or commingling.
+   - **Non-Editable Reconstructable Statements**: Principal stock statements and commercial balances are mathematically reconstructed from source movements and immutable events. Manual balance overrides are strictly prohibited.
+   - **Reconciliation Variance Immutability**: Reconciliation cannot alter historical transaction ledgers; variances generate audit trails and follow-up adjustment or claim documents with four-eyes approval.
+3. **Backend REST API Endpoints (`backend/api/principal.py`)**:
+   - `GET /api/principal/summary`: Aggregated executive KPIs (Active Principals, Custody Stock Value, Pending Claims, Matched Reconciliations, Admin Freight Subsidy).
+   - `GET /api/principal/list`: Multi-tenant Principal catalog with active agreements, commission rates, and stock totals.
+   - `GET /api/principal/{id}/position`: Complete operational position (stock by SKU/batch, sales/outward, open claims, cost attribution, reconciliation status).
+   - `GET /api/principal/{id}/statement`: Structured business statement for period with opening, receipts, sales, adjustments, claims, freight, and closing.
+   - `POST /api/principal/claims`: Register new Principal claim with document evidence and batch provenance.
+   - `POST /api/principal/claims/{id}/action`: 1-click Approve, Dispute, or Pass Intent to Settlement.
+   - `GET /api/principal/reconciliations`: External statement reconciliation workspace.
+   - `POST /api/principal/reconciliation/run`: Execute automated matching algorithm across system vs external statement lines.
+4. **Interactive UI Cockpits**:
+   - `PrincipalControlCenter.tsx` (`/principal` or `Ctrl+3`): 5 top KPI cards, 5 functional tabs (`[F2]`-`[F6]`), New Claim modal (`[F7]`), and live 1-click claim actions.
+   - `PrincipalStatementDesk.tsx` (`/principal/statement`): Full-screen drill-down statement screen showing source transactions, batches, and settlement links with zero-balance editing guarantee and print format.
+   - `HomeScreen.tsx`: Added `#hub-btn-principal-management` (`Ctrl+3`) tile to Counter Workbench grid.
+5. **Automated Selenium Verification (`test_principal_operations_selenium.py`)**:
+   - 10/10 Stages PASSED (100% Exit Code 0).
+   - 4 verified screenshots captured:
+     - `verified_principal_homescreen_launcher.png`
+     - `verified_principal_control_center.png`
+     - `verified_principal_claims_desk.png`
+     - `verified_principal_reconciliation_statement.png`
+
+---
+
+## Complete 16-Suite Automated Selenium Verification Matrix & Live Production Audit
 
 | Test Suite File | Coverage Scope | Verified Status |
 | :--- | :--- | :--- |
@@ -655,12 +702,14 @@ Implemented and verified the production-grade Freight & Logistics Cost Recovery 
 | `test_audit_governance_selenium.py` | SHA-256 hash chain, diff drawer, legal holds, anomalies | 100% PASS |
 | `test_cargo_consignment_selenium.py` | Consignment board, CBM calc, Admin cost center, POD desk | 100% PASS |
 | `test_freight_logistics_selenium.py` | Freight rate cards, live slab calculation sandbox, 3-way reconciliation audit, GL Account 5200 posting | 100% PASS |
+| `test_principal_operations_selenium.py` | Agreement catalog, stock custody segregation, breakage claims workflow, 3-way reconciliation match, reconstructable statement desk, [Esc] lifecycle | 100% PASS |
 | `test_esc_navigation_and_cargo_flow_selenium.py` | Universal Esc key handling, Exit modal, Workflows dropdown | 100% PASS |
 | `verify_live_vercel_receipt_payment_audit.py` | Live production audit on https://erp-rho-three.vercel.app | 100% PASS |
 
 ---
 
 *End of Master Memory File.*
+
 
 
 

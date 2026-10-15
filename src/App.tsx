@@ -29,6 +29,8 @@ import CargoCostCenter from './pages/cargo/CargoCostCenter';
 import PodExceptionDesk from './pages/cargo/PodExceptionDesk';
 import { FreightRateMaster } from './pages/cargo/FreightRateMaster';
 import { FreightReconciliationDesk } from './pages/cargo/FreightReconciliationDesk';
+import { PrincipalControlCenter } from './pages/principal/PrincipalControlCenter';
+import { PrincipalStatementDesk } from './pages/principal/PrincipalStatementDesk';
 
 
 
@@ -260,6 +262,11 @@ function App() {
         {/* DOC-35 Freight & Logistics Cost Recovery Engine Routes */}
         <Route path="freight/contracts" element={<FreightRateMaster />} />
         <Route path="freight/reconciliation" element={<FreightReconciliationDesk />} />
+
+        {/* DOC-36 Principal & C&F Operations Management Routes */}
+        <Route path="principal" element={<PrincipalControlCenter />} />
+        <Route path="principal/operations" element={<PrincipalControlCenter />} />
+        <Route path="principal/statement" element={<PrincipalStatementDesk />} />
       </Route>
 
 

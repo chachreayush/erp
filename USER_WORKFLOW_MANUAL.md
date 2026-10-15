@@ -1129,6 +1129,19 @@ The main application header features a consolidated **Workflows (`[F4]`)** dropd
 | **Freight Rate Master (`/freight/contracts`)** | `#btn-new-contract` | Button `[F6]` | Opens modal to register new freight contract (`#modal-new-contract`). |
 | **Reconciliation Desk (`/freight/reconciliation`)** | `#kpi-total-recons` | Card | Displays total transporter statement count and three-way match status. |
 | **Reconciliation Desk (`/freight/reconciliation`)** | `#btn-enter-transporter-bill` | Button `[F6]` | Opens modal to record manual transporter invoice (`#modal-enter-transporter-bill`). |
+| **Counter Workbench (`/`)** | `#hub-btn-principal-management` | Button `[Ctrl+3]` | Launches Principal & C&F Operations Management Control Center. |
+| **Principal Control Center (`/principal`)** | `#kpi-active-principals` | Card | Displays active contract-validated principals. |
+| **Principal Control Center (`/principal`)** | `#kpi-total-stock-val` | Card | Displays custody stock valuation held across depots. |
+| **Principal Control Center (`/principal`)** | `#kpi-pending-claims` | Card | Displays open expiry and breakage claims awaiting action. |
+| **Principal Control Center (`/principal`)** | `#kpi-reconciled-health` | Card | Displays approved reconciliations count. |
+| **Principal Control Center (`/principal`)** | `#kpi-freight-attribution` | Card | Displays Admin-funded freight subsidies under GL 5200. |
+| **Principal Control Center (`/principal`)** | `#tab-btn-stock` | Tab `[F2]` | Opens Stock Ownership & Custody Matrix. |
+| **Principal Control Center (`/principal`)** | `#tab-btn-claims` | Tab `[F3]` | Opens Claims & Returns Desk. |
+| **Principal Control Center (`/principal`)** | `#tab-btn-recon` | Tab `[F4]` | Opens 3-Way Reconciliation Workspace. |
+| **Principal Control Center (`/principal`)** | `#tab-btn-statement` | Tab `[F5]` | Opens Authoritative Business Statement. |
+| **Principal Control Center (`/principal`)** | `#tab-btn-mis` | Tab `[F6]` | Opens Commercial MIS & Operational Profitability. |
+| **Principal Control Center (`/principal`)** | `#btn-open-claim-modal` | Button `[F7]` | Opens modal to raise operational claim (`#modal-new-claim`). |
+| **Principal Statement Desk (`/principal/statement`)** | `#select-statement-principal` | Dropdown | Selects active principal for period drill-down. |
 
 ---
 
@@ -1150,6 +1163,7 @@ The main application header features a consolidated **Workflows (`[F4]`)** dropd
 | `test_cargo_consignment_selenium.py` | 10 Stages (Cargo & consignment engine) | 100% PASS: Consignment registry, volumetric CBM, `[Ctrl+1]` Board, drawer inspection, cost center combined toggle, 4-eyes POD & exception claims. |
 | `test_esc_navigation_and_cargo_flow_selenium.py` | 10 Stages (Escape lifecycle & workflows) | 100% PASS: Universal Esc key navigation, Home Screen exit modal, header workflows dropdown, and quick launcher tiles. |
 | `test_freight_logistics_selenium.py` | 10 Stages (Freight & logistics cost engine) | 100% PASS: Rate contracts, tiered slabs, deterministic calculation, Admin GL 5200 segregation, 3-way transporter reconciliation, [Esc] lifecycle. |
+| `test_principal_operations_selenium.py` | 10 Stages (Principal & C&F operations engine) | 100% PASS: Agreement catalog, stock custody segregation, breakage claims workflow, 3-way reconciliation match, reconstructable statement desk, [Esc] lifecycle. |
 | `verify_live_vercel_receipt_payment_audit.py` | 10 Stages (Live cloud production audit) | 100% PASS: Live production verification on `https://erp-rho-three.vercel.app` with zero regressions and complete visual screenshot artifacts. |
 
 ---
@@ -1178,6 +1192,28 @@ The main application header features a consolidated **Workflows (`[F4]`)** dropd
    - Click **Approve** to accept the billed amount.
    - Click **Dispute** to flag the invoice for rate-card audit.
    - Click **Post GL** to record the approved expense directly into Account 5200 (Platform Admin General Ledger).
+
+---
+
+## 29. Principal & C&F Operations Management User Guide (DOC-36)
+
+### 29.1 Accessing the Principal Operational Control Center (`/principal`, `Ctrl+3`)
+1. Press **`Ctrl+3`** from the Counter Workbench or click the **Principal Operational Control Centre** tile (`#hub-btn-principal-management`).
+2. Review the 5 Top Telemetry KPI Cards:
+   - **Active Principals**: Validated pharmaceutical companies with signed agreements.
+   - **Custody Stock Value**: Valuation of inventory held in physical custody without title transfer.
+   - **Open Claims**: Pending breakage, expiry, and shortage claims.
+   - **Reconciliations**: Three-way reconciliation statements verified with zero variance.
+   - **Admin Freight Subsidy**: Freight expenditure recognized under GL Account 5200.
+
+### 29.2 Tab Navigation & Hotkeys (`[F2]`-`[F7]`)
+- **`[F2]` Stock Ownership & Custody Matrix**: View SKU and batch-level stock quantities, unit rates, valuations, and depot locations segregated by Principal owner.
+- **`[F3]` Claims & Returns Desk**: Track pending and approved expiry/breakage claims with 1-click Approve, Dispute, and Settle actions.
+- **`[F4]` 3-Way Reconciliation Workspace**: Run automated reconciliation matching against external statements and lock audit periods.
+- **`[F5]` Authoritative Business Statement**: Review reconstructed financial and physical stock statements with zero manual balance overrides.
+- **`[F6]` Commercial MIS & Profitability**: Analyze net commissions accrued, gross margins, and attributed logistics overheads.
+- **`[F7]` Raise Claim Modal**: Instantly register a new breakage or expiry claim with batch provenance and automatic document numbering.
+- **`[Esc]` Hierarchical Dismissal**: Dismisses any open modal without navigating away from the page.
 
 ---
 

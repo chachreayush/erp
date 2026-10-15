@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { 
   ShoppingCart, Receipt, CreditCard, RotateCcw, BookOpen, 
   Search, AlertTriangle, Clock, ArrowUpRight, BarChart3, 
-  ShieldCheck, Package, ExternalLink, RefreshCw, Zap, CheckCircle2, Truck, Scale, LogOut, X
+  ShieldCheck, Package, ExternalLink, RefreshCw, Zap, CheckCircle2, Truck, Scale, Building2, LogOut, X
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { 
@@ -59,6 +59,9 @@ export default function HomeScreen() {
       } else if (e.ctrlKey && e.key === '2') {
         e.preventDefault()
         navigate('/freight/contracts')
+      } else if (e.ctrlKey && e.key === '3') {
+        e.preventDefault()
+        navigate('/principal')
       } else if (e.key === 'F2') {
         e.preventDefault()
         navigate('/sales')
@@ -85,7 +88,7 @@ export default function HomeScreen() {
     return (amt ?? 0).toLocaleString('en-IN', {
       style: 'currency',
       currency: 'INR',
-      maximumFractionDigits: 2
+      maximumFractionDigits: 0
     })
   }
 
@@ -95,6 +98,7 @@ export default function HomeScreen() {
     { label: 'Audit Trail', hotkey: '', icon: <ShieldCheck size={20} />, path: '/audit', color: '#1b4332' },
     { id: 'hub-btn-cargo-management', label: 'Cargo & Consignment', hotkey: 'Ctrl+1', icon: <Truck size={20} />, path: '/cargo', color: '#0d9488' },
     { id: 'hub-btn-freight-management', label: 'Freight & Recovery', hotkey: 'Ctrl+2', icon: <Scale size={20} />, path: '/freight/contracts', color: '#047857' },
+    { id: 'hub-btn-principal-management', label: 'Principal & C&F Ops', hotkey: 'Ctrl+3', icon: <Building2 size={20} />, path: '/principal', color: '#1b4332' },
     { label: 'Purchase Bill', hotkey: 'F9', icon: <Package size={20} />, path: '/sales', color: '#2d6a4f' },
     { label: 'Sales Return', hotkey: '', icon: <RotateCcw size={20} />, path: '/sales', color: '#40916c' },
     { label: 'Purchase Return', hotkey: '', icon: <RotateCcw size={20} />, path: '/purchases/returns', color: '#52b788' },

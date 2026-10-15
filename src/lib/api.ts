@@ -2904,6 +2904,229 @@ export async function apiGetFreightPolicies(): Promise<{ success: boolean; polic
   return response.data;
 }
 
+// ─────────────────────────────────────────────────────────────
+// DOC-36: Principal & C&F Operations Management Interfaces
+// ─────────────────────────────────────────────────────────────
+
+export interface PrincipalSummaryKPI {
+  active_principals_count: number;
+  total_stock_value: number;
+  total_stock_quantity: number;
+  pending_claims_count: number;
+  pending_claims_value: number;
+  approved_claims_value: number;
+  total_reconciliations_count: number;
+  approved_reconciliations_count: number;
+  total_freight_attributed: number;
+  admin_funded_freight: number;
+  currency: string;
+}
+
+export interface PrincipalListItem {
+  id: string;
+  context_id: string;
+  principal_code: string;
+  principal_name: string;
+  status: string;
+  agreement_number: string;
+  agreement_version: string;
+  commission_rate_pct: number;
+  freight_bearer: string;
+  total_stock_qty: number;
+  total_stock_value: number;
+  pending_claims_count: number;
+  created_at: string;
+}
+
+export interface PrincipalStockLine {
+  id: string;
+  product_id: string;
+  product_name: string;
+  batch_no: string;
+  warehouse_name: string;
+  qty_on_hand: number;
+  qty_reserved: number;
+  qty_damage_breakage: number;
+  unit_cost: number;
+  total_valuation: number;
+  as_of: string;
+}
+
+export interface PrincipalClaimItem {
+  id: string;
+  claim_number: string;
+  claim_type: string;
+  source_doc_id: string;
+  product_name: string;
+  batch_no: string;
+  claimed_qty: number;
+  claimed_amount: number;
+  approved_amount: number;
+  reason?: string;
+  status: string;
+  created_at: string;
+}
+
+export interface PrincipalCostAttributionItem {
+  id: string;
+  source_cost_id: string;
+  bearer: string;
+  recovery_target: string;
+  amount: number;
+  status: string;
+}
+
+export interface PrincipalReconciliationItem {
+  id: string;
+  recon_number: string;
+  principal_id?: string;
+  principal_name: string;
+  period_from: string;
+  period_to: string;
+  system_closing_val: number;
+  external_closing_val: number;
+  net_variance_val: number;
+  matched_lines_count: number;
+  variance_lines_count: number;
+  status: string;
+  variance_status?: string;
+  created_at?: string;
+}
+
+export interface PrincipalPosition {
+  principal_id: string;
+  principal_code: string;
+  principal_name: string;
+  status: string;
+  agreement: {
+    agreement_number: string;
+    version_no: string;
+    valid_from: string;
+    valid_to: string;
+    terms: Record<string, any>;
+  };
+  stock_summary: {
+    total_quantity: number;
+    total_valuation: number;
+    lot_count: number;
+  };
+  stock_lines: PrincipalStockLine[];
+  product_rules: {
+    id: string;
+    product_name: string;
+    sku_code: string;
+    is_exclusive: boolean;
+    status: string;
+  }[];
+  claims: PrincipalClaimItem[];
+  cost_attributions: PrincipalCostAttributionItem[];
+  reconciliations: PrincipalReconciliationItem[];
+}
+
+export interface PrincipalStatement {
+  principal_id: string;
+  principal_code: string;
+  principal_name: string;
+  agreement_number: string;
+  period: string;
+  currency: string;
+  figures: {
+    opening_stock_qty: number;
+    opening_stock_val: number;
+    inward_qty: number;
+    inward_val: number;
+    sales_qty: number;
+    sales_val: number;
+    returns_qty: number;
+    returns_val: number;
+    closing_stock_qty: number;
+    closing_stock_val: number;
+    pending_claims_val: number;
+    settled_claims_val: number;
+    freight_cost_val: number;
+    admin_borne_freight: number;
+    commission_accrued: number;
+  };
+  lines: {
+    date: string;
+    category: string;
+    source_doc: string;
+    product_name: string;
+    batch_no: string;
+    qty: number;
+    amount: number;
+    status: string;
+  }[];
+}
+
+// API functions
+export async function apiGetPrincipalSummary(): Promise<{ success: boolean; summary: PrincipalSummaryKPI }> {
+  const response = await apiClient.get('/api/principal/summary');
+  return response.data;
+}
+
+export async function apiGetPrincipals(search?: string): Promise<{ success: boolean; principals: PrincipalListItem[]; count: number }> {
+  const response = await apiClient.get('/api/principal/list', { params: search ? { search } : {} });
+  return response.data;
+}
+
+export async function apiGetPrincipalPosition(principalId: string): Promise<{ success: boolean; position: PrincipalPosition }> {
+  const response = await apiClient.get(`/api/principal/${principalId}/position`);
+  return response.data;
+}
+
+export async function apiGetPrincipalStatement(principalId: string, params?: { period_from?: string; period_to?: string }): Promise<{ success: boolean; statement: PrincipalStatement }> {
+  const response = await apiClient.get(`/api/principal/${principalId}/statement`, { params });
+  return response.data;
+}
+
+export async function apiCreatePrincipalClaim(payload: {
+  principal_id: string;
+  claim_type: string;
+  source_doc_type?: string;
+  source_doc_id: string;
+  product_id?: string;
+  product_name?: string;
+  batch_no?: string;
+  claimed_qty: number;
+  rate: number;
+  claimed_amount?: number;
+  reason?: string;
+  evidence_url?: string;
+}): Promise<{ success: boolean; message: string; claim: any }> {
+  const response = await apiClient.post('/api/principal/claims', payload);
+  return response.data;
+}
+
+export async function apiTakePrincipalClaimAction(
+  claimId: string,
+  payload: {
+    action: string;
+    approved_amount?: number;
+    resolution_notes?: string;
+  }
+): Promise<{ success: boolean; message: string; claim: any }> {
+  const response = await apiClient.post(`/api/principal/claims/${claimId}/action`, payload);
+  return response.data;
+}
+
+export async function apiGetPrincipalReconciliations(principalId?: string): Promise<{ success: boolean; reconciliations: PrincipalReconciliationItem[]; count: number }> {
+  const response = await apiClient.get('/api/principal/reconciliations', { params: principalId ? { principal_id: principalId } : {} });
+  return response.data;
+}
+
+export async function apiRunPrincipalReconciliation(payload: {
+  principal_id: string;
+  period_from?: string;
+  period_to?: string;
+  external_closing_val?: number;
+  discrepancy_reason?: string;
+}): Promise<{ success: boolean; message: string; reconciliation: any }> {
+  const response = await apiClient.post('/api/principal/reconciliation/run', payload);
+  return response.data;
+}
+
+
 
 
 
