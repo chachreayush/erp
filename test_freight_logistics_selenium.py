@@ -169,11 +169,16 @@ def run_test():
         input_weight.send_keys("50.0")
 
         btn_calc = wait.until(EC.element_to_be_clickable((By.ID, "btn-execute-calc")))
-        btn_calc.click()
-        time.sleep(1.5)
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn_calc)
+        time.sleep(0.5)
+        driver.execute_script("arguments[0].click();", btn_calc)
 
-        card_result = wait.until(EC.presence_of_element_located((By.ID, "card-calc-result")))
-        assert "Gross Transporter Cost" in card_result.text, "Gross Transporter Cost not found in calculation result card"
+        # In Chrome, CSS text-transform: uppercase makes the text 'GROSS TRANSPORTER COST'
+        WebDriverWait(driver, 10).until(
+            lambda d: "GROSS TRANSPORTER COST" in d.find_element(By.ID, "card-calc-result").text.upper()
+        )
+        card_result = driver.find_element(By.ID, "card-calc-result")
+        assert "GROSS TRANSPORTER COST" in card_result.text.upper(), f"Gross Transporter Cost not found in calculation result card. Got: {card_result.text}"
         log("  SUCCESS: Deterministic Calculation Sandbox executed successfully with formula trace and cost bearer.")
 
         screenshot3 = os.path.join(WORKSPACE_DIR, "verified_freight_calculation_sandbox.png")

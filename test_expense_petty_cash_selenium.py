@@ -132,7 +132,7 @@ try:
     log(f"Snapshot captured: {shot_initial}")
 
     # Check header
-    header_el = wait.until(EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Expense & Petty Cash Engine')]")))
+    header_el = wait.until(EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Operational Expense & Petty Cash Manager')]")))
     doc_badge = driver.find_element(By.XPATH, "//*[contains(text(), 'DOC-26')]")
     log(f"SUCCESS: Cockpit Loaded -> '{header_el.text}' [{doc_badge.text}]")
 

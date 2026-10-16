@@ -1057,6 +1057,7 @@ export default function ExpenseManagement() {
                 type="button"
                 onClick={() => setIsClaimModalOpen(true)}
                 style={S.primaryBtn}
+                data-testid="btn-new-claim"
               >
                 <Plus size={15} />
                 <span>+ Multi-Line Claim</span>
