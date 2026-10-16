@@ -3509,6 +3509,72 @@ export async function apiGetCommissionAudits(limit?: number): Promise<{ status: 
 }
 
 // ─────────────────────────────────────────────────────────────
+// C&F Client Management Commission & Expense Billing
+// ─────────────────────────────────────────────────────────────
+
+export interface ClientCommissionTelemetry {
+  client_org_id: string;
+  client_name: string;
+  client_code: string;
+  sales_turnover: number;
+  invoices_count: number;
+  default_commission_rate: number;
+  suggested_commission: number;
+  default_godown_rent: number;
+  default_staff_salary: number;
+  default_freight_cost: number;
+  default_handling_charges: number;
+  tax_rate_percent: number;
+}
+
+export interface GenerateClientBillPayload {
+  client_org_id: string;
+  period_from?: string;
+  period_to?: string;
+  sales_turnover: number;
+  commission_rate_percent: number;
+  commission_amount: number;
+  godown_rent_amount?: number;
+  staff_salary_amount?: number;
+  freight_reimbursement_amount?: number;
+  handling_charges_amount?: number;
+  other_expenses_amount?: number;
+  tax_rate_percent?: number;
+  remarks?: string;
+  due_days?: number;
+  auto_post_client_purchase?: boolean;
+}
+
+export interface ClientCommissionBillItem {
+  id: string;
+  invoice_number: string;
+  date: string;
+  customer_name: string;
+  subtotal: number;
+  tax_total: number;
+  grand_total: number;
+  due_date?: string;
+  remarks?: string;
+  inward_bill_no?: string;
+  items_count: number;
+}
+
+export async function apiGetClientCommissionTelemetry(clientOrgId: string): Promise<{ status: string; data: ClientCommissionTelemetry }> {
+  const response = await apiClient.get(`/api/commission/clients/${clientOrgId}/telemetry`);
+  return response.data;
+}
+
+export async function apiGenerateClientCommissionBill(payload: GenerateClientBillPayload): Promise<{ status: string; message: string; data: any }> {
+  const response = await apiClient.post('/api/commission/generate-client-bill', payload);
+  return response.data;
+}
+
+export async function apiGetClientCommissionBills(): Promise<{ status: string; count: number; data: ClientCommissionBillItem[] }> {
+  const response = await apiClient.get('/api/commission/client-bills');
+  return response.data;
+}
+
+// ─────────────────────────────────────────────────────────────
 // Enterprise Admin Multi-Client Tracking Engine (Main Admin Company)
 // ─────────────────────────────────────────────────────────────
 

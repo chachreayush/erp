@@ -49,6 +49,14 @@ import {
   apiGetClientsByCompany,
   apiGetCompanyTurnover,
   apiGetManufacturers,
+  apiGetClientCommissionTelemetry,
+  apiGenerateClientCommissionBill,
+  apiGetClientCommissionBills,
+  apiGetOrganizations,
+  ClientCommissionTelemetry,
+  ClientCommissionBillItem,
+  GenerateClientBillPayload,
+  Organization,
   Manufacturer,
   CommissionSummaryKPI,
   CommissionAgreementItem,
@@ -192,7 +200,7 @@ export function CommissionControlCenter() {
   const navigate = useNavigate();
 
   // Navigation & View State
-  const [activeTab, setActiveTab] = useState<'AGREEMENTS' | 'CALCULATIONS' | 'CLAIMS' | 'STATEMENTS' | 'EXCEPTIONS'>('AGREEMENTS');
+  const [activeTab, setActiveTab] = useState<'AGREEMENTS' | 'CALCULATIONS' | 'CLAIMS' | 'CLIENT_BILLING' | 'STATEMENTS' | 'EXCEPTIONS'>('AGREEMENTS');
   const [loading, setLoading] = useState<boolean>(true);
   const [summary, setSummary] = useState<CommissionSummaryKPI>(FALLBACK_SUMMARY);
   const [agreements, setAgreements] = useState<CommissionAgreementItem[]>(FALLBACK_AGREEMENTS);
@@ -203,6 +211,30 @@ export function CommissionControlCenter() {
   const [exceptions, setExceptions] = useState<any[]>([]);
   const [audits, setAudits] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Client Management Commission & Expense Billing State
+  const [clientOrgs, setClientOrgs] = useState<Organization[]>([
+    { id: 'ed79c93a-5027-4142-adb7-e50cb984efa8', name: 'KRISHNA MEDICAL AGENCIES', org_code: 'KMA', is_am: false } as Organization
+  ]);
+  const [selectedBillingClientOrgId, setSelectedBillingClientOrgId] = useState<string>('ed79c93a-5027-4142-adb7-e50cb984efa8');
+  const [billingTurnover, setBillingTurnover] = useState<number>(1250000);
+  const [billingCommRate, setBillingCommRate] = useState<number>(5.0);
+  const [billingCommAmount, setBillingCommAmount] = useState<number>(62500);
+  const [billingRentAmount, setBillingRentAmount] = useState<number>(15000);
+  const [billingSalaryAmount, setBillingSalaryAmount] = useState<number>(25000);
+  const [billingFreightAmount, setBillingFreightAmount] = useState<number>(8500);
+  const [billingHandlingAmount, setBillingHandlingAmount] = useState<number>(2500);
+  const [billingOtherAmount, setBillingOtherAmount] = useState<number>(0);
+  const [billingTaxRate, setBillingTaxRate] = useState<number>(18.0);
+  const [billingRemarks, setBillingRemarks] = useState<string>('C&F Sales Commission & Reimbursable Operating Expenses');
+  const [billingDueDays, setBillingDueDays] = useState<number>(15);
+  const [autoPostPurchase, setAutoPostPurchase] = useState<boolean>(true);
+  const [generatingBill, setGeneratingBill] = useState<boolean>(false);
+  const [fetchingBillingTelemetry, setFetchingBillingTelemetry] = useState<boolean>(false);
+  const [billingNotice, setBillingNotice] = useState<string>('');
+  const [generatedBillResult, setGeneratedBillResult] = useState<any | null>(null);
+  const [pastClientBills, setPastClientBills] = useState<ClientCommissionBillItem[]>([]);
+  const [loadingClientBills, setLoadingClientBills] = useState<boolean>(false);
 
   // Mapped Clients for Selected Principal
   const [clients, setClients] = useState<any[]>([
@@ -246,6 +278,86 @@ export function CommissionControlCenter() {
   const [fetchingTurnover, setFetchingTurnover] = useState<boolean>(false);
   const [turnoverFetchNotice, setTurnoverFetchNotice] = useState<string>('');
 
+  const handleFetchClientBillingTelemetry = async (orgId?: string) => {
+    const targetId = orgId || selectedBillingClientOrgId;
+    if (!targetId) return;
+    setFetchingBillingTelemetry(true);
+    setBillingNotice('');
+    try {
+      const res = await apiGetClientCommissionTelemetry(targetId);
+      if (res && res.data) {
+        const d = res.data;
+        setBillingTurnover(d.sales_turnover);
+        setBillingCommRate(d.default_commission_rate);
+        setBillingCommAmount(d.suggested_commission);
+        setBillingRentAmount(d.default_godown_rent);
+        setBillingSalaryAmount(d.default_staff_salary);
+        setBillingFreightAmount(d.default_freight_cost);
+        setBillingHandlingAmount(d.default_handling_charges);
+        setBillingTaxRate(d.tax_rate_percent || 18.0);
+        setBillingNotice(
+          `⚡ Auto-fetched live data for ${d.client_name}: Turnover ₹${d.sales_turnover.toLocaleString('en-IN')}, Commission ₹${d.suggested_commission.toLocaleString('en-IN')} (${d.default_commission_rate}%), Depot Expenses ₹${(d.default_godown_rent + d.default_staff_salary + d.default_freight_cost + d.default_handling_charges).toLocaleString('en-IN')}`
+        );
+      }
+    } catch (e: any) {
+      console.error('Failed to fetch client telemetry', e);
+      setBillingNotice('Telemetry not reachable. Manual entry mode active.');
+    } finally {
+      setFetchingBillingTelemetry(false);
+    }
+  };
+
+  const handleGenerateClientBill = async () => {
+    if (!selectedBillingClientOrgId) {
+      alert('Please select a client organization.');
+      return;
+    }
+    setGeneratingBill(true);
+    setGeneratedBillResult(null);
+    try {
+      const payload: GenerateClientBillPayload = {
+        client_org_id: selectedBillingClientOrgId,
+        sales_turnover: billingTurnover,
+        commission_rate_percent: billingCommRate,
+        commission_amount: billingCommAmount,
+        godown_rent_amount: billingRentAmount,
+        staff_salary_amount: billingSalaryAmount,
+        freight_reimbursement_amount: billingFreightAmount,
+        handling_charges_amount: billingHandlingAmount,
+        other_expenses_amount: billingOtherAmount,
+        tax_rate_percent: billingTaxRate,
+        remarks: billingRemarks,
+        due_days: billingDueDays,
+        auto_post_client_purchase: autoPostPurchase
+      };
+      const res = await apiGenerateClientCommissionBill(payload);
+      if (res && res.data) {
+        setGeneratedBillResult(res.data);
+        loadClientBills();
+        loadData();
+      }
+    } catch (e: any) {
+      console.error('Failed to generate client commission bill', e);
+      alert('Failed to generate bill: ' + (e?.response?.data?.detail || e?.message || 'Server error'));
+    } finally {
+      setGeneratingBill(false);
+    }
+  };
+
+  const loadClientBills = async () => {
+    try {
+      setLoadingClientBills(true);
+      const res = await apiGetClientCommissionBills();
+      if (res && res.data) {
+        setPastClientBills(res.data);
+      }
+    } catch (e) {
+      console.error('Error fetching past client bills', e);
+    } finally {
+      setLoadingClientBills(false);
+    }
+  };
+
   const handleAutoFetchTurnover = async () => {
     setFetchingTurnover(true);
     setTurnoverFetchNotice('');
@@ -277,7 +389,7 @@ export function CommissionControlCenter() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [sumRes, agrRes, calcRes, clmRes, stmtRes, excRes, audRes, mfgRes] = await Promise.all([
+      const [sumRes, agrRes, calcRes, clmRes, stmtRes, excRes, audRes, mfgRes, orgsRes, billsRes] = await Promise.all([
         apiGetCommissionSummary().catch(() => ({ status: 'ok', data: FALLBACK_SUMMARY })),
         apiGetCommissionAgreements().catch(() => ({ status: 'ok', count: 2, data: FALLBACK_AGREEMENTS })),
         apiGetCommissionCalculations().catch(() => ({ status: 'ok', count: 0, data: [] })),
@@ -285,8 +397,24 @@ export function CommissionControlCenter() {
         apiGetRecoveryStatements().catch(() => ({ status: 'ok', count: 0, data: [] })),
         apiGetCommissionExceptions().catch(() => ({ status: 'ok', count: 0, data: [] })),
         apiGetCommissionAudits().catch(() => ({ status: 'ok', count: 0, data: [] })),
-        apiGetManufacturers().catch(() => [])
+        apiGetManufacturers().catch(() => []),
+        apiGetOrganizations().catch(() => []),
+        apiGetClientCommissionBills().catch(() => ({ status: 'ok', count: 0, data: [] }))
       ]);
+
+      if (orgsRes && Array.isArray(orgsRes)) {
+        setClientOrgs(orgsRes);
+        const krishna = orgsRes.find(o => o.name?.toUpperCase().includes('KRISHNA'));
+        const defaultOrg = krishna || orgsRes.find(o => !o.is_am) || orgsRes[0];
+        if (defaultOrg && !selectedBillingClientOrgId) {
+          setSelectedBillingClientOrgId(defaultOrg.id);
+          handleFetchClientBillingTelemetry(defaultOrg.id);
+        }
+      }
+
+      if (billsRes && billsRes.data) {
+        setPastClientBills(billsRes.data);
+      }
 
       if (mfgRes && Array.isArray(mfgRes)) {
         setProductCompanies(mfgRes);
@@ -362,11 +490,14 @@ export function CommissionControlCenter() {
         setActiveTab('CLAIMS');
       } else if (e.key === 'F5') {
         e.preventDefault();
-        setActiveTab('STATEMENTS');
+        setActiveTab('CLIENT_BILLING');
       } else if (e.key === 'F6') {
         e.preventDefault();
-        setActiveTab('EXCEPTIONS');
+        setActiveTab('STATEMENTS');
       } else if (e.key === 'F7') {
+        e.preventDefault();
+        setActiveTab('EXCEPTIONS');
+      } else if (e.key === 'F8') {
         e.preventDefault();
         setIsClaimModalOpen(true);
       } else if (e.key === 'Escape') {
@@ -721,6 +852,19 @@ export function CommissionControlCenter() {
           </button>
 
           <button
+            id="tab-btn-client-billing"
+            onClick={() => setActiveTab('CLIENT_BILLING')}
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold flex items-center space-x-2 transition-all ${
+              activeTab === 'CLIENT_BILLING'
+                ? 'bg-[#1b4332] text-white shadow'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
+          >
+            <Receipt className="w-4 h-4" />
+            <span>[F5] Client C&F Billing Desk</span>
+          </button>
+
+          <button
             id="tab-btn-statements"
             onClick={() => setActiveTab('STATEMENTS')}
             className={`px-3.5 py-2 rounded-lg text-xs font-bold flex items-center space-x-2 transition-all ${
@@ -729,8 +873,8 @@ export function CommissionControlCenter() {
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
             }`}
           >
-            <Receipt className="w-4 h-4" />
-            <span>[F5] Statements Desk</span>
+            <FileText className="w-4 h-4" />
+            <span>[F6] Statements Desk</span>
           </button>
 
           <button
@@ -743,7 +887,7 @@ export function CommissionControlCenter() {
             }`}
           >
             <AlertTriangle className="w-4 h-4" />
-            <span>[F6] Exceptions & Audits</span>
+            <span>[F7] Exceptions & Audits</span>
           </button>
         </div>
 
@@ -1364,6 +1508,720 @@ export function CommissionControlCenter() {
                     )}
                   </div>
                 ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB: CLIENT COMMISSION & EXPENSE BILLING DESK (C&F OUTWARD SERVICE BILL + CLIENT INWARD PURCHASE DUAL-POSTING) */}
+        {activeTab === 'CLIENT_BILLING' && (
+          <div className="space-y-4">
+            {/* 1. Header & Client Selector Banner */}
+            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <Receipt className="w-5 h-5 text-emerald-700" />
+                  <h2 className="text-base font-extrabold text-gray-900 uppercase tracking-wide">
+                    C&F Client Commission & Expense Billing Desk
+                  </h2>
+                  <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider border border-emerald-300">
+                    Dual-Posting Active
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Automate or manually create formal C&F Service Bills for Client Management clients (e.g. KRISHNA MEDICAL AGENCIES). Dual-posts outward bill to Billing and inward purchase bill to the client's purchase register.
+                </p>
+              </div>
+
+              {/* Client Selection & Quick Actions */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center space-x-1.5 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+                  <span className="text-[11px] font-bold text-gray-600 pl-1">Client:</span>
+                  <select
+                    id="client-billing-org-select"
+                    value={selectedBillingClientOrgId}
+                    onChange={(e) => {
+                      setSelectedBillingClientOrgId(e.target.value);
+                      handleFetchClientBillingTelemetry(e.target.value);
+                    }}
+                    className="bg-white text-gray-900 font-extrabold text-xs rounded-md px-3 py-1.5 border border-gray-300 shadow-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  >
+                    {clientOrgs.map((org) => (
+                      <option key={org.id} value={org.id}>
+                        {org.name} ({org.org_code}) {org.is_am ? '★ Main Admin' : '• Client Company'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  id="btn-autofetch-client-telemetry"
+                  onClick={() => handleFetchClientBillingTelemetry()}
+                  disabled={fetchingBillingTelemetry}
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-3.5 py-2 rounded-lg shadow transition-all flex items-center space-x-1.5"
+                  title="Auto-fetch actual sales turnover, invoice counts, and verified depot expenses from database"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${fetchingBillingTelemetry ? 'animate-spin' : ''}`} />
+                  <span>⚡ Auto-Fetch Client Turnover & Expenses</span>
+                </button>
+
+                <button
+                  id="btn-refresh-client-bills"
+                  onClick={loadClientBills}
+                  disabled={loadingClientBills}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs px-3 py-2 rounded-lg border border-gray-200 shadow-sm transition-all"
+                  title="Reload historical client bills"
+                >
+                  <span>History ({pastClientBills.length})</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Live Telemetry Notice */}
+            {billingNotice && (
+              <div id="client-billing-notice" className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-xs font-medium flex items-center justify-between font-mono">
+                <div className="flex items-center space-x-2">
+                  <Sparkles className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>{billingNotice}</span>
+                </div>
+                <button
+                  onClick={() => setBillingNotice('')}
+                  className="text-emerald-700 hover:text-emerald-900 p-1"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Generated Bill Instant Feedback Card */}
+            {generatedBillResult && (
+              <div id="generated-bill-success-card" className="bg-gradient-to-r from-emerald-900 to-[#1b4332] text-white p-5 rounded-2xl shadow-xl border border-emerald-500/50">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center space-x-2 text-emerald-300 text-xs font-bold uppercase tracking-wider">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span>Commercial C&F Service Bill Successfully Generated & Dual-Posted</span>
+                    </div>
+                    <div className="text-xl font-black mt-1">
+                      {generatedBillResult.outward_bill_no} — ₹{generatedBillResult.grand_total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </div>
+                    <div className="text-xs text-emerald-200 mt-1 flex flex-wrap items-center gap-3">
+                      <span>Client: <strong className="text-white">{generatedBillResult.client_name}</strong></span>
+                      <span>•</span>
+                      <span>Turnover: ₹{generatedBillResult.sales_turnover.toLocaleString('en-IN')}</span>
+                      <span>•</span>
+                      <span>Commission: ₹{generatedBillResult.commission_amount.toLocaleString('en-IN')}</span>
+                      <span>•</span>
+                      <span>Depot Recharges: ₹{generatedBillResult.expenses_reimbursement.toLocaleString('en-IN')}</span>
+                      <span>•</span>
+                      <span>Claim Ref: {generatedBillResult.claim_number}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      id="btn-goto-outward-billing"
+                      onClick={() => navigate('/billing')}
+                      className="bg-white text-emerald-900 hover:bg-emerald-50 font-black text-xs px-3.5 py-2 rounded-lg shadow transition-all flex items-center space-x-1.5"
+                    >
+                      <Receipt className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>View Outward Bill in Billing [F7]</span>
+                    </button>
+
+                    {generatedBillResult.inward_bill_no && (
+                      <button
+                        id="btn-goto-inward-purchase"
+                        onClick={() => navigate('/purchase/list')}
+                        className="bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xs px-3.5 py-2 rounded-lg shadow transition-all flex items-center space-x-1.5"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>Inward Purchase Bill: {generatedBillResult.inward_bill_no}</span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => setGeneratedBillResult(null)}
+                      className="text-emerald-300 hover:text-white p-2"
+                      title="Dismiss"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 2. Four KPI Metric Cards */}
+            {(() => {
+              const expensesSum = billingRentAmount + billingSalaryAmount + billingFreightAmount + billingHandlingAmount + billingOtherAmount;
+              const taxableSum = billingCommAmount + expensesSum;
+              const taxSum = Math.round(taxableSum * (billingTaxRate / 100) * 100) / 100;
+              const grandSum = taxableSum + taxSum;
+
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-emerald-600">
+                    <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Client Sales Turnover</div>
+                    <div className="text-xl font-black text-gray-900 mt-1 font-mono">
+                      ₹{billingTurnover.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </div>
+                    <div className="text-[10px] text-emerald-700 font-medium mt-1">
+                      Basis for percentage sales commission
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-blue-600">
+                    <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Earned Commission</div>
+                    <div className="text-xl font-black text-blue-900 mt-1 font-mono">
+                      ₹{billingCommAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </div>
+                    <div className="text-[10px] text-blue-700 font-medium mt-1">
+                      Rate: {billingCommRate}% on client turnover
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-indigo-600">
+                    <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Reimbursable Depot Expenses</div>
+                    <div className="text-xl font-black text-indigo-900 mt-1 font-mono">
+                      ₹{expensesSum.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </div>
+                    <div className="text-[10px] text-indigo-700 font-medium mt-1">
+                      Storage Rent, Staff, Freight & Handling
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-purple-600">
+                    <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Grand Total Bill Amount</div>
+                    <div className="text-xl font-black text-purple-900 mt-1 font-mono">
+                      ₹{grandSum.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </div>
+                    <div className="text-[10px] text-purple-700 font-medium mt-1">
+                      Includes {billingTaxRate}% GST (₹{taxSum.toLocaleString('en-IN', { minimumFractionDigits: 2 })})
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* 3. Dual Configuration Workspaces (Automated / Manual Adjustment) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Left Column: Turnover & Commission */}
+              <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-col justify-between space-y-4">
+                <div>
+                  <div className="flex items-center space-x-2 border-b border-gray-100 pb-2 mb-3">
+                    <TrendingUp className="w-4 h-4 text-emerald-700" />
+                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-wide">
+                      1. Sales Turnover & Commission Parameters
+                    </h3>
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <label className="block font-bold text-gray-700 mb-1">
+                        Client Sales Turnover Base (₹):
+                      </label>
+                      <input
+                        id="input-billing-turnover"
+                        type="number"
+                        value={billingTurnover}
+                        onChange={(e) => {
+                          const val = Number(e.target.value) || 0;
+                          setBillingTurnover(val);
+                          setBillingCommAmount(Math.round(val * (billingCommRate / 100) * 100) / 100);
+                        }}
+                        className="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-xs font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 font-mono"
+                        placeholder="e.g. 1250000"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-bold text-gray-700 mb-1">
+                          Commission Rate (%):
+                        </label>
+                        <input
+                          id="input-billing-comm-rate"
+                          type="number"
+                          step="0.1"
+                          value={billingCommRate}
+                          onChange={(e) => {
+                            const rate = Number(e.target.value) || 0;
+                            setBillingCommRate(rate);
+                            setBillingCommAmount(Math.round(billingTurnover * (rate / 100) * 100) / 100);
+                          }}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-xs font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 font-mono"
+                          placeholder="e.g. 5.0"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-gray-700 mb-1">
+                          Calculated Commission (₹):
+                        </label>
+                        <input
+                          id="input-billing-comm-amount"
+                          type="number"
+                          value={billingCommAmount}
+                          onChange={(e) => setBillingCommAmount(Number(e.target.value) || 0)}
+                          className="w-full bg-emerald-50 border border-emerald-300 rounded-lg px-3 py-2 text-xs font-black text-emerald-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 font-mono"
+                          placeholder="e.g. 62500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-bold text-gray-700 mb-1">
+                          Payment Due Period (Days):
+                        </label>
+                        <input
+                          id="input-billing-due-days"
+                          type="number"
+                          value={billingDueDays}
+                          onChange={(e) => setBillingDueDays(Number(e.target.value) || 15)}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-xs font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 font-mono"
+                          placeholder="e.g. 15"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-gray-700 mb-1">
+                          GST SAC Classification:
+                        </label>
+                        <div className="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono font-bold text-gray-700">
+                          SAC 998599 (C&F Support)
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-emerald-50/70 p-3 rounded-lg border border-emerald-200/80 text-xs text-emerald-900">
+                  <div className="font-bold flex items-center space-x-1 text-[11px] uppercase tracking-wider text-emerald-800">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Auto-Calculation Logic Active</span>
+                  </div>
+                  <p className="mt-1 text-[11px] leading-relaxed">
+                    Changing the Sales Turnover or Commission % instantly recalculates the earned commission. You can also manually type an exact override amount anytime.
+                  </p>
+                </div>
+              </div>
+
+              {/* Right Column: Reimbursable Depot Expenses */}
+              <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-col justify-between space-y-4">
+                <div>
+                  <div className="flex items-center space-x-2 border-b border-gray-100 pb-2 mb-3">
+                    <Warehouse className="w-4 h-4 text-blue-700" />
+                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-wide">
+                      2. Reimbursable Depot Expenses & Taxes
+                    </h3>
+                  </div>
+
+                  <div className="space-y-2.5 text-xs">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-bold text-gray-700 mb-1 flex items-center justify-between">
+                          <span>Godown Storage Rent (₹):</span>
+                        </label>
+                        <input
+                          id="input-billing-rent"
+                          type="number"
+                          value={billingRentAmount}
+                          onChange={(e) => setBillingRentAmount(Number(e.target.value) || 0)}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-gray-700 mb-1 flex items-center justify-between">
+                          <span>Depot Staff Salaries (₹):</span>
+                        </label>
+                        <input
+                          id="input-billing-salary"
+                          type="number"
+                          value={billingSalaryAmount}
+                          onChange={(e) => setBillingSalaryAmount(Number(e.target.value) || 0)}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-bold text-gray-700 mb-1">
+                          Freight Reimbursement (₹):
+                        </label>
+                        <input
+                          id="input-billing-freight"
+                          type="number"
+                          value={billingFreightAmount}
+                          onChange={(e) => setBillingFreightAmount(Number(e.target.value) || 0)}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-gray-700 mb-1">
+                          Cargo Handling & Loading (₹):
+                        </label>
+                        <input
+                          id="input-billing-handling"
+                          type="number"
+                          value={billingHandlingAmount}
+                          onChange={(e) => setBillingHandlingAmount(Number(e.target.value) || 0)}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-bold text-gray-700 mb-1">
+                          Other Operating Ancillaries (₹):
+                        </label>
+                        <input
+                          id="input-billing-other"
+                          type="number"
+                          value={billingOtherAmount}
+                          onChange={(e) => setBillingOtherAmount(Number(e.target.value) || 0)}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-gray-700 mb-1">
+                          GST Tax Rate (%):
+                        </label>
+                        <input
+                          id="input-billing-tax-rate"
+                          type="number"
+                          value={billingTaxRate}
+                          onChange={(e) => setBillingTaxRate(Number(e.target.value) || 0)}
+                          className="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-gray-700 mb-1">
+                        Invoice Remarks / Reference:
+                      </label>
+                      <input
+                        id="input-billing-remarks"
+                        type="text"
+                        value={billingRemarks}
+                        onChange={(e) => setBillingRemarks(e.target.value)}
+                        className="w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-900 focus:bg-white focus:ring-2 focus:ring-emerald-500"
+                        placeholder="e.g. C&F Commission & Expense Reimbursement for October 2026"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50/70 p-3 rounded-lg border border-blue-200/80 text-xs text-blue-900">
+                  <div className="font-bold flex items-center space-x-1 text-[11px] uppercase tracking-wider text-blue-800">
+                    <Truck className="w-3.5 h-3.5" />
+                    <span>Pure Reimbursements Compliance</span>
+                  </div>
+                  <p className="mt-1 text-[11px] leading-relaxed">
+                    Operating expenses are recharged to the client organization as per the C&F agreement. These appear itemized directly on the outward service bill.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. Itemized Commercial Invoice Preview & Dual-Posting Action Deck */}
+            {(() => {
+              const expensesSum = billingRentAmount + billingSalaryAmount + billingFreightAmount + billingHandlingAmount + billingOtherAmount;
+              const taxableSum = billingCommAmount + expensesSum;
+              const taxSum = Math.round(taxableSum * (billingTaxRate / 100) * 100) / 100;
+              const grandSum = taxableSum + taxSum;
+
+              return (
+                <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+                    <div>
+                      <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-wide flex items-center space-x-2">
+                        <FileText className="w-4 h-4 text-emerald-700" />
+                        <span>Commercial Service Bill Line Items Preview</span>
+                      </h3>
+                      <p className="text-xs text-gray-500">
+                        Exact lines that will be posted into Main Admin's Billing ledger and Client's Purchase ledger.
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <div className="text-[11px] font-bold text-gray-500 uppercase">Grand Total Payable</div>
+                      <div className="text-2xl font-black text-emerald-900 font-mono">
+                        ₹{grandSum.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Line Items Table */}
+                  <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-gray-50 text-gray-700 font-bold uppercase tracking-wider text-[10px] border-b border-gray-200">
+                        <tr>
+                          <th className="py-2.5 px-3">#</th>
+                          <th className="py-2.5 px-3">Service Description</th>
+                          <th className="py-2.5 px-3">Category</th>
+                          <th className="py-2.5 px-3 text-right">Taxable Rate (₹)</th>
+                          <th className="py-2.5 px-3 text-center">Tax %</th>
+                          <th className="py-2.5 px-3 text-right">Line Total (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 text-gray-900">
+                        {billingCommAmount > 0 && (
+                          <tr className="hover:bg-gray-50">
+                            <td className="py-2 px-3 font-mono text-gray-500">1</td>
+                            <td className="py-2 px-3 font-bold text-emerald-950">
+                              C&F Sales Commission ({billingCommRate}% on turnover ₹{billingTurnover.toLocaleString('en-IN')})
+                            </td>
+                            <td className="py-2 px-3">
+                              <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">
+                                COMMISSION
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono">₹{billingCommAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-2 px-3 text-center font-mono">{billingTaxRate}%</td>
+                            <td className="py-2 px-3 text-right font-black font-mono">₹{billingCommAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                          </tr>
+                        )}
+
+                        {billingRentAmount > 0 && (
+                          <tr className="hover:bg-gray-50">
+                            <td className="py-2 px-3 font-mono text-gray-500">2</td>
+                            <td className="py-2 px-3 font-semibold text-gray-900">
+                              Godown Storage & Warehousing Charges Reimbursement
+                            </td>
+                            <td className="py-2 px-3">
+                              <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded">
+                                STORAGE
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono">₹{billingRentAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-2 px-3 text-center font-mono">{billingTaxRate}%</td>
+                            <td className="py-2 px-3 text-right font-black font-mono">₹{billingRentAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                          </tr>
+                        )}
+
+                        {billingSalaryAmount > 0 && (
+                          <tr className="hover:bg-gray-50">
+                            <td className="py-2 px-3 font-mono text-gray-500">3</td>
+                            <td className="py-2 px-3 font-semibold text-gray-900">
+                              Depot Staff Salary & Operation Handling Reimbursement
+                            </td>
+                            <td className="py-2 px-3">
+                              <span className="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded">
+                                SALARY
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono">₹{billingSalaryAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-2 px-3 text-center font-mono">{billingTaxRate}%</td>
+                            <td className="py-2 px-3 text-right font-black font-mono">₹{billingSalaryAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                          </tr>
+                        )}
+
+                        {billingFreightAmount > 0 && (
+                          <tr className="hover:bg-gray-50">
+                            <td className="py-2 px-3 font-mono text-gray-500">4</td>
+                            <td className="py-2 px-3 font-semibold text-gray-900">
+                              Inward & Outward Freight / Transport Reimbursement
+                            </td>
+                            <td className="py-2 px-3">
+                              <span className="bg-cyan-100 text-cyan-800 text-[10px] font-bold px-2 py-0.5 rounded">
+                                FREIGHT
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono">₹{billingFreightAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-2 px-3 text-center font-mono">{billingTaxRate}%</td>
+                            <td className="py-2 px-3 text-right font-black font-mono">₹{billingFreightAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                          </tr>
+                        )}
+
+                        {billingHandlingAmount > 0 && (
+                          <tr className="hover:bg-gray-50">
+                            <td className="py-2 px-3 font-mono text-gray-500">5</td>
+                            <td className="py-2 px-3 font-semibold text-gray-900">
+                              Cargo Handling, Loading & Unloading Charges Reimbursement
+                            </td>
+                            <td className="py-2 px-3">
+                              <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded">
+                                HANDLING
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono">₹{billingHandlingAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-2 px-3 text-center font-mono">{billingTaxRate}%</td>
+                            <td className="py-2 px-3 text-right font-black font-mono">₹{billingHandlingAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                          </tr>
+                        )}
+
+                        {billingOtherAmount > 0 && (
+                          <tr className="hover:bg-gray-50">
+                            <td className="py-2 px-3 font-mono text-gray-500">6</td>
+                            <td className="py-2 px-3 font-semibold text-gray-900">
+                              Other Reimbursable Operating Ancillaries
+                            </td>
+                            <td className="py-2 px-3">
+                              <span className="bg-gray-100 text-gray-800 text-[10px] font-bold px-2 py-0.5 rounded">
+                                OTHER
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono">₹{billingOtherAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-2 px-3 text-center font-mono">{billingTaxRate}%</td>
+                            <td className="py-2 px-3 text-right font-black font-mono">₹{billingOtherAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                          </tr>
+                        )}
+                      </tbody>
+                      <tfoot className="bg-gray-50 font-bold border-t border-gray-200 text-gray-900">
+                        <tr>
+                          <td colSpan={5} className="py-2 px-3 text-right">Commission Subtotal:</td>
+                          <td className="py-2 px-3 text-right font-mono">₹{billingCommAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                        <tr>
+                          <td colSpan={5} className="py-2 px-3 text-right">Expenses Reimbursed Subtotal:</td>
+                          <td className="py-2 px-3 text-right font-mono">₹{expensesSum.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                        <tr>
+                          <td colSpan={5} className="py-2 px-3 text-right">Net Taxable Subtotal:</td>
+                          <td className="py-2 px-3 text-right font-mono font-bold text-emerald-900">₹{taxableSum.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                        <tr>
+                          <td colSpan={5} className="py-2 px-3 text-right">GST ({billingTaxRate}%):</td>
+                          <td className="py-2 px-3 text-right font-mono">₹{taxSum.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                        <tr className="bg-emerald-50/80 text-emerald-950 font-black text-sm border-t-2 border-emerald-600">
+                          <td colSpan={5} className="py-3 px-3 text-right">TOTAL INVOICE AMOUNT (DUE FROM CLIENT):</td>
+                          <td className="py-3 px-3 text-right font-mono text-base font-black">
+                            ₹{grandSum.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+
+                  {/* Dual-Posting Controls & Submit Button */}
+                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        id="check-dual-post-purchase"
+                        type="checkbox"
+                        checked={autoPostPurchase}
+                        onChange={(e) => setAutoPostPurchase(e.target.checked)}
+                        className="w-5 h-5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                      />
+                      <div>
+                        <span className="text-xs font-bold text-gray-900 flex items-center space-x-1.5">
+                          <span>Dual-Post directly to Client's Inward Purchase Register</span>
+                          <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-1.5 py-0.2 rounded font-mono">PURCHASE-BILL</span>
+                        </span>
+                        <p className="text-[11px] text-gray-500">
+                          Automatically generates an inward purchase bill inside the client company's account so their books balance.
+                        </p>
+                      </div>
+                    </label>
+
+                    <button
+                      id="btn-generate-client-bill"
+                      onClick={handleGenerateClientBill}
+                      disabled={generatingBill}
+                      className="bg-[#1b4332] hover:bg-emerald-800 text-white font-extrabold text-sm px-6 py-3.5 rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
+                    >
+                      <Receipt className="w-4 h-4 text-emerald-300" />
+                      <span>{generatingBill ? 'Generating & Dual-Posting Bill...' : '⚡ Generate & Post C&F Service Bill to Billing'}</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* 5. Historical Client C&F Bills Register Table */}
+            <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+              <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-3">
+                <div>
+                  <h3 className="text-xs font-black text-gray-900 uppercase tracking-wide flex items-center space-x-2">
+                    <FileCheck className="w-4 h-4 text-emerald-700" />
+                    <span>Generated Client C&F Commission Bills History ({pastClientBills.length})</span>
+                  </h3>
+                  <p className="text-[11px] text-gray-500">
+                    Audit log of all outward service bills generated for Client Management clients.
+                  </p>
+                </div>
+              </div>
+
+              {pastClientBills.length === 0 ? (
+                <div className="p-8 text-center text-gray-400 font-medium text-xs">
+                  No C&F commission bills generated yet. Use the workspace above to generate the first bill for KRISHNA MEDICAL AGENCIES.
+                </div>
+              ) : (
+                <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-gray-50 text-gray-700 font-bold uppercase tracking-wider text-[10px]">
+                      <tr>
+                        <th className="py-2.5 px-3">Bill Number</th>
+                        <th className="py-2.5 px-3">Date</th>
+                        <th className="py-2.5 px-3">Client Company</th>
+                        <th className="py-2.5 px-3 text-right">Subtotal (₹)</th>
+                        <th className="py-2.5 px-3 text-right">GST (₹)</th>
+                        <th className="py-2.5 px-3 text-right">Grand Total (₹)</th>
+                        <th className="py-2.5 px-3 text-center">Dual Purchase Ref</th>
+                        <th className="py-2.5 px-3 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 text-gray-900">
+                      {pastClientBills.map((b) => (
+                        <tr key={b.id} className="hover:bg-gray-50">
+                          <td className="py-2 px-3 font-mono font-bold text-emerald-900">
+                            {b.invoice_number}
+                          </td>
+                          <td className="py-2 px-3 text-gray-600 font-mono">
+                            {new Date(b.date).toLocaleDateString()}
+                          </td>
+                          <td className="py-2 px-3 font-bold text-gray-900">
+                            {b.customer_name}
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono">
+                            ₹{b.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono text-gray-600">
+                            ₹{b.tax_total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-2 px-3 text-right font-black font-mono text-emerald-900">
+                            ₹{b.grand_total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-2 px-3 text-center">
+                            {b.inward_bill_no ? (
+                              <span className="bg-emerald-100 text-emerald-800 text-[10px] font-mono font-bold px-2 py-0.5 rounded border border-emerald-200">
+                                {b.inward_bill_no}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 text-[10px]">—</span>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 text-center space-x-1">
+                            <button
+                              onClick={() => navigate('/billing')}
+                              className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-2 py-1 rounded text-[11px] font-bold"
+                              title="View in Billing register"
+                            >
+                              Billing [F7]
+                            </button>
+                            {b.inward_bill_no && (
+                              <button
+                                onClick={() => navigate('/purchase/list')}
+                                className="bg-emerald-100 hover:bg-emerald-200 text-emerald-900 px-2 py-1 rounded text-[11px] font-bold"
+                                title="View in Purchase register"
+                              >
+                                Purchase [F9]
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           </div>

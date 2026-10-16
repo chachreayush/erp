@@ -17,16 +17,11 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Finance & Accounting', path: '/finance', module: 'finance' },
   { label: 'Inventory', path: '/inventory-dashboard', module: 'inventory' },
   { label: 'Sales & Purchase', path: '/sales', module: 'sales' },
+  { label: 'C&F & Logistics', path: '/principal', module: undefined },
   { label: 'Workflows [F4]', path: '/workflow/inbox', module: undefined },
-  { label: 'Audit Trail', path: '/audit', module: undefined },
-  { label: 'Cargo & Consignments', path: '/cargo', module: undefined },
-  { label: 'Principal & C&F Ops', path: '/principal', module: undefined },
-  { label: 'Commission Engine', path: '/commission', module: undefined },
-  { label: 'CRM & Admin', path: '/crm', module: 'crm' },
   { label: 'GST & Compliance', path: '/gst', module: undefined },
-  { label: 'HR Management', path: '/hr', module: 'hr' },
-  { label: 'Reports', path: '/reports', module: 'reports' },
-  { label: 'Settings', path: '/settings', module: 'settings' }
+  { label: 'CRM & Admin', path: '/crm', module: 'crm' },
+  { label: 'Reports', path: '/reports', module: 'reports' }
 ]
 
 interface MenuItem {
@@ -35,6 +30,18 @@ interface MenuItem {
   type?: string
   path?: string
 }
+
+const cfMenuItems: MenuItem[] = [
+  { label: 'Principal & C&F Operations', path: '/principal' },
+  { label: 'C&F Commission & Recovery Engine', path: '/commission' },
+  { label: 'Admin Multi-Client Radar', path: '/admin/tracking' },
+  { isSeparator: true },
+  { label: 'Cargo & Consignment Board', path: '/cargo' },
+  { label: 'Freight Contracts & Rates', path: '/freight/contracts' },
+  { label: 'Transporter Reconciliation', path: '/freight/reconciliation' },
+  { label: 'Cargo Cost Allocation Center', path: '/cargo/costs' },
+  { label: 'POD & Transit Exception Desk', path: '/cargo/pod-exceptions' }
+]
 
 const parentMenuItems: MenuItem[] = [
   { label: 'Sale', type: 'sale' },
@@ -220,6 +227,7 @@ function Header() {
   const [crmDropdownOpen, setCrmDropdownOpen] = useState(false)
   const [gstDropdownOpen, setGstDropdownOpen] = useState(false)
   const [workflowDropdownOpen, setWorkflowDropdownOpen] = useState(false)
+  const [cfDropdownOpen, setCfDropdownOpen] = useState(false)
 
   // Keyboard navigation indexes
   const [_focusedMainIndex, setFocusedMainIndex] = useState(0)
@@ -227,7 +235,7 @@ function Header() {
   const [focusedSubIndex, setFocusedSubIndex] = useState(-1) 
   
   const [focusedInvParentIndex, setFocusedInvParentIndex] = useState(0)
-  const [focusedInvSubIndex, setFocusedInvSubIndex] = useState(-1)
+  const [focusedInvSubIndex, setFocusedInvSubIndex] = useState(-1) 
 
   const [focusedMasterParentIndex, setFocusedMasterParentIndex] = useState(0)
   const [focusedMasterSubIndex, setFocusedMasterSubIndex] = useState(-1)
@@ -235,6 +243,7 @@ function Header() {
   const [focusedCrmParentIndex, setFocusedCrmParentIndex] = useState(0)
   const [focusedGstParentIndex, setFocusedGstParentIndex] = useState(0)
   const [focusedWorkflowParentIndex, setFocusedWorkflowParentIndex] = useState(0)
+  const [focusedCfParentIndex, setFocusedCfParentIndex] = useState(0)
 
   // Refs for focusing
   const mainItemRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -248,6 +257,7 @@ function Header() {
   const crmParentRefs = useRef<(HTMLButtonElement | null)[]>([])
   const gstParentRefs = useRef<(HTMLButtonElement | null)[]>([])
   const workflowParentRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const cfParentRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   // Filter permission items
   const visibleNavItems = NAV_ITEMS.filter(item => {
@@ -255,22 +265,27 @@ function Header() {
     return hasPermission(item.module as any, 'view')
   })
 
-  // Workflow & Approvals menu items
+  // Workflow & Approvals menu items (including Audit Trail)
   const workflowMenuItems: MenuItem[] = [
     { label: 'Approval Inbox [F4]', path: '/workflow/inbox' },
     { label: 'Rule Designer', path: '/workflow/designer' },
     { label: 'Execution & SLA Monitor', path: '/workflow/monitor' },
     { isSeparator: true },
-    { label: 'Cargo & Consignment Board', path: '/cargo' },
-    { label: 'Cargo Cost Allocation Center', path: '/cargo/costs' },
-    { label: 'POD & Transit Exception Desk', path: '/cargo/pod-exceptions' }
+    { label: 'Audit Trail Explorer', path: '/audit' },
+    { label: 'Data Governance Console', path: '/audit/governance' }
   ]
 
   // Build CRM menu items dynamically based on role
   const crmMenuItems: MenuItem[] = [
     { label: 'CRM Dashboard', path: '/crm' },
-    ...(user?.role === 'am_admin' ? [{ label: 'Client Management', path: '/clients' }] : []),
-    { label: 'Bulletin Board', path: '/bulletin' }
+    ...(user?.role === 'am_admin' ? [
+      { label: 'Client Management', path: '/clients' },
+      { label: 'Admin Multi-Client Radar', path: '/admin/tracking' },
+      { label: 'Product Companies Master', path: '/master/companies' }
+    ] : []),
+    { isSeparator: true },
+    { label: 'Bulletin Board', path: '/bulletin' },
+    { label: 'Settings', path: '/settings' }
   ]
 
   // GST & Compliance menu items
@@ -373,6 +388,22 @@ function Header() {
         setFocusedMasterParentIndex(0)
         setTimeout(() => {
           masterParentRefs.current[0]?.focus()
+        }, 50)
+      } else if (item.label === 'Workflows [F4]') {
+        e.preventDefault()
+        closeAllDropdowns()
+        setWorkflowDropdownOpen(true)
+        setFocusedWorkflowParentIndex(0)
+        setTimeout(() => {
+          workflowParentRefs.current[0]?.focus()
+        }, 50)
+      } else if (item.label === 'C&F & Logistics') {
+        e.preventDefault()
+        closeAllDropdowns()
+        setCfDropdownOpen(true)
+        setFocusedCfParentIndex(0)
+        setTimeout(() => {
+          cfParentRefs.current[0]?.focus()
         }, 50)
       } else if (e.key === 'Enter') {
         e.preventDefault()
@@ -677,6 +708,45 @@ function Header() {
     }
   }
 
+  // C&F dropdown key handlers
+  const handleCfParentDropdownKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const getNextCfIdx = (idx: number) => {
+      let next = (idx + 1) % cfMenuItems.length
+      while (cfMenuItems[next]?.isSeparator) next = (next + 1) % cfMenuItems.length
+      return next
+    }
+    const getPrevCfIdx = (idx: number) => {
+      let prev = (idx - 1 + cfMenuItems.length) % cfMenuItems.length
+      while (cfMenuItems[prev]?.isSeparator) prev = (prev - 1 + cfMenuItems.length) % cfMenuItems.length
+      return prev
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const nextIndex = getNextCfIdx(index)
+      setFocusedCfParentIndex(nextIndex)
+      cfParentRefs.current[nextIndex]?.focus()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const prevIndex = getPrevCfIdx(index)
+      setFocusedCfParentIndex(prevIndex)
+      cfParentRefs.current[prevIndex]?.focus()
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      const item = cfMenuItems[index]
+      if (item && item.path) {
+        navigate(item.path)
+        closeAllDropdowns()
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      closeAllDropdowns()
+      const cfIndex = headerItems.findIndex(item => item.label === 'C&F & Logistics')
+      if (cfIndex !== -1) {
+        mainItemRefs.current[cfIndex]?.focus()
+      }
+    }
+  }
+
   // Global F4 key listener for Approval Inbox
   useEffect(() => {
     const handleGlobalF4 = (e: KeyboardEvent) => {
@@ -704,6 +774,8 @@ function Header() {
     setGstDropdownOpen(false)
     setWorkflowDropdownOpen(false)
     setFocusedWorkflowParentIndex(0)
+    setCfDropdownOpen(false)
+    setFocusedCfParentIndex(0)
     setFocusedMasterSubIndex(-1)
   }
 
@@ -719,6 +791,7 @@ function Header() {
     if (path === '/crm') return location.pathname.startsWith('/crm') || location.pathname.startsWith('/clients') || location.pathname.startsWith('/bulletin')
     if (path === '/gst') return location.pathname.startsWith('/gst') || location.pathname.startsWith('/finance-reports')
     if (path === '/workflow/inbox') return location.pathname.startsWith('/workflow') || location.pathname.startsWith('/approvals')
+    if (path === '/principal') return location.pathname.startsWith('/principal') || location.pathname.startsWith('/commission') || location.pathname.startsWith('/cargo') || location.pathname.startsWith('/freight')
     return location.pathname.startsWith(path)
   }
 
@@ -781,11 +854,12 @@ function Header() {
           const isCrm = item.label === 'CRM & Admin'
           const isGst = item.label === 'GST & Compliance'
           const isWorkflow = item.label === 'Workflows [F4]'
+          const isCf = item.label === 'C&F & Logistics'
 
           return (
             <div key={item.path} style={{ position: 'relative', display: 'inline-block' }}>
               <button
-                id={isWorkflow ? 'parent-menu-btn-workflows' : `nav-${item.label.toLowerCase().replace(/[^a-z]/g, '')}`}
+                id={isWorkflow ? 'parent-menu-btn-workflows' : isCf ? 'parent-menu-btn-cf' : `nav-${item.label.toLowerCase().replace(/[^a-z]/g, '')}`}
                 ref={el => { mainItemRefs.current[index] = el }}
                 onClick={() => {
                   if (isSalesPurchase) {
@@ -802,6 +876,8 @@ function Header() {
                     closeAllDropdowns(); setGstDropdownOpen(!gstDropdownOpen)
                   } else if (isWorkflow) {
                     closeAllDropdowns(); setWorkflowDropdownOpen(!workflowDropdownOpen)
+                  } else if (isCf) {
+                    closeAllDropdowns(); setCfDropdownOpen(!cfDropdownOpen)
                   } else {
                     closeAllDropdowns()
                     navigate(item.path)
@@ -809,7 +885,7 @@ function Header() {
                 }}
                 onKeyDown={(e) => handleMainKeyDown(e, index)}
                 onMouseEnter={() => {
-                  if (salesDropdownOpen || inventoryDropdownOpen || masterDropdownOpen || financeDropdownOpen || crmDropdownOpen || gstDropdownOpen || workflowDropdownOpen) {
+                  if (salesDropdownOpen || inventoryDropdownOpen || masterDropdownOpen || financeDropdownOpen || crmDropdownOpen || gstDropdownOpen || workflowDropdownOpen || cfDropdownOpen) {
                     if (isSalesPurchase) { closeAllDropdowns(); setSalesDropdownOpen(true); }
                     else if (isInventory) { closeAllDropdowns(); setInventoryDropdownOpen(true); }
                     else if (isMaster) { closeAllDropdowns(); setMasterDropdownOpen(true); }
@@ -817,6 +893,7 @@ function Header() {
                     else if (isCrm) { closeAllDropdowns(); setCrmDropdownOpen(true); }
                     else if (isGst) { closeAllDropdowns(); setGstDropdownOpen(true); }
                     else if (isWorkflow) { closeAllDropdowns(); setWorkflowDropdownOpen(true); }
+                    else if (isCf) { closeAllDropdowns(); setCfDropdownOpen(true); }
                     else { closeAllDropdowns() }
                   }
                 }}
@@ -834,7 +911,7 @@ function Header() {
                 }}
               >
                 {item.label}
-                {(isSalesPurchase || isInventory || isMaster || isFinance || isCrm || isGst || isWorkflow) && <ChevronDown size={10} style={{ marginLeft: '4px', display: 'inline' }} />}
+                {(isSalesPurchase || isInventory || isMaster || isFinance || isCrm || isGst || isWorkflow || isCf) && <ChevronDown size={10} style={{ marginLeft: '4px', display: 'inline' }} />}
               </button>
 
               {/* ── SALES & PURCHASE PARENT DROPDOWN ───────────────── */}
@@ -1420,6 +1497,73 @@ function Header() {
                           }}
                         >
                           <span>{wfItem.label}</span>
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* ── C&F & LOGISTICS DROPDOWN ───────────────── */}
+              {isCf && cfDropdownOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  marginTop: '4px',
+                  backgroundColor: 'var(--color-bg-surface)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '6px',
+                  boxShadow: 'var(--shadow-md)',
+                  padding: '4px',
+                  minWidth: '220px',
+                  zIndex: 110,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px'
+                }}>
+                  {cfMenuItems.map((cfItem, idx) => {
+                    if (cfItem.isSeparator) {
+                      return (
+                        <div
+                          key={`cf-sep-${idx}`}
+                          style={{ height: '1px', backgroundColor: 'var(--color-border)', margin: '4px 0' }}
+                        />
+                      )
+                    }
+                    const isParentFocused = focusedCfParentIndex === idx
+                    return (
+                      <div key={cfItem.label || `cf-${idx}`} style={{ position: 'relative' }}>
+                        <button
+                          id={cfItem.path ? `cf-item-${cfItem.path.replace(/^\//, '').replace(/\//g, '-')}` : `cf-item-${idx}`}
+                          ref={el => { cfParentRefs.current[idx] = el }}
+                          onKeyDown={e => handleCfParentDropdownKeyDown(e, idx)}
+                          onClick={() => {
+                            if (cfItem.path) {
+                              navigate(cfItem.path)
+                              closeAllDropdowns()
+                            }
+                          }}
+                          onMouseEnter={() => {
+                            setFocusedCfParentIndex(idx)
+                          }}
+                          style={{
+                            padding: '6px 10px',
+                            fontSize: '11px',
+                            fontWeight: 500,
+                            textAlign: 'left',
+                            border: 'none',
+                            borderRadius: '4px',
+                            backgroundColor: isParentFocused ? 'rgba(79,70,229,0.1)' : 'transparent',
+                            color: isParentFocused ? 'var(--color-primary)' : 'var(--color-text-primary)',
+                            cursor: 'pointer',
+                            width: '100%',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <span>{cfItem.label}</span>
                         </button>
                       </div>
                     )

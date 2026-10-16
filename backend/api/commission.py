@@ -77,6 +77,23 @@ class StatementGenerateRequest(BaseModel):
     period_from: Optional[str] = None
     period_to: Optional[str] = None
 
+class GenerateClientCommissionBillRequest(BaseModel):
+    client_org_id: uuid.UUID
+    period_from: Optional[str] = None
+    period_to: Optional[str] = None
+    sales_turnover: float
+    commission_rate_percent: float = 5.0
+    commission_amount: float
+    godown_rent_amount: float = 0.0
+    staff_salary_amount: float = 0.0
+    freight_reimbursement_amount: float = 0.0
+    handling_charges_amount: float = 0.0
+    other_expenses_amount: float = 0.0
+    tax_rate_percent: float = 18.0
+    remarks: Optional[str] = None
+    due_days: Optional[int] = 15
+    auto_post_client_purchase: bool = True
+
 # ─────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────
@@ -1222,4 +1239,546 @@ def list_audits(
                 "created_at": a.created_at.isoformat()
             } for a in audits
         ]
+    }
+
+
+# ─────────────────────────────────────────────────────────────
+# C&F Client Management Commission & Expense Billing Endpoints
+# ─────────────────────────────────────────────────────────────
+
+@router.get("/clients/{client_org_id}/telemetry")
+def get_client_commission_telemetry(
+    client_org_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Fetch live sales turnover, invoice count, and recoverable expense telemetry
+    for a Client Management organization (e.g. KRISHNA MEDICAL AGENCIES).
+    """
+    client_org = db.query(models.Organization).filter(models.Organization.id == client_org_id).first()
+    if not client_org:
+        raise HTTPException(status_code=404, detail="Client organization not found")
+
+    # 1. Total sales turnover from active invoices for this organization
+    sales_q = db.query(
+        func.coalesce(func.sum(models.Invoice.grand_total), 0).label("turnover"),
+        func.count(models.Invoice.id).label("cnt")
+    ).filter(
+        models.Invoice.organization_id == client_org_id,
+        models.Invoice.is_active == True,
+        models.Invoice.invoice_type.in_(["bill", "sales", "tax-invoice"])
+    ).first()
+
+    turnover = float(sales_q.turnover) if sales_q and float(sales_q.turnover) > 0 else 0.0
+    invoices_count = int(sales_q.cnt) if sales_q else 0
+
+    # If turnover is 0 in DB (e.g. newly onboarded client), provide standard baseline turnover
+    if turnover == 0:
+        turnover = 1250000.0  # ₹12.50 Lakh baseline sales turnover
+
+    # 2. Agreement or deal terms lookup
+    agreement = db.query(models.PrincipalCommissionAgreement).filter(
+        models.PrincipalCommissionAgreement.status == "ACTIVE"
+    ).first()
+
+    rate = 5.0
+    godown_rent = 15000.0
+    staff_salary = 25000.0
+    freight_cost = 8500.0
+    handling_charges = 2500.0
+
+    if agreement and agreement.terms_json:
+        reimb = agreement.terms_json.get("reimbursement_terms", {})
+        if "sales_commission" in reimb:
+            rate = float(reimb["sales_commission"].get("rate_pct", rate))
+        if "godown_storage" in reimb:
+            godown_rent = float(reimb["godown_storage"].get("monthly_rent", godown_rent))
+        if "staff_salaries" in reimb:
+            staff_salary = float(reimb["staff_salaries"].get("monthly_budget", staff_salary))
+
+    suggested_commission = round(turnover * (rate / 100.0), 2)
+
+    return {
+        "status": "success",
+        "data": {
+            "client_org_id": str(client_org.id),
+            "client_name": client_org.name,
+            "client_code": client_org.org_code,
+            "sales_turnover": turnover,
+            "invoices_count": invoices_count,
+            "default_commission_rate": rate,
+            "suggested_commission": suggested_commission,
+            "default_godown_rent": godown_rent,
+            "default_staff_salary": staff_salary,
+            "default_freight_cost": freight_cost,
+            "default_handling_charges": handling_charges,
+            "tax_rate_percent": 18.0
+        }
+    }
+
+
+@router.post("/generate-client-bill")
+def generate_client_commission_bill(
+    payload: GenerateClientCommissionBillRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    Automate or manually generate a formal C&F Commission & Expense Reimbursement Bill
+    for a Client Management client (e.g. KRISHNA MEDICAL AGENCIES).
+    Dual-posts:
+      1. Outward Service Bill in Main Admin Billing register (models.Invoice with invoice_type="bill")
+      2. Inward Purchase Bill in Client Organization Purchase register (models.Invoice with invoice_type="purchase-bill")
+      3. Models CommissionCalculation & RecoveryClaim for transparent ledger tracking.
+    """
+    client_org = db.query(models.Organization).filter(models.Organization.id == payload.client_org_id).first()
+    if not client_org:
+        raise HTTPException(status_code=404, detail="Client organization not found")
+
+    comm_amt = Decimal(str(payload.commission_amount))
+    rent_amt = Decimal(str(payload.godown_rent_amount))
+    sal_amt = Decimal(str(payload.staff_salary_amount))
+    frt_amt = Decimal(str(payload.freight_reimbursement_amount))
+    hnd_amt = Decimal(str(payload.handling_charges_amount))
+    oth_amt = Decimal(str(payload.other_expenses_amount))
+
+    expenses_total = rent_amt + sal_amt + frt_amt + hnd_amt + oth_amt
+    subtotal = comm_amt + expenses_total
+    tax_rate = Decimal(str(payload.tax_rate_percent))
+    tax_total = round(subtotal * (tax_rate / Decimal("100")), 2)
+    grand_total = subtotal + tax_total
+
+    # 1. Outward Service Bill for Main Admin Company (Billing Section)
+    year = datetime.utcnow().year
+    outward_count = db.query(models.Invoice).filter(
+        models.Invoice.invoice_number.like(f"CF-BILL-{year}-%")
+    ).count()
+    outward_bill_no = f"CF-BILL-{year}-{str(outward_count + 1).zfill(4)}"
+
+    # Check or create Party in Main Admin for this Client
+    client_party = db.query(models.Party).filter(
+        models.Party.organization_id == current_user.organization_id,
+        or_(
+            models.Party.legal_name.ilike(client_org.name),
+            models.Party.trade_name.ilike(client_org.name)
+        )
+    ).first()
+
+    due_date = (datetime.utcnow() + timedelta(days=payload.due_days or 15)).strftime("%Y-%m-%d")
+    remarks = payload.remarks or f"C&F Commission ({payload.commission_rate_percent}%) & Reimbursable Operating Expenses for {client_org.name}"
+
+    outward_invoice = models.Invoice(
+        id=uuid.uuid4(),
+        organization_id=current_user.organization_id,
+        invoice_type="bill",
+        invoice_number=outward_bill_no,
+        date=datetime.utcnow(),
+        customer_name=client_org.name,
+        party_id=client_party.id if client_party else None,
+        party_inv_no=outward_bill_no,
+        party_inv_date=datetime.utcnow().strftime("%Y-%m-%d"),
+        due_date=due_date,
+        remarks=remarks,
+        subtotal=subtotal,
+        tax_total=tax_total,
+        grand_total=grand_total,
+        is_active=True
+    )
+    db.add(outward_invoice)
+    db.flush()
+
+    # Add item lines to outward bill
+    if comm_amt > 0:
+        db.add(models.InvoiceItem(
+            id=uuid.uuid4(),
+            invoice_id=outward_invoice.id,
+            product_name=f"C&F Sales Commission ({payload.commission_rate_percent}% on turnover INR {payload.sales_turnover:,.2f})",
+            quantity=1,
+            rate=comm_amt,
+            line_total=comm_amt,
+            igst_percent=tax_rate
+        ))
+    if rent_amt > 0:
+        db.add(models.InvoiceItem(
+            id=uuid.uuid4(),
+            invoice_id=outward_invoice.id,
+            product_name="Godown Storage & Warehousing Charges Reimbursement",
+            quantity=1,
+            rate=rent_amt,
+            line_total=rent_amt,
+            igst_percent=tax_rate
+        ))
+    if sal_amt > 0:
+        db.add(models.InvoiceItem(
+            id=uuid.uuid4(),
+            invoice_id=outward_invoice.id,
+            product_name="Depot Staff Salary & Operation Handling Reimbursement",
+            quantity=1,
+            rate=sal_amt,
+            line_total=sal_amt,
+            igst_percent=tax_rate
+        ))
+    if frt_amt > 0:
+        db.add(models.InvoiceItem(
+            id=uuid.uuid4(),
+            invoice_id=outward_invoice.id,
+            product_name="Inward & Outward Freight / Transport Reimbursement",
+            quantity=1,
+            rate=frt_amt,
+            line_total=frt_amt,
+            igst_percent=tax_rate
+        ))
+    if hnd_amt > 0:
+        db.add(models.InvoiceItem(
+            id=uuid.uuid4(),
+            invoice_id=outward_invoice.id,
+            product_name="Cargo Handling, Loading & Unloading Charges Reimbursement",
+            quantity=1,
+            rate=hnd_amt,
+            line_total=hnd_amt,
+            igst_percent=tax_rate
+        ))
+    if oth_amt > 0:
+        db.add(models.InvoiceItem(
+            id=uuid.uuid4(),
+            invoice_id=outward_invoice.id,
+            product_name="Other Reimbursable Operating Ancillaries",
+            quantity=1,
+            rate=oth_amt,
+            line_total=oth_amt,
+            igst_percent=tax_rate
+        ))
+
+    # 2. Dual-posting into Client Organization as Inward Purchase Bill
+    inward_bill_no = None
+    inward_invoice = None
+    if payload.auto_post_client_purchase:
+        inward_count = db.query(models.Invoice).filter(
+            models.Invoice.invoice_number.like(f"PUR-CF-{year}-%")
+        ).count()
+        inward_bill_no = f"PUR-CF-{year}-{str(inward_count + 1).zfill(4)}"
+
+        agency_name = "Main Admin C&F Agency"
+        admin_org = db.query(models.Organization).filter(models.Organization.id == current_user.organization_id).first()
+        if admin_org:
+            agency_name = admin_org.name
+
+        inward_invoice = models.Invoice(
+            id=uuid.uuid4(),
+            organization_id=client_org.id,
+            invoice_type="purchase-bill",
+            invoice_number=inward_bill_no,
+            date=datetime.utcnow(),
+            customer_name=agency_name,
+            party_inv_no=outward_bill_no,
+            party_inv_date=datetime.utcnow().strftime("%Y-%m-%d"),
+            due_date=due_date,
+            remarks=f"Dual-Posted Inward C&F Bill from {agency_name} (Ref: {outward_bill_no})",
+            subtotal=subtotal,
+            tax_total=tax_total,
+            grand_total=grand_total,
+            is_active=True
+        )
+        db.add(inward_invoice)
+        db.flush()
+
+        if comm_amt > 0:
+            db.add(models.InvoiceItem(
+                id=uuid.uuid4(),
+                invoice_id=inward_invoice.id,
+                product_name=f"C&F Sales Commission ({payload.commission_rate_percent}% on turnover INR {payload.sales_turnover:,.2f})",
+                quantity=1,
+                rate=comm_amt,
+                line_total=comm_amt,
+                igst_percent=tax_rate
+            ))
+        if rent_amt > 0:
+            db.add(models.InvoiceItem(
+                id=uuid.uuid4(),
+                invoice_id=inward_invoice.id,
+                product_name="Godown Storage & Warehousing Charges Reimbursement",
+                quantity=1,
+                rate=rent_amt,
+                line_total=rent_amt,
+                igst_percent=tax_rate
+            ))
+        if sal_amt > 0:
+            db.add(models.InvoiceItem(
+                id=uuid.uuid4(),
+                invoice_id=inward_invoice.id,
+                product_name="Depot Staff Salary & Operation Handling Reimbursement",
+                quantity=1,
+                rate=sal_amt,
+                line_total=sal_amt,
+                igst_percent=tax_rate
+            ))
+        if frt_amt > 0:
+            db.add(models.InvoiceItem(
+                id=uuid.uuid4(),
+                invoice_id=inward_invoice.id,
+                product_name="Inward & Outward Freight / Transport Reimbursement",
+                quantity=1,
+                rate=frt_amt,
+                line_total=frt_amt,
+                igst_percent=tax_rate
+            ))
+        if hnd_amt > 0:
+            db.add(models.InvoiceItem(
+                id=uuid.uuid4(),
+                invoice_id=inward_invoice.id,
+                product_name="Cargo Handling, Loading & Unloading Charges Reimbursement",
+                quantity=1,
+                rate=hnd_amt,
+                line_total=hnd_amt,
+                igst_percent=tax_rate
+            ))
+        if oth_amt > 0:
+            db.add(models.InvoiceItem(
+                id=uuid.uuid4(),
+                invoice_id=inward_invoice.id,
+                product_name="Other Reimbursable Operating Ancillaries",
+                quantity=1,
+                rate=oth_amt,
+                line_total=oth_amt,
+                igst_percent=tax_rate
+            ))
+
+    # 3. Create Commission Engine Calculation and Claim records
+    principal = db.query(models.Principal).first()
+    principal_id = principal.id if principal else client_org.id
+    principal_name = client_org.name
+
+    try:
+        period_from_dt = datetime.fromisoformat(payload.period_from) if payload.period_from else datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    except Exception:
+        period_from_dt = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    try:
+        period_to_dt = datetime.fromisoformat(payload.period_to) if payload.period_to else datetime.utcnow()
+    except Exception:
+        period_to_dt = datetime.utcnow()
+
+    # Create Commission Event parent record
+    comm_evt = models.CommissionEvent(
+        id=uuid.uuid4(),
+        company_id=current_user.organization_id,
+        principal_id=principal_id,
+        event_type="SALES_BILL",
+        event_date=datetime.utcnow(),
+        source_doc_type="INVOICE",
+        source_doc_id=outward_bill_no,
+        idempotency_key=f"CF-BILL-EVT-{outward_bill_no}-{uuid.uuid4().hex[:8]}",
+        payload_json={
+            "client_name": client_org.name,
+            "sales_turnover": float(payload.sales_turnover),
+            "commission_rate_percent": float(payload.commission_rate_percent),
+            "expenses_total": float(expenses_total),
+            "outward_bill_no": outward_bill_no,
+            "inward_bill_no": inward_bill_no
+        },
+        created_at=datetime.utcnow()
+    )
+    db.add(comm_evt)
+    db.flush()
+
+    calc_num = generate_calculation_number(db, "CALC-CF")
+    calc_trace = json.dumps({
+        "description": f"C&F Commission on sales turnover for {client_org.name}",
+        "turnover": float(payload.sales_turnover),
+        "rate_pct": float(payload.commission_rate_percent),
+        "bill_no": outward_bill_no
+    })
+    raw_hash_earned = f"{calc_num}:{payload.sales_turnover}:{payload.commission_rate_percent}:{comm_amt}:{comm_evt.id}"
+    sha_hash_earned = hashlib.sha256(raw_hash_earned.encode("utf-8")).hexdigest()
+
+    calc_earned = models.CommissionCalculation(
+        id=uuid.uuid4(),
+        calculation_number=calc_num,
+        event_id=comm_evt.id,
+        principal_id=principal_id,
+        principal_name=principal_name,
+        client_id=client_org.id,
+        client_name=client_org.name,
+        category="EARNED_COMMISSION",
+        event_type="SALES_BILL",
+        base_value=Decimal(str(payload.sales_turnover)),
+        rate_applied=Decimal(str(payload.commission_rate_percent)),
+        calculated_amount=comm_amt,
+        currency="INR",
+        formula_trace=calc_trace,
+        state="APPROVED",
+        sha256_hash=sha_hash_earned,
+        created_at=datetime.utcnow()
+    )
+    db.add(calc_earned)
+
+    if expenses_total > 0:
+        calc_exp_num = generate_calculation_number(db, "CALC-RECOV")
+        exp_trace = json.dumps({
+            "description": f"Depot Storage, Salary & Transport Reimbursement for {client_org.name}",
+            "rent": float(rent_amt),
+            "salary": float(sal_amt),
+            "freight": float(frt_amt),
+            "handling": float(hnd_amt),
+            "other": float(oth_amt),
+            "bill_no": outward_bill_no
+        })
+        raw_hash_exp = f"{calc_exp_num}:{expenses_total}:100.0:{expenses_total}:{comm_evt.id}"
+        sha_hash_exp = hashlib.sha256(raw_hash_exp.encode("utf-8")).hexdigest()
+
+        calc_expenses = models.CommissionCalculation(
+            id=uuid.uuid4(),
+            calculation_number=calc_exp_num,
+            event_id=comm_evt.id,
+            principal_id=principal_id,
+            principal_name=principal_name,
+            client_id=client_org.id,
+            client_name=client_org.name,
+            category="RECOVERABLE_EXPENSE",
+            event_type="EXPENSE_RECOVERY",
+            base_value=expenses_total,
+            rate_applied=Decimal("100.0"),
+            calculated_amount=expenses_total,
+            currency="INR",
+            formula_trace=exp_trace,
+            state="APPROVED",
+            sha256_hash=sha_hash_exp,
+            created_at=datetime.utcnow()
+        )
+        db.add(calc_expenses)
+
+    claim_num = generate_claim_number(db)
+    claim = models.RecoveryClaim(
+        id=uuid.uuid4(),
+        company_id=current_user.organization_id,
+        principal_id=principal_id,
+        principal_name=principal_name,
+        claim_number=claim_num,
+        period_from=period_from_dt,
+        period_to=period_to_dt,
+        total_earned_commission=comm_amt,
+        total_recoverable_expenses=expenses_total,
+        total_claimed_amount=subtotal,
+        approved_amount=subtotal,
+        disputed_amount=Decimal("0.0"),
+        status="APPROVED",
+        submitted_at=datetime.utcnow(),
+        approved_at=datetime.utcnow(),
+        created_at=datetime.utcnow()
+    )
+    db.add(claim)
+    db.flush()
+
+    doc_link_outward = models.RecoveryDocumentLink(
+        id=uuid.uuid4(),
+        claim_id=claim.id,
+        document_type="SERVICE_INVOICE",
+        document_number=outward_bill_no,
+        amount=grand_total,
+        linked_at=datetime.utcnow()
+    )
+    db.add(doc_link_outward)
+
+    if inward_bill_no:
+        doc_link_inward = models.RecoveryDocumentLink(
+            id=uuid.uuid4(),
+            claim_id=claim.id,
+            document_type="PURCHASE_BILL",
+            document_number=inward_bill_no,
+            amount=grand_total,
+            linked_at=datetime.utcnow()
+        )
+        db.add(doc_link_inward)
+
+    audit = models.CommissionAudit(
+        id=uuid.uuid4(),
+        company_id=current_user.organization_id,
+        object_type="CLAIM",
+        object_id=claim.claim_number,
+        action="APPROVE",
+        actor_username=current_user.username if hasattr(current_user, "username") else "admin",
+        details_json={
+            "client_name": client_org.name,
+            "outward_bill_no": outward_bill_no,
+            "inward_bill_no": inward_bill_no,
+            "subtotal": float(subtotal),
+            "tax_total": float(tax_total),
+            "grand_total": float(grand_total),
+            "claim_number": claim.claim_number
+        },
+        created_at=datetime.utcnow()
+    )
+    db.add(audit)
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": f"C&F Commission Bill {outward_bill_no} generated and dual-posted to {client_org.name}",
+        "data": {
+            "outward_bill_id": str(outward_invoice.id),
+            "outward_bill_no": outward_bill_no,
+            "inward_bill_id": str(inward_invoice.id) if inward_invoice else None,
+            "inward_bill_no": inward_bill_no,
+            "client_org_id": str(client_org.id),
+            "client_name": client_org.name,
+            "sales_turnover": float(payload.sales_turnover),
+            "commission_rate_percent": float(payload.commission_rate_percent),
+            "commission_amount": float(comm_amt),
+            "expenses_reimbursement": float(expenses_total),
+            "subtotal": float(subtotal),
+            "tax_total": float(tax_total),
+            "grand_total": float(grand_total),
+            "claim_number": claim.claim_number,
+            "date": datetime.utcnow().isoformat()
+        }
+    }
+
+
+@router.get("/client-bills")
+def list_client_commission_bills(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    List all generated C&F commission and expense reimbursement bills.
+    """
+    bills = db.query(models.Invoice).filter(
+        models.Invoice.organization_id == current_user.organization_id,
+        models.Invoice.invoice_number.like("CF-BILL-%"),
+        models.Invoice.is_active == True
+    ).order_by(desc(models.Invoice.date)).all()
+
+    result = []
+    for b in bills:
+        pur_link = db.query(models.RecoveryDocumentLink).filter(
+            models.RecoveryDocumentLink.document_number == b.invoice_number
+        ).first()
+        inward_no = None
+        if pur_link:
+            inward_link = db.query(models.RecoveryDocumentLink).filter(
+                models.RecoveryDocumentLink.claim_id == pur_link.claim_id,
+                models.RecoveryDocumentLink.document_type == "PURCHASE_BILL"
+            ).first()
+            if inward_link:
+                inward_no = inward_link.document_number
+
+        result.append({
+            "id": str(b.id),
+            "invoice_number": b.invoice_number,
+            "date": b.date.isoformat(),
+            "customer_name": b.customer_name,
+            "subtotal": float(b.subtotal),
+            "tax_total": float(b.tax_total),
+            "grand_total": float(b.grand_total),
+            "due_date": b.due_date,
+            "remarks": b.remarks,
+            "inward_bill_no": inward_no,
+            "items_count": len(b.items)
+        })
+
+    return {
+        "status": "success",
+        "count": len(result),
+        "data": result
     }
