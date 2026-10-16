@@ -189,6 +189,73 @@ Full project memory file created with: stack, file locations, DB schema, naming 
 
 ---
 
+## SESSION 9 — Enterprise Multi-Client Operations Tracking & Radar Engine (DOC-38)
+*(2026-10-16)*
+
+### User Requests
+- "also add that i can track all the sales ,expenses ,cargo tracking in the main admin company too"
+- "also client wise trackinf and procced with the implematation"
+
+### Work Done
+- Implemented `AdminEnterpriseTracker.tsx` (`/admin/tracking`, `/tracking`, Counter Workbench tile `[Ctrl+6]`, or `/clients`).
+- Added 5 backend telemetry endpoints in `backend/api/admin_tracker.py` (`/summary`, `/clients`, `/sales`, `/expenses`, `/cargo`).
+- Built Apex Scope Selector for seamless toggle between Consolidated multi-client telemetry and client-specific isolation.
+- 4 Neumorphic KPI cards and 4 high-contrast tabs: `[F2] Client Scorecards`, `[F3] Sales Tracking`, `[F4] Expenses Tracking`, `[F6] Cargo Tracking`.
+- Automated QA: `test_admin_enterprise_tracking_selenium.py` (12/12 stages PASSED, Exit Code 0).
+
+---
+
+## SESSION 10 — Responsive Top Navigation Bar Ergonomics (DOC-39)
+*(2026-10-16)*
+
+### User Requests
+- "also the main menu options are not fitting the screen so if you find the any option in main menu sutaible to move that in the main menu sub option to adjust them do that or arrange them so all of the options are visible"
+
+### Work Done
+- Reorganized `Header.tsx` from 13+ raw top-level options down to 10 prioritized parent categories:
+  `Dashboard`, `Master ▾`, `Finance & Accounting ▾`, `Inventory ▾`, `Sales & Purchase ▾`, `C&F & Logistics ▾`, `Workflows [F4] ▾`, `GST & Compliance ▾`, `CRM & Admin ▾`, `Reports ▾`.
+- Grouped logistics, cargo, freight, principal, and commission into `C&F & Logistics ▾`.
+- Full keyboard accessibility with arrow key trapping and focus return.
+- Selenium verified: Header width 1422px in 1422px window with zero horizontal overflow.
+
+---
+
+## SESSION 11 — Client Management C&F Commission & Expense Reimbursement Billing Desk (DOC-40)
+*(2026-10-16 – 2026-10-17)*
+
+### User Requests
+- "and also in commision engine i can create billis of commisions of the client managment clients so in the billing . for example i am C&F of the comany krishna medical agencies which is in the client managment so i can automate or create amnually bill for the commision on the sales and can reinburt the expenses as we have don in the previosu"
+
+### Work Done
+- Built `[F5] Client C&F Billing Desk` in `CommissionControlCenter.tsx`.
+- Integrated real organizations from Client Management (*KRISHNA MEDICAL AGENCIES*).
+- Added 1-Click "⚡ Auto-Fetch Client Turnover & Expenses" (`/api/commission/clients/{id}/telemetry`).
+- Dynamic parameter customization for sales turnover base, commission %, godown storage rent, dedicated staff salaries, freight, handling, and GST SAC 998599 (18%).
+- Bilateral Dual-Posting Engine: Generates Outward Service Bill (`CF-BILL-2026-0002`) in Admin Billing and automatically dual-posts Inward Purchase Bill (`PUR-CF-2026-0002`) inside the client company's inward purchase register.
+- Automated QA: `test_client_commission_billing_selenium.py` (13/13 stages PASSED, Exit Code 0).
+
+---
+
+## SESSION 12 — Exhaustive Documentation & Master Walkthrough (.docx) Upgrade
+*(2026-10-17)*
+
+### User Requests
+- "look at those files and understand how they should content all the info and update them with every exaustive details and also if previously it was not upto the mark make it by updating the file as they should be update the erp origanal folder, devloper user maual , ERP_ENTERPRISE_SYSTEM_COMPLETE_SOFTWARE_MASTER_WALKTHROUGH ,user manual work flow (update it with every exaustive details and also if previously it was not upto the mark make it by updating the file ),USER_WORKFLOW_MANUAL, git ,PROJECT_MEMORY, vercel, and also doc files too but dont remaove or edit the pre exiting in the doc file only you can add in it. i want you to add and expalin all the details and option that has been created in the erp . and also update these all documents files as it would not miss any info and changes made afterward and all the elements will be present on the screen with the current functionalities. no elemnt would be missed by the developer"
+
+### Work Done
+- Upgraded `DEVELOPER_MANUAL.md` (+ Sections 32, 33, 34; 141 KB).
+- Upgraded `USER_WORKFLOW_MANUAL.md` (+ Sections 32, 33, 34; 125 KB).
+- Upgraded `Developer_and_User_Manual.md` (+ Sections 2.16-2.22; 20 KB).
+- Upgraded `User_Manual_and_Workflow.md` (+ Modules 20-27; 37 KB).
+- Upgraded `PROJECT_MEMORY.md` (+ Production Updates & 15-suite QA test matrix; 84 KB).
+- Upgraded `GIT_WORKFLOW_AND_REPOSITORY_MANUAL.md` (+ Sync rules, release hashes, pre-flight suites).
+- Upgraded `VERCEL_DEPLOYMENT_MANUAL.md` (+ Deep routes, verification procedures).
+- Strictly appended `DOCS.md` (+ Sections 10.12-10.22 covering DOC-27 to DOC-40; 42 KB).
+- Recompiled `ERP_ENTERPRISE_SYSTEM_COMPLETE_SOFTWARE_MASTER_WALKTHROUGH.docx` (3.94 MB, 27 chapters, 8 embedded screenshots) in both `erp2` and `erp`.
+- Synchronized all 18 files to `c:\Users\DELL\OneDrive\Desktop\erp` and pushed to GitHub `origin main` (commit `7720ca8`).
+
+---
+
 ## Key Decisions Log
 
 | Date | Decision |
@@ -201,3 +268,8 @@ Full project memory file created with: stack, file locations, DB schema, naming 
 | 2026-07-30 | Backend port = 8000, frontend port = 50005, Tauri connects to Vite dev server |
 | 2026-07-30 | Always run: sync-to-original.ps1 + git commit after major changes |
 | 2026-07-31 | Login payload key = `org_code` (not `company_code`) |
+| 2026-10-15 | C&F 4-Pillar Deal Terms stored in `terms_json.deal_terms` with dual-posting to `/purchase/list` |
+| 2026-10-16 | Admin Multi-Client Radar on `/admin/tracking` with scope switcher and scorecards matrix |
+| 2026-10-16 | Header navigation reorganized into 10 parent categories with nested `C&F & Logistics ▾` |
+| 2026-10-17 | Client Management C&F Commission Billing on `[F5]` with dual-posting (`CF-BILL-` & `PUR-CF-`) |
+
