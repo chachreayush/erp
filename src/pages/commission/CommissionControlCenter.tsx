@@ -47,6 +47,9 @@ import {
   apiGetCommissionAudits,
   apiUpdateAgreementDealTerms,
   apiGetClientsByCompany,
+  apiGetCompanyTurnover,
+  apiGetManufacturers,
+  Manufacturer,
   CommissionSummaryKPI,
   CommissionAgreementItem,
   CommissionCalculationItem,
@@ -237,19 +240,60 @@ export function CommissionControlCenter() {
   const [dealGodownRent, setDealGodownRent] = useState<number>(18000);
   const [dealCommissionRate, setDealCommissionRate] = useState<number>(6.5);
 
+  // Product Company & Live Sales Turnover Auto-Fetch
+  const [productCompanies, setProductCompanies] = useState<Manufacturer[]>([]);
+  const [selectedProductCompanyId, setSelectedProductCompanyId] = useState<string>('');
+  const [fetchingTurnover, setFetchingTurnover] = useState<boolean>(false);
+  const [turnoverFetchNotice, setTurnoverFetchNotice] = useState<string>('');
+
+  const handleAutoFetchTurnover = async () => {
+    setFetchingTurnover(true);
+    setTurnoverFetchNotice('');
+    try {
+      const res = await apiGetCompanyTurnover({
+        company_id: selectedProductCompanyId || undefined
+      });
+      if (res && res.companies && res.companies.length > 0) {
+        const matchingComp = selectedProductCompanyId
+          ? res.companies.find(c => c.company_id === selectedProductCompanyId)
+          : res.companies[0];
+        const val = matchingComp ? matchingComp.gross_turnover : res.total_gross_turnover;
+        setSandboxBaseVal(val || 0);
+        setTurnoverFetchNotice(
+          `Auto-fetched ₹${(val || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} (${matchingComp?.company_name || 'All Companies'}, ${matchingComp?.invoices_count || res.total_invoices_count} bills)`
+        );
+      } else {
+        setTurnoverFetchNotice('No sales invoice items found for selected company.');
+      }
+    } catch (e: any) {
+      console.error('Failed to auto-fetch turnover', e);
+      setTurnoverFetchNotice('Unable to fetch live sales turnover.');
+    } finally {
+      setFetchingTurnover(false);
+    }
+  };
+
   // Load All Data
   const loadData = async () => {
     try {
       setLoading(true);
-      const [sumRes, agrRes, calcRes, clmRes, stmtRes, excRes, audRes] = await Promise.all([
+      const [sumRes, agrRes, calcRes, clmRes, stmtRes, excRes, audRes, mfgRes] = await Promise.all([
         apiGetCommissionSummary().catch(() => ({ status: 'ok', data: FALLBACK_SUMMARY })),
         apiGetCommissionAgreements().catch(() => ({ status: 'ok', count: 2, data: FALLBACK_AGREEMENTS })),
         apiGetCommissionCalculations().catch(() => ({ status: 'ok', count: 0, data: [] })),
         apiGetRecoveryClaims().catch(() => ({ status: 'ok', count: 0, data: [] })),
         apiGetRecoveryStatements().catch(() => ({ status: 'ok', count: 0, data: [] })),
         apiGetCommissionExceptions().catch(() => ({ status: 'ok', count: 0, data: [] })),
-        apiGetCommissionAudits().catch(() => ({ status: 'ok', count: 0, data: [] }))
+        apiGetCommissionAudits().catch(() => ({ status: 'ok', count: 0, data: [] })),
+        apiGetManufacturers().catch(() => [])
       ]);
+
+      if (mfgRes && Array.isArray(mfgRes)) {
+        setProductCompanies(mfgRes);
+        if (mfgRes.length > 0 && !selectedProductCompanyId) {
+          setSelectedProductCompanyId(mfgRes[0].id);
+        }
+      }
 
       if (sumRes && sumRes.data) setSummary(sumRes.data);
       if (agrRes && agrRes.data && agrRes.data.length > 0) {
@@ -877,7 +921,7 @@ export function CommissionControlCenter() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-6 gap-3 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-7 gap-3 text-xs">
                 {/* 1. Principal */}
                 <div>
                   <label className="block text-gray-700 font-bold mb-1">Company / Principal</label>
@@ -892,6 +936,24 @@ export function CommissionControlCenter() {
                     {agreements.map((a) => (
                       <option key={a.principal_id} value={a.principal_id}>
                         {a.principal_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 1b. Product Brand / Manufacturer */}
+                <div>
+                  <label className="block text-gray-700 font-bold mb-1">Product Brand / Mfg</label>
+                  <select
+                    id="sandbox-product-company-select"
+                    value={selectedProductCompanyId}
+                    onChange={(e) => setSelectedProductCompanyId(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-2 text-gray-900 font-medium focus:ring-2 focus:ring-emerald-400 focus:bg-white"
+                  >
+                    <option value="">All Companies</option>
+                    {productCompanies.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} {c.short_code ? `(${c.short_code})` : ''}
                       </option>
                     ))}
                   </select>
@@ -965,13 +1027,32 @@ export function CommissionControlCenter() {
                   </div>
                 ) : (
                   <div>
-                    <label className="block text-gray-700 font-bold mb-1">Sales Turnover / Base (₹)</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-gray-700 font-bold">Sales Turnover / Base (₹)</label>
+                      <button
+                        type="button"
+                        id="btn-auto-fetch-turnover"
+                        onClick={handleAutoFetchTurnover}
+                        disabled={fetchingTurnover}
+                        className="text-[10px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-300 flex items-center space-x-1 transition-all"
+                        title="Auto-fetch sales turnover from live invoices for product company"
+                      >
+                        <RefreshCw className={`w-2.5 h-2.5 ${fetchingTurnover ? 'animate-spin' : ''}`} />
+                        <span>{fetchingTurnover ? 'Fetching...' : 'Auto-Fetch Sales'}</span>
+                      </button>
+                    </div>
                     <input
                       type="number"
+                      id="sandbox-base-val-input"
                       value={sandboxBaseVal}
                       onChange={(e) => setSandboxBaseVal(parseFloat(e.target.value) || 0)}
                       className="w-full bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-2 text-gray-900 font-mono font-bold focus:ring-2 focus:ring-emerald-400 focus:bg-white"
                     />
+                    {turnoverFetchNotice && (
+                      <div className="text-[10px] text-emerald-800 font-medium mt-1 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                        {turnoverFetchNotice}
+                      </div>
+                    )}
                   </div>
                 )}
 

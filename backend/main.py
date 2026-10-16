@@ -238,6 +238,10 @@ app.include_router(principal_router, prefix="/api/principal")
 from api.commission import router as commission_router
 app.include_router(commission_router, prefix="/api/commission")
 
+# Product Company Analytics & Client Multi-Mapping Engine
+from api.company_analytics import router as company_analytics_router
+app.include_router(company_analytics_router)
+
 # Future routers will be added here as modules are built:
 # app.include_router(hr_router)
 

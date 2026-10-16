@@ -123,11 +123,11 @@ export default function ReceiptPaymentVoucher({ type: propType }: { type?: 'rece
           group.includes('bank') ||
           name.includes('cash') ||
           name.includes('bank') ||
-          l.type === 'Asset'
+          (l as any).type === 'Asset'
         );
       });
       setLedgers(cashBank);
-      if (cashBank.length > 0) {
+      if (cashBank.length > 0 && cashBank[0].id) {
         setSelectedLedgerId(cashBank[0].id);
       }
     }).catch(err => {

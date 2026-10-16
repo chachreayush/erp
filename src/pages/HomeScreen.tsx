@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { 
   ShoppingCart, Receipt, CreditCard, RotateCcw, BookOpen, 
   Search, AlertTriangle, Clock, ArrowUpRight, BarChart3, 
-  ShieldCheck, Package, ExternalLink, RefreshCw, Zap, CheckCircle2, Truck, Scale, Building2, Calculator, LogOut, X
+  ShieldCheck, Package, ExternalLink, RefreshCw, Zap, CheckCircle2, Truck, Scale, Building2, Calculator, LogOut, X,
+  Layers
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { 
@@ -65,6 +66,9 @@ export default function HomeScreen() {
       } else if (e.ctrlKey && e.key === '4') {
         e.preventDefault()
         navigate('/commission')
+      } else if (e.ctrlKey && e.key === '5') {
+        e.preventDefault()
+        navigate('/master/companies')
       } else if (e.key === 'F2') {
         e.preventDefault()
         navigate('/sales')
@@ -103,6 +107,7 @@ export default function HomeScreen() {
     { id: 'hub-btn-freight-management', label: 'Freight & Recovery', hotkey: 'Ctrl+2', icon: <Scale size={20} />, path: '/freight/contracts', color: '#047857' },
     { id: 'hub-btn-principal-management', label: 'Principal & C&F Ops', hotkey: 'Ctrl+3', icon: <Building2 size={20} />, path: '/principal', color: '#1b4332' },
     { id: 'hub-btn-commission-management', label: 'Commission Engine', hotkey: 'Ctrl+4', icon: <Calculator size={20} />, path: '/commission', color: '#1e3a8a' },
+    { id: 'hub-btn-companies-master', label: 'Product Companies', hotkey: 'Ctrl+5', icon: <Layers size={20} />, path: '/master/companies', color: '#15803d' },
     { label: 'Purchase Bill', hotkey: 'F9', icon: <Package size={20} />, path: '/sales', color: '#2d6a4f' },
     { label: 'Sales Return', hotkey: '', icon: <RotateCcw size={20} />, path: '/sales', color: '#40916c' },
     { label: 'Purchase Return', hotkey: '', icon: <RotateCcw size={20} />, path: '/purchases/returns', color: '#52b788' },

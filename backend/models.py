@@ -608,6 +608,10 @@ class Manufacturer(Base):
     
     is_supplier = Column(Boolean, nullable=False, default=False)
     supplier_ledger_id = Column(UUID(as_uuid=True), ForeignKey("ledgers.id", ondelete="SET NULL"), nullable=True)
+    sales_ledger_id = Column(UUID(as_uuid=True), ForeignKey("ledgers.id", ondelete="SET NULL"), nullable=True)
+    division = Column(String(100), nullable=True)
+    gstin = Column(String(50), nullable=True)
+    state_code = Column(String(10), nullable=True)
     
     email = Column(String(255), nullable=True)
     cc = Column(String(255), nullable=True)
@@ -621,7 +625,28 @@ class Manufacturer(Base):
     is_active = Column(Boolean, default=True, nullable=False)
 
     organization = relationship("Organization")
-    supplier_ledger = relationship("Ledger")
+    supplier_ledger = relationship("Ledger", foreign_keys=[supplier_ledger_id])
+    sales_ledger = relationship("Ledger", foreign_keys=[sales_ledger_id])
+
+
+# -- TABLE 10.1: OrganizationManufacturerMapping ----------------------
+class OrganizationManufacturerMapping(Base):
+    """
+    Maps which Product Companies (manufacturers) are allocated/authorized
+    for a Client Master (CM) organization.
+    """
+    __tablename__ = "organization_manufacturer_mappings"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    manufacturer_id = Column(UUID(as_uuid=True), ForeignKey("manufacturers.id", ondelete="CASCADE"), nullable=False, index=True)
+    is_primary = Column(Boolean, default=False, nullable=False)
+    commission_rate_override = Column(Numeric(5, 2), nullable=True)
+    notes = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    organization = relationship("Organization")
+    manufacturer = relationship("Manufacturer")
 
 # -- TABLE 11: HSNCode (Master Data) ---------------------------------
 class HSNCode(Base):
@@ -1019,8 +1044,12 @@ class Principal(Base):
     gstin = Column(String(15), nullable=True)
     status = Column(String(20), nullable=False, default='active') # active, suspended, archived
     
+    # ── Product Company / Manufacturer Linkage ──
+    manufacturer_id = Column(UUID(as_uuid=True), ForeignKey("manufacturers.id", ondelete="SET NULL"), nullable=True, index=True)
+
     # 🔗 RELATIONSHIPS 
     organization = relationship("Organization")
+    manufacturer = relationship("Manufacturer", foreign_keys=[manufacturer_id])
     agreements = relationship("PrincipalAgreement", back_populates="principal", cascade="all, delete-orphan")
     warehouse_mappings = relationship("PrincipalWarehouseMapping", back_populates="principal", cascade="all, delete-orphan")
 

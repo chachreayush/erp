@@ -305,15 +305,15 @@ export default function CargoBoard() {
     try {
       await apiUpdateCargoStatus(selectedConsignmentId, newStatus, `Advanced to ${newStatus} via Cargo Board.`);
       if (detailData) {
-        setDetailData({ ...detailData, status: newStatus });
+        setDetailData({ ...detailData, status: newStatus as any });
       }
       loadData();
     } catch (err) {
       console.error('Failed to advance status:', err);
       if (detailData) {
-        setDetailData({ ...detailData, status: newStatus });
+        setDetailData({ ...detailData, status: newStatus as any });
       }
-      setConsignments(prev => prev.map(c => c.id === selectedConsignmentId ? { ...c, status: newStatus } : c));
+      setConsignments(prev => prev.map(c => c.id === selectedConsignmentId ? { ...c, status: newStatus as any } : c));
     }
   };
 
@@ -336,6 +336,8 @@ export default function CargoBoard() {
           {
             package_type: formData.package_type,
             gross_weight: formData.gross_weight,
+            tare_weight: 0,
+            net_weight: formData.gross_weight,
             length_cm: formData.length_cm,
             width_cm: formData.width_cm,
             height_cm: formData.height_cm,

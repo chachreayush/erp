@@ -82,6 +82,7 @@ import DocumentSeriesMaster from './pages/master/DocumentSeriesMaster'
 import TransportMaster from './pages/master/TransportMaster'
 import SchemeMaster from './pages/master/SchemeMaster'
 import PricingMaster from './pages/master/PricingMaster'
+import CompanyMasterDesk from './pages/master/CompanyMasterDesk'
 import SchemeClaims from './pages/finance/SchemeClaims'
 import VoucherEntry from './pages/finance/VoucherEntry'
 import VoucherList from './pages/finance/VoucherList'
@@ -168,6 +169,8 @@ function App() {
         <Route path="master"           element={<MasterPage />} />
         <Route path="master/error-entries" element={<ErrorEntries />} />
         <Route path="master/ledger-groups" element={<LedgerGroupMaster />} />
+        <Route path="master/companies" element={<CompanyMasterDesk />} />
+        <Route path="companies" element={<CompanyMasterDesk />} />
         <Route path="master/principals" element={<PrincipalMaster />} />
         <Route path="master/warehouses" element={<WarehouseMaster />} />
         <Route path="master/transport" element={<TransportMaster />} />

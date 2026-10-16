@@ -653,6 +653,13 @@ export interface Manufacturer {
   dump_days?: number;
   is_supplier: boolean;
   supplier_ledger_id?: string;
+  sales_ledger_id?: string;
+  supplier_ledger_name?: string;
+  sales_ledger_name?: string;
+  division?: string;
+  gstin?: string;
+  state_code?: string;
+  products_count?: number;
   email?: string;
   cc?: string;
   bcc?: string;
@@ -677,6 +684,10 @@ export interface ManufacturerCreate {
   dump_days?: number;
   is_supplier: boolean;
   supplier_ledger_id?: string;
+  sales_ledger_id?: string;
+  division?: string;
+  gstin?: string;
+  state_code?: string;
   email?: string;
   cc?: string;
   bcc?: string;
@@ -687,20 +698,118 @@ export interface ManufacturerCreate {
   address?: string;
 }
 
-export async function apiGetManufacturers(): Promise<Manufacturer[]> {
-  const response = await apiClient.get<Manufacturer[]>('/api/master/manufacturers')
+export async function apiGetManufacturers(params?: { search?: string; limit?: number; skip?: number }): Promise<Manufacturer[]> {
+  const response = await apiClient.get<Manufacturer[]>('/api/master/manufacturers', { params })
   return response.data
 }
 export async function apiCreateManufacturer(payload: ManufacturerCreate): Promise<Manufacturer> {
   const response = await apiClient.post<Manufacturer>('/api/master/manufacturers', payload)
   return response.data
 }
-export async function apiUpdateManufacturer(id: string, payload: Manufacturer): Promise<Manufacturer> {
+export async function apiUpdateManufacturer(id: string, payload: Partial<Manufacturer>): Promise<Manufacturer> {
   const response = await apiClient.put<Manufacturer>(`/api/master/manufacturers/${id}`, payload)
   return response.data
 }
 export async function apiDeleteManufacturer(id: string): Promise<void> {
   await apiClient.delete(`/api/master/manufacturers/${id}`)
+}
+
+// ── PRODUCT COMPANY ANALYTICS & MULTI-CLIENT MAPPING ──────────
+
+export interface CompanyMasterSummary {
+  total_companies: number;
+  active_companies: number;
+  total_products: number;
+  mapped_clients_count: number;
+}
+
+export interface ProductTurnoverItem {
+  product_id: string;
+  product_name: string;
+  code: string;
+  quantity_sold: number;
+  turnover_amount: number;
+}
+
+export interface CustomerTurnoverItem {
+  party_id?: string;
+  customer_name: string;
+  invoices_count: number;
+  total_purchased: number;
+}
+
+export interface CompanyTurnoverBreakdown {
+  company_id: string;
+  company_name: string;
+  short_code?: string;
+  gross_turnover: number;
+  net_turnover: number;
+  total_quantity_sold: number;
+  invoices_count: number;
+  unique_products_sold: number;
+  top_products: ProductTurnoverItem[];
+  top_customers: CustomerTurnoverItem[];
+}
+
+export interface CompanyTurnoverResponse {
+  period_from?: string;
+  period_to?: string;
+  total_gross_turnover: number;
+  total_quantity_sold: number;
+  total_invoices_count: number;
+  companies_count: number;
+  companies: CompanyTurnoverBreakdown[];
+}
+
+export interface OrgCompanyMappingItem {
+  id: string;
+  organization_id: string;
+  manufacturer_id: string;
+  manufacturer_name: string;
+  short_code?: string;
+  is_primary: boolean;
+  commission_rate_override?: number;
+  notes?: string;
+  created_at: string;
+}
+
+export async function apiGetCompanyMasterSummary(): Promise<CompanyMasterSummary> {
+  const res = await apiClient.get<CompanyMasterSummary>('/api/companies/summary');
+  return res.data;
+}
+
+export async function apiGetCompanyTurnover(params?: {
+  company_id?: string;
+  period_from?: string;
+  period_to?: string;
+}): Promise<CompanyTurnoverResponse> {
+  const res = await apiClient.get<CompanyTurnoverResponse>('/api/companies/turnover', { params });
+  return res.data;
+}
+
+export async function apiGetOrgCompanyMappings(orgId: string): Promise<OrgCompanyMappingItem[]> {
+  const res = await apiClient.get<OrgCompanyMappingItem[]>(`/api/companies/organizations/${orgId}/mappings`);
+  return res.data;
+}
+
+export interface OrgCompanyMappingInput {
+  manufacturer_id: string;
+  is_primary?: boolean;
+  commission_rate_override?: number;
+  notes?: string;
+}
+
+export async function apiSetOrgCompanyMappings(
+  orgId: string,
+  payload: {
+    manufacturer_ids?: string[];
+    items?: OrgCompanyMappingInput[];
+    commission_rate_override?: number;
+    notes?: string;
+  }
+): Promise<{ success: boolean; message: string; mapped_count: number }> {
+  const res = await apiClient.post(`/api/companies/organizations/${orgId}/mappings`, payload);
+  return res.data;
 }
 
 export interface HSNCode {

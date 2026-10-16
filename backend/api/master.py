@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, func
 from typing import List, Optional
 from uuid import UUID
 
@@ -116,15 +117,37 @@ def delete_salt(salt_id: UUID, db: Session = Depends(get_db), current_user: mode
 @router.get("/manufacturers", response_model=List[schemas.ManufacturerResponse])
 def get_manufacturers(
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    limit: int = Query(200, ge=1, le=1000),
+    search: Optional[str] = None,
     db: Session = Depends(get_db), 
     current_user: models.User = Depends(get_current_user)
 ):
     org_id = get_org_id(current_user)
-    return db.query(models.Manufacturer).filter(
+    query = db.query(models.Manufacturer).filter(
         models.Manufacturer.organization_id == org_id,
         models.Manufacturer.is_active == True
-    ).offset(skip).limit(limit).all()
+    )
+    if search:
+        query = query.filter(or_(
+            models.Manufacturer.name.ilike(f"%{search}%"),
+            models.Manufacturer.short_code.ilike(f"%{search}%")
+        ))
+    items = query.order_by(models.Manufacturer.name).offset(skip).limit(limit).all()
+
+    res = []
+    for m in items:
+        resp_item = schemas.ManufacturerResponse.model_validate(m)
+        if m.supplier_ledger:
+            resp_item.supplier_ledger_name = m.supplier_ledger.name
+        if m.sales_ledger:
+            resp_item.sales_ledger_name = m.sales_ledger.name
+        prod_count = db.query(func.count(models.Product.id)).filter(
+            models.Product.company_id == m.id,
+            models.Product.is_active == True
+        ).scalar() or 0
+        resp_item.products_count = prod_count
+        res.append(resp_item)
+    return res
 
 @router.post("/manufacturers", response_model=schemas.ManufacturerResponse)
 def create_manufacturer(manufacturer: schemas.ManufacturerCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):

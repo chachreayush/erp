@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Building2, Plus, ArrowRight, Activity, Users, Shield } from 'lucide-react'
+import { Building2, Plus, ArrowRight, Activity, Users, Shield, Layers } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { useAuthStore } from '../../store/authStore'
@@ -7,6 +7,7 @@ import { apiClient, apiGetOrganizations, Organization } from '../../lib/api'
 import { useNavigate } from 'react-router-dom'
 import { RegisterClientModal } from './RegisterClientModal'
 import PermissionsMatrixModal from './PermissionsMatrixModal'
+import ClientCompanyMappingModal from './ClientCompanyMappingModal'
 import { useReturnNavigation } from '../../hooks/useReturnNavigation'
 
 export default function ClientManagementPage() {
@@ -19,7 +20,12 @@ export default function ClientManagementPage() {
   const [selectedOrgId, setSelectedOrgId] = useState('')
   const [selectedOrgName, setSelectedOrgName] = useState('')
 
-  useReturnNavigation(isRegisterModalOpen || permissionsModalOpen);
+  // ── Authorized Product Companies Mapping state ──
+  const [companyMappingModalOpen, setCompanyMappingModalOpen] = useState(false)
+  const [selectedCompanyOrgId, setSelectedCompanyOrgId] = useState('')
+  const [selectedCompanyOrgName, setSelectedCompanyOrgName] = useState('')
+
+  useReturnNavigation(isRegisterModalOpen || permissionsModalOpen || companyMappingModalOpen);
 
   const impersonate = useAuthStore(state => state.impersonate)
   const navigate = useNavigate()
@@ -71,6 +77,12 @@ export default function ClientManagementPage() {
     setSelectedOrgId(org.id)
     setSelectedOrgName(org.name)
     setPermissionsModalOpen(true)
+  }
+
+  const handleOpenCompanyMapping = (org: Organization) => {
+    setSelectedCompanyOrgId(org.id)
+    setSelectedCompanyOrgName(org.name)
+    setCompanyMappingModalOpen(true)
   }
 
   return (
@@ -130,18 +142,27 @@ export default function ClientManagementPage() {
               </div>
 
               {/* ── ACTION BUTTONS ── */}
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <Button 
+                  id={`btn-authorized-companies-${org.id}`}
+                  variant="secondary" 
+                  style={{ justifyContent: 'center', borderColor: '#2d6a4f', color: '#1b4332' }}
+                  rightIcon={<Layers size={16} />}
+                  onClick={() => handleOpenCompanyMapping(org)}
+                >
+                  Companies
+                </Button>
                 <Button 
                   variant="secondary" 
-                  style={{ flex: 1, justifyContent: 'center' }}
+                  style={{ justifyContent: 'center' }}
                   rightIcon={<Shield size={16} />}
                   onClick={() => handleOpenPermissions(org)}
                 >
                   Permissions
                 </Button>
                 <Button 
-                  variant="secondary" 
-                  style={{ flex: 1, justifyContent: 'center' }}
+                  variant="primary" 
+                  style={{ gridColumn: '1 / -1', justifyContent: 'center' }}
                   rightIcon={<ArrowRight size={16} />}
                   onClick={() => handleSwitchToClient(org.id)}
                 >
@@ -173,6 +194,14 @@ export default function ClientManagementPage() {
         onClose={() => setPermissionsModalOpen(false)}
         orgId={selectedOrgId}
         orgName={selectedOrgName}
+      />
+
+      {/* ── AUTHORIZED PRODUCT COMPANIES MODAL ──────────────── */}
+      <ClientCompanyMappingModal
+        isOpen={companyMappingModalOpen}
+        onClose={() => setCompanyMappingModalOpen(false)}
+        orgId={selectedCompanyOrgId}
+        orgName={selectedCompanyOrgName}
       />
     </div>
   )

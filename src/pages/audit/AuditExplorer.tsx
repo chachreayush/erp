@@ -59,6 +59,7 @@ export default function AuditExplorer() {
       event_time: new Date(Date.now() - 24 * 3600000).toISOString(),
       event_type: 'CREATE',
       object_type: 'INVOICE',
+      object_id: 'obj-inv-6874',
       document_number: 'RJ-INV-6874',
       actor_name: 'admin',
       reason: 'Retail counter sales billing execution',
@@ -72,6 +73,7 @@ export default function AuditExplorer() {
       event_time: new Date(Date.now() - 18 * 3600000).toISOString(),
       event_type: 'POST',
       object_type: 'VOUCHER',
+      object_id: 'obj-vch-0161',
       document_number: 'JRN/2026-27/0161',
       actor_name: 'admin',
       reason: 'Automated GL posting from Supplier Debit Note RJ-DN-0020',
@@ -85,6 +87,7 @@ export default function AuditExplorer() {
       event_time: new Date(Date.now() - 12 * 3600000).toISOString(),
       event_type: 'UPDATE',
       object_type: 'PARTY',
+      object_id: 'obj-pty-0042',
       document_number: 'CUST-0042',
       actor_name: 'admin',
       reason: 'Credit limit revision approved by Branch Manager',
@@ -98,6 +101,7 @@ export default function AuditExplorer() {
       event_time: new Date(Date.now() - 6 * 3600000).toISOString(),
       event_type: 'APPROVE',
       object_type: 'WORKFLOW_TASK',
+      object_id: 'obj-tsk-0891',
       document_number: 'PO-2026-0891',
       actor_name: 'admin',
       reason: 'Four-eyes maker-checker authorization tier 2 approved',
@@ -111,6 +115,7 @@ export default function AuditExplorer() {
       event_time: new Date(Date.now() - 2 * 3600000).toISOString(),
       event_type: 'LEGAL_HOLD_APPLIED',
       object_type: 'LEGAL_HOLD',
+      object_id: 'obj-hld-0001',
       document_number: 'HOLD-2026-0001',
       actor_name: 'admin',
       reason: 'Statutory preservation notice issued under CGST Act Section 67',
@@ -173,7 +178,7 @@ export default function AuditExplorer() {
       console.warn('Failed to load audit diff, using fallback:', err);
       const ev = events.find(e => e.id === eventId) || FALLBACK_EVENTS[0];
       setDiffData({
-        event: ev,
+        event_id: ev.id,
         is_hash_intact: true,
         diff_items: [
           {
@@ -192,7 +197,7 @@ export default function AuditExplorer() {
             field: 'auth_signature_token',
             old_value: '[REDACTED_SENSITIVE]',
             new_value: '[REDACTED_SENSITIVE]',
-            status: 'UNTOUCHED'
+            status: 'UNCHANGED'
           }
         ],
         prev_hash: ev.prev_hash,
@@ -202,7 +207,9 @@ export default function AuditExplorer() {
         event_time: ev.event_time,
         reason: ev.reason,
         object_type: ev.object_type,
-        document_number: ev.document_number
+        document_number: ev.document_number,
+        before_payload: null,
+        after_payload: null
       });
     } finally {
       setLoadingDiff(false);
@@ -227,9 +234,11 @@ export default function AuditExplorer() {
         is_valid: true,
         total_verified: events.length || 5,
         genesis_hash: '0000000000000000000000000000000000000000000000000000000000000000',
-        terminal_hash: latestHash || '12cc2e8d1e82eb38676239bc7a61d619965eb19d4586d1ee00050e8a719d3810',
-        message: 'Cryptographic Chain Integrity Confirmed (100% Valid - Sequential SHA-256 Validated)',
-        details: []
+        latest_hash: latestHash || '12cc2e8d1e82eb38676239bc7a61d619965eb19d4586d1ee00050e8a719d3810',
+        broken_link_id: null,
+        verified_at: new Date().toISOString(),
+        status_badge: 'VALID',
+        message: 'Cryptographic Chain Integrity Confirmed (100% Valid - Sequential SHA-256 Validated)'
       });
     } finally {
       setVerifying(false);
@@ -632,7 +641,7 @@ export default function AuditExplorer() {
                   : `Integrity Alert: Chain Broken at Event #${chainVerification.broken_link_id}!`}
               </div>
               <div style={{ fontSize: '11px', fontFamily: "'Consolas', monospace", marginTop: '3px', color: '#52796f' }}>
-                Verified at: {chainVerification.verified_at || new Date().toISOString()} • Genesis: {(chainVerification.genesis_hash || '0000').slice(0, 12)}... • Terminal: {(chainVerification.terminal_hash || chainVerification.latest_hash || latestHash).slice(0, 12)}...
+                Verified at: {chainVerification.verified_at || new Date().toISOString()} • Genesis: {(chainVerification.genesis_hash || '0000').slice(0, 12)}... • Terminal: {(chainVerification.latest_hash || latestHash).slice(0, 12)}...
               </div>
             </div>
           </div>

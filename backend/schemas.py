@@ -489,6 +489,10 @@ class ManufacturerBase(BaseModel):
     
     is_supplier: bool = False
     supplier_ledger_id: Optional[UUID4] = None
+    sales_ledger_id: Optional[UUID4] = None
+    division: Optional[str] = None
+    gstin: Optional[str] = None
+    state_code: Optional[str] = None
     
     email: Optional[str] = None
     cc: Optional[str] = None
@@ -507,6 +511,25 @@ class ManufacturerResponse(ManufacturerBase):
     id: UUID4
     organization_id: UUID4
     created_at: datetime
+    supplier_ledger_name: Optional[str] = None
+    sales_ledger_name: Optional[str] = None
+    products_count: Optional[int] = 0
+    model_config = ConfigDict(from_attributes=True)
+
+class OrganizationManufacturerMappingBase(BaseModel):
+    manufacturer_id: UUID4
+    is_primary: bool = False
+    commission_rate_override: Optional[float] = None
+    notes: Optional[str] = None
+
+class OrganizationManufacturerMappingCreate(BaseModel):
+    manufacturer_ids: List[UUID4]
+
+class OrganizationManufacturerMappingResponse(OrganizationManufacturerMappingBase):
+    id: UUID4
+    organization_id: UUID4
+    created_at: datetime
+    manufacturer_name: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 class HSNCodeBase(BaseModel):
