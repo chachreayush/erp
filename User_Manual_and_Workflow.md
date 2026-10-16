@@ -379,10 +379,33 @@ The ERP reporting and double-entry accounting engine has been verified with **10
 | **Radar (`/admin/tracking`)** | `#tab-btn-sales` | Tab `[F3]` | Displays multi-client sales invoice register with client attribution. |
 | **Radar (`/admin/tracking`)** | `#tab-btn-expenses` | Tab `[F4]` | Displays multi-client operational expense claims. |
 | **Radar (`/admin/tracking`)** | `#tab-btn-cargo` | Tab `[F6]` | Displays active cargo logistics pipeline with in-transit pulse. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#card-main-stock` | Scorecard | Displays real-time Main Saleable Stock Value and Healthy Units count. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#card-quarantine-stock` | Scorecard | Displays Quarantined Stock Value and Segregated Units count in `brk_exp_stock`. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#card-near-expiry-risk` | Scorecard | Displays 90-Day Near-Expiry Risk Valuation and Batches count. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#card-claim-exposure` | Scorecard | Displays active Principal Claims & Debit Note exposure. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#tab-btn-radar` | Tab `[F2]` | Opens Expiry Radar table with alert pills and search filters. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#btn-select-all-batches` | Button | Toggles multi-batch selection across all active radar candidates. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#btn-shift-selected-action` | Button `[F7]` | Shifts chosen batches to quarantine and opens Stock Shift Voucher desk. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#tab-btn-quarantine` | Tab `[F3]` | Displays Quarantined Stock Ledger with direct claim filing action. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#tab-btn-history` | Tab `[F4]` | Displays Stock Shift Audit Register with linked claim badges. |
+| **Stock Shift (`/stock-shift`)** | `#select-from-godown` | Dropdown | Selects source godown (Main Saleable Godown). |
+| **Stock Shift (`/stock-shift`)** | `#select-to-godown` | Dropdown | Selects destination godown (Quarantine / Expiry Godown). |
+| **Stock Shift (`/stock-shift`)** | `#check-auto-claim` | Checkbox | Toggles automated generation of official Principal Expiry Claim (`CLM-PRN-`). |
+| **Stock Shift (`/stock-shift`)** | `#btn-save-shift-voucher` | Button `[F7]` | Executes atomic stock shift reallocation and files debit note claim. |
+| **Stock Shift (`/stock-shift`)** | `#stock-shift-success-card` | Banner | Displays generated voucher (`SHF-2026-XXXX`) and claim reference. |
 
 ---
 
-## 27. Comprehensive Automated QA Test Suite Registry (15 Suites)
+## 28. Module 28 — DOC-41: Pharma Expiry Radar, Stock Shift Quarantine Engine & Principal Debit Note Settlement Desk
+
+### 28.1 Workflow Summary & Core Objectives
+1. **Real-Time Expiry Radar**: Operators monitor active inventory across 4 risk horizons: 🔴 Expired ($\le 0$ days), 🟠 Critical ($\le 30$ days), 🟡 Warning ($\le 60$ days), and 🔵 Attention ($\le 90$ days).
+2. **Atomic Stock Reallocation**: 1-click shift from `MAIN_SALEABLE_GODOWN` to `QUARANTINE_EXPIRY_GODOWN` atomically decreases `Batch.current_stock` and increases `Batch.brk_exp_stock`.
+3. **Automated Principal Claim & Debit Note Bridging**: Toggling `#check-auto-claim` automatically generates a formal `PrincipalClaim` (`CLM-PRN-YYYY-XXXX`) and itemized `PrincipalClaimLine`s under the selected Principal (*Sun Pharma*, *Cipla*, *Krishna Medical Agencies*), creating an instant audit trail in the Principal Claims Desk (`/principal`).
+
+---
+
+## 29. Comprehensive Automated QA Test Suite Registry (16 Suites)
 
 | # | Test Suite File | Module Coverage | Assertions Target & Status |
 | :--- | :--- | :--- | :--- |
@@ -401,7 +424,9 @@ The ERP reporting and double-entry accounting engine has been verified with **10
 | 13 | `test_freight_logistics_selenium.py` | Rate Master, Calculation Sandbox `[F4]`, Transporter Recon | 100% PASS: Carrier contracts and GL Account 5200 posting. |
 | 14 | `test_principal_operations_selenium.py` | Control Center, Custody Stock Matrix, Claims Desk `[F7]`, Recon | 100% PASS: Principal agreement governance and reconciliation statements. |
 | 15 | `test_client_commission_billing_selenium.py` | Top Nav 10-Item layout, C&F Billing Desk `[F5]`, Dual-Posting | 100% PASS: Auto-fetch telemetry, outward bill `CF-BILL-`, and inward purchase `PUR-CF-`. |
+| 16 | `test_pharma_expiry_quarantine_selenium.py` | Expiry Radar `[F2]`, Stock Shift Desk `[F7]`, Auto-Claims `CLM-PRN-` | 100% PASS: Atomic batch stock reallocation, quarantine ledger, and Principal claims bridging. |
 
 ---
 
 *End of User Manual and Workflows.*
+

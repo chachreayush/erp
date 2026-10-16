@@ -1795,4 +1795,134 @@ models.RecoveryClaim(
 
 ---
 
+## 35. DOC-41: Pharma Expiry Radar, Stock Shift Quarantine Engine & Principal Debit Note Settlement Desk
+
+### 35.1 Architectural Blueprint & Purpose
+In pharmaceutical distribution and C&F logistics, batch shelf-life surveillance and damaged/expired stock disposition are mission-critical. DOC-41 replaces prototype mock data in `InventoryDashboard.tsx` and static alerts in `StockShiftVoucher.tsx` with a production-grade, transactional engine that:
+1. **Surveils Shelf-Life in Real-Time**: Scans active stock batches and classifies them into actionable risk buckets: 🔴 Expired ($\le 0$ days), 🟠 Critical ($\le 30$ days), 🟡 Warning ($\le 60$ days), and 🔵 Attention ($\le 90$ days).
+2. **Executes Atomic Stock Shift Reallocation**: Transfers stock from `MAIN_SALEABLE_GODOWN` to `QUARANTINE_EXPIRY_GODOWN` atomically decrementing `Batch.current_stock` and incrementing `Batch.brk_exp_stock`.
+3. **Bridges Seamlessly into Principal Claims**: Generates an official `PrincipalClaim` (`CLM-PRN-YYYY-XXXX`) and itemized `PrincipalClaimLine`s in the Principal Claims Desk (`/principal`), auto-calculating recovery amounts and recording auditable debit note references.
+
+### 35.2 Database Schema (`backend/models.py`)
+- **`StockShiftVoucher` (`stock_shift_vouchers`)**:
+  - `id` (UUID, Primary Key)
+  - `organization_id` (UUID, ForeignKey to `organizations.id`, indexed)
+  - `voucher_no` (String(50), indexed, unique per organization, e.g. `SHF-2026-0001`)
+  - `shift_date` (DateTime, default `utcnow`)
+  - `from_godown` (String(100), default `'MAIN_SALEABLE_GODOWN'`)
+  - `to_godown` (String(100), default `'QUARANTINE_EXPIRY_GODOWN'`)
+  - `reason` (String(255), default `'Pharma Expiry & Damaged Stock Quarantine'`)
+  - `company_id` (UUID, nullable)
+  - `principal_id` (UUID, nullable)
+  - `total_items` (Integer, count of items shifted)
+  - `total_qty` (Numeric(12, 2), aggregate quantity shifted)
+  - `total_value` (Numeric(12, 2), aggregate valuation at batch purchase cost rate)
+  - `auto_claim_generated` (Boolean, default `False`)
+  - `principal_claim_id` (UUID, ForeignKey to `principal_claims.id`, nullable)
+  - `status` (String(30), default `'COMPLETED'`)
+  - `created_at` (DateTime, default `utcnow`)
+  - Relationships: `items` (1-to-many with `StockShiftItem`), `principal_claim` (many-to-1 with `PrincipalClaim`).
+
+- **`StockShiftItem` (`stock_shift_items`)**:
+  - `id` (UUID, Primary Key)
+  - `voucher_id` (UUID, ForeignKey to `stock_shift_vouchers.id`, ondelete='CASCADE')
+  - `product_id` (UUID, ForeignKey to `products.id`)
+  - `product_name` (String(255))
+  - `batch_id` (UUID, ForeignKey to `batches.id`)
+  - `batch_number` (String(100))
+  - `expiry` (String(50))
+  - `qty` (Integer, quantity shifted)
+  - `rate` (Numeric(12, 2), cost / valuation rate)
+  - `value` (Numeric(12, 2), qty $\times$ rate)
+  - `mrp` (Numeric(12, 2))
+  - `created_at` (DateTime, default `utcnow`)
+  - Relationships: `voucher`, `product`, `batch`.
+
+### 35.3 Backend API Endpoints (`backend/api/stock.py`)
+- **`GET /api/stock/expiry-cockpit-telemetry`**:
+  - Returns real-time aggregate KPIs:
+    - `main_stock_val` & `main_stock_units`: Healthy sellable stock in `current_stock`.
+    - `brk_exp_stock_val` & `brk_exp_stock_units`: Quarantined stock in `brk_exp_stock`.
+    - `expired_count` & `expired_val`: Stock with expiry date $\le$ current month.
+    - `near_30_count`, `near_60_count`, `near_90_count` and respective valuations.
+    - `total_near_expiry_count` & `total_near_expiry_val`: Combined risk exposure across 90-day window.
+    - `pending_claims_count` & `pending_claims_val`: Active pending claims in `principal_claims`.
+    - `recent_shifts`: Last 5 shift vouchers with voucher number, date, items, qty, and claim reference.
+
+- **`GET /api/stock/expiry-radar-batches`**:
+  - Query parameters: `bucket` (`ALL`, `EXPIRED`, `30_DAYS`, `60_DAYS`, `90_DAYS`), `company_id` (optional), `search` (optional).
+  - Returns itemized list of batches sorted by `days_to_expiry` ascending (most urgent first) with status tag, days left, current stock, rate, and valuation.
+
+- **`POST /api/stock/shifts`**:
+  - Request Payload:
+    ```json
+    {
+      "voucher_no": "SHF-2026-0001",
+      "shift_date": "2026-10-17",
+      "from_godown": "MAIN_SALEABLE_GODOWN",
+      "to_godown": "QUARANTINE_EXPIRY_GODOWN",
+      "reason": "Pharma Expiry & Damaged Stock Quarantine",
+      "principal_id": "11111111-1111-1111-1111-111111111111",
+      "auto_create_principal_claim": true,
+      "items": [
+        {
+          "batch_id": "97e6be95-0728-444a-a2ae-c5598642a8b9",
+          "product_id": "a9fb9cf6-928d-4cb0-a887-a3922c199587",
+          "qty": 148,
+          "rate": 30.91
+        }
+      ]
+    }
+    ```
+  - Execution Flow:
+    1. Validates each batch exists and has sufficient `current_stock >= item.qty`.
+    2. Decrements `batch.current_stock -= item.qty` and increments `batch.brk_exp_stock += item.qty`.
+    3. Creates `StockShiftVoucher` and `StockShiftItem` records.
+    4. If `auto_create_principal_claim` is True: Generates `PrincipalClaim` (`CLM-PRN-YYYY-XXXX`) with `claim_type='EXPIRY'`, `source_doc_type='STOCK_SHIFT'`, `claimed_amount=total_value`, and creates `PrincipalClaimLine`s.
+    5. Commits transaction and returns voucher details and claim reference.
+
+- **`GET /api/stock/shifts`**:
+  - Lists historical shift vouchers with pagination and linked principal claim details.
+
+- **`GET /api/stock/shifts/{id}`**:
+  - Returns detailed shift voucher including line items and claim data.
+
+### 35.4 Frontend Components & User Interface Architecture
+1. **`InventoryDashboard.tsx` (`/inventory-dashboard`, `/inventory/dashboard`)**:
+   - Header with quick shortcuts: `[F5] Refresh`, `[F7] Stock Shift`, `[F8] Principal Claims Desk`.
+   - 4 Dynamic Scorecards:
+     - `#card-main-stock`: Live Main Stock Value and Healthy Units count.
+     - `#card-quarantine-stock`: Live Quarantine Godown Value and Quarantined Units count.
+     - `#card-near-expiry-risk`: Live Near-Expiry Surveillance Value and Risk Batches count.
+     - `#card-claim-exposure`: Live Principal Claims Exposure and Pending Claims count.
+   - 3 Primary Tabs:
+     - `[F2] Expiry Radar`: Filter buttons (`#filter-bucket-ALL`, `#filter-bucket-EXPIRED`, `#filter-bucket-30_DAYS`, `#filter-bucket-60_DAYS`, `#filter-bucket-90_DAYS`), manufacturer dropdown (`#filter-company-select`), search input (`#search-batches-input`), batch selection checkboxes, and `[F7] Shift to Quarantine` button (`#btn-shift-selected-action`).
+     - `[F3] Quarantine Godown Stock`: Quarantined stock breakdown with direct `#btn-file-principal-claim-quarantine`.
+     - `[F4] Stock Shift Audit Register`: Historical audit table (`#tbl-shift-audit`) showing voucher number, date, from/to godowns, item count, valuation, and linked `CLM-PRN-XXXX` tag.
+
+2. **`StockShiftVoucher.tsx` (`/stock-shift`)**:
+   - Pre-populates batches passed from `InventoryDashboard` via React Router `state`.
+   - Date picker (`#input-shift-date`) and voucher number (`#input-shift-voucher-no`).
+   - Source Godown selector (`#select-from-godown`) and Destination Godown selector (`#select-to-godown`).
+   - Auto-Claim Toggle (`#check-auto-claim`) and Target Principal selector (`#select-principal-claim-target`).
+   - Candidate Auto-Fill filters (`#filter-expiry-mmyy`, `#filter-shift-company`, `#btn-auto-load-candidates`).
+   - Real-time stock validation (prevents shifting more than available stock).
+   - Save button (`#btn-save-shift-voucher`) calling `POST /api/stock/shifts`.
+   - Rendered **Success Card** (`#stock-shift-success-card`) displaying generated Voucher No (`#lbl-success-voucher-no`), generated Claim No (`#lbl-success-claim-no`), and navigation buttons to Audit Register (`#btn-view-in-audit`, `[F2]`) and Principal Claims Desk (`#btn-view-claim-desk`, `[F8]`).
+
+### 35.5 Automated Selenium Verification Runbook
+- **Script**: `test_pharma_expiry_quarantine_selenium.py` (13 stages, Exit Code 0).
+- **Verified Assertions**:
+  1. Stage 1-2: Admin authentication and telemetry API verification (`GET /api/stock/expiry-cockpit-telemetry` returning 105,228 units, ₹1,80,39,497.67).
+  2. Stage 3-5: Headless Chrome launch, navigation to `/inventory-dashboard`, verification of title and `DOC-41 ENTERPRISE` badge.
+  3. Stage 6: Telemetry scorecards verification and screenshot capture (`verified_pharma_expiry_cockpit.png`).
+  4. Stage 7: Expiry Radar table and filter bucket clicks (`verified_expiry_radar_batches.png`).
+  5. Stage 8-9: Multi-selecting batch B8887 (Volini SR, 148 units, Exp 09/26) and clicking `#btn-shift-selected-action`.
+  6. Stage 10: Navigation to `/stock-shift`, verifying godowns, auto-claim toggle, and pre-filled line items (`verified_stock_shift_voucher.png`).
+  7. Stage 11-12: Submitting voucher, asserting `#stock-shift-success-card` containing voucher `SHF-2026-0001` and principal claim `CLM-PRN-2026-0006` (`verified_stock_shift_claim_success.png`).
+  8. Stage 13: Verifying audit table entry, quarantine ledger update (+148 units = 303 units, ₹41,799) (`verified_quarantine_stock_ledger.png`), and verifying claim in `/principal` (`verified_principal_claim_from_shift.png`).
+
+---
+
 *End of Developer Manual.*
+

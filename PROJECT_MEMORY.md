@@ -866,7 +866,32 @@ Implemented and verified the production-grade Principal & C&F Operations Managem
 
 ---
 
-## Master Automated Test Matrix Registry (15 Suites — 100% PASS)
+## Production Update: Pharma Expiry Radar, Stock Shift Quarantine Engine & Principal Debit Note Settlement Desk (DOC-41, October 2026)
+
+1. **Business Domain & Architectural Innovation**:
+   - Upgrades `InventoryDashboard.tsx` from static mock cards to a live **Pharma Expiry Radar & Breakage Cockpit**.
+   - **4 Live Telemetry Metrics**: Main Stock Value (`Batch.current_stock`), Quarantined Godown Value (`Batch.brk_exp_stock`), 90-Day Near-Expiry Risk Valuation, and Principal Claims & Debit Note Exposure.
+   - **Expiry Radar Engine (`[F2]`)**: Scans batch expiry dates and partitions into 4 critical horizons: 🔴 Expired ($\le 0$ days), 🟠 Critical ($\le 30$ days), 🟡 Warning ($\le 60$ days), and 🔵 Attention ($\le 90$ days) with manufacturer filters and search.
+   - **Atomic Stock Shift Desk (`StockShiftVoucher.tsx`, `[F7]`)**: Pre-populates selected radar batches, validates stock availability, and executes atomic stock movement from `MAIN_SALEABLE_GODOWN` to `QUARANTINE_EXPIRY_GODOWN` decrementing saleable stock and incrementing quarantine stock in PostgreSQL.
+   - **Automated Principal Claim & Debit Note Bridging**: Toggling `#check-auto-claim` automatically generates a formal `models.PrincipalClaim` (`CLM-PRN-YYYY-XXXX`) and itemized `models.PrincipalClaimLine`s under the selected Principal (*Sun Pharma*, *Cipla*, *Krishna Medical Agencies*), establishing an instant recovery audit trail in the Principal Claims Desk (`/principal`).
+
+2. **Database Models & Schema**:
+   - `models.StockShiftVoucher` (`stock_shift_vouchers`): `id`, `organization_id`, `voucher_no` (`SHF-2026-XXXX`), `shift_date`, `from_godown`, `to_godown`, `reason`, `total_items`, `total_qty`, `total_value`, `auto_claim_generated`, `principal_claim_id`, `status`.
+   - `models.StockShiftItem` (`stock_shift_items`): `id`, `voucher_id`, `product_id`, `product_name`, `batch_id`, `batch_number`, `expiry`, `qty`, `rate`, `value`, `mrp`.
+
+3. **Backend RESTful APIs (`backend/api/stock.py`)**:
+   - `GET /api/stock/expiry-cockpit-telemetry`: Aggregate live KPIs across Main Stock, Quarantine, near-expiry risk buckets, and pending claims.
+   - `GET /api/stock/expiry-radar-batches`: Classified batches with days to expiry, status tags, stock, and valuations.
+   - `POST /api/stock/shifts`: Atomic reallocation transaction with optional dual-filing of `PrincipalClaim` and itemized `PrincipalClaimLine`s.
+   - `GET /api/stock/shifts` & `GET /api/stock/shifts/{id}`: Historical audit register of `SHF-2026-XXXX` vouchers.
+
+4. **Automated Selenium Verification**:
+   - `test_pharma_expiry_quarantine_selenium.py`: 13/13 stages PASSED (100% Exit Code 0).
+   - Captured visual proof: `verified_pharma_expiry_cockpit.png`, `verified_expiry_radar_batches.png`, `verified_stock_shift_voucher.png`, `verified_stock_shift_claim_success.png`, `verified_quarantine_stock_ledger.png`, `verified_principal_claim_from_shift.png`.
+
+---
+
+## Master Automated Test Matrix Registry (16 Suites — 100% PASS)
 
 | # | Test Suite Script | Module Coverage | Assertions Target & Status |
 | :--- | :--- | :--- | :--- |
@@ -885,7 +910,9 @@ Implemented and verified the production-grade Principal & C&F Operations Managem
 | 13 | `test_freight_logistics_selenium.py` | Rate Master, Calculation Sandbox `[F4]`, Transporter Recon | 100% PASS: Carrier contracts and GL Account 5200 posting. |
 | 14 | `test_principal_operations_selenium.py` | Control Center, Custody Stock Matrix, Claims Desk `[F7]`, Recon | 100% PASS: Principal agreement governance and reconciliation statements. |
 | 15 | `test_client_commission_billing_selenium.py` | Top Nav 10-Item layout, C&F Billing Desk `[F5]`, Dual-Posting | 100% PASS: Auto-fetch telemetry, outward bill `CF-BILL-`, and inward purchase `PUR-CF-`. |
+| 16 | `test_pharma_expiry_quarantine_selenium.py` | Expiry Radar `[F2]`, Stock Shift Desk `[F7]`, Auto-Claims `CLM-PRN-` | 100% PASS: Atomic batch stock reallocation, quarantine ledger, and Principal claims bridging. |
 
 ---
 
 *End of Master Memory File.*
+

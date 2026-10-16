@@ -2832,6 +2832,59 @@ class CommissionAudit(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
+# ============================================================
+# DOC-41: PHARMA EXPIRY RADAR & STOCK SHIFT QUARANTINE ENGINE
+# ============================================================
+
+class StockShiftVoucher(Base):
+    __tablename__ = "stock_shift_vouchers"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    voucher_no = Column(String(50), nullable=False, index=True)
+    shift_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    from_godown = Column(String(100), default="MAIN_SALEABLE_GODOWN", nullable=False)
+    to_godown = Column(String(100), default="QUARANTINE_EXPIRY_GODOWN", nullable=False)
+    reason = Column(String(255), nullable=True)
+    company_id = Column(UUID(as_uuid=True), nullable=True)
+    principal_id = Column(UUID(as_uuid=True), nullable=True)
+    total_items = Column(Integer, default=0, nullable=False)
+    total_qty = Column(Numeric(12, 2), default=0.0, nullable=False)
+    total_value = Column(Numeric(12, 2), default=0.0, nullable=False)
+    auto_claim_generated = Column(Boolean, default=False, nullable=False)
+    principal_claim_id = Column(UUID(as_uuid=True), ForeignKey("principal_claims.id", ondelete="SET NULL"), nullable=True)
+    status = Column(String(30), default="COMPLETED", nullable=False) # COMPLETED, CANCELLED
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    items = relationship("StockShiftItem", back_populates="voucher", cascade="all, delete-orphan")
+    organization = relationship("Organization")
+    principal_claim = relationship("PrincipalClaim")
+
+
+class StockShiftItem(Base):
+    __tablename__ = "stock_shift_items"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    voucher_id = Column(UUID(as_uuid=True), ForeignKey("stock_shift_vouchers.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_id = Column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_name = Column(String(255), nullable=False)
+    batch_id = Column(UUID(as_uuid=True), ForeignKey("batches.id", ondelete="CASCADE"), nullable=False, index=True)
+    batch_number = Column(String(100), nullable=False)
+    expiry = Column(String(50), nullable=True)
+    qty = Column(Integer, nullable=False, default=1)
+    rate = Column(Numeric(12, 2), default=0.0, nullable=False)
+    value = Column(Numeric(12, 2), default=0.0, nullable=False)
+    mrp = Column(Numeric(12, 2), default=0.0, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    voucher = relationship("StockShiftVoucher", back_populates="items")
+    product = relationship("Product")
+    batch = relationship("Batch")
+
+
+
 
 
 

@@ -161,12 +161,14 @@ const inventorySubItemsMap: Record<string, { label: string; path: string }[]> = 
     { label: 'Modify', path: '/inventory?action=modify' }
   ],
   'claims': [
-    { label: 'Reorder Engine', path: '/inventory/replenishment' },
-    { label: 'Internal Expiry Shift', path: '/stock-shift' }
+    { label: 'Expiry & Breakage Cockpit', path: '/inventory-dashboard' },
+    { label: 'Internal Expiry Shift', path: '/stock-shift' },
+    { label: 'Reorder Engine', path: '/inventory/replenishment' }
   ],
   'current-stock': [
     { label: 'View Stock', path: '/stock' },
-    { label: 'Brk/Exp Stock', path: '/brk-exp-stock' }
+    { label: 'Brk/Exp Stock', path: '/brk-exp-stock' },
+    { label: 'Expiry & Breakage Cockpit', path: '/inventory-dashboard' }
   ]
 }
 

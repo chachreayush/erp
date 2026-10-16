@@ -2403,6 +2403,68 @@ def create_full_software_walkthrough():
         "Figure 27.2: Generated Bill Success Card confirming outward service bill CF-BILL-2026-0002 and automated dual-posted inward client purchase bill PUR-CF-2026-0002 with direct links to Billing [F7] and Purchase [F9]."
     )
 
+    # =========================================================================
+    # CHAPTER 28: PHARMA EXPIRY RADAR, STOCK SHIFT QUARANTINE ENGINE & PRINCIPAL CLAIM SETTLEMENT DESK (DOC-41)
+    # =========================================================================
+    doc.add_page_break()
+    add_h1("Chapter 28: Pharma Expiry Radar, Stock Shift Quarantine Engine & Principal Debit Note Settlement Desk (DOC-41)")
+
+    add_h2("28.1 Architectural Purpose & Pharma Shelf-Life Governance")
+    add_p(
+        "In pharmaceutical distribution and Carrying & Forwarding (C&F) operations, batch shelf-life surveillance and damaged/expired stock "
+        "disposition are mission-critical regulatory and financial functions. DOC-41 establishes a real-time, transactional bridge that surveils "
+        "batch expiries, executes atomic godown stock shifts from Saleable to Quarantine inventory, and automatically files debit note claims "
+        "with Principals (manufacturers) in the Principal Claims Desk."
+    )
+
+    add_h2("28.2 The 4-Pillar Expiry Surveillance & Claim Reallocation Matrix")
+    add_p("The end-to-end lifecycle of expiring stock operates across four interconnected tiers:")
+
+    expiry_matrix_table = doc.add_table(rows=1, cols=3)
+    expiry_matrix_headers = ["Pillar & Engine", "Route & UI Controls", "Transactional & Ledger Impact"]
+    expiry_matrix_data = [
+        [
+            "Pillar 1: Expiry Cockpit Telemetry",
+            "Cockpit Header & Scorecards\\nRoute: /inventory-dashboard",
+            "Aggregates live inventory valuations across Main Stock (Batch.current_stock), Quarantined Stock (Batch.brk_exp_stock), 90-day risk horizons, and active pending claims in models.PrincipalClaim."
+        ],
+        [
+            "Pillar 2: Real-Time Expiry Radar",
+            "Expiry Radar Table [F2]\\nFilter Pills: Expired, <30d, <60d, <90d",
+            "Classifies batches into 4 actionable risk buckets with days-to-expiry calculation, company filters, multi-batch selection checkboxes, and 1-click [⚡ Shift to Quarantine [F7]] transition."
+        ],
+        [
+            "Pillar 3: Atomic Stock Shift Voucher",
+            "Stock Shift Desk\\nRoute: /stock-shift",
+            "Enforces strict stock availability validation and executes atomic database transaction (POST /api/stock/shifts): decrements Batch.current_stock, increments Batch.brk_exp_stock, and logs models.StockShiftVoucher (SHF-2026-XXXX)."
+        ],
+        [
+            "Pillar 4: Principal Claim & Debit Note Bridging",
+            "Auto-Claim Toggle (#check-auto-claim)\\nRoute: /principal",
+            "Automatically generates formal models.PrincipalClaim (CLM-PRN-YYYY-XXXX) and itemized models.PrincipalClaimLine records under the selected Principal, recording debit note reference for recovery."
+        ]
+    ]
+    style_table(expiry_matrix_table, [1.8, 2.5, 2.7], expiry_matrix_headers, expiry_matrix_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("28.3 Visual Photographic Evidence: Expiry Cockpit, Stock Shift & Principal Claims")
+    add_p("The automated Selenium test suite (test_pharma_expiry_quarantine_selenium.py) verifies all 13 stages with 100% Exit Code 0:")
+
+    add_screenshot(
+        "verified_pharma_expiry_cockpit.png",
+        "Figure 28.1: Pharma Expiry Radar & Breakage Cockpit (/inventory-dashboard) showing live telemetry scorecards, risk bucket filter pills (All Critical, Expired, <30d, <60d, <90d), and batch surveillance table."
+    )
+
+    add_screenshot(
+        "verified_stock_shift_claim_success.png",
+        "Figure 28.2: Stock Shift Voucher Desk (/stock-shift) Success Card confirming voucher SHF-2026-0001 (148 units shifted to Quarantine Godown) and automated Principal Claim CLM-PRN-2026-0006 filed under Sun Pharma Healthcare Ltd."
+    )
+
+    add_screenshot(
+        "verified_quarantine_stock_ledger.png",
+        "Figure 28.3: Quarantined & Breakage Stock Ledger tab ([F3]) reflecting real-time reallocation (303 units, ₹41,799) with direct action button to File Principal Expiry Claim."
+    )
+
     # Save to erp2 directory
     output_path = r"C:\Users\DELL\OneDrive\Desktop\erp2\ERP_ENTERPRISE_SYSTEM_COMPLETE_SOFTWARE_MASTER_WALKTHROUGH.docx"
     doc.save(output_path)

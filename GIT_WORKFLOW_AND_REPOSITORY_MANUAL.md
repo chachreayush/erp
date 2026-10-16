@@ -131,6 +131,7 @@ C:\Python313\python.exe test_cargo_consignment_selenium.py
 C:\Python313\python.exe test_freight_logistics_selenium.py
 C:\Python313\python.exe test_principal_operations_selenium.py
 C:\Python313\python.exe test_client_commission_billing_selenium.py
+C:\Python313\python.exe test_pharma_expiry_quarantine_selenium.py
 ```
 
 ### Step 4: Live Cloud Verification

@@ -256,6 +256,39 @@ Full project memory file created with: stack, file locations, DB schema, naming 
 
 ---
 
+## SESSION 13 — Pharma Expiry Radar, Stock Shift Quarantine Engine & Principal Debit Note Settlement Desk (DOC-41)
+*(2026-10-17)*
+
+### User Requests
+- "what ever you rrecommend" &rarr; Recommended Option 1: Automated Pharma Expiry Radar, Quarantine Stock Shift & Principal Debit Note Settlement Engine.
+- "ok proceed"
+
+### Work Done
+- Modeled `StockShiftVoucher` and `StockShiftItem` in `backend/models.py`.
+- Initialized database tables via `backend/init_stock_shift_tables.py`.
+- Built 4 RESTful endpoints in `backend/api/stock.py`:
+  - `GET /api/stock/expiry-cockpit-telemetry` (Real-time Main vs Quarantine stock, 30/60/90-day risk buckets, pending claims).
+  - `GET /api/stock/expiry-radar-batches` (Classified batch surveillance sorted by days to expiry).
+  - `POST /api/stock/shifts` (Atomic batch stock reallocation, decrements `Batch.current_stock`, increments `Batch.brk_exp_stock`, and dual-posts `PrincipalClaim` and `PrincipalClaimLine`s).
+  - `GET /api/stock/shifts` & `GET /api/stock/shifts/{id}` (Audit register of all `SHF-2026-XXXX` vouchers).
+- Upgraded `InventoryDashboard.tsx` into live **Pharma Expiry Radar & Breakage Cockpit**:
+  - 4 Dynamic Scorecards (Main Stock, Quarantine Godown, Near-Expiry Risk, Principal Claims Exposure).
+  - 3 Tabs: `[F2] Expiry Radar`, `[F3] Quarantine Godown Stock`, `[F4] Stock Shift Audit Register`.
+  - Batch multi-selection checkboxes and live calculation banner with `[F7] Shift to Quarantine`.
+- Upgraded `StockShiftVoucher.tsx` (`/stock-shift`):
+  - Pre-populates selected batches from Expiry Radar.
+  - Source and destination godown selectors (`MAIN_SALEABLE_GODOWN` &rarr; `QUARANTINE_EXPIRY_GODOWN`).
+  - `⚡ Auto-Generate Principal Expiry Claim & Debit Note` toggle with Principal selector.
+  - Interactive Success Card (`#stock-shift-success-card`) with voucher number (`SHF-2026-0001`), claim reference (`CLM-PRN-2026-0006`), and direct links to Audit Register (`[F2]`) and Claims Desk (`[F8]`).
+- App routes (`App.tsx`) and Top Navigation (`Header.tsx`):
+  - Placed `/inventory-dashboard` and `/stock-shift` inside `MargAppShell` with full top header support.
+  - Added direct link to `Expiry & Breakage Cockpit` in `Inventory ▾` menu.
+- Automated QA: Built `test_pharma_expiry_quarantine_selenium.py` (13/13 stages PASSED, Exit Code 0).
+- Upgraded all manuals (`DEVELOPER_MANUAL.md`, `USER_WORKFLOW_MANUAL.md`, `Developer_and_User_Manual.md`, `User_Manual_and_Workflow.md`, `PROJECT_MEMORY.md`, `GIT_WORKFLOW_AND_REPOSITORY_MANUAL.md`, `VERCEL_DEPLOYMENT_MANUAL.md`, strictly appended `DOCS.md`).
+- Recompiled `ERP_ENTERPRISE_SYSTEM_COMPLETE_SOFTWARE_MASTER_WALKTHROUGH.docx` (4.28 MB, 28 chapters, embedded screenshots).
+
+---
+
 ## Key Decisions Log
 
 | Date | Decision |
@@ -272,4 +305,6 @@ Full project memory file created with: stack, file locations, DB schema, naming 
 | 2026-10-16 | Admin Multi-Client Radar on `/admin/tracking` with scope switcher and scorecards matrix |
 | 2026-10-16 | Header navigation reorganized into 10 parent categories with nested `C&F & Logistics ▾` |
 | 2026-10-17 | Client Management C&F Commission Billing on `[F5]` with dual-posting (`CF-BILL-` & `PUR-CF-`) |
+| 2026-10-17 | Pharma Expiry Radar on `[F2]`, Stock Shift Desk on `[F7]`, and auto-claim bridging to `/principal` |
+
 

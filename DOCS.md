@@ -626,3 +626,50 @@ The ERP incorporates a dedicated operational expense and employee reimbursement 
 
 6. **Master Automated Selenium Suite (`test_client_commission_billing_selenium.py`)**:
    - Verified 100% Pass across all 13 stages with Exit Code 0.
+
+---
+
+### 10.23 Pharma Expiry Radar, Stock Shift Quarantine Engine & Principal Debit Note Settlement Desk (DOC-41)
+
+1. **Pharma Expiry Surveillance & Breakage Cockpit (`/inventory-dashboard`, `/inventory/dashboard`)**:
+   - Replaces static mock counters with real-time aggregate inventory telemetry:
+     - Main Saleable Stock Value (`Batch.current_stock`) and physical unit count.
+     - Quarantined / Brk-Exp Stock Value (`Batch.brk_exp_stock`) and physical unit count.
+     - 90-Day Near-Expiry Surveillance Value across active risk batches.
+     - Principal Claims Exposure & Pending Debit Note claims count.
+   - Accessible via **`Inventory ▾`** &rarr; **`Expiry & Breakage Cockpit`** or direct route `/inventory-dashboard`.
+
+2. **Real-Time Expiry Radar Engine (`[F2]`, `#tab-btn-radar`)**:
+   - Classifies active inventory batches into 4 critical surveillance horizons:
+     - 🔴 **Expired** ($\le 0$ days)
+     - 🟠 **< 30 Days** (Critical)
+     - 🟡 **< 60 Days** (Warning)
+     - 🔵 **< 90 Days** (Attention)
+   - Filterable by Manufacturer / Principal (`#filter-company-select`) and SKU/Batch search (`#search-batches-input`).
+   - Interactive batch selection checkboxes with live selection valuation banner.
+   - 1-Click **⚡ Shift to Quarantine [F7]** action button (`#btn-shift-selected-action`).
+
+3. **Atomic Stock Shift Desk (`/stock-shift`, `StockShiftVoucher.tsx`)**:
+   - Pre-populates selected radar batches into line items grid (`#tbl-shift-items`).
+   - Source Godown (`#select-from-godown`, default `MAIN_SALEABLE_GODOWN`) and Destination Godown (`#select-to-godown`, default `QUARANTINE_EXPIRY_GODOWN`).
+   - Enforces real-time stock availability validation (prevents over-shifting beyond physical stock).
+   - Atomic database transaction (`POST /api/stock/shifts`): decrements `current_stock` and increments `brk_exp_stock` in `models.Batch`.
+   - Records immutable `models.StockShiftVoucher` (`SHF-2026-XXXX`) and `models.StockShiftItem`s.
+
+4. **Automated Principal Claim & Debit Note Bridging (`#check-auto-claim`)**:
+   - When checked, automatically generates a formal `models.PrincipalClaim` (`CLM-PRN-YYYY-XXXX`) of type `EXPIRY` and itemized `models.PrincipalClaimLine`s under the selected Principal (*Sun Pharma*, *Cipla*, *Krishna Medical Agencies*).
+   - Generates debit note reference and links `voucher.principal_claim_id = claim.id` for end-to-end auditability.
+   - Success feedback card (`#stock-shift-success-card`) displaying generated Voucher No (`#lbl-success-voucher-no`) and Claim No (`#lbl-success-claim-no`) with direct navigation to **View in Audit Register [F2]** and **Open Claim Desk [F8]** (`/principal`).
+
+5. **Quarantine Godown Ledger (`[F3]`) & Stock Shift Audit Register (`[F4]`)**:
+   - `[F3] Quarantine Godown Stock`: Real-time view of segregated damaged and expired stock blocked from billing, with direct `#btn-file-principal-claim-quarantine`.
+   - `[F4] Stock Shift Audit Register`: Historical audit table (`#tbl-shift-audit`) tracking all `SHF-2026-XXXX` vouchers with status badges and linked `CLM-PRN-XXXX` claim references.
+
+6. **Master Automated Selenium Suite (`test_pharma_expiry_quarantine_selenium.py`)**:
+   - Verified 100% Pass across all 13 stages with Exit Code 0:
+     - Stage 1-2: Auth & telemetry verification (105,228 units, ₹1,80,39,497.67).
+     - Stage 3-6: Cockpit launch, title, DOC-41 badge, and 4 scorecards.
+     - Stage 7-9: Radar table, bucket filters, batch selection, and shift transition.
+     - Stage 10-12: Stock shift configuration, save execution, and success card verification (`SHF-2026-0001` & `CLM-PRN-2026-0006`).
+     - Stage 13: Audit table assertion, quarantine stock update (+148 units = 303 units, ₹41,799), and Principal claims desk integration.
+

@@ -218,7 +218,49 @@ The ERP is 100% keyboard-navigable. Key shortcuts:
 | `/admin/tracking` | `#tab-btn-expenses` | `[F4]` | Multi-client expense claims tab |
 | `/admin/tracking` | `#tab-btn-cargo` | `[F6]` | Logistics pipeline tracking tab |
 | `/purchase/list` | `#grid-purchase-bills` | - | Inward purchase bills register Ag-Grid table |
+| `/inventory-dashboard` | `#card-main-stock` | - | Main Saleable Stock Value & Units KPI scorecard |
+| `/inventory-dashboard` | `#card-quarantine-stock` | - | Quarantined / Brk-Exp Stock Value KPI scorecard |
+| `/inventory-dashboard` | `#card-near-expiry-risk` | - | 90-Day Near-Expiry Risk Batches KPI scorecard |
+| `/inventory-dashboard` | `#card-claim-exposure` | - | Principal Claims & Debit Note Exposure KPI scorecard |
+| `/inventory-dashboard` | `#tab-btn-radar` | `[F2]` | Expiry Radar table and alert filters tab |
+| `/inventory-dashboard` | `#filter-bucket-ALL` | - | All Critical near-expiry filter pill |
+| `/inventory-dashboard` | `#filter-bucket-EXPIRED` | - | Expired stock (<0d) filter pill |
+| `/inventory-dashboard` | `#filter-bucket-30_DAYS` | - | Critical <30 days near-expiry filter pill |
+| `/inventory-dashboard` | `#filter-bucket-60_DAYS` | - | Warning <60 days near-expiry filter pill |
+| `/inventory-dashboard` | `#filter-bucket-90_DAYS` | - | Attention <90 days near-expiry filter pill |
+| `/inventory-dashboard` | `#filter-company-select` | - | Manufacturer / Principal dropdown filter |
+| `/inventory-dashboard` | `#search-batches-input` | - | Batch / SKU search text input |
+| `/inventory-dashboard` | `#tbl-expiry-radar` | - | Real-time batch surveillance table |
+| `/inventory-dashboard` | `#btn-select-all-batches` | - | Multi-batch select all checkbox toggle |
+| `/inventory-dashboard` | `#btn-shift-selected-action` | `[F7]` | Shift selected batches to quarantine action button |
+| `/inventory-dashboard` | `#tab-btn-quarantine` | `[F3]` | Quarantined & Breakage Stock Ledger tab |
+| `/inventory-dashboard` | `#tab-btn-history` | `[F4]` | Stock Shift Audit Register historical vouchers tab |
+| `/stock-shift` | `#select-from-godown` | - | Source Godown selector (Main Saleable Godown) |
+| `/stock-shift` | `#select-to-godown` | - | Destination Godown selector (Quarantine Godown) |
+| `/stock-shift` | `#check-auto-claim` | - | Auto-generate Principal claim & debit note checkbox |
+| `/stock-shift` | `#select-principal-claim-target` | - | Target Principal dropdown (Sun Pharma, Cipla, Krishna) |
+| `/stock-shift` | `#tbl-shift-items` | - | Stock Shift line items grid table |
+| `/stock-shift` | `#btn-save-shift-voucher` | `[F7]` | Save Shift Voucher & execute atomic reallocation |
+| `/stock-shift` | `#stock-shift-success-card` | - | Shift success card with voucher and claim references |
+| `/stock-shift` | `#lbl-success-voucher-no` | - | Generated Stock Shift Voucher number (SHF-2026-XXXX) |
+| `/stock-shift` | `#lbl-success-claim-no` | - | Generated Principal Claim reference (CLM-PRN-XXXX) |
+| `/stock-shift` | `#btn-view-in-audit` | `[F2]` | View voucher in Stock Shift Audit Register |
+| `/stock-shift` | `#btn-view-claim-desk` | `[F8]` | Jump to Principal Claims Desk |
+
+---
+
+### 2.23 Module 23 — DOC-41: Pharma Expiry Radar, Stock Shift Quarantine Engine & Principal Debit Note Settlement Desk
+
+- **Route**: `/inventory-dashboard`, `/inventory/dashboard`, `/stock-shift` (or Top Nav `Inventory ▾` &rarr; `Expiry & Breakage Cockpit`).
+- **Core Purpose**: Real-time batch shelf-life surveillance, atomic stock reallocation from Saleable to Quarantine Godowns (`Batch.current_stock` &rarr; `Batch.brk_exp_stock`), and automated bridging into `PrincipalClaim` (`CLM-PRN-YYYY-XXXX`) for debit note recovery.
+- **Backend APIs**:
+  - `GET /api/stock/expiry-cockpit-telemetry`: Aggregate live KPIs across Main Stock, Quarantine, 30/60/90-day risk buckets, and pending claims.
+  - `GET /api/stock/expiry-radar-batches`: Classified batches with days to expiry, status tags (🔴 EXPIRED, 🟠 <30d, 🟡 <60d, 🔵 <90d), current stock, and valuation.
+  - `POST /api/stock/shifts`: Atomic reallocation transaction with optional dual-filing of `PrincipalClaim` and itemized `PrincipalClaimLine`s.
+  - `GET /api/stock/shifts`: Historical audit register of `SHF-2026-XXXX` vouchers.
+- **Automated QA Verification**: `test_pharma_expiry_quarantine_selenium.py` (13 stages, 100% Passed, Exit Code 0).
 
 ---
 
 *End of Unified Master Manual.*
+

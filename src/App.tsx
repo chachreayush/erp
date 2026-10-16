@@ -281,6 +281,12 @@ function App() {
         {/* DOC-37 Principal Commission & Recovery Engine Routes */}
         <Route path="commission" element={<CommissionControlCenter />} />
         <Route path="commission/recovery" element={<CommissionControlCenter />} />
+
+        {/* DOC-41 Pharma Expiry Radar & Stock Shift Quarantine Routes */}
+        <Route path="inventory-dashboard" element={<InventoryDashboard />} />
+        <Route path="inventory/dashboard" element={<InventoryDashboard />} />
+        <Route path="stock-shift" element={<StockShiftVoucher />} />
+        <Route path="inventory/replenishment" element={<Replenishment />} />
       </Route>
 
 
@@ -288,9 +294,6 @@ function App() {
           Any unknown URL redirects to "/" (dashboard).
           The ProtectedRoute will then redirect to /login if needed.
       ─────────────────────────────────────────────────────── */}
-      <Route path="/inventory-dashboard" element={<ProtectedRoute><InventoryDashboard /></ProtectedRoute>} />
-      <Route path="/inventory/replenishment" element={<ProtectedRoute><Replenishment /></ProtectedRoute>} />
-      <Route path="/stock-shift" element={<ProtectedRoute><StockShiftVoucher /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </ThemeProvider>

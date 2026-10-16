@@ -1587,4 +1587,98 @@ Scroll down to the **Generated Client C&F Commission Bills History** table to re
 
 ---
 
+## 35. DOC-41: Pharma Expiry Surveillance, Stock Shift Quarantine Reallocation & Principal Claim Filing Operator Guide
+
+### 35.1 Overview & Operational Objectives
+In high-volume pharmaceutical distribution and C&F depot operations, managing shelf-life is critical to avoid unsellable inventory write-offs. The **Pharma Expiry Radar & Breakage Cockpit** gives operators full visibility into near-expiry stock and provides an automated, transactional 1-click bridge to move stock out of saleable godowns into quarantine, while simultaneously filing debit note claims with manufacturers (Principals).
+
+### 35.2 How to Access the Cockpit
+- **Via Top Navigation**: Click `Inventory ▾` &rarr; select **`Expiry & Breakage Cockpit`** (available under both `Current Stock` and `Claims & Replenishment`).
+- **Direct Route**: Navigate to `/inventory-dashboard` or `/inventory/dashboard`.
+- **Keyboard Shortcut**: Press `[Escape]` from any sub-view to return to Main Cockpit.
+
+### 35.3 Understanding the 4 Real-Time Telemetry Scorecards
+At the top of the cockpit, four live scorecards reflect the real-time health of your inventory:
+1. **Main Stock Value** (`#card-main-stock`):
+   - Shows the total value and physical unit count of healthy, active inventory currently available for sale in the Main Godown.
+2. **Quarantine Godown** (`#card-quarantine-stock`):
+   - Shows the valuation and unit count of quarantined, damaged, and expired goods currently segregated in `brk_exp_stock`. These units are strictly blocked from billing at Counter Workbench `[F7]`.
+3. **Near-Expiry Surveillance** (`#card-near-expiry-risk`):
+   - Real-time valuation and batch count of items falling inside the 90-day risk horizon.
+4. **Principal Claims Exposure** (`#card-claim-exposure`):
+   - Cumulative value of active pending debit note claims awaiting approval or credit note settlement from Principals.
+
+### 35.4 Step-by-Step Operator Workflow: Surveil & Shift Batches
+
+#### Step 1: Open the Expiry Radar (`[F2]`)
+1. Press `[F2]` or click the **`[F2] Expiry Radar`** tab.
+2. Use the **Bucket Filter Pills** to isolate specific risk horizons:
+   - **`All Critical`**: Shows all batches expiring within 90 days or already expired.
+   - **`🔴 Expired`**: Filter batches with expiry $\le 0$ days.
+   - **`🟠 < 30 Days`**: Filter batches expiring within the next 30 days.
+   - **`🟡 < 60 Days`**: Filter batches expiring within 31 to 60 days.
+   - **`🔵 < 90 Days`**: Filter batches expiring within 61 to 90 days.
+3. Optionally filter by **Manufacturer / Principal** using the dropdown (`#filter-company-select`) or type in the item search bar (`#search-batches-input`).
+
+#### Step 2: Select Batches for Quarantine Shift
+1. Click individual row checkboxes or click the **Select All** icon (`#btn-select-all-batches`) at the top of the checkbox column.
+2. The dynamic action banner immediately updates, displaying:
+   `N Batches Selected (₹X,XXX Valuation)`.
+3. Click the amber **`⚡ Shift to Quarantine [F7]`** button (`#btn-shift-selected-action`).
+
+#### Step 3: Configure the Stock Shift Voucher (`/stock-shift`)
+The system navigates to the **Internal Stock Shift Voucher** desk with your selected batches pre-populated in the line items grid:
+1. **Shift Date**: Defaults to today's date (`#input-shift-date`).
+2. **Shift Voucher No**: Defaults to `SHF-2026-AUTO` (the server auto-numbers as `SHF-2026-0001`, `SHF-2026-0002`, etc.).
+3. **Source Godown (From)**: Defaults to `Main Saleable Godown` (`#select-from-godown`).
+4. **Destination Godown (To)**: Defaults to `Quarantine / Expiry Godown` (`#select-to-godown`).
+5. **Remarks / Reason**: e.g., *"Near-expiry batch returns within contractual window"*.
+
+#### Step 4: Enable Automated Principal Expiry Claim Generation
+1. Verify the checkbox **`⚡ Auto-Generate Principal Expiry Claim & Debit Note`** (`#check-auto-claim`) is checked.
+2. Select the **Target Principal** from the dropdown (`#select-principal-claim-target`):
+   - *Sun Pharma Healthcare Ltd.*
+   - *Cipla Therapeutics Ltd.*
+   - *Krishna Medical Agencies (Client)*
+3. In the line items grid, adjust the **Shift Qty** if you only want to shift a partial quantity. The system automatically enforces stock validation (you cannot shift more than available stock).
+
+#### Step 5: Save Voucher & Post Atomic Reallocation
+1. Click the green **`Save Shift Voucher [F7]`** button (`#btn-save-shift-voucher`).
+2. The system executes the atomic database transaction:
+   - Decrements `current_stock` in the Main Godown.
+   - Increments `brk_exp_stock` in the Quarantine Godown.
+   - Files an official `PrincipalClaim` (`CLM-PRN-2026-XXXX`) with full line items in `principal_claims`.
+
+#### Step 6: Review the Shift & Claim Success Card
+A prominent success banner (`#stock-shift-success-card`) appears displaying:
+- **Generated Voucher Number**: `#lbl-success-voucher-no` (e.g. `SHF-2026-0001`).
+- **Shifted Units**: e.g. `148 units (1 items) shifted into Quarantine Godown`.
+- **Automated Principal Claim**: `#lbl-success-claim-no` (e.g. `CLM-PRN-2026-0006`), Principal Name, Claim Amount, and `PENDING` status.
+- **Action Buttons**:
+  - Click **`View in Audit Register [F2]`** (`#btn-view-in-audit`) to view the voucher in the Cockpit audit trail.
+  - Click **`Open Claim Desk [F8]`** (`#btn-view-claim-desk`) to jump straight to the Principal Claims Desk (`/principal`).
+
+### 35.5 Inspecting Quarantine Godown & Historical Audit Trail
+1. In the Cockpit, switch to **`[F3] Quarantine Godown Stock`**:
+   - Verify that your quarantined stock value and unit count have increased accordingly.
+   - Use the **`⚡ File Principal Expiry Claim`** button if you need to file an additional claim on existing quarantine inventory.
+2. Switch to **`[F4] Stock Shift Audit Register`**:
+   - Inspect all historical `SHF-2026-XXXX` vouchers.
+   - Review voucher numbers, shift dates, from/to godowns, total shifted quantities, valuations, and clickable `CLM-PRN-XXXX` claim reference badges.
+
+### 35.6 Operator Keyboard Shortcuts Summary
+| Hotkey | Action | Destination |
+|---|---|---|
+| `[F2]` | Switch to Expiry Radar Tab | `/inventory-dashboard` |
+| `[F3]` | Switch to Quarantine Godown Tab | `/inventory-dashboard` |
+| `[F4]` | Switch to Stock Shift Audit Register Tab | `/inventory-dashboard` |
+| `[F5]` | Refresh Telemetry & Radar Data | Current Cockpit |
+| `[F7]` | Execute Stock Shift / Save Voucher | `/stock-shift` |
+| `[F8]` | Open Principal Claims Desk | `/principal` |
+| `[F9]` | Open Current Stock View | `/stock` |
+| `[Escape]` | Return to Main Cockpit / Dashboard | `/inventory-dashboard` / `/dashboard` |
+
+---
+
 *End of User Workflow Manual.*
+

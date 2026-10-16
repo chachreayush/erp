@@ -305,6 +305,41 @@ In accordance with the directive to exhaustively document every screen element, 
     - Synchronized all 18 updated files and screenshots to `c:\Users\DELL\OneDrive\Desktop\erp` via Robocopy.
     - Committed and pushed to GitHub `origin main` (commit `7720ca8`).
 
+---
+
+## 10. DOC-41: Pharma Expiry Radar, Stock Shift Quarantine Engine & Principal Debit Note Settlement Desk
+
+### 1. Executive Summary & Capabilities
+Replaces prototype mock data in `InventoryDashboard.tsx` and static alerts in `StockShiftVoucher.tsx` with a live, production-grade pharmaceutical shelf-life surveillance, atomic stock reallocation, and principal claim bridging engine:
+- **Real-Time Expiry Cockpit Telemetry**: 4 live metric scorecards computing Main Stock Value, Quarantined Godown Value, 90-Day Near-Expiry Risk Valuation, and Principal Claims & Debit Note Exposure.
+- **Expiry Radar Engine (`[F2]`)**: Interactive batch classification table with alert pills (🔴 Expired, 🟠 <30d, 🟡 <60d, 🔵 <90d), company dropdown filters, search bar, and batch multi-selection.
+- **Atomic Stock Shift Desk (`/stock-shift`, `[F7]`)**: Pre-populated line items, stock availability verification, and atomic godown transfer from `MAIN_SALEABLE_GODOWN` to `QUARANTINE_EXPIRY_GODOWN` decrementing `Batch.current_stock` and incrementing `Batch.brk_exp_stock`.
+- **Automated Principal Claim & Debit Note Bridging**: Toggling `#check-auto-claim` automatically generates a formal `PrincipalClaim` (`CLM-PRN-YYYY-XXXX`) and itemized `PrincipalClaimLine`s under the selected Principal (*Sun Pharma*, *Cipla*, *Krishna Medical Agencies*), creating an instant audit trail in `/principal`.
+- **Quarantine Godown Ledger (`[F3]`) & Audit Register (`[F4]`)**: Live audit log of all `SHF-2026-XXXX` vouchers with status badges and linked claim reference tags.
+
+### 2. Photographic Visual Proof
+
+````carousel
+![Pharma Expiry Radar & Breakage Cockpit](verified_pharma_expiry_cockpit.png)
+<!-- slide -->
+![Stock Shift Voucher Desk & Pre-Selected Batches](verified_stock_shift_voucher.png)
+<!-- slide -->
+![Stock Shift Success Card & Automated Principal Claim](verified_stock_shift_claim_success.png)
+<!-- slide -->
+![Quarantine Godown Stock Ledger & Audit Register](verified_quarantine_stock_ledger.png)
+<!-- slide -->
+![Principal Claims Desk Linked Claim](verified_principal_claim_from_shift.png)
+````
+
+### 3. Automated Test Verification (100% Pass)
+
+| Test Suite Script | Verified Module Scope | Test Stages Executed | Result | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| [`test_pharma_expiry_quarantine_selenium.py`](file:///c:/Users/DELL/OneDrive/Desktop/erp2/test_pharma_expiry_quarantine_selenium.py) | • Backend Auth & Telemetry API verification (`GET /api/stock/expiry-cockpit-telemetry`)<br>• Chrome Headless launch & Expiry Cockpit navigation (`/inventory-dashboard`)<br>• 4 Telemetry scorecards verification (Main, Quarantine, Near-Expiry, Claims)<br>• Expiry Radar table rendering & bucket filters (`ALL`, `EXPIRED`, `30_DAYS`, `60_DAYS`, `90_DAYS`)<br>• Multi-batch selection & live calculation banner<br>• 1-Click navigation to Stock Shift Desk (`/stock-shift`) with pre-filled line items<br>• Godown selection (`MAIN_SALEABLE_GODOWN` &rarr; `QUARANTINE_EXPIRY_GODOWN`)<br>• Auto-generate Principal claim toggle & Principal selection<br>• Atomic voucher saving & dual claim creation (`SHF-2026-0001` & `CLM-PRN-2026-0006`)<br>• Stock shift success card verification with direct navigation buttons<br>• Audit register assertion & Quarantine Godown ledger update (+148 units = 303 units, ₹41,799)<br>• Principal Claims Desk (`/principal`) integration assertion | 13/13 Stages PASSED | **100% PASS** | **Exit Code 0** |
+
+---
+
+
 
 
 
