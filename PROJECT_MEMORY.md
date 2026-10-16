@@ -792,9 +792,100 @@ Implemented and verified the production-grade Principal & C&F Operations Managem
 
 ---
 
+---
+
+## Production Update: Enterprise Multi-Client Operations Tracking & Radar Engine (DOC-38, October 2026)
+
+1. **Enterprise Context & Multi-Tenant Aggregation**:
+   - Holding entities and C&F management hubs require an overarching supervisory console across multiple client companies (e.g. *KRISHNA MEDICAL AGENCIES*, *Test Org*).
+   - Developed `AdminEnterpriseTracker.tsx` (accessible via route `/admin/tracking`, `/tracking`, Workbench tile `[Ctrl+6]`, or `/clients`).
+   - Apex Scope Selector dynamically toggles between **Consolidated Multi-Client Radar** (`ALL`) and individual client isolation.
+
+2. **Backend Telemetry Architecture (`/api/admin/tracking/*`)**:
+   - `GET /api/admin/tracking/summary`: High-level aggregated KPIs (Gross Sales Turnover, Total Operating Expenses, In-Transit vs. Delivered Cargo, Client count, Authorized Product Brands count).
+   - `GET /api/admin/tracking/clients`: Client-by-client operational scorecard matrix computing turnover, invoices count, operational expense claims, active cargo consignments, and mapped product brands per organization.
+   - `GET /api/admin/tracking/sales`: Multi-client sales invoices ledger with client attribution, customer names, date filtering, item counts, and grand totals.
+   - `GET /api/admin/tracking/expenses`: Multi-client operational claims and C&F service costs (storage rent, dedicated staff salaries, freight charges, petty cash).
+   - `GET /api/admin/tracking/cargo`: Cross-client logistics consignment pipeline displaying origin/destination hubs, transporter names, vehicle/driver telemetry, and live status.
+
+3. **Frontend Cockpit & Zero-Mouse Workspaces**:
+   - 4 Neumorphic KPI Cards: Total Sales Turnover, Total Expenses & C&F, Cargo & Consignments (with In-Transit pulse), and Clients & Product Brands.
+   - `[F2] Client Scorecards`: Matrix table with 1-click **Drilldown** action scoping all telemetry to that client.
+   - `[F3] Sales Tracking`: Cross-client invoice register with client attribution badge.
+   - `[F4] Expenses Tracking`: Multi-client operational claims ledger.
+   - `[F6] Cargo Tracking`: Logistics board with vehicle numbers, transporter, route hubs, and live shipment status.
+   - `[Esc]`: Universal return to Counter Workbench (`/`).
+
+4. **Automated Selenium Verification**:
+   - `test_admin_enterprise_tracking_selenium.py`: 12/12 stages PASSED (100% Exit Code 0).
+   - Captured visual proof: `verified_admin_tracker_scorecards.png`, `verified_admin_tracker_sales.png`, `verified_admin_tracker_expenses.png`, `verified_admin_tracker_cargo.png`.
+
+---
+
+## Production Update: Responsive Top Navigation Architecture & Screen Fit (DOC-39, October 2026)
+
+1. **Ergonomic Refactoring (`Header.tsx`)**:
+   - Reorganized top green navigation bar from 13+ raw options down to **10 prioritized parent categories**:
+     `Dashboard`, `Master ▾`, `Finance & Accounting ▾`, `Inventory ▾`, `Sales & Purchase ▾`, `C&F & Logistics ▾`, `Workflows [F4] ▾`, `GST & Compliance ▾`, `CRM & Admin ▾`, `Reports ▾`.
+   - **`C&F & Logistics ▾` Dropdown**: Grouped Principal Operations, C&F Commission Engine, Admin Multi-Client Radar, Cargo Board, Freight Contracts, Transporter Recon, Cargo Cost Center, and POD Exception Desk.
+   - **`Workflows [F4] ▾`**: Grouped Approval Inbox (`[F4]`), Rule Designer, SLA Monitor, Audit Trail Explorer (`/audit`), and Data Governance Console (`/audit/governance`).
+   - **`CRM & Admin ▾`**: Grouped CRM Dashboard, Client Management (`/clients`), Admin Multi-Client Radar (`/admin/tracking`), Product Companies Master (`/master/companies`), Bulletin Board, and Settings.
+2. **Keyboard Navigation & Viewport Certification**:
+   - Arrow key trapping (`ArrowDown`, `ArrowUp`, `ArrowRight`, `ArrowLeft`), `Enter` navigation, and `Esc` dismissal.
+   - Selenium verified: Header width 1422px in 1422px window with **zero horizontal overflow**.
+   - Captured visual proof: `verified_top_menu_layout.png`, `verified_cf_dropdown_menu.png`.
+
+---
+
+## Production Update: Client Management C&F Commission & Expense Reimbursement Billing Engine with Bilateral Inward/Outward Dual-Posting (DOC-40, October 2026)
+
+1. **Business Domain & Dual-Posting Architecture**:
+   - Allows the Main Admin Agency to calculate, automate or manually adjust, and generate formal **Commission and Expense Reimbursement Bills** for client companies registered in Client Management (*KRISHNA MEDICAL AGENCIES*).
+   - **Outward Bill in Main Admin**: Generates commercial bill in Billing (`models.Invoice` with `invoice_type="bill"`, e.g. `CF-BILL-2026-0002`). Classified under GST SAC **998599 (C&F Support Services)**.
+   - **Inward Purchase Bill in Client Organization**: Automatically dual-posts an inward purchase bill (`models.Invoice` with `invoice_type="purchase-bill"`, e.g. `PUR-CF-2026-0002`) directly inside the client organization's database partition so both corporate entities' financial accounts balance simultaneously without reconciliation discrepancies.
+   - **Audit Ledger**: Creates `models.CommissionCalculation` records parented to `models.CommissionEvent`, and an approved `models.RecoveryClaim` linked to documents via `models.RecoveryDocumentLink`.
+
+2. **Backend RESTful Endpoints (`/api/commission/*`)**:
+   - `GET /api/commission/clients/{client_org_id}/telemetry`: Pulls actual sales turnover, suggested commission % (5.0%), and depot operating expenses (storage rent, staff salaries, freight recharges).
+   - `POST /api/commission/generate-client-bill`: Generates outward service bill, dual-posts inward client purchase bill, creates calculations and claims.
+   - `GET /api/commission/client-bills`: Lists all generated client commission bills with dual purchase references.
+
+3. **Frontend Cockpit (`CommissionControlCenter.tsx`)**:
+   - New tab: **`[F5] Client C&F Billing Desk`** (`#tab-btn-client-billing`).
+   - Client Organization Selector: `#client-billing-org-select`.
+   - 1-Click **⚡ Auto-Fetch Client Turnover & Expenses**: `#btn-autofetch-client-telemetry`.
+   - Dual configuration workspaces for Turnover/Commission and Reimbursable Depot Expenses (Storage Rent, Staff Salaries, Freight, Handling, GST).
+   - Real-time Itemized Line Items Preview Table and Financial Summary.
+   - Dual-Posting Checkbox (`#check-dual-post-purchase`) and Generate Button (`#btn-generate-client-bill`).
+   - Success Card (`#generated-bill-success-card`) with direct navigation links to **Billing Desk [F7]** and **Purchase Register [F9]**.
+   - Historical Client C&F Bills register table.
+
+4. **Automated Selenium Verification**:
+   - `test_client_commission_billing_selenium.py`: 13/13 stages PASSED (100% Exit Code 0).
+   - Captured visual proof: `verified_client_commission_billing_desk.png`, `verified_client_bill_generated_dual_post.png`.
+
+---
+
+## Master Automated Test Matrix Registry (15 Suites — 100% PASS)
+
+| # | Test Suite Script | Module Coverage | Assertions Target & Status |
+| :--- | :--- | :--- | :--- |
+| 1 | `test_master_all_6_modules_selenium.py` | Sales, Purchase, DN, CN, BKI, BKR | 100% PASS: All 6 transaction modules with series continuation. |
+| 2 | `test_reports_and_finance_selenium.py` | Day Book, Ledger, Trial Balance, P&L, BS, BRS, Designer | 100% PASS: Full double-entry financial reporting suite. |
+| 3 | `test_gst_compliance_selenium.py` | GSTR-1, GSTR-2, GSTR-3B, Offline JSON, E-Invoice | 100% PASS: Statutory GST returns and offline utility JSON payload. |
+| 4 | `test_receipt_payment_settlement_selenium.py` | Receipt `[F6]`, Payment `[F5]`, FIFO allocation `[Alt+A]` | 100% PASS: Settlement cockpit, 3-card telemetry strip, FIFO engine. |
+| 5 | `test_journal_accrual_engine_selenium.py` | Multi-leg journal cockpit, accrual scheduler | 100% PASS: Dynamic double-entry balancing and atomic reversals. |
+| 6 | `test_direct_expense_ui_selenium.py` | Direct expense form, live P&L impact box, advances | 100% PASS: Real-time P&L net profit deduction and claim approvals. |
+| 7 | `test_fixed_assets_selenium.py` | Asset registration, WDV/SLM depreciation run | 100% PASS: Automatic depreciation posting and asset register. |
+| 8 | `test_bank_recon_cash_selenium.py` | BRS auto-matching, cash denomination drawer tally | 100% PASS: Multi-rule reconciliation and physical cash counting audit. |
+| 9 | `test_dashboard_bi_control_center_selenium.py` | Executive BI, 7-month curves, Opex donut, territory map | 100% PASS: Role-based separation and territory modal drilldowns. |
+| 10 | `test_workflow_approval_automation_selenium.py` | Universal trigger, `[F4]` Inbox, Maker-Checker, Designer | 100% PASS: Automated business workflows and SLA tracking. |
+| 11 | `test_audit_governance_selenium.py` | SHA-256 hash chain, diff drawer, legal holds, anomalies | 100% PASS: Cryptographic audit trail and data governance console. |
+| 12 | `test_cargo_consignment_selenium.py` | Consignment board, CBM calc, Admin cost center, POD desk | 100% PASS: Decoupled freight movement and combined reporting. |
+| 13 | `test_freight_logistics_selenium.py` | Rate Master, Calculation Sandbox `[F4]`, Transporter Recon | 100% PASS: Carrier contracts and GL Account 5200 posting. |
+| 14 | `test_principal_operations_selenium.py` | Control Center, Custody Stock Matrix, Claims Desk `[F7]`, Recon | 100% PASS: Principal agreement governance and reconciliation statements. |
+| 15 | `test_client_commission_billing_selenium.py` | Top Nav 10-Item layout, C&F Billing Desk `[F5]`, Dual-Posting | 100% PASS: Auto-fetch telemetry, outward bill `CF-BILL-`, and inward purchase `PUR-CF-`. |
+
+---
+
 *End of Master Memory File.*
-
-
-
-
-

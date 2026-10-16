@@ -296,29 +296,112 @@ The ERP reporting and double-entry accounting engine has been verified with **10
 
 ---
 
-## 19. Comprehensive Automated QA Test Suite Registry
+## 20. Freight Logistics & Carrier Rate Master (/freight/contracts, /freight/reconciliation)
+* **Access Point**: Counter Workbench tile `[Ctrl+2]` or `C&F & Logistics ▾` &rarr; `Freight Contracts & Rates`.
+* **Rate Master**: Manages vehicle types, per-km/per-kg rate slabs, minimum charge floors, and transit times.
+* **Rating Sandbox (`[F4]`)**: Live freight cost computation with formula trace.
+* **Transporter Reconciliation**: Matches actual transporter bills against system consignment estimates and posts settled liabilities to GL Account 5200.
 
-| Test Suite File | Module Coverage | Assertions Target & Status |
-| :--- | :--- | :--- |
-| `test_master_all_6_modules_selenium.py` | Sales, Purchase, DN, CN, BKI, BKR | 100% PASS: All 6 transaction modules with series continuation. |
-| `test_reports_and_finance_selenium.py` | Day Book, Ledger, Trial Balance, P&L, BS, BRS, Designer | 100% PASS: Full double-entry financial reporting suite. |
-| `test_gst_compliance_selenium.py` | GSTR-1, GSTR-2, GSTR-3B, Offline JSON, E-Invoice | 100% PASS: Statutory GST returns and offline utility JSON payload. |
-| `test_receipt_payment_settlement_selenium.py` | Receipt `[F6]`, Payment `[F5]`, FIFO allocation `[Alt+A]` | 100% PASS: Settlement cockpit, 3-card telemetry strip, FIFO engine. |
-| `test_journal_accrual_engine_selenium.py` | Multi-leg journal cockpit, accrual scheduler | 100% PASS: Dynamic double-entry balancing and atomic reversals. |
-| `test_direct_expense_ui_selenium.py` | Direct expense form, live P&L impact box, advances | 100% PASS: Real-time P&L net profit deduction and claim approvals. |
-| `test_fixed_assets_selenium.py` | Asset registration, WDV/SLM depreciation run | 100% PASS: Automatic depreciation posting and asset register. |
-| `test_bank_recon_cash_selenium.py` | BRS auto-matching, cash denomination drawer tally | 100% PASS: Multi-rule reconciliation and physical cash counting audit. |
-| `test_dashboard_bi_control_center_selenium.py` | Executive BI, 7-month curves, Opex donut, territory map | 100% PASS: Role-based separation and territory modal drilldowns. |
-| `test_workflow_approval_automation_selenium.py` | Universal trigger, `[F4]` Inbox, Maker-Checker, Designer | 100% PASS: Automated business workflows and SLA tracking. |
-| `test_audit_governance_selenium.py` | SHA-256 hash chain, diff drawer, legal holds, anomalies | 100% PASS: Cryptographic audit trail and data governance console. |
-| `test_cargo_consignment_selenium.py` | Consignment board, CBM calc, Admin cost center, POD desk | 100% PASS: Decoupled freight movement and combined reporting. |
-| `test_esc_navigation_and_cargo_flow_selenium.py` | Universal Esc key handling, Exit modal, Workflows dropdown | 100% PASS: Full keyboard navigation lifecycle across all modules. |
-| `verify_live_vercel_receipt_payment_audit.py` | Live production audit on https://erp-rho-three.vercel.app | 100% PASS: Zero regressions across all newly deployed luxury screens. |
+---
+
+## 21. Principal Operations & Consignment Custody Control Center (/principal)
+* **Access Point**: Counter Workbench tile `[Ctrl+3]` or `C&F & Logistics ▾` &rarr; `Principal & C&F Operations`.
+* **Custody Inventory Matrix (`[F2]`)**: Complete physical inventory segregation of pharmaceutical formulations under C&F custody.
+* **Claims Desk (`[F3]`) & New Claim Modal (`[F7]`)**: Fast filing of breakage, damage, and expiry claims with mandatory return proof and instant `[Esc]` dismissal.
+* **Reconciliation & Statements (`[F4]`, `[F5]`)**: 3-way physical vs ledger stock matching and reconstructable periodic business statements with SHA-256 seal.
+
+---
+
+## 22. C&F Commission & Recovery Engine (/commission)
+* **Access Point**: Counter Workbench tile `[Ctrl+4]` or `C&F & Logistics ▾` &rarr; `C&F Commission & Recovery Engine`.
+* **4-Pillar Deal Terms (`[F2]`)**: Master contractual terms for Godown Storage Rent, Dedicated Staff Salaries, Cargo/Freight Recharges, and Sales Commission %.
+* **Deterministic Sandbox (`[F3]`)**: Dynamic month-to-month overrides for actual payroll and warehouse lease fluctuations.
+* **Recovery Claims & Dual-Posting (`[F4]`)**: 4-eyes claim approval batching; 1-click generation of Outward Service Invoices and Inward Purchase Bills (`PUR-SRV-2026-XXXX`) posted into `/purchase/list`.
+
+---
+
+## 23. Admin Enterprise Multi-Client Radar (/admin/tracking, /tracking)
+* **Access Point**: Counter Workbench tile `[Ctrl+6]`, `C&F & Logistics ▾` &rarr; `Admin Multi-Client Radar`, or `/clients`.
+* **Apex Scope Switcher**: Seamlessly toggles between consolidated multi-client metrics and single-client isolation.
+* **4 Workspaces**: `[F2] Client Scorecards` (ranking matrix with 1-click drilldown), `[F3] Sales Tracking` (cross-client invoice register), `[F4] Expenses Tracking` (operational claims), and `[F6] Cargo Tracking` (logistics pipeline).
+
+---
+
+## 24. Responsive 10-Item Top Navigation Menu
+* **Screen Fit Ergonomics**: 10 clean top categories that eliminate horizontal scrollbars and screen overflow.
+* **C&F & Logistics Dropdown**: Centralizes Principal Ops, Commission Engine, Multi-Client Radar, Cargo Board, Freight Contracts, Transporter Recon, and Cost Center.
+* **Keyboard Hotkeys**: Arrow key navigation with focus trapping, `Enter` selection, and universal `Esc` dismissal.
+
+---
+
+## 25. Client Management C&F Commission & Expense Reimbursement Billing Desk ([F5] on /commission)
+* **Real-World Client Billing**: Specifically designed for billing client companies (e.g. *KRISHNA MEDICAL AGENCIES*) when acting as their C&F Agent.
+* **1-Click Auto-Fetch Telemetry**: Instantly pulls actual client sales turnover, computes commission % (e.g. 5%), and aggregates godown rent, staff payroll, and freight recharges.
+* **Manual Customization**: Flexible inputs for sales turnover base, commission %, godown storage rent, dedicated staff salaries, freight, handling, and GST SAC 998599 (18%).
+* **Bilateral Dual-Posting Engine**:
+  - Atomically creates Outward Service Bill (`CF-BILL-2026-XXXX`) in Main Admin Billing Desk (`/billing`, `[F7]`).
+  - Automatically dual-posts Inward Purchase Bill (`PUR-CF-2026-XXXX`) in the client company's inward purchase register (`/purchase/list`, `[F9]`).
+  - Creates linked Commission Calculations parented to Commission Events, and an approved Recovery Claim (`CLM-REC-YYYY-XXXX`).
+* **Instant Success Card & Register**: Provides one-click navigation to outward and inward registers, alongside an audit history table of past bills.
+
+---
+
+## 26. Master Screen-by-Screen UI Element & Hotkey Catalog (Updated)
+
+| Screen Context | UI Element Selector / ID | Control Type & Hotkey | Operational Functionality & Business Rule |
+| :--- | :--- | :--- | :--- |
+| **Counter Workbench (`/`)** | `#hub-btn-sales-bill` | Button `[F2]` | Opens Counter Sales Billing screen with sequential invoice continuation. |
+| **Counter Workbench (`/`)** | `#hub-btn-receipt-voucher` | Button `[F6]` | Opens Customer Collection & Receipt Voucher screen. |
+| **Counter Workbench (`/`)** | `#hub-btn-payment-voucher` | Button `[F5]` | Opens Supplier Outward Payment Voucher screen. |
+| **Counter Workbench (`/`)** | `#hub-btn-cargo-management` | Button `[Ctrl+1]` | Launches Cargo & Consignment Management Board. |
+| **Counter Workbench (`/`)** | `#hub-btn-freight-management` | Button `[Ctrl+2]` | Launches Freight Contracts & Carrier Rate Master. |
+| **Counter Workbench (`/`)** | `#hub-btn-principal-management`| Button `[Ctrl+3]` | Launches Principal Operations & Consignment Custody Center. |
+| **Counter Workbench (`/`)** | `#hub-btn-commission-management`| Button `[Ctrl+4]` | Launches C&F Commission & Recovery Engine. |
+| **Counter Workbench (`/`)** | `#hub-btn-admin-tracking` | Button `[Ctrl+6]` | Launches Enterprise Multi-Client Operations Radar. |
+| **Counter Workbench (`/`)** | `#hub-btn-audit-trail` | Button | Opens Cryptographic SHA-256 Audit Trail Explorer. |
+| **Counter Workbench (`/`)** | `#modal-exit-app` | Modal `[Esc]` | Application exit confirmation dialog with Exit `[Enter]` and Cancel `[Esc]`. |
+| **Header** | `#btn-workflow-dropdown` | Dropdown `[F4]` | Expands workflows menu with Inbox, Designer, Monitor, Audit Trail, and Governance. |
+| **Header** | `parent-menu-btn-cf` | Dropdown | Expands C&F & Logistics menu with Principal, Commission, Radar, Cargo, Freight, Recon. |
+| **Receipt Voucher (`/receipt`)** | `#btn-auto-allocate-fifo` | Button `[Alt+A]` | Executes FIFO auto-allocation across pending customer invoices. |
+| **Payment Voucher (`/payment`)** | `#btn-auto-allocate-fifo` | Button `[Alt+A]` | Executes FIFO auto-allocation across pending vendor purchase bills. |
+| **Audit Explorer (`/audit`)** | `#btn-verify-chain` | Button | Traverses cryptographic SHA-256 hash chain and certifies 100% integrity. |
+| **Cargo Board (`/cargo`)** | `#btn-register-consignment` | Button `[F6]` | Opens consignment registration modal with volumetric CBM calculator. |
+| **Freight Master (`/freight/contracts`)** | `#tab-btn-sandbox` | Tab `[F4]` | Evaluates live freight calculations with formula trace. |
+| **Principal (`/principal`)** | `#btn-open-claim-modal` | Button `[F7]` | Opens Principal breakage/damage claim modal with [Esc] dismissal. |
+| **Commission (`/commission`)** | `#tab-btn-client-billing` | Tab `[F5]` | Opens Client Management C&F Commission & Expense Billing Desk. |
+| **Commission (`/commission`)** | `#btn-autofetch-client-telemetry` | Button | 1-Click Auto-Fetch client sales turnover and depot operating expenses. |
+| **Commission (`/commission`)** | `#check-dual-post-purchase` | Checkbox | Toggles automated dual-posting into the client company's inward purchase register. |
+| **Commission (`/commission`)** | `#btn-generate-client-bill` | Button | Atomically creates outward bill (`CF-BILL-`) and inward purchase bill (`PUR-CF-`). |
+| **Commission (`/commission`)** | `#btn-goto-outward-billing` | Button `[F7]` | Quick jump to Outward Bill in Billing Desk. |
+| **Commission (`/commission`)** | `#btn-goto-inward-purchase` | Button `[F9]` | Quick jump to Inward Bill in Purchase Register. |
+| **Radar (`/admin/tracking`)** | `#select-tracking-scope` | Dropdown | Toggles between Consolidated multi-client view and single-client isolation. |
+| **Radar (`/admin/tracking`)** | `#tab-btn-scorecards` | Tab `[F2]` | Displays comparative client scorecards matrix with 1-click drilldown. |
+| **Radar (`/admin/tracking`)** | `#tab-btn-sales` | Tab `[F3]` | Displays multi-client sales invoice register with client attribution. |
+| **Radar (`/admin/tracking`)** | `#tab-btn-expenses` | Tab `[F4]` | Displays multi-client operational expense claims. |
+| **Radar (`/admin/tracking`)** | `#tab-btn-cargo` | Tab `[F6]` | Displays active cargo logistics pipeline with in-transit pulse. |
+
+---
+
+## 27. Comprehensive Automated QA Test Suite Registry (15 Suites)
+
+| # | Test Suite File | Module Coverage | Assertions Target & Status |
+| :--- | :--- | :--- | :--- |
+| 1 | `test_master_all_6_modules_selenium.py` | Sales, Purchase, DN, CN, BKI, BKR | 100% PASS: All 6 transaction modules with series continuation. |
+| 2 | `test_reports_and_finance_selenium.py` | Day Book, Ledger, Trial Balance, P&L, BS, BRS, Designer | 100% PASS: Full double-entry financial reporting suite. |
+| 3 | `test_gst_compliance_selenium.py` | GSTR-1, GSTR-2, GSTR-3B, Offline JSON, E-Invoice | 100% PASS: Statutory GST returns and offline utility JSON payload. |
+| 4 | `test_receipt_payment_settlement_selenium.py` | Receipt `[F6]`, Payment `[F5]`, FIFO allocation `[Alt+A]` | 100% PASS: Settlement cockpit, 3-card telemetry strip, FIFO engine. |
+| 5 | `test_journal_accrual_engine_selenium.py` | Multi-leg journal cockpit, accrual scheduler | 100% PASS: Dynamic double-entry balancing and atomic reversals. |
+| 6 | `test_direct_expense_ui_selenium.py` | Direct expense form, live P&L impact box, advances | 100% PASS: Real-time P&L net profit deduction and claim approvals. |
+| 7 | `test_fixed_assets_selenium.py` | Asset registration, WDV/SLM depreciation run | 100% PASS: Automatic depreciation posting and asset register. |
+| 8 | `test_bank_recon_cash_selenium.py` | BRS auto-matching, cash denomination drawer tally | 100% PASS: Multi-rule reconciliation and physical cash counting audit. |
+| 9 | `test_dashboard_bi_control_center_selenium.py` | Executive BI, 7-month curves, Opex donut, territory map | 100% PASS: Role-based separation and territory modal drilldowns. |
+| 10 | `test_workflow_approval_automation_selenium.py` | Universal trigger, `[F4]` Inbox, Maker-Checker, Designer | 100% PASS: Automated business workflows and SLA tracking. |
+| 11 | `test_audit_governance_selenium.py` | SHA-256 hash chain, diff drawer, legal holds, anomalies | 100% PASS: Cryptographic audit trail and data governance console. |
+| 12 | `test_cargo_consignment_selenium.py` | Consignment board, CBM calc, Admin cost center, POD desk | 100% PASS: Decoupled freight movement and combined reporting. |
+| 13 | `test_freight_logistics_selenium.py` | Rate Master, Calculation Sandbox `[F4]`, Transporter Recon | 100% PASS: Carrier contracts and GL Account 5200 posting. |
+| 14 | `test_principal_operations_selenium.py` | Control Center, Custody Stock Matrix, Claims Desk `[F7]`, Recon | 100% PASS: Principal agreement governance and reconciliation statements. |
+| 15 | `test_client_commission_billing_selenium.py` | Top Nav 10-Item layout, C&F Billing Desk `[F5]`, Dual-Posting | 100% PASS: Auto-fetch telemetry, outward bill `CF-BILL-`, and inward purchase `PUR-CF-`. |
 
 ---
 
 *End of User Manual and Workflows.*
-
-
-
-

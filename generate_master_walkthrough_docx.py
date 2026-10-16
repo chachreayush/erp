@@ -2251,6 +2251,158 @@ def create_full_software_walkthrough():
 
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
+
+    # =========================================================================
+    # CHAPTER 25: ENTERPRISE MULTI-CLIENT OPERATIONS TRACKING & RADAR ENGINE (DOC-38)
+    # =========================================================================
+    doc.add_page_break()
+    add_h1("Chapter 25: Enterprise Multi-Client Operations Tracking & Radar Engine (DOC-38)")
+    
+    add_h2("25.1 Architecture & Multi-Tenant Consolidated Telemetry")
+    add_p(
+        "For corporate administrators and 3PL Carrying & Forwarding agencies managing multiple client organizations "
+        "(such as Krishna Medical Agencies, Test Org), operational oversight previously required repeatedly switching between "
+        "tenant accounts. The Enterprise Multi-Client Operations Tracking & Radar Engine (AdminEnterpriseTracker.tsx, /admin/tracking) "
+        "introduces an authoritative supervisory control plane that aggregates real-time business telemetry across all tenant partitions."
+    )
+    
+    add_callout(
+        "The Multi-Client Scope Selector allows operators to seamlessly switch between 'ALL' (Consolidated Enterprise Radar) "
+        "and isolated client company telemetry. Client-isolated querying guarantees strict database tenancy isolation while "
+        "providing corporate headquarters with instant single-pane-of-glass operational visibility.",
+        prefix="ARCHITECTURAL INVARIANT: "
+    )
+
+    add_h2("25.2 RESTful Telemetry Directory (/api/admin/tracking/*)")
+    radar_api_table = doc.add_table(rows=1, cols=4)
+    radar_headers = ["Endpoint Path", "HTTP", "Telemetry Scope", "Commercial Function"]
+    radar_data = [
+        ["/api/admin/tracking/summary", "GET", "Consolidated or Client-Scoped", "Aggregates Gross Sales Turnover, Operating Expenses, In-Transit vs Delivered Cargo, and Client counts."],
+        ["/api/admin/tracking/clients", "GET", "Multi-Tenant Matrix", "Ranks managed client companies by sales volume, transaction velocity, claims, and active cargo shipments."],
+        ["/api/admin/tracking/sales", "GET", "Cross-Client Invoices", "Chronological multi-client sales invoice ledger with client company attribution badges and items count."],
+        ["/api/admin/tracking/expenses", "GET", "Operational Claims Ledger", "Tracks client C&F storage rent, dedicated staff salaries, freight recharges, and petty cash advances."],
+        ["/api/admin/tracking/cargo", "GET", "Logistics Pipeline", "Cross-client logistics board monitoring origin/destination hubs, transporter vehicles, and delivery statuses."]
+    ]
+    style_table(radar_api_table, [2.2, 0.8, 1.8, 2.2], radar_headers, radar_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("25.3 Visual Photographic Evidence: Enterprise Multi-Client Radar")
+    add_p("The automated Selenium test suite (test_admin_enterprise_tracking_selenium.py) verifies all 12 stages with 100% Exit Code 0:")
+
+    add_screenshot(
+        "verified_admin_tracker_scorecards.png",
+        "Figure 25.1: Enterprise Multi-Client Operations Radar (/admin/tracking) showing the Apex Scope Selector, 4 Neumorphic KPI Cards, and the Client Scorecards Matrix Table with 1-click Drilldown actions."
+    )
+
+    add_screenshot(
+        "verified_admin_tracker_sales.png",
+        "Figure 25.2: Multi-Client Sales Invoices Ledger ([F3]) displaying real-time invoices across client companies with organization attribution tags and running grand totals."
+    )
+
+    add_screenshot(
+        "verified_admin_tracker_expenses.png",
+        "Figure 25.3: Multi-Client Operational Expense Claims Ledger ([F4]) displaying depot storage rent, dedicated staff salaries, and freight reimbursements across managed clients."
+    )
+
+    add_screenshot(
+        "verified_admin_tracker_cargo.png",
+        "Figure 25.4: Multi-Client Cargo Logistics Pipeline ([F6]) tracking vehicle dispatches, carrier names, route hubs, and live shipment transit statuses."
+    )
+
+    # =========================================================================
+    # CHAPTER 26: RESPONSIVE TOP NAVIGATION ARCHITECTURE & HIGH-DENSITY SCREEN ERGONOMICS (DOC-39)
+    # =========================================================================
+    doc.add_page_break()
+    add_h1("Chapter 26: Responsive Top Navigation Architecture & High-Density Screen Ergonomics (DOC-39)")
+
+    add_h2("26.1 High-Density Screen Fit & 10-Item Menu Taxonomy")
+    add_p(
+        "On standard enterprise laptop screens (1366x768 and 1440x900 viewports), top navigation bars with 13+ raw menu items overflow horizontally, "
+        "clipping critical modules such as CRM, Admin, and Financial Reports. The top navigation bar (Header.tsx) was refactored into "
+        "a compact 10-category taxonomy that occupies exactly 1422px within a 1422px window with zero horizontal overflow."
+    )
+
+    nav_table = doc.add_table(rows=1, cols=3)
+    nav_headers = ["Top Menu Category", "Sub-Modules Grouped", "Ergonomic & Screen Fit Purpose"]
+    nav_data = [
+        ["1. Dashboard", "Counter Workbench (/)", "Direct single-keystroke jump to cashier counter billing."],
+        ["2. Master ▾", "Ledgers, Business Partners, HSN, Warehouses, Document Series", "Centralized statutory master data directory."],
+        ["3. Finance & Accounting ▾", "Payment, Receipt, Journal, Day Book, BRS, Trial Balance, P&L, Balance Sheet", "Consolidates all statutory financial accounting vouchers and ledgers."],
+        ["4. Inventory ▾", "Product Master, Current Stock, SCM Replenishment, Stock Shifts", "Warehouse stock tracking and reorder replenishment."],
+        ["5. Sales & Purchase ▾", "Sale, Purchase, Credit Notes, Debit Notes, Breakage, GST Vouchers", "Nested double-menu for rapid keyboard-first transaction recording."],
+        ["6. C&F & Logistics ▾", "Principal Ops, Commission Engine, Multi-Client Radar, Cargo Board, Freight Rates, Transporter Recon", "Consolidates all logistics, carrier freight, agency operations, and commission billing."],
+        ["7. Workflows [F4] ▾", "Approval Inbox [F4], Rule Designer, SLA Monitor, Audit Trail Explorer, Data Governance", "Centralizes Maker-Checker authorizations and statutory MCA audit compliance."],
+        ["8. GST & Compliance ▾", "GSTR-1, GSTR-2, GSTR-3B, E-Invoice & E-Way Bill Desk", "Statutory tax compliance and GSTN offline JSON exports."],
+        ["9. CRM & Admin ▾", "CRM Dashboard, Client Management, Multi-Client Radar, Product Companies Master, Settings", "Enterprise client multi-tenancy administration."],
+        ["10. Reports ▾", "Report Viewer (/reports), Visual Report Designer (/reports/designer)", "Cross-modular enterprise reporting and print layouts."]
+    ]
+    style_table(nav_table, [1.8, 3.2, 2.0], nav_headers, nav_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("26.2 Visual Photographic Evidence: Top Menu Ergonomics")
+    add_screenshot(
+        "verified_top_menu_layout.png",
+        "Figure 26.1: High-Density Top Navigation Bar Layout verifying exactly 10 top-level menu items cleanly fitting standard viewports with zero horizontal overflow."
+    )
+
+    add_screenshot(
+        "verified_cf_dropdown_menu.png",
+        "Figure 26.2: Consolidated C&F & Logistics Sub-Menu Dropdown displaying nested quick launchers for Principal Ops, Commission Engine, Admin Radar, Cargo, Freight Contracts, and Transporter Recon."
+    )
+
+    # =========================================================================
+    # CHAPTER 27: CLIENT MANAGEMENT C&F COMMISSION & EXPENSE REIMBURSEMENT BILLING ENGINE WITH DUAL-POSTING (DOC-40)
+    # =========================================================================
+    doc.add_page_break()
+    add_h1("Chapter 27: Client Management C&F Commission & Expense Reimbursement Billing Engine with Bilateral Dual-Posting (DOC-40)")
+
+    add_h2("27.1 Commercial Domain & Client Management C&F Context")
+    add_p(
+        "When the Main Admin Company operates as a Carrying & Forwarding (C&F) Agent for a pharmaceutical client company registered in "
+        "Client Management (e.g., KRISHNA MEDICAL AGENCIES), monthly commercial settlement requires billing for earned sales commission "
+        "plus reimbursement of verified operating depot expenses. The Client C&F Billing Desk ([F5] on /commission) automates this bilateral workflow."
+    )
+
+    add_h2("27.2 The Bilateral Dual-Posting Architecture")
+    add_p(
+        "Clicking [Generate & Post C&F Service Bill to Billing] triggers an atomic database transaction that posts across both corporate entities:"
+    )
+
+    client_dual_table = doc.add_table(rows=1, cols=3)
+    client_dual_headers = ["Posting Entity & Leg", "Generated Document & Route", "Accounting & Statutory Impact"]
+    client_dual_data = [
+        [
+            "Leg 1: Main Admin Agency (C&F)",
+            "Outward Service Bill (CF-BILL-2026-XXXX)\\nRoute: Billing Register (/billing, [F7])",
+            "Creates commercial tax invoice billing the client for Sales Commission + Godown Storage Rent + Staff Salaries + Freight Recharges under GST SAC 998599 (18% GST). Debits Client Trade Receivable; Credits Service Revenue & Expense Recoveries."
+        ],
+        [
+            "Leg 2: Client Company (Krishna Medical Agencies)",
+            "Inward Purchase Bill (PUR-CF-2026-XXXX)\\nRoute: Purchase Register (/purchase/list, [F9])",
+            "Automatically inserts an inward purchase voucher directly inside the client organization's database partition (organization_id = client_org.id). Credits C&F Agency Trade Payable; Debits Operating Expenses. Eliminates duplicate manual entry."
+        ],
+        [
+            "Leg 3: Commission Engine Audit Trail",
+            "Commission Event, Calculations & Claim\\nRoute: Recovery Statements Desk (/commission)",
+            "Creates models.CommissionCalculation records with formula traces and SHA-256 integrity hashes, and an approved models.RecoveryClaim linking both vouchers via models.RecoveryDocumentLink."
+        ]
+    ]
+    style_table(client_dual_table, [1.8, 2.5, 2.7], client_dual_headers, client_dual_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("27.3 Visual Photographic Evidence: Client C&F Billing Desk & Dual-Posting")
+    add_p("The automated Selenium test suite (test_client_commission_billing_selenium.py) verifies all 13 stages with 100% Exit Code 0:")
+
+    add_screenshot(
+        "verified_client_commission_billing_desk.png",
+        "Figure 27.1: Client C&F Billing Desk ([F5] on /commission) showing client selection (KRISHNA MEDICAL AGENCIES), 1-click Auto-Fetched telemetry (Turnover ₹12,50,000, Commission ₹62,500, Depot Expenses ₹51,000), and dual configuration workspaces."
+    )
+
+    add_screenshot(
+        "verified_client_bill_generated_dual_post.png",
+        "Figure 27.2: Generated Bill Success Card confirming outward service bill CF-BILL-2026-0002 and automated dual-posted inward client purchase bill PUR-CF-2026-0002 with direct links to Billing [F7] and Purchase [F9]."
+    )
+
     # Save to erp2 directory
     output_path = r"C:\Users\DELL\OneDrive\Desktop\erp2\ERP_ENTERPRISE_SYSTEM_COMPLETE_SOFTWARE_MASTER_WALKTHROUGH.docx"
     doc.save(output_path)

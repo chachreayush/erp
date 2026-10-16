@@ -1404,10 +1404,187 @@ When an approved Claim batch is finalized:
 
 ---
 
+---
+
+## 32. Operating the Enterprise Multi-Client Operations Tracking & Radar Engine (DOC-38)
+
+### 32.1 Business Overview: Multi-Client Oversight
+For enterprise managers and C&F agencies supervising multiple distributor or retail client companies (e.g., Krishna Medical Agencies, Test Org), the **Admin Multi-Client Radar** (`/admin/tracking`) provides a centralized operational cockpit. Rather than logging into each client company separately, you can monitor aggregate performance, drill down into specific accounts, track live sales invoices, audit operating claims, and inspect in-transit cargo consignments in real time.
+
+### 32.2 Launching the Multi-Client Radar
+You can access the Radar through three distinct ergonomic entry points:
+1. **Counter Workbench Launcher Tile**: Press **`Ctrl+6`** or click the **Admin Multi-Client Radar [Ctrl+6]** tile (`#hub-btn-admin-tracking`) on the Counter Workbench (`/`).
+2. **Top Navigation Dropdown**: Click **`C&F & Logistics ▾`** &rarr; select **`Admin Multi-Client Radar`** (or via **`CRM & Admin ▾`** &rarr; **`Admin Multi-Client Radar`**).
+3. **Client Management Desk**: In `/clients`, click the **Enterprise Multi-Client Radar** button (`#btn-open-multi-client-radar`).
+
+### 32.3 Using the Apex Control Bar & Scope Selector
+At the top of the Radar interface, use the Apex Control Bar to configure your analysis context:
+- **Client Scope Selector (`#select-tracking-scope`)**:
+  - Select **All Client Companies (Consolidated)** to analyze enterprise-wide aggregates across all managed accounts.
+  - Select an individual client (e.g. **KRISHNA MEDICAL AGENCIES**) to filter all telemetry, scorecards, sales, expenses, and cargo strictly for that organization.
+- **Date Presets Bar**: Quickly toggle between **Today**, **Last 7 Days**, **This Month**, **Financial Year (FY)**, or **All Time** presets (`#btn-filter-today`, `#btn-filter-month`, etc.).
+- **Search Bar (`#input-tracking-search`)**: Filter clients by company name, registration code, or invoice reference.
+- **Sync Now [F5] (`#btn-refresh-tracking`)**: Instantly re-queries backend databases and live telemetry streams.
+
+### 32.4 Reading the 4 Neumorphic KPI Cards
+1. **Client Sales Turnover (`#card-tracking-sales`)**: Displays total billed sales turnover in INR along with the total count of invoices generated across the selected scope.
+2. **Operational Expenses & C&F (`#card-tracking-expenses`)**: Displays total operational expenditure claims (godown rent, staff payroll, freight recharges, petty cash).
+3. **Cargo & Consignments (`#card-tracking-cargo`)**: Displays active logistics shipments with an animated green pulse indicating consignments currently in transit.
+4. **Clients & Product Brands (`#card-tracking-clients`)**: Displays the count of active corporate accounts and total authorized pharmaceutical product lines.
+
+### 32.5 The 4 High-Contrast Workspaces
+- **`[F2] Client Scorecards` (`#tab-btn-scorecards`)**:
+  - Displays a comparative matrix table ranking each managed client company.
+  - Columns: Client Name, Code, Sales Turnover (₹), Invoices Count, Operating Expenses (₹), Active Shipments, Mapped Product Brands, and Actions.
+  - **1-Click Drilldown (`#btn-drilldown-${client_id}`)**: Click **Drilldown** next to any client to automatically set the scope to that company, update all 4 KPI cards, and filter all subsequent tabs.
+- **`[F3] Sales Tracking` (`#tab-btn-sales`)**:
+  - Chronological multi-client sales invoice register.
+  - Inspect Bill Number, Date, Customer, Client Attribution Badge, Subtotal, GST, Grand Total, and Items Count.
+- **`[F4] Expenses Tracking` (`#tab-btn-expenses`)**:
+  - Operational expense claims submitted across client depots and hubs.
+  - Inspect Claim Number, Date, Employee/Claimant, Client Name, Total Amount, and Approval Status (`APPROVED`, `PAID`, `SETTLED`).
+- **`[F6] Cargo Tracking` (`#tab-btn-cargo`)**:
+  - Cross-client logistics pipeline tracking vehicle shipments.
+  - Inspect Consignment Number, Origin Hub, Destination Hub, Transporter Name, Vehicle Number, and Live Status (`PLANNED`, `IN_TRANSIT`, `DELIVERED`).
+- **Universal Exit (`Esc`)**:
+  - Press **`Esc`** from any tab to return immediately to the Counter Workbench (`/`).
+
+---
+
+## 33. Operating the Responsive 10-Item Top Navigation Bar (DOC-39)
+
+### 33.1 High-Density Ergonomics Overview
+The top green navigation bar (`Header.tsx`) features an ergonomic **10-category taxonomy** engineered to fit standard laptop and desktop screens (1366px, 1440px, 1920px) without horizontal scrollbars, wrapping, or clipped text.
+
+### 33.2 Navigation Menu Breakdown & Sub-Modules
+1. **Dashboard** (`/`): One-click jump to Counter Billing Workbench.
+2. **Master ▾**:
+   - `Ledger`: New Ledger, Modify Ledger, Delete Ledger.
+   - `Masters`: Business Partners (`/master/parties`), Salt, Product Companies, HSN, Warehouses, Transport, Document Series, Scheme Master, Pricing & Formulas.
+3. **Finance & Accounting ▾**:
+   - Vouchers: Payment [F5], Receipt [F6], Journal [F7], Contra.
+   - Books & Ledgers: Voucher Register, Day Book, Accounts & Ledgers.
+   - Statements: Bank Reconciliation (BRS), Fixed Assets, Expense Management, Ledger Statement, Trial Balance, Profit & Loss, Balance Sheet, Scheme Claims.
+4. **Inventory ▾**:
+   - Products: Create, Modify.
+   - Stocks: Current Stock (`/stock`), Breakage/Expired Stock (`/brk-exp-stock`).
+   - SCM: Reorder Replenishment Engine, Internal Expiry Shift.
+5. **Sales & Purchase ▾**:
+   - Sale: Sales Order, Order Approvals, Dispatch & POD, Billing Consolidation, Bill [F2], Challan, Sales Return.
+   - Purchase: Purchase Order, GRN, Vendor Complaints, Purchase Bill, Purchase Challan, Modify Purchase.
+   - Returns: Sale Return (Credit Note), Purchase Return (Debit Note), Breakage Receive, Breakage Issue.
+   - Statutory: GST Inward (Expenses), GST Outward (Services), Stock Issue, Stock Receive.
+6. **C&F & Logistics ▾**:
+   - `Principal & C&F Operations` (`/principal`)
+   - `C&F Commission & Recovery Engine` (`/commission`)
+   - `Admin Multi-Client Radar` (`/admin/tracking`)
+   - `---`
+   - `Cargo & Consignment Board` (`/cargo`)
+   - `Freight Contracts & Rates` (`/freight/contracts`)
+   - `Transporter Reconciliation` (`/freight/reconciliation`)
+   - `Cargo Cost Allocation Center` (`/cargo/costs`)
+   - `POD & Transit Exception Desk` (`/cargo/pod-exceptions`)
+7. **Workflows [F4] ▾**:
+   - `Approval Inbox [F4]` (`/workflow/inbox`)
+   - `Rule Designer` (`/workflow/designer`)
+   - `Execution & SLA Monitor` (`/workflow/monitor`)
+   - `---`
+   - `Audit Trail Explorer` (`/audit`)
+   - `Data Governance Console` (`/audit/governance`)
+8. **GST & Compliance ▾**:
+   - `GSTR-1 Outward Return`
+   - `GSTR-2 Inward ITC Return`
+   - `GSTR-3B Consolidated Return`
+   - `E-Invoicing & E-Way Bill Desk` (`/compliance`)
+9. **CRM & Admin ▾**:
+   - `CRM Dashboard` (`/crm`)
+   - `Client Management` (`/clients`)
+   - `Admin Multi-Client Radar` (`/admin/tracking`)
+   - `Product Companies Master` (`/master/companies`)
+   - `Bulletin Board` (`/bulletin`), `Settings` (`/settings`)
+10. **Reports ▾**:
+    - `Report Viewer` (`/reports`)
+    - `Visual Report Designer` (`/reports/designer`)
+
+### 33.3 Zero-Mouse Keyboard Shortcuts
+- Press **`Enter`** or **`ArrowDown`** on any header item to expand the dropdown.
+- Use **`ArrowDown`** / **`ArrowUp`** to traverse menu items (separators are skipped automatically).
+- Press **`ArrowRight`** to open child sub-menus (e.g., Sale & Purchase items); press **`ArrowLeft`** to go back.
+- Press **`Enter`** to activate the selected route.
+- Press **`Esc`** at any time to close all menus and return focus to the top navigation button.
+
+---
+
+## 34. Operating the Client Management C&F Commission & Expense Reimbursement Billing Desk (DOC-40)
+
+### 34.1 Practical Scenario: Acting as C&F Agent for Krishna Medical Agencies
+In a pharmaceutical C&F arrangement, your Main Admin agency handles warehousing, staff dispatch, and transport for client companies registered in Client Management. For example, *KRISHNA MEDICAL AGENCIES* sells ₹12,50,000 worth of pharmaceutical stocks in a month. As their C&F agent:
+1. You earn **5.0% Sales Commission** on their turnover = **₹62,500.00**.
+2. You recharge them for **Depot Operating Expenses** incurred on their behalf:
+   - Godown Storage Rent: **₹22,000.00**
+   - Depot Staff Salaries: **₹25,000.00**
+   - Inward/Outward Freight Reimbursement: **₹4,000.00**
+   - Cargo Handling / Loading Charges: **₹0.00**
+3. Total Taxable Subtotal = **₹1,13,500.00**.
+4. Plus **18% GST (SAC 998599)** = **₹20,430.00**.
+5. Total Commercial Bill Amount = **₹1,33,930.00**.
+6. The system dual-posts an outward bill in your accounts and an inward purchase bill in Krishna Medical Agencies' accounts simultaneously.
+
+### 34.2 Step-by-Step Operator Billing Workflow
+
+#### Step 1: Open the Client C&F Billing Desk
+1. In the top navigation bar, click **`C&F & Logistics ▾`** &rarr; select **`C&F Commission & Recovery Engine`** (or press **`Ctrl+4`** on Counter Workbench).
+2. Click the **`[F5] Client C&F Billing Desk`** tab (or press hotkey **`F5`**).
+
+#### Step 2: Select the Client Organization
+1. In the **Select Client Company** dropdown (`#client-billing-org-select`), select **KRISHNA MEDICAL AGENCIES (KMA) • Client Company**.
+2. The desk immediately synchronizes client context.
+
+#### Step 3: Auto-Fetch Live Client Turnover & Expenses
+1. Click the **⚡ Auto-Fetch Client Turnover & Expenses** button (`#btn-autofetch-client-telemetry`).
+2. The system queries actual PostgreSQL sales invoices and depot expenses for Krishna Medical Agencies.
+3. A green notification appears (`#client-billing-notice`):
+   `⚡ Auto-fetched live data for KRISHNA MEDICAL AGENCIES: Turnover ₹12,50,000, Commission ₹62,500 (5%), Depot Expenses ₹51,000`
+4. The 4 KPI cards and workspace inputs are automatically populated.
+
+#### Step 4: Adjust Operational Parameters (Manual Customization)
+If actual expenses differ for the month:
+1. **Sales Commission Parameters**:
+   - Client Sales Turnover Base: Edit `#input-billing-turnover` (e.g. `1250000`).
+   - Commission Rate (%): Edit `#input-billing-comm-rate` (e.g. `5.0`).
+   - Changing either value instantly updates `#input-billing-comm-amount`. You can also type an exact override amount.
+2. **Reimbursable Depot Expenses**:
+   - Godown Storage Rent (₹): Edit `#input-billing-rent` (e.g. set to `22000`).
+   - Depot Staff Salaries (₹): Edit `#input-billing-salary` (e.g. `25000`).
+   - Freight / Transport (₹): Edit `#input-billing-freight` (e.g. `4000`).
+   - Cargo Handling (₹): Edit `#input-billing-handling`.
+   - Credit Due Days: Edit `#input-billing-due-days` (default `15` days).
+   - Tax Rate: Confirm GST rate (default `18%`).
+
+#### Step 5: Review the Live Itemized Invoice Preview Table
+Inspect the real-time line items table:
+- Line 1: `C&F Sales Commission (5.0% on turnover INR 1,250,000.00)`
+- Line 2: `Godown Storage & Warehousing Charges Reimbursement`
+- Line 3: `Depot Staff Salary & Operation Handling Reimbursement`
+- Line 4: `Inward & Outward Freight / Transport Reimbursement`
+- Running Totals: Net Taxable Subtotal, 18% GST, and Total Invoice Amount Due From Client.
+
+#### Step 6: Generate & Dual-Post the Commercial Bill
+1. Verify the checkbox **Dual-Post directly to Client's Inward Purchase Register** (`#check-dual-post-purchase`) is checked.
+2. Click the **⚡ Generate & Post C&F Service Bill to Billing** button (`#btn-generate-client-bill`).
+3. The system executes the atomic dual-posting transaction.
+
+#### Step 7: Inspect the Success Card & Navigate to Registers
+A glowing green feedback card (`#generated-bill-success-card`) appears displaying:
+- **Outward Agency Bill No**: e.g., `CF-BILL-2026-0002` (Grand Total: ₹1,42,190.00).
+- **Inward Client Purchase No**: e.g., `PUR-CF-2026-0002`.
+- **Claim Reference**: e.g., `CLM-REC-2026-013`.
+- **View in Billing Desk [F7]** (`#btn-goto-outward-billing`): Click to jump directly to Billing Desk and view the outward service invoice.
+- **Inward Purchase Bill [F9]** (`#btn-goto-inward-purchase`): Click to jump directly to the client's inward purchase register.
+
+#### Step 8: Historical Audit Register
+Scroll down to the **Generated Client C&F Commission Bills History** table to review all past bills, dates, client names, totals, dual purchase references, and reprint or inspect vouchers.
+
+---
+
 *End of User Workflow Manual.*
-
-
-
-
-
-

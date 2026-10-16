@@ -1542,10 +1542,257 @@ When `action == "CREATE_DOCUMENT"` is dispatched to `/api/commission/claims/{id}
 
 ---
 
+---
+
+## 32. Enterprise Multi-Client Operations Tracking & Radar Engine (DOC-38)
+
+### 32.1 Architectural Domain & Scope
+The Enterprise Multi-Client Operations Tracking & Radar Engine (`AdminEnterpriseTracker.tsx`) is designed for holding corporations, parent administrators, and 3PL/C&F agencies who manage multiple distinct client companies (e.g., Krishna Medical Agencies, Test Org). It provides an executive-level single-pane-of-glass interface to monitor:
+1. **Consolidated Financial Telemetry**: Aggregated gross sales turnover, operating expenses, in-transit logistics, and client product dealerships across all tenant organizations.
+2. **Client-Specific Isolated Telemetry**: Dynamic filtering by specific `client_id` (from `models.Organization`), isolating revenue, expense claims, and cargo pipelines for a single client without data leakage.
+3. **Client Operational Scorecards Matrix**: A multi-tenant comparative scorecard ranking clients by sales volume, transaction counts, expense claims, cargo shipments, and mapped product company brands (`CustomerProfile.company_ids`).
+
+### 32.2 Database Schema & Model Associations
+The tracking engine aggregates data across core relational tables:
+- `models.Organization`: Tenant organization entity (`id`, `name`, `code`, `org_type`).
+- `models.Invoice`: Sales invoices (`invoice_type="sales-bill"` or `"bill"`, `organization_id`, `grand_total`, `date`, `status`).
+- `models.ExpenseClaim`: Operational expense claims (`organization_id`, `total_claimed_amount`, `status`, `claim_date`).
+- `models.Consignment`: Cargo logistics consignments (`organization_id`, `consignment_number`, `status`, `origin_hub`, `destination_hub`, `vehicle_number`).
+- `models.CustomerProfile`: Client customer profiles storing mapped manufacturer brands in `company_ids` JSON column.
+
+### 32.3 RESTful API Reference (`/api/admin/tracking/*`)
+Located in `backend/api/admin_tracker.py` and registered with prefix `/api/admin/tracking`:
+
+| Method | Path | Query Parameters | Response Schema | Description & Invariants |
+| :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/api/admin/tracking/summary` | `client_id` (optional UUID), `date_preset` (optional: `TODAY`, `WEEK`, `MONTH`, `FY`, `ALL`) | `{status: "success", data: {total_sales_turnover, total_expenses, in_transit_cargo, delivered_cargo, total_clients, mapped_brands_count}}` | Computes high-level KPI scorecard. If `client_id` is supplied, filters aggregates strictly for that client company. |
+| `GET` | `/api/admin/tracking/clients` | `search` (optional string) | `{status: "success", count: int, data: [{id, name, code, sales_turnover, invoices_count, expenses_total, active_cargo_count, mapped_companies: [...]}]}` | Multi-tenant comparative scorecard matrix computing per-client turnover, invoices count, operational claims, and active shipments. |
+| `GET` | `/api/admin/tracking/sales` | `client_id` (optional), `limit` (default 50) | `{status: "success", count: int, data: [{id, invoice_number, date, customer_name, client_name, client_id, subtotal, tax_total, grand_total, status, items_count}]}` | Cross-client sales ledger displaying invoice metadata and client organization attribution tags. |
+| `GET` | `/api/admin/tracking/expenses`| `client_id` (optional), `limit` (default 50) | `{status: "success", count: int, data: [{id, claim_number, claim_date, claimant_name, client_name, client_id, total_amount, approved_amount, status, category}]}` | Multi-client operational expense claims tracking C&F depot storage, salaries, freight recharges, and petty cash. |
+| `GET` | `/api/admin/tracking/cargo` | `client_id` (optional), `limit` (default 50) | `{status: "success", count: int, data: [{id, consignment_number, client_name, client_id, transporter_name, origin_hub, destination_hub, vehicle_number, status, total_weight_kg}]}` | Cross-client cargo logistics pipeline tracking shipments from `PLANNED` to `IN_TRANSIT` and `DELIVERED`. |
+
+### 32.4 Frontend Architecture & UI Component Catalog (`AdminEnterpriseTracker.tsx`)
+- **Route & Access Points**:
+  - Direct routes: `/admin/tracking` and `/tracking`.
+  - Counter Workbench tile: `#hub-btn-admin-tracking` with hotkey `[Ctrl+6]`.
+  - Client Management quick button: `#btn-open-multi-client-radar` on `/clients`.
+  - Top navigation menu: `C&F & Logistics ▾` &rarr; `Admin Multi-Client Radar`.
+- **Apex Bar Elements**:
+  - Scope Selector (`#select-tracking-scope`): Toggles between `"ALL"` (Consolidated Multi-Client Radar) and individual client organizations.
+  - Date Presets (`#btn-filter-today`, `#btn-filter-week`, `#btn-filter-month`, `#btn-filter-fy`): Dynamic date range filtering.
+  - Search Input (`#input-tracking-search`): Client name and invoice filtering.
+  - Refresh Button (`#btn-refresh-tracking`): Reloads all telemetry datasets.
+- **4 Neumorphic Metric KPI Cards**:
+  1. `#card-tracking-sales`: Total Sales Turnover (INR) with invoice volume indicator.
+  2. `#card-tracking-expenses`: Total Operating Expenses & C&F Recharges (INR).
+  3. `#card-tracking-cargo`: Cargo Consignments Pipeline with animated in-transit pulse.
+  4. `#card-tracking-clients`: Active Client Companies & Authorized Product Brands.
+- **4 High-Contrast Workspaces**:
+  - `[F2] Client Scorecards` (`#tab-btn-scorecards`): Matrix table ranking clients with 1-click **Drilldown** (`#btn-drilldown-${client_id}`) scoping all tabs to that specific client.
+  - `[F3] Sales Tracking` (`#tab-btn-sales`): Cross-client invoice ledger with client name badge, customer, date, amount, and items count.
+  - `[F4] Expenses Tracking` (`#tab-btn-expenses`): Multi-client operational expense claims with status badges (`APPROVED`, `PAID`, `SETTLED`).
+  - `[F6] Cargo Tracking` (`#tab-btn-cargo`): Logistics board with vehicle numbers, transporter, route hubs, and live shipment status.
+  - `[Esc]` Hotkey: Universally returns operator to Counter Workbench (`/`).
+
+### 32.5 Automated Selenium Verification Runbook
+- **Script**: `test_admin_enterprise_tracking_selenium.py` (12 stages, Exit Code 0).
+- **Verified Assertions**:
+  1. Stage 1: Authenticates as `admin` and verifies admin permissions.
+  2. Stage 2: Direct backend API validation of `/summary`, `/clients`, `/sales`, `/expenses`, `/cargo`.
+  3. Stage 3-5: Counter Workbench `[Ctrl+6]` tile launch, Apex bar rendering, and 4 KPI cards.
+  4. Stage 6-8: Client Scorecards matrix table, 1-click drilldown into *KRISHNA MEDICAL AGENCIES*, and scope banner verification.
+  5. Stage 9-11: Sales ledger client attribution, Expense claims tracking, and Cargo logistics pipeline.
+  6. Stage 12: `[Esc]` return navigation to Counter Workbench.
+
+---
+
+## 33. Responsive Top Navigation Architecture & High-Density Screen Ergonomics (DOC-39)
+
+### 33.1 Ergonomic Problem Analysis & Viewport Constraints
+On standard enterprise laptop screens (1366x768 and 1440x900 viewports), the top navigation bar previously rendered 13+ raw top-level menu buttons. This caused severe horizontal overflow:
+- Rightmost options (CRM, Admin, Reports) were clipped or pushed below the visible viewport.
+- Submenu dropdowns overflowed past the right viewport boundary.
+- Mobile/tablet views lacked a structured taxonomy.
+
+### 33.2 The 10-Item Non-Overflow Taxonomy (`Header.tsx`)
+The top bar was refactored into **10 streamlined, non-overflowing categories** occupying exactly 1422px within standard desktop viewports:
+
+```
++--------------------------------------------------------------------------------------------------------------------+
+| [Logo] Dashboard | Master v | Finance v | Inventory v | Sales & Purchase v | C&F & Logistics v | Workflows [F4] v | ...|
++--------------------------------------------------------------------------------------------------------------------+
+```
+
+1. **Dashboard** (`/`): Direct route to Counter Workbench.
+2. **Master ▾**: Ledger, Masters (Business Partners, Companies, HSN, Warehouses, Document Series).
+3. **Finance & Accounting ▾**: Payment, Receipt, Journal, Contra, Day Book, Bank Reconciliation, Trial Balance, P&L, Balance Sheet.
+4. **Inventory ▾**: Product (Create/Modify), Current Stock, Claims & Replenishment.
+5. **Sales & Purchase ▾**: Nested dual menus for Sale, Purchase, Sale Return, Purchase Return, Brk/Exp, GST Vouchers.
+6. **C&F & Logistics ▾**: Consolidated operational sub-menu:
+   - `Principal & C&F Operations` (`/principal`)
+   - `C&F Commission & Recovery Engine` (`/commission`)
+   - `Admin Multi-Client Radar` (`/admin/tracking`)
+   - `---`
+   - `Cargo & Consignment Board` (`/cargo`)
+   - `Freight Contracts & Rates` (`/freight/contracts`)
+   - `Transporter Reconciliation` (`/freight/reconciliation`)
+   - `Cargo Cost Allocation Center` (`/cargo/costs`)
+   - `POD & Transit Exception Desk` (`/cargo/pod-exceptions`)
+7. **Workflows [F4] ▾**: Approval Inbox (`[F4]`), Rule Designer, SLA Monitor, Audit Trail Explorer (`/audit`), Data Governance Console (`/audit/governance`).
+8. **GST & Compliance ▾**: GSTR-1, GSTR-2, GSTR-3B, E-Invoicing & E-Way Bill Desk (`/compliance`).
+9. **CRM & Admin ▾**: CRM Dashboard, Client Management (`/clients`), Admin Multi-Client Radar (`/admin/tracking`), Product Companies Master (`/master/companies`), Bulletin Board, Settings.
+10. **Reports ▾**: Report Viewer (`/reports`), Report Designer (`/reports/designer`).
+
+### 33.3 Zero-Mouse Keyboard Trapping & Accessibility Architecture
+- **Opening Dropdowns**: Pressing `Enter` or `ArrowDown` on any top menu item opens the child menu and sets focus to index 0.
+- **Vertical Navigation**: `ArrowDown` and `ArrowUp` cycle through items, automatically skipping divider rows (`isSeparator: true`).
+- **Sub-Menu Trapping**: `ArrowRight` opens child sub-menus (e.g. Sales & Purchase sub-items); `ArrowLeft` returns focus to parent.
+- **Escape Dismissal**: Pressing `Escape` closes all open popovers and returns focus cleanly to the originating main header button.
+- **Route Active Highlighting**: Matches `location.pathname` to highlight the active menu parent with deep forest green styling (`bg-[#143627] text-white`).
+
+---
+
+## 34. Client Management C&F Commission & Expense Reimbursement Billing Engine with Bilateral Inward/Outward Dual-Posting (DOC-40)
+
+### 34.1 Architectural Domain & Business Context
+When the Main Admin Company operates as a Carrying & Forwarding (C&F) Agent for a pharmaceutical client company registered in Client Management (e.g. *KRISHNA MEDICAL AGENCIES*), commercial billing requires a bilateral dual-posting mechanism:
+1. **Outward Commercial Bill (Main Admin Ledger)**:
+   - The Admin agency bills the client for **Sales Commission** (e.g., 5.0% on gross sales turnover) plus **Reimbursable Operating Expenses** (godown storage rent, dedicated staff salaries, inward/outward freight recharges, cargo handling charges).
+   - Classified under GST Service Accounting Code **SAC 998599 (Other Support Services / C&F Services)** with configurable GST rate (default 18%).
+   - Serialized as `models.Invoice` with `invoice_type="bill"` (e.g., `CF-BILL-2026-0002`).
+2. **Inward Purchase Bill (Client Organization Ledger)**:
+   - In standard ERPs, the client company would have to manually key in an inward purchase invoice to record the C&F expense.
+   - Our **Automated Dual-Posting Engine** eliminates manual re-entry: it atomically creates an inward purchase bill (`models.Invoice` with `invoice_type="purchase-bill"`, e.g., `PUR-CF-2026-0002`) directly inside the client organization's database partition (`organization_id = client_org.id`).
+   - Ensures both corporate entities' financial accounts balance simultaneously without reconciliation discrepancies.
+3. **Audit Ledger & Claim Batching**:
+   - Generates deterministic `models.CommissionCalculation` records parented to `models.CommissionEvent`.
+   - Links inward and outward documents to `models.RecoveryClaim` via bilateral `models.RecoveryDocumentLink` entries.
+   - Logs an immutable `models.CommissionAudit` audit trail record.
+
+### 34.2 Database Schema & Model Definitions
+```python
+# Outward Bill (Main Admin) & Inward Bill (Client Org)
+models.Invoice(
+    id=uuid.uuid4(),
+    organization_id=org_id,           # Main Admin for outward bill; Client Org for inward purchase bill
+    invoice_type="bill" | "purchase-bill",
+    invoice_number="CF-BILL-YYYY-XXXX" | "PUR-CF-YYYY-XXXX",
+    date=datetime.utcnow(),
+    customer_name=party_name,
+    party_inv_no=ref_number,
+    due_date=due_date_str,
+    subtotal=subtotal_amount,
+    tax_total=gst_amount,
+    grand_total=total_payable,
+    is_active=True
+)
+
+# Itemized Service Line Items
+models.InvoiceItem(
+    id=uuid.uuid4(),
+    invoice_id=invoice.id,
+    product_name="C&F Sales Commission" | "Godown Storage" | "Staff Salary" | "Freight Recharge",
+    quantity=1,
+    rate=line_amount,
+    line_total=line_amount,
+    igst_percent=tax_rate
+)
+
+# Parent Commission Event
+models.CommissionEvent(
+    id=uuid.uuid4(),
+    company_id=current_user.organization_id,
+    principal_id=principal_id,
+    event_type="SALES_BILL",
+    event_date=datetime.utcnow(),
+    source_doc_type="INVOICE",
+    source_doc_id=outward_bill_no,
+    idempotency_key=f"CF-BILL-EVT-{outward_bill_no}-{uuid.uuid4().hex[:8]}",
+    payload_json={...}
+)
+
+# Deterministic Calculations with SHA-256 Hashes
+models.CommissionCalculation(
+    id=uuid.uuid4(),
+    calculation_number="CALC-CF-YYYY-XXXX",
+    event_id=comm_evt.id,
+    principal_id=principal_id,
+    principal_name=principal_name,
+    client_id=client_org.id,
+    client_name=client_org.name,
+    category="EARNED_COMMISSION" | "RECOVERABLE_EXPENSE",
+    event_type="SALES_BILL" | "EXPENSE_RECOVERY",
+    base_value=turnover_or_expense,
+    rate_applied=rate_pct,
+    calculated_amount=line_amount,
+    currency="INR",
+    formula_trace=json_trace_str,
+    state="APPROVED",
+    sha256_hash=computed_hash
+)
+
+# Recovery Claim Package
+models.RecoveryClaim(
+    id=uuid.uuid4(),
+    company_id=current_user.organization_id,
+    principal_id=principal_id,
+    principal_name=principal_name,
+    claim_number="CLM-REC-YYYY-XXXX",
+    period_from=start_dt,
+    period_to=end_dt,
+    total_earned_commission=comm_amt,
+    total_recoverable_expenses=expenses_total,
+    total_claimed_amount=subtotal,
+    approved_amount=subtotal,
+    disputed_amount=0.0,
+    status="APPROVED"
+)
+```
+
+### 34.3 RESTful API Reference (`/api/commission/*`)
+| Method | Path | Request Body / Query | Response Schema | Description & Invariant Impact |
+| :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/api/commission/clients/{client_org_id}/telemetry` | Path: `client_org_id` | `{status: "success", data: {client_org_id, client_name, sales_turnover, commission_rate_percent, suggested_commission_amount, godown_rent_amount, staff_salary_amount, freight_reimbursement_amount, invoices_count}}` | Queries actual sales turnover and operating expenses for the selected client organization from PostgreSQL. |
+| `POST` | `/api/commission/generate-client-bill` | `GenerateClientCommissionBillRequest` | `{status: "success", message: str, data: {outward_bill_id, outward_bill_no, inward_bill_id, inward_bill_no, client_name, sales_turnover, commission_amount, expenses_reimbursement, subtotal, tax_total, grand_total, claim_number}}` | Generates Outward C&F Service Bill in Main Admin and atomically dual-posts Inward Purchase Bill in Client Organization partition. |
+| `GET` | `/api/commission/client-bills` | None | `{status: "success", count: int, data: [{id, invoice_number, date, customer_name, subtotal, tax_total, grand_total, inward_bill_no, items_count}]}` | Returns historical audit register of all generated client commission and reimbursement bills with dual-post references. |
+
+### 34.4 UI Element & Selector Directory (`CommissionControlCenter.tsx`)
+- **Navigation**:
+  - Tab Button: `#tab-btn-client-billing` with keyboard hotkey `[F5]`.
+  - Header Title: `C&F Client Commission & Expense Billing Desk`.
+- **Controls & Input Fields**:
+  - Client Selector: `#client-billing-org-select` (Lists all organizations from `GET /api/organizations`).
+  - Auto-Fetch Button: `#btn-autofetch-client-telemetry` (Triggers `/telemetry` and populates live notice `#client-billing-notice`).
+  - Sales Turnover Base: `#input-billing-turnover`.
+  - Commission Rate %: `#input-billing-comm-rate`.
+  - Calculated Commission Override: `#input-billing-comm-amount`.
+  - Godown Storage Rent: `#input-billing-rent`.
+  - Depot Staff Salaries: `#input-billing-salary`.
+  - Transport / Freight Reimbursement: `#input-billing-freight`.
+  - Cargo Handling Charges: `#input-billing-handling`.
+  - Other Ancillary Expenses: `#input-billing-other`.
+  - Credit Due Days: `#input-billing-due-days`.
+  - Tax Rate Selector: `#select-billing-tax-rate` (18%, 12%, 5%, 0%).
+- **Dual-Posting Controls**:
+  - Checkbox: `#check-dual-post-purchase` (Dual-post directly to Client's Inward Purchase Register).
+  - Submit Button: `#btn-generate-client-bill` ("⚡ Generate & Post C&F Service Bill to Billing").
+- **Generated Bill Success Card (`#generated-bill-success-card`)**:
+  - Displays Outward Bill Number, Inward Client Purchase Bill Number, and Claim Reference.
+  - `#btn-goto-outward-billing`: Quick link to Billing Desk (`/billing`, `[F7]`).
+  - `#btn-goto-inward-purchase`: Quick link to Purchase Register (`/purchase/list`, `[F9]`).
+- **Historical Register Table**:
+  - Ag-Grid/HTML table showing Bill Number, Date, Client Company, Subtotal, GST, Grand Total, Dual Purchase Ref, and direct navigation actions.
+
+### 34.5 Automated Selenium Verification Runbook
+- **Script**: `test_client_commission_billing_selenium.py` (13 stages, Exit Code 0).
+- **Verified Assertions**:
+  1. Stage 1-2: Admin authentication and backend telemetry API verification for *KRISHNA MEDICAL AGENCIES*.
+  2. Stage 3-5: Headless Chrome launch, 10-item top bar non-overflow verification (1422px in 1422px window), and C&F dropdown interaction.
+  3. Stage 6-8: Navigation to `/commission`, switching to `[F5] Client C&F Billing Desk` tab, and selecting *KRISHNA MEDICAL AGENCIES*.
+  4. Stage 9-10: 1-click Auto-Fetch verification (Turnover ₹12,50,000, Commission ₹62,500, Expenses ₹51,000) and manual adjustment of storage rent to ₹22,000.
+  5. Stage 11-12: Submitting bill generation and asserting `#generated-bill-success-card` containing outward bill `CF-BILL-2026-0002` and inward purchase bill `PUR-CF-2026-0002`.
+  6. Stage 13: Database persistence verification confirming dual bills exist across both organizations via `GET /api/commission/client-bills`.
+
+---
+
 *End of Developer Manual.*
-
-
-
-
-
-

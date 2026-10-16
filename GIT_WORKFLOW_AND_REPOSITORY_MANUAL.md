@@ -109,10 +109,37 @@ git add . ; git commit -m "docs: exhaustive update of master walkthrough docx, u
 
 This triggers the continuous deployment webhook on Vercel, deploying the application live to `https://erp-rho-three.vercel.app`.
 
-### Step 3: Automated Live Cloud Verification
-Run the automated Selenium headless suite against the live Vercel deployment:
+### Step 3: Automated Verification Runbook (15 Test Suites)
+Before staging releases, run the comprehensive local and cloud verification suites:
+```powershell
+# 1. Type check
+npx tsc --noEmit
+
+# 2. Automated Selenium Test Suites
+C:\Python313\python.exe test_master_all_6_modules_selenium.py
+C:\Python313\python.exe test_reports_and_finance_selenium.py
+C:\Python313\python.exe test_gst_compliance_selenium.py
+C:\Python313\python.exe test_receipt_payment_settlement_selenium.py
+C:\Python313\python.exe test_journal_accrual_engine_selenium.py
+C:\Python313\python.exe test_direct_expense_ui_selenium.py
+C:\Python313\python.exe test_fixed_assets_selenium.py
+C:\Python313\python.exe test_bank_recon_cash_selenium.py
+C:\Python313\python.exe test_dashboard_bi_control_center_selenium.py
+C:\Python313\python.exe test_workflow_approval_automation_selenium.py
+C:\Python313\python.exe test_audit_governance_selenium.py
+C:\Python313\python.exe test_cargo_consignment_selenium.py
+C:\Python313\python.exe test_freight_logistics_selenium.py
+C:\Python313\python.exe test_principal_operations_selenium.py
+C:\Python313\python.exe test_client_commission_billing_selenium.py
+```
+
+### Step 4: Live Cloud Verification
+Run the automated Selenium suites against the live Vercel deployment:
 ```powershell
 C:\Python313\python.exe verify_live_vercel_receipt_payment_audit.py
+C:\Python313\python.exe verify_live_vercel_freight_audit.py
+C:\Python313\python.exe verify_live_vercel_principal_audit.py
+C:\Python313\python.exe verify_live_vercel_commission_audit.py
 ```
 This guarantees 100% production uptime and records visual proof artifacts.
 
@@ -123,6 +150,11 @@ This guarantees 100% production uptime and records visual proof artifacts.
 1. **Verify Before Syncing**: Never run the Robocopy mirror command while compilation or tests are failing in `erp2`. Always run `npx tsc --noEmit` and `npm run build` first.
 2. **Never Commit Secrets**: Ensure `.env` in `backend` and `src` is listed in `.gitignore` so database passwords and secret keys are never exposed on GitHub.
 3. **Branch Protection**: The `main` branch represents production code deployed to live pharmacies and cashiers. Ensure all changes are verified via Selenium before pushing to `main`.
+4. **Recent Production Releases**:
+   - `d57cb1e`: "feat: top navigation non-overflow menu & client c&f commission billing with dual-posting"
+   - `628393e`: "feat: admin enterprise multi-client operations tracking & radar engine"
+   - `b225811`: "feat: flagship neumorphic luxury styling for principal and commission engines"
+   - `a112df8`: "feat: c&f consigning agent deal terms, client product mapping, and dual-posting to purchase"
 
 ---
 *End of Git Workflow Manual.*

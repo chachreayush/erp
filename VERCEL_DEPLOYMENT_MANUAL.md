@@ -44,7 +44,7 @@ This document provides complete instructions for deploying, configuring, and mai
 * **Node.js Version**: `18.x` or `20.x`
 
 ### 2.2 SPA Rewrites Configuration (`vercel.json`)
-Because the ERP is a React Single Page Application utilizing HTML5 client-side routing (`react-router-dom`), navigating directly to deep paths like `/sales`, `/purchase`, `/sales-return`, `/purchase-return`, `/reports`, `/finance/expenses`, `/finance/assets`, `/finance/asset-categories`, `/finance/bank-reconciliation`, `/gst`, `/gst/compliance`, or `/gst/signed-ledger` requires Vercel to route all non-static file requests to `index.html`.
+Because the ERP is a React Single Page Application utilizing HTML5 client-side routing (`react-router-dom`), navigating directly to deep paths like `/sales`, `/purchase`, `/purchase/list`, `/sales-return`, `/purchase-return`, `/reports`, `/finance/expenses`, `/finance/assets`, `/finance/bank-reconciliation`, `/gst`, `/gst/compliance`, `/admin/tracking`, `/principal`, `/commission`, `/cargo`, `/freight/contracts`, or `/freight/reconciliation` requires Vercel to route all non-static file requests to `index.html`.
 
 The repository contains `vercel.json` configured as follows:
 
@@ -60,7 +60,7 @@ The repository contains `vercel.json` configured as follows:
 ```
 
 > [!IMPORTANT]
-> Without this rewrite rule, hard-refreshing (`F5`) on any subpage such as `/finance/assets` or `/gst/compliance` would return an HTTP `404: NOT_FOUND` error from Vercel.
+> Without this rewrite rule, hard-refreshing (`F5`) on any subpage such as `/admin/tracking` or `/commission` would return an HTTP `404: NOT_FOUND` error from Vercel.
 
 ---
 

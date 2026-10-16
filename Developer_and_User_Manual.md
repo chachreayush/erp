@@ -116,7 +116,42 @@ The ERP is 100% keyboard-navigable. Key shortcuts:
 * **Workflows Dropdown (`[F4]`)**: Application header dropdown providing immediate access to Approvals Inbox, Designer, SLA Monitor, Cargo Board, Cost Center, and POD Desk.
 * **Verified 100% PASS**: Automated Selenium suite `test_esc_navigation_and_cargo_flow_selenium.py`.
 
-### 2.15 Master Screen-by-Screen UI Element & Hotkey Catalog
+### 2.16 Freight Management & Transporter Reconciliation (/freight/contracts, /freight/reconciliation)
+* **Rate Master (`[Ctrl+2]`)**: Versioned carrier contracts with vehicle types (Tata 407, 14ft Canter, 32ft MXL), lane matrices, and surcharge schedules.
+* **Calculation Sandbox (`[F4]`)**: Interactive rating engine evaluating weight breaks, minimum freight floors, and fuel surcharges.
+* **Reconciliation Desk**: 3-way variance audit matching LR freight cost against transporter bills, posting settled freight liabilities to GL Account 5200.
+
+### 2.17 Principal Operations & Consignment Custody (/principal)
+* **Control Center (`[Ctrl+3]`)**: Neumorphic Forest Green dashboard with 5 KPI telemetry cards (Custody Stock, Open Claims, Settlements, Reconciliations, Admin Freight Subsidy).
+* **Custody Inventory Matrix**: Physical godown segregation of pharmaceutical formulations with batch numbers and expiry tracking.
+* **Claims Desk (`[F7]`)**: Fast breakage and damage claims filing with mandatory return proof and [Esc] dismissal.
+* **Statements Desk**: Full-screen periodic stock and financial reconciliation statement with SHA-256 integrity hash.
+
+### 2.18 C&F Commission & Recovery Engine (/commission)
+* **Control Center (`[Ctrl+4]`)**: 6 KPI cards tracking earned turnover commission, recoverable depot expenses, and open claims.
+* **4-Pillar Commercial Matrix**: Contractual deal terms for Godown Rent, Staff Salary, Freight Reimbursement, and Sales Commission %.
+* **Deterministic Sandbox**: Live turnover simulation with dynamic month-to-month salary and rent overrides.
+* **Bilateral Dual-Posting**: Approved claims batching generates outward Service Invoices and auto-posts inward purchase bills (`PUR-SRV-2026-XXXX`) directly into `/purchase/list`.
+
+### 2.19 Admin Enterprise Multi-Client Radar (/admin/tracking, /tracking)
+* **Enterprise Operations Radar (`[Ctrl+6]`)**: High-level single-pane-of-glass monitoring multiple client companies from Client Management.
+* **Apex Scope Selector**: Instant toggle between consolidated multi-client analytics and isolated client-specific telemetry.
+* **4 High-Contrast Tabs**: `[F2] Client Scorecards` with 1-click drilldown, `[F3] Sales Tracking` cross-client ledger, `[F4] Expenses Tracking`, `[F6] Cargo Tracking` pipeline.
+
+### 2.20 Responsive 10-Item Top Navigation Bar
+* **Screen Fit Architecture**: Refactored into 10 streamlined parent categories cleanly fitting standard screens (1366px, 1440px) with zero horizontal overflow.
+* **C&F & Logistics Dropdown**: Consolidates Principal Ops, Commission Engine, Multi-Client Radar, Cargo Board, Freight Contracts, Transporter Recon, and Cost Center.
+* **Zero-Mouse Ergonomics**: Full arrow key trapping (`ArrowDown`, `ArrowUp`, `ArrowRight`, `ArrowLeft`), `Enter` navigation, and universal `Esc` dismissal.
+
+### 2.21 Client Management C&F Commission & Expense Billing Desk ([F5] on /commission)
+* **Client Selection**: Direct integration with organizations from Client Management (e.g. Krishna Medical Agencies).
+* **1-Click Auto-Fetch Telemetry**: Automatically queries client sales turnover, computes commission % (e.g. 5%), and aggregates godown rent, staff payroll, and freight recharges.
+* **Manual Customization**: Flexible parameter adjustments for turnover, commission %, storage rent, staff salaries, transport costs, and handling charges.
+* **Itemized Line Items Table**: Live invoice preview with SAC 998599 (C&F Support) and configurable GST.
+* **Automated Dual-Posting Engine**: Atomically creates Outward Service Bill (`CF-BILL-2026-XXXX`) in Admin Billing and Inward Purchase Bill (`PUR-CF-2026-XXXX`) in the Client Company partition.
+* **Success Feedback Card**: Instant links to View in Billing Desk (`[F7]`) and View in Purchase Register (`[F9]`), plus historical bills table.
+
+### 2.22 Master Screen-by-Screen UI Element & Hotkey Catalog (Updated)
 
 | Route | Selector / ID | Hotkey | Functionality |
 | :--- | :--- | :--- | :--- |
@@ -124,9 +159,14 @@ The ERP is 100% keyboard-navigable. Key shortcuts:
 | `/` | `#hub-btn-receipt-voucher` | `[F6]` | Customer Collection & Receipt Voucher |
 | `/` | `#hub-btn-payment-voucher` | `[F5]` | Supplier Outward Payment Voucher |
 | `/` | `#hub-btn-cargo-management` | `[Ctrl+1]` | Cargo & Consignment Management Board |
+| `/` | `#hub-btn-freight-management` | `[Ctrl+2]` | Freight Contracts & Rate Master |
+| `/` | `#hub-btn-principal-management`| `[Ctrl+3]` | Principal Operations & Custody Control Center |
+| `/` | `#hub-btn-commission-management`| `[Ctrl+4]` | C&F Commission & Recovery Engine |
+| `/` | `#hub-btn-admin-tracking` | `[Ctrl+6]` | Enterprise Multi-Client Operations Radar |
 | `/` | `#hub-btn-audit-trail` | - | Cryptographic SHA-256 Audit Trail Explorer |
 | `/` | `#modal-exit-app` | `[Esc]` | Application exit confirmation modal (`Enter` exit, `Esc` cancel) |
 | Header | `#btn-workflow-dropdown` | `[F4]` | Workflows navigation dropdown menu |
+| Header | `parent-menu-btn-cf` | - | C&F & Logistics consolidated parent dropdown |
 | `/receipt` | `#voucher-series-input` | - | Alphanumeric receipt series continuation (`REC-YYYY-XXXX`) |
 | `/receipt` | `#party-search-input` | `[F7]` | Debtor party search popup with live balance |
 | `/receipt` | `#btn-auto-allocate-fifo` | `[Alt+A]` | 1-Click FIFO auto-allocation across pending invoices |
@@ -144,9 +184,41 @@ The ERP is 100% keyboard-navigable. Key shortcuts:
 | `/cargo` | `#drawer-consignment-detail` | - | Package barcodes and consignment detail drawer |
 | `/cargo/costs` | `#toggle-combined-reporting` | - | Toggle combined multi-client freight MIS |
 | `/cargo/pod-exceptions` | `#btn-record-delivery-pod` | - | Submit delivery POD with accepted vs damaged quantities |
+| `/freight/contracts` | `#btn-new-contract` | `[F2]` | Create carrier rate card contract modal |
+| `/freight/contracts` | `#tab-btn-rate-cards` | `[F2]` | Carrier rate card directory |
+| `/freight/contracts` | `#tab-btn-sandbox` | `[F4]` | Freight calculation rating sandbox |
+| `/freight/reconciliation` | `#tab-btn-unreconciled` | `[F2]` | Unmatched freight vouchers workbench |
+| `/principal` | `#btn-open-claim-modal` | `[F7]` | Open Principal breakage/damage claim modal |
+| `/principal` | `#tab-btn-custody` | `[F2]` | Principal custody inventory stock matrix |
+| `/principal` | `#tab-btn-claims` | `[F3]` | Principal claims & returns register |
+| `/principal` | `#tab-btn-reconciliation` | `[F4]` | 3-Way physical vs ledger reconciliation |
+| `/principal` | `#tab-btn-statement` | `[F5]` | Periodic business reconciliation statement |
+| `/commission` | `#tab-btn-agreements` | `[F2]` | 4-Pillar C&F deal terms and rate cards |
+| `/commission` | `#tab-btn-sandbox` | `[F3]` | Deterministic calculation sandbox & trace |
+| `/commission` | `#tab-btn-claims` | `[F4]` | Recovery claims desk & dual-post action |
+| `/commission` | `#tab-btn-client-billing` | `[F5]` | Client C&F Commission & Expense Billing Desk |
+| `/commission` | `#client-billing-org-select` | - | Client organization dropdown selector |
+| `/commission` | `#btn-autofetch-client-telemetry` | - | 1-Click Auto-Fetch turnover and depot expenses |
+| `/commission` | `#input-billing-turnover` | - | Client sales turnover input |
+| `/commission` | `#input-billing-comm-rate` | - | Commission percentage input |
+| `/commission` | `#input-billing-rent` | - | Godown storage rent reimbursement input |
+| `/commission` | `#input-billing-salary` | - | Depot staff salaries reimbursement input |
+| `/commission` | `#input-billing-freight` | - | Freight & transport recharge input |
+| `/commission` | `#check-dual-post-purchase` | - | Checkbox for dual-posting to client purchase |
+| `/commission` | `#btn-generate-client-bill` | - | Generate & post C&F bill button |
+| `/commission` | `#generated-bill-success-card` | - | Success feedback card with outward/inward numbers |
+| `/commission` | `#btn-goto-outward-billing` | `[F7]` | Jump to Outward Bill in Billing Desk |
+| `/commission` | `#btn-goto-inward-purchase` | `[F9]` | Jump to Inward Bill in Purchase Register |
+| `/admin/tracking` | `#select-tracking-scope` | - | Consolidated vs single client scope selector |
+| `/admin/tracking` | `#card-tracking-sales` | - | Gross sales turnover KPI scorecard |
+| `/admin/tracking` | `#card-tracking-expenses` | - | Operating expenses & C&F KPI scorecard |
+| `/admin/tracking` | `#card-tracking-cargo` | - | Cargo consignments pipeline KPI card |
+| `/admin/tracking` | `#tab-btn-scorecards` | `[F2]` | Client operational scorecards matrix tab |
+| `/admin/tracking` | `#tab-btn-sales` | `[F3]` | Cross-client sales ledger tab |
+| `/admin/tracking` | `#tab-btn-expenses` | `[F4]` | Multi-client expense claims tab |
+| `/admin/tracking` | `#tab-btn-cargo` | `[F6]` | Logistics pipeline tracking tab |
+| `/purchase/list` | `#grid-purchase-bills` | - | Inward purchase bills register Ag-Grid table |
 
 ---
 
 *End of Unified Master Manual.*
-
-
