@@ -3508,6 +3508,180 @@ export async function apiGetCommissionAudits(limit?: number): Promise<{ status: 
   return response.data;
 }
 
+// ─────────────────────────────────────────────────────────────
+// Enterprise Admin Multi-Client Tracking Engine (Main Admin Company)
+// ─────────────────────────────────────────────────────────────
+
+export interface AdminTrackingSummary {
+  total_clients_count: number;
+  total_sales_turnover: number;
+  total_sales_invoices_count: number;
+  total_expenses_amount: number;
+  total_cargo_consignments: number;
+  active_in_transit_cargo: number;
+  delivered_cargo_count: number;
+  exceptions_cargo_count: number;
+  total_cargo_freight_cost: number;
+  total_product_companies_count: number;
+}
+
+export interface ClientScorecardItem {
+  organization_id: string;
+  organization_name: string;
+  org_code: string;
+  is_am: boolean;
+  total_sales_turnover: number;
+  sales_invoices_count: number;
+  total_expenses: number;
+  active_consignments_count: number;
+  total_consignments_count: number;
+  mapped_product_companies_count: number;
+  mapped_companies: {
+    manufacturer_id: string;
+    name: string;
+    short_code?: string;
+    is_primary: boolean;
+    commission_rate_override?: number | null;
+  }[];
+}
+
+export interface AdminSalesInvoiceItem {
+  id: string;
+  invoice_number: string;
+  date: string;
+  client_org_id: string;
+  client_name: string;
+  client_code: string;
+  customer_name?: string | null;
+  grand_total: number;
+  invoice_type: string;
+  items_count: number;
+}
+
+export interface AdminSalesTrackingResponse {
+  total_gross_turnover: number;
+  total_invoices_count: number;
+  client_breakdown: {
+    client_org_id: string;
+    client_name: string;
+    client_code: string;
+    turnover: number;
+    invoices_count: number;
+  }[];
+  invoices: AdminSalesInvoiceItem[];
+}
+
+export interface AdminExpenseItem {
+  id: string;
+  claim_number: string;
+  date: string;
+  client_org_id: string;
+  client_name: string;
+  client_code: string;
+  total_amount: number;
+  status: string;
+  remarks?: string | null;
+}
+
+export interface AdminExpenseTrackingResponse {
+  total_expenses_amount: number;
+  category_breakdown: {
+    category_name: string;
+    total_amount: number;
+  }[];
+  client_breakdown: {
+    client_org_id: string;
+    client_name: string;
+    client_code: string;
+    total_amount: number;
+    claims_count: number;
+  }[];
+  items: AdminExpenseItem[];
+}
+
+export interface AdminCargoItem {
+  id: string;
+  consignment_number: string;
+  document_number?: string | null;
+  client_org_id: string;
+  client_name: string;
+  client_code: string;
+  transporter_name: string;
+  vehicle_no?: string | null;
+  driver_name?: string | null;
+  driver_phone?: string | null;
+  origin_hub: string;
+  destination_hub: string;
+  lr_no?: string | null;
+  status: string;
+  is_admin_funded: boolean;
+  gross_cost: number;
+  created_at: string;
+}
+
+export interface AdminCargoTrackingResponse {
+  total_consignments: number;
+  in_transit_count: number;
+  delivered_count: number;
+  exceptions_count: number;
+  total_freight_cost: number;
+  client_breakdown: {
+    client_org_id: string;
+    client_name: string;
+    client_code: string;
+    consignments_count: number;
+  }[];
+  consignments: AdminCargoItem[];
+}
+
+export async function apiGetAdminTrackingSummary(): Promise<AdminTrackingSummary> {
+  const res = await apiClient.get<AdminTrackingSummary>('/api/admin/tracking/summary');
+  return res.data;
+}
+
+export async function apiGetAdminClientScorecards(): Promise<ClientScorecardItem[]> {
+  const res = await apiClient.get<ClientScorecardItem[]>('/api/admin/tracking/clients');
+  return res.data;
+}
+
+export async function apiGetAdminSalesTracking(params?: {
+  client_org_id?: string;
+  company_id?: string;
+  from_date?: string;
+  to_date?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<AdminSalesTrackingResponse> {
+  const res = await apiClient.get<AdminSalesTrackingResponse>('/api/admin/tracking/sales', { params });
+  return res.data;
+}
+
+export async function apiGetAdminExpenseTracking(params?: {
+  client_org_id?: string;
+  status?: string;
+  from_date?: string;
+  to_date?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<AdminExpenseTrackingResponse> {
+  const res = await apiClient.get<AdminExpenseTrackingResponse>('/api/admin/tracking/expenses', { params });
+  return res.data;
+}
+
+export async function apiGetAdminCargoTracking(params?: {
+  client_org_id?: string;
+  status?: string;
+  transporter?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<AdminCargoTrackingResponse> {
+  const res = await apiClient.get<AdminCargoTrackingResponse>('/api/admin/tracking/cargo', { params });
+  return res.data;
+}
+
+
 
 
 

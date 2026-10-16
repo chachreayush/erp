@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Building2, Plus, ArrowRight, Activity, Users, Shield, Layers } from 'lucide-react'
+import { Building2, Plus, ArrowRight, Activity, Users, Shield, Layers, TrendingUp } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { useAuthStore } from '../../store/authStore'
@@ -98,9 +98,19 @@ export default function ClientManagementPage() {
             View all Client Master (CM) organizations and jump directly into their ERP environments.
           </p>
         </div>
-        <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setIsRegisterModalOpen(true)}>
-          Register New Client
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Button
+            id="btn-open-enterprise-radar"
+            variant="secondary"
+            leftIcon={<TrendingUp size={16} />}
+            onClick={() => navigate('/admin/tracking')}
+          >
+            Enterprise Multi-Client Radar
+          </Button>
+          <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setIsRegisterModalOpen(true)}>
+            Register New Client
+          </Button>
+        </div>
       </div>
 
       {/* ── CLIENT LIST ───────────────────────────────────────── */}

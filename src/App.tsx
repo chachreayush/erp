@@ -55,6 +55,7 @@ import SignedLedger from './pages/SignedLedger'
 import ProductsPage from './pages/inventory/Products'
 import FinancePage from './pages/finance/Finance'
 import ClientManagementPage from './pages/admin/ClientManagement'
+import AdminEnterpriseTracker from './pages/admin/AdminEnterpriseTracker'
 import HomeScreen from './pages/HomeScreen'
 import BulletinBoard from './pages/bulletin/BulletinBoard'
 import BillingPage from './pages/sales/Billing'
@@ -243,6 +244,8 @@ function App() {
         
         {/* AM Admin Routes */}
         <Route path="clients" element={<ClientManagementPage />} />
+        <Route path="admin/tracking" element={<AdminEnterpriseTracker />} />
+        <Route path="tracking" element={<AdminEnterpriseTracker />} />
 
         {/* DOC-30 Reports Routes */}
         <Route path="reports" element={<ReportViewer />} />

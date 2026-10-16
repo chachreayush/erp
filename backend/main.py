@@ -242,6 +242,10 @@ app.include_router(commission_router, prefix="/api/commission")
 from api.company_analytics import router as company_analytics_router
 app.include_router(company_analytics_router)
 
+# Enterprise Admin Multi-Client Tracking Engine
+from api.admin_tracker import router as admin_tracker_router
+app.include_router(admin_tracker_router)
+
 # Future routers will be added here as modules are built:
 # app.include_router(hr_router)
 
