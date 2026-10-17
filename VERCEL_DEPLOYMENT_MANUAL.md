@@ -152,6 +152,7 @@ If `npm run build` generates the `dist/` directory with zero errors, Vercel depl
 | **Failed to Fetch Master Data** | `VITE_API_URL` pointing to localhost | Update `VITE_API_URL` in Vercel environment variables to your live backend domain |
 | **Build Timeout or Memory Error**| Unused large dependencies | Check `package.json` and remove unused packages; run `npm run build` locally to inspect bundle size |
 | **Client Creation / API Timeout (30s)** | Render free-tier backend cold start | Extended Axios timeout to 60,000ms in `src/lib/api.ts` and added Pydantic default fallbacks (`is_admin_company`) |
+| **Client Creation / 401 Unauthorized on Vercel** | Demo 1-click login previously set mock token `demo-preview-jwt-token` without PostgreSQL session | Upgraded `handleDemoLogin()` in `Login.tsx` to authenticate against live cloud backend (`AM-0001` / `admin` / `Admin@123`), acquiring an authentic 8-hour JWT token; added transparent session upgrade in `RegisterClientModal.tsx` and `ClientManagement.tsx`; added 1-click credential presets (`#btn-quick-fill-admin` and `#btn-quick-fill-client`) on Login card |
 
 ---
 *End of Vercel Deployment Manual.*

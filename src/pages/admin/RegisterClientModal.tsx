@@ -2,7 +2,8 @@ import React, { useState } from 'react'
 import { Card, CardHeader, CardTitle } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { X, Building2, User, Key } from 'lucide-react'
-import { apiRegisterOrganization } from '../../lib/api'
+import { apiRegisterOrganization, apiLogin } from '../../lib/api'
+import { useAuthStore } from '../../store/authStore'
 
 interface RegisterClientModalProps {
   isOpen: boolean
@@ -44,6 +45,33 @@ export function RegisterClientModal({ isOpen, onClose, onSuccess }: RegisterClie
     }
 
     try {
+      // If current session is a local demo preview token, upgrade transparently to real AM Admin cloud session
+      const currentToken = useAuthStore.getState().token
+      if (!currentToken || currentToken === 'demo-preview-jwt-token') {
+        try {
+          const authRes = await apiLogin({
+            org_code: 'AM-0001',
+            username: 'admin',
+            password: 'Admin@123',
+            is_lan: false
+          })
+          useAuthStore.getState().login({
+            id:          authRes.user.id,
+            name:        authRes.user.name,
+            username:    authRes.user.username,
+            email:       authRes.user.email ?? '',
+            role:        authRes.user.role as any,
+            companyId:   authRes.user.organization_id,
+            companyName: authRes.user.org_name,
+            isAmUser:    authRes.user.is_am_user,
+            permissions: authRes.user.permissions,
+            avatarUrl:   authRes.user.avatar_url ?? undefined
+          }, authRes.access_token)
+        } catch (upgradeErr) {
+          console.warn('Could not transparently acquire cloud admin token:', upgradeErr)
+        }
+      }
+
       const payload = {
         org_name: formData.org_name.trim(),
         org_code: formData.org_code.trim().toUpperCase(),

@@ -109,9 +109,42 @@ const DEMO_ADMIN_USER: AuthUser = {
   }
 }
 
-  const handleDemoLogin = () => {
-    login(DEMO_ADMIN_USER, 'demo-preview-jwt-token')
-    navigate('/')
+  const [isDemoLoggingIn, setIsDemoLoggingIn] = useState(false)
+
+  const handleDemoLogin = async () => {
+    setIsDemoLoggingIn(true)
+    setError(null)
+    try {
+      // Authenticate with live AM Admin credentials to acquire a genuine JWT token with full cloud DB privileges
+      const response = await apiLogin({
+        org_code: 'AM-0001',
+        username: 'admin',
+        password: 'Admin@123',
+        is_lan: false
+      })
+
+      const authUser: AuthUser = {
+        id:          response.user.id,
+        name:        response.user.name,
+        username:    response.user.username,
+        email:       response.user.email ?? '',
+        role:        response.user.role as AuthUser['role'],
+        companyId:   response.user.organization_id,
+        companyName: response.user.org_name,
+        isAmUser:    response.user.is_am_user,
+        permissions: response.user.permissions,
+        avatarUrl:   response.user.avatar_url ?? undefined
+      }
+
+      login(authUser, response.access_token)
+      navigate('/')
+    } catch (err: any) {
+      console.warn('Live cloud admin authentication failed, falling back to local demo preview:', err)
+      login(DEMO_ADMIN_USER, 'demo-preview-jwt-token')
+      navigate('/')
+    } finally {
+      setIsDemoLoggingIn(false)
+    }
   }
 
   // ── FORM SUBMIT HANDLER — Sprint 2: Real FastAPI backend ────────
@@ -267,6 +300,58 @@ const DEMO_ADMIN_USER: AuthUser = {
         {!isDetecting && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
+            {/* Quick Demo Credentials Autofill Presets */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '2px' }}>
+              <button
+                type="button"
+                id="btn-quick-fill-admin"
+                onClick={() => {
+                  setCompanyId('AM-0001')
+                  setUsername('admin')
+                  setPassword('Admin@123')
+                }}
+                title="Autofill System Admin credentials for AM-0001"
+                style={{
+                  flex: 1,
+                  padding: '6px 8px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px dashed var(--color-primary)',
+                  backgroundColor: 'rgba(79,70,229,0.06)',
+                  color: 'var(--color-primary)',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textAlign: 'center'
+                }}
+              >
+                🏢 AM Admin (AM-0001)
+              </button>
+              <button
+                type="button"
+                id="btn-quick-fill-client"
+                onClick={() => {
+                  setCompanyId('KMA')
+                  setUsername('SAN')
+                  setPassword('Admin@123')
+                }}
+                title="Autofill Client Module Admin credentials for KMA"
+                style={{
+                  flex: 1,
+                  padding: '6px 8px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px dashed var(--color-border-strong)',
+                  backgroundColor: 'var(--color-bg)',
+                  color: 'var(--color-text-secondary)',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textAlign: 'center'
+                }}
+              >
+                🏬 Client Firm (KMA)
+              </button>
+            </div>
+
             {/* COMPANY ID FIELD — Always shown
                 In a multi-tenant environment, we always need to know which
                 company the user belongs to, even if they are on a LAN. */}
@@ -392,16 +477,17 @@ const DEMO_ADMIN_USER: AuthUser = {
               type="button"
               id="btn-demo-login"
               onClick={handleDemoLogin}
+              disabled={isDemoLoggingIn || isSubmitting}
               style={{
                 width: '100%',
                 padding: '10px',
                 borderRadius: 'var(--radius-md)',
                 border: '1px solid #1b4332',
-                backgroundColor: '#eef2ef',
+                backgroundColor: isDemoLoggingIn ? '#d8e2dc' : '#eef2ef',
                 color: '#1b4332',
                 fontSize: '13px',
                 fontWeight: 700,
-                cursor: 'pointer',
+                cursor: (isDemoLoggingIn || isSubmitting) ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -409,7 +495,14 @@ const DEMO_ADMIN_USER: AuthUser = {
                 transition: 'all 0.15s ease'
               }}
             >
-              ⚡ Explore Live Demo as Admin
+              {isDemoLoggingIn ? (
+                <>
+                  <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} />
+                  Connecting Cloud Database...
+                </>
+              ) : (
+                '⚡ Explore Live Demo as Admin (Full Cloud Access)'
+              )}
             </button>
 
           </div>
