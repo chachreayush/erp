@@ -1932,6 +1932,105 @@ The desk apex prominently displays 4 live operational telemetry scorecards:
 
 ---
 
+## 38. Statutory Multi-State GSTR-1, GSTR-2B & GSTR-3B Reconciliation Cockpit & Supplier Dunning Workflow (DOC-43)
+
+### 38.1 Executive Overview & Legislative Framework
+Under the Indian Goods and Services Tax (GST) laws, **Section 16(2)(aa) of the CGST Act, 2017** prohibits businesses from availing Input Tax Credit (ITC) unless the supplier has furnished the invoice in their GSTR-1 and it is reflected in the recipient's auto-drafted **Form GSTR-2B**. Availing credit on missing invoices triggers automated notices from the tax department (Form GST DRC-01B), interest liability @ 18% p.a., and mandatory credit reversal under Rule 37A.
+
+The **GSTR-2B Auto-Drafted ITC Reconciliation Cockpit** (`/gst` > Tab `[F5]`) provides accounts teams with a real-time comparison between internal purchase ledgers and Government GST Portal records, highlighting safe claimable credits, at-risk exposures, and unbooked supplier bills.
+
+```mermaid
+flowchart LR
+    subgraph Government Portal
+        P1["GSTR-2B Auto-Drafted JSON"]
+    end
+    subgraph ERP Internal Books
+        B1["Purchase Vouchers (DOC-03)"]
+    end
+    subgraph Matching Engine
+        P1 & B1 --> M1["Normalization Engine"]
+        M1 --> M2{"Tolerance Matching (+-Rs.1, 5, 10)"}
+    end
+    subgraph Actions
+        M2 -->|"Matched"| A1["1-Click Approve for GSTR-3B Table 4(A)(5)"]
+        M2 -->|"Tax Mismatch"| A2["Variance Warning & Vendor Debit Note"]
+        M2 -->|"Missing in 2B"| A3["WhatsApp Statutory Dunning (Sec 16(2)(aa))"]
+        M2 -->|"Missing in Books"| A4["Auto-Book Inward Purchase Voucher"]
+    end
+```
+
+---
+
+### 38.2 Step-by-Step Operator Workflow
+
+#### Step 1: Accessing the Workbench (`[F5]`)
+1. From the top navigation or Finance Hub (`/finance`), select **Statutory GST Compliance** or navigate directly to `/gst`.
+2. Press **`[F5]`** or click **`GSTR-2B ITC Matching Engine [F5] Sec 16(2)(aa)`** (`#tab-gstr2b`) in the tab navigation bar.
+
+#### Step 2: Reviewing Executive Telemetry Scorecards
+Examine the 4 live compliance scorecards displayed at the top of the workbench:
+- **Total ITC in GSTR-2B** (`#metric-2b-total-itc`): Total tax credit auto-drafted by GSTN from all suppliers (e.g. ₹25.06 Lakhs).
+- **Safe & Claimable ITC** (`#metric-2b-safe-itc`): Amount eligible for immediate claim in GSTR-3B Table 4(A)(5) with matched ratio badge (e.g. ₹17.56 Lakhs, 61.1% Matched).
+- **At-Risk Blocked ITC** (`#metric-2b-at-risk-itc`): Invoices missing on the portal or with tax discrepancies exceeding tolerance (e.g. ₹5.35 Lakhs).
+- **Unclaimed Credit in 2B** (`#metric-2b-unclaimed-itc`): Genuine supplier invoices available in GSTR-2B that have not been recorded in ERP purchase vouchers (e.g. ₹37,782.00).
+
+#### Step 3: Configuring Differential Matching Tolerance
+Suppliers frequently calculate tax with slight rounding variances (fractional paise on line items). Select the acceptable threshold using the tolerance switcher:
+- Click **`±₹1`** (`#btn-tolerance-1`): Strict audit tolerance (exact rupee matching).
+- Click **`±₹5`** (`#btn-tolerance-5`): Standard commercial trade tolerance.
+- Click **`±₹10`** (`#btn-tolerance-10`): Broad tolerance for complex multi-item freight invoices.
+
+#### Step 4: Filtering by Audit Category & Multi-State GSTIN
+1. **Category Pills**: Click filter tabs to focus on specific action queues:
+   - **`All Records`** (`#filter-recon-all`): Complete dual-ledger grid (115 records).
+   - **`Matched (Safe)`** (`#filter-recon-matched`): Safe invoices meeting Section 16(2)(aa) rules.
+   - **`Tax Mismatch`** (`#filter-recon-tax_mismatch`): Invoices where taxable or tax amounts disagree.
+   - **`Missing in 2B`** (`#filter-recon-missing_in_2b`): Inward purchases absent from GSTN portal.
+   - **`Missing in Books`** (`#filter-recon-missing_in_books`): 2B entries omitted from internal ledgers.
+2. **State Filter Dropdown** (`#select-recon-state`): Filter by 2-digit GSTIN state prefix (e.g. `07 - Delhi`, `27 - Maharashtra`).
+3. **Live Search** (`#input-recon-search`): Instantly locate records by typing supplier name, GSTIN, or invoice number.
+
+#### Step 5: Bulk Approving Safe ITC for GSTR-3B Claiming
+1. Select the **`Matched (Safe)`** category pill (`#filter-recon-matched`).
+2. Click the **Select All Checkbox** (`#chk-select-all-recon`) on the table header, or individually check specific rows (`#chk-recon-row-{idx}`).
+3. The bulk action button will activate: **`Approve ITC (N)`** (`#btn-bulk-approve-itc`).
+4. Click **`Approve ITC`**. The system atomically updates record status to `CLAIM_ITC`, records audit logs, and unlocks credit for monthly GSTR-3B filing.
+
+#### Step 6: Issuing Supplier Dunning Notices via WhatsApp (Sec 16(2)(aa))
+1. Select the **`Missing in 2B`** category pill (`#filter-recon-missing_in_2b`).
+2. On any at-risk invoice row, click **`Remind Supplier`** (`#btn-dunning-row-{idx}`).
+3. The **Supplier Dunning Notice Dialog** (`#modal-supplier-dunning`) opens with pre-populated legal context:
+   - Displays Supplier Name, GSTIN, Invoice Number, Taxable Value, and Blocked Tax.
+   - Generates statutory reminder body citing **Section 16(2)(aa) of CGST Act**.
+4. **Copy Notice** (`#btn-copy-dunning`): Copies statutory legal text to clipboard for email notices.
+5. **Share via WhatsApp** (`#btn-send-whatsapp`): Opens direct WhatsApp Web / Mobile chat with encoded compliance notice requesting immediate GSTR-1 amendment.
+6. **Mark Disputed** (`#btn-mark-disputed`): Flags record as disputed to halt vendor payment releases until credit reflects on portal.
+
+#### Step 7: Importing Official GST Portal GSTR-2B JSON Statement
+1. Log into the Government GST Portal (`gst.gov.in`) > **Returns Dashboard** > Select Month > **GSTR-2B Auto-Drafted ITC Statement** > Click **Download JSON**.
+2. On the ERP workbench, click **`Import Portal GSTR-2B`** (`#btn-open-ingest-2b`).
+3. The dialog (`#modal-ingest-portal-2b`) opens. Paste raw JSON payload into `#textarea-json-2b`.
+4. Click **`Parse & Sync Inward Supplies`** (`#btn-submit-ingest-2b`).
+5. The normalization engine ingests all `b2b` and `cdnr` objects, updates database tables, and refreshes match percentages immediately.
+
+#### Step 8: Exporting Statutory Reconciliation Audit Registers
+1. Click **`Export 2B Matching`** (`#btn-export-2b-reconciliation`).
+2. The engine compiles and downloads a structured Excel spreadsheet containing Status, Supplier, GSTIN, Internal Inv No, Portal Inv No, Dates, Taxable Values, Taxes, Variance, and Claim Action.
+
+---
+
+### 38.3 Operational Keyboard Shortcuts Reference
+
+| Shortcut Key | Action / Functionality | Target Scope |
+| :--- | :--- | :--- |
+| `[F1]` | Switch to GSTR-1 Outward Supplies | Activates Tab 1 (Table 4 B2B, B2CS, CDNR, HSN, Docs). |
+| `[F2]` | Switch to GSTR-2 Inward Register | Activates Tab 2 (Purchase ledger ITC eligibility). |
+| `[F3]` | Switch to GSTR-3B Monthly Return | Activates Tab 3 (Table 3.1 liability, Table 4 ITC, Table 5.1 set-off). |
+| `[F5]` | Switch to GSTR-2B ITC Matching Engine | Activates Tab 4 (DOC-43 Reconciliation Workbench). |
+| `[Esc]` | Close Active Modal / Return to Finance | Closes Supplier Dunning or Portal Ingest dialog; exits to `/finance`. |
+
+---
+
 *End of User Workflow Manual.*
 
 

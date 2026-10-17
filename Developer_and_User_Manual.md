@@ -335,7 +335,20 @@ The ERP is 100% keyboard-navigable. Key shortcuts:
 
 ---
 
-### 2.25 Complete Operational Navigation & Menu Sizing Standard
+### 2.25 Module 25 — DOC-43: Statutory Multi-State GSTR-1, GSTR-2B & GSTR-3B Reconciliation Cockpit with Section 16(2)(aa) 2B ITC Matching Engine
+
+- **Route**: `/gst` > Tab `[F5]` (`GSTR-2B ITC Matching Engine`).
+- **Core Purpose**: Comprehensive dual-ledger statutory GST reconciliation platform enforcing Section 16(2)(aa) CGST Act rules. Correlates internal purchase vouchers with official Government GSTR-2B auto-drafted statements. Features fuzzy/exact invoice number normalization, 4-way matching classification (`MATCHED`, `TAX_MISMATCH`, `MISSING_IN_2B`, `MISSING_IN_BOOKS`), 3-tier differential tolerance switcher ($\pm ₹1$, $\pm ₹5$, $\pm ₹10$), 2-digit multi-state GSTIN filtering (`07 - Delhi`, `27 - Maharashtra`), 1-click bulk approval for monthly GSTR-3B Table 4(A)(5) credit availing, WhatsApp supplier dunning notification modal for blocked credits, and official GST Portal JSON statement import.
+- **Backend APIs**:
+  - `GET /api/gst/reconciliation-summary`: Aggregates Safe ITC, At-Risk ITC, Unclaimed ITC, match percentage, and multi-state GSTIN filters.
+  - `GET /api/gst/reconcile-2b`: Returns paired records with books vs portal side-by-side values, diffs, and categorization.
+  - `POST /api/gst/reconciliation-action`: Updates audit status (`CLAIM_ITC`, `DISPUTE`, `FORCE_MATCH`, `REVERSE`) on single or bulk entries.
+  - `POST /api/gst/import-2b`: Ingests official Government GST Portal JSON download payloads (`b2b`, `b2ba`, `cdnr`).
+- **Automated QA Verification**: `test_gstr2b_reconciliation_selenium.py` (13 stages, 100% Passed, Exit Code 0).
+
+---
+
+### 2.26 Complete Operational Navigation & Menu Sizing Standard
 
 1. **Responsive Top Navigation Architecture**:
    - Reorganized into 10 streamlined, non-wrapping parent categories fitting standard desktop displays (1366px, 1440px, 1920px):

@@ -2896,6 +2896,48 @@ class StockShiftItem(Base):
     batch = relationship("Batch")
 
 
+# =============================================================================
+# DOC-43: STATUTORY GSTR-2B AUTO-DRAFTED ITC STATEMENT & MATCHING ENGINE
+# =============================================================================
+
+class Gstr2bEntry(Base):
+    """
+    Stores official auto-drafted GSTR-2B statement records received from the
+    GSTN portal for Section 16(2)(aa) ITC matching against ERP Inward Purchases.
+    """
+    __tablename__ = "gstr2b_entries"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    supplier_gstin = Column(String(15), nullable=False, index=True)
+    supplier_name = Column(String(255), nullable=False)
+    invoice_number = Column(String(100), nullable=False, index=True)
+    invoice_type = Column(String(20), default="B2B", nullable=False) # B2B, CDNR, B2BUR
+    invoice_date = Column(DateTime, nullable=False)
+    taxable_value = Column(Numeric(12, 2), default=0.0, nullable=False)
+    cgst = Column(Numeric(12, 2), default=0.0, nullable=False)
+    sgst = Column(Numeric(12, 2), default=0.0, nullable=False)
+    igst = Column(Numeric(12, 2), default=0.0, nullable=False)
+    total_tax = Column(Numeric(12, 2), default=0.0, nullable=False)
+    total_invoice_value = Column(Numeric(12, 2), default=0.0, nullable=False)
+    place_of_supply = Column(String(50), nullable=True) # e.g. "27-Maharashtra"
+    itc_availability = Column(String(20), default="YES", nullable=False) # YES, NO
+    itc_applicable_percent = Column(Numeric(5, 2), default=100.0, nullable=False)
+    gstr1_filing_date = Column(DateTime, nullable=True)
+    gstr1_filing_period = Column(String(20), nullable=True) # e.g. "042026"
+    reconciliation_status = Column(String(50), default="PENDING", nullable=False, index=True) # MATCHED, TAX_MISMATCH, MISSING_IN_BOOKS, CLAIMED, DISPUTED
+    match_confidence = Column(Numeric(5, 2), default=0.0, nullable=False)
+    matched_invoice_id = Column(UUID(as_uuid=True), ForeignKey("invoices.id", ondelete="SET NULL"), nullable=True, index=True)
+    action_remarks = Column(String(500), nullable=True)
+    action_taken_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    organization = relationship("Organization")
+    matched_invoice = relationship("Invoice")
+
+
+
 
 
 

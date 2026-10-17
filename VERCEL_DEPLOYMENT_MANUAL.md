@@ -151,6 +151,7 @@ If `npm run build` generates the `dist/` directory with zero errors, Vercel depl
 | **CORS Network Error on Login** | Backend rejects Vercel origin | Add your exact Vercel URL to `origins` in `backend/main.py` |
 | **Failed to Fetch Master Data** | `VITE_API_URL` pointing to localhost | Update `VITE_API_URL` in Vercel environment variables to your live backend domain |
 | **Build Timeout or Memory Error**| Unused large dependencies | Check `package.json` and remove unused packages; run `npm run build` locally to inspect bundle size |
+| **Client Creation / API Timeout (30s)** | Render free-tier backend cold start | Extended Axios timeout to 60,000ms in `src/lib/api.ts` and added Pydantic default fallbacks (`is_admin_company`) |
 
 ---
 *End of Vercel Deployment Manual.*

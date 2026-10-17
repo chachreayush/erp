@@ -431,6 +431,15 @@ The ERP reporting and double-entry accounting engine has been verified with **10
 | **Compliance Desk (`/compliance`)** | `#btn-export-nic-json` | Button `[F8]` | Exports official Government NIC Schema 1.1 Bulk Upload JSON. |
 | **Compliance Desk (`/compliance`)** | `#btn-confirm-generate-compliance` | Button `[Enter]` | 1-Click generation of 64-char IRN, 15-digit Ack No, 12-digit E-Way Bill. |
 | **Compliance Desk (`/compliance`)** | `#btn-print-slip-dialog` | Button | Print trigger for official Government of India CBIC two-part delivery slip. |
+| **GST Workbench (`/gst`)** | `#tab-gstr2b` | Tab `[F5]` | Activates GSTR-2B ITC Matching Engine workbench. |
+| **GST Workbench (`/gst`)** | `#metric-2b-total-itc` | Scorecard | Total auto-drafted ITC available in GSTR-2B statements. |
+| **GST Workbench (`/gst`)** | `#metric-2b-safe-itc` | Scorecard | Safe & Claimable ITC meeting Section 16(2)(aa) statutory rules. |
+| **GST Workbench (`/gst`)** | `#metric-2b-at-risk-itc` | Scorecard | At-risk blocked ITC missing in 2B or with tax mismatches. |
+| **GST Workbench (`/gst`)** | `#metric-2b-unclaimed-itc` | Scorecard | Unclaimed credit in 2B unbooked in internal ERP ledgers. |
+| **GST Workbench (`/gst`)** | `#btn-tolerance-1`, `5`, `10` | Buttons | Switches differential matching tolerance ($\pm ₹1$, $\pm ₹5$, $\pm ₹10$). |
+| **GST Workbench (`/gst`)** | `#btn-bulk-approve-itc` | Button | 1-Click bulk approval of matched records for GSTR-3B Table 4(A)(5). |
+| **GST Workbench (`/gst`)** | `#modal-supplier-dunning` | Modal | Section 16(2)(aa) notice generator with direct WhatsApp sharing. |
+| **GST Workbench (`/gst`)** | `#modal-ingest-portal-2b` | Modal | Official Government GST Portal GSTR-2B JSON statement ingestion. |
 
 ---
 
@@ -454,7 +463,19 @@ The ERP reporting and double-entry accounting engine has been verified with **10
 
 ---
 
-## 30. Comprehensive Automated QA Test Suite Registry (17 Suites)
+## 30. Module 30 — DOC-43: Statutory Multi-State GSTR-1, GSTR-2B & GSTR-3B Reconciliation Cockpit with Section 16(2)(aa) 2B ITC Matching Engine & Supplier Dunning
+
+### 30.1 Workflow Summary & Core Objectives
+1. **Section 16(2)(aa) CGST Compliance**: Enforces statutory restrictions disallowing input tax credit in GSTR-3B unless invoices are uploaded by suppliers in GSTR-1 and auto-drafted into recipient Form GSTR-2B.
+2. **Dual-Ledger 4-Way Matching Engine**: Correlates purchase vouchers against 2B records into `MATCHED`, `TAX_MISMATCH`, `MISSING_IN_2B`, and `MISSING_IN_BOOKS`.
+3. **Tolerance & Multi-State Filtering**: Allows differential tolerance adjustments ($\pm ₹1$, $\pm ₹5$, $\pm ₹10$) and 2-digit GSTIN state code filtering (`07`, `27`).
+4. **Supplier WhatsApp Dunning Desk**: Generates pre-populated Section 16(2)(aa) legal notice citing blocked tax credits with direct WhatsApp Web and mobile dispatch (`https://wa.me/?text=...`).
+5. **1-Click Bulk ITC Approval**: Unlocks safe credits for monthly GSTR-3B Table 4(A)(5) availing.
+6. **Government Portal GSTR-2B JSON Ingestion**: Ingests official JSON returns from `gst.gov.in`, immediately synchronizing database tables and recalculating compliance scorecards.
+
+---
+
+## 31. Comprehensive Automated QA Test Suite Registry (18 Suites)
 
 | # | Test Suite File | Module Coverage | Assertions Target & Status |
 | :--- | :--- | :--- | :--- |
@@ -475,6 +496,7 @@ The ERP reporting and double-entry accounting engine has been verified with **10
 | 15 | `test_client_commission_billing_selenium.py` | Top Nav 10-Item layout, C&F Billing Desk `[F5]`, Dual-Posting | 100% PASS: Auto-fetch telemetry, outward bill `CF-BILL-`, and inward purchase `PUR-CF-`. |
 | 16 | `test_pharma_expiry_quarantine_selenium.py` | Expiry Radar `[F2]`, Stock Shift Desk `[F7]`, Auto-Claims `CLM-PRN-` | 100% PASS: Atomic batch stock reallocation, quarantine ledger, and Principal claims bridging. |
 | 17 | `test_gst_einvoice_eway_selenium.py` | Compliance Desk `[F2]`, Transporter Modal `[F7]`, CBIC Part A/B Slips, NIC JSON `[F8]` | 100% PASS: Real-time telemetry, 1-click IRN/E-Way Bill generation, vehicle `DL-01-AB-1234`, CBIC Part A/B delivery slips, and signed digital QR code. |
+| 18 | `test_gstr2b_reconciliation_selenium.py` | GST Cockpit `[F5]`, Scorecards, Tolerance $\pm ₹1/5/10$, Dunning Modal, Ingest 2B Modal | 100% PASS: Dual-ledger matching, Telemetry 4 Scorecards (₹25.06L 2B ITC, ₹17.56L Safe ITC, 61.1% match), WhatsApp Dunning, and JSON ingestion. |
 
 ---
 

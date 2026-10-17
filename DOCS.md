@@ -790,3 +790,97 @@ Built with the Flagship Neumorphic Forest Green design system (`#1b4332`, `#2d6a
   - `verified_eway_slip_preview.png`: Official CBIC header, Part A, Part B, signed digital QR representation, and print trigger.
 - **Master QA Test Matrix**: 17 Automated Selenium test suites completely verified passing with Exit Code 0.
 
+### 10.26 Statutory Multi-State GSTR-1, GSTR-2B & GSTR-3B Reconciliation Cockpit with Section 16(2)(aa) 2B ITC Matching Engine (DOC-43)
+
+#### 1. Statutory Legislative Framework & Rule Mandates
+Under the Goods and Services Tax (GST) framework in India, **Section 16(2)(aa) of the Central Goods and Services Tax (CGST) Act, 2017** prohibits registered persons from availing Input Tax Credit (ITC) unless:
+1. The invoice or debit note has been furnished by the supplier in their outward statement (**Form GSTR-1** or Invoice Furnishing Facility - **IFF**); and
+2. The details of such invoice have been communicated to the recipient in auto-drafted **Form GSTR-2B**.
+
+Availing credit on supplier invoices missing from GSTR-2B triggers automated scrutiny notices under Form GST DRC-01B, interest liability @ 18% p.a., and mandatory credit reversal under Rule 37A. The GSTR-2B Auto-Drafted ITC Matching Engine provides an enterprise reconciliation workbench correlating inward purchase vouchers against Government GSTR-2B portal statements.
+
+#### 2. Relational Database Schema (`backend/models.py`)
+Created table `gstr2b_entries` and model `Gstr2bEntry`:
+- `id` (String UUID, Primary Key).
+- `organization_id` (String, Foreign Key -> `organizations.id`).
+- `supplier_name` (String, Supplier legal entity name).
+- `supplier_gstin` (String(15), 15-character statutory GST identification number).
+- `invoice_number` (String, Supplier invoice number).
+- `invoice_date` (Date, Invoice issuance date).
+- `invoice_type` (String, default `'R'` for Regular B2B).
+- `place_of_supply` (String(2), 2-digit state code).
+- `taxable_value` (Numeric(15,2), Assessable value of supply).
+- `cgst` (Numeric(15,2), Central GST).
+- `sgst` (Numeric(15,2), State/UT GST).
+- `igst` (Numeric(15,2), Integrated GST).
+- `cess` (Numeric(15,2), Statutory cess).
+- `total_tax` (Numeric(15,2), Sum of CGST, SGST, IGST, and Cess).
+- `invoice_value` (Numeric(15,2), Gross invoice total).
+- `return_period` (String(6), Month and year e.g. `'102026'`).
+- `filing_date` (Date, Date supplier filed GSTR-1).
+- `itc_available` (String(1), `'Y'` or `'N'`).
+- `reconciliation_status` (String(20), `'PENDING'`, `'CLAIM_ITC'`, `'DISPUTE'`, `'FORCE_MATCH'`, `'REVERSE'`).
+- `reconciliation_remarks` (Text, Audit remarks).
+- `reconciled_with_voucher_id` (String, Linked ERP purchase voucher ID).
+- Indexed on `(organization_id, return_period)`, `supplier_gstin`, and `invoice_number`.
+
+#### 3. Backend Matching Engine & REST APIs (`backend/api/gst.py`)
+- `normalize_inv_num(inv: str) -> str`: Normalizes invoice numbers by uppercase conversion, removing special characters (`/`, `-`, `_`, `.`, spaces), and trimming leading zeros (e.g. `INV/2026/0042` -> `INV202642`), preventing mismatches from differing software numbering conventions.
+- `GET /api/gst/reconciliation-summary`: Aggregates Safe ITC, At-Risk ITC, Unclaimed ITC, match ratio percentage, and list of available 2-digit GSTIN states with query params `tolerance` and `state_code`.
+- `GET /api/gst/reconcile-2b`: Returns dual-ledger paired records categorized into:
+  - `MATCHED`: Invoice present in both Books and 2B with tax difference <= tolerance (+-Rs.1, +-Rs.5, +-Rs.10).
+  - `TAX_MISMATCH`: Invoice present in both Books and 2B, but tax difference > tolerance.
+  - `MISSING_IN_2B`: Inward purchase voucher exists in ERP books, but supplier has not uploaded in GSTR-1/2B (At-risk blocked ITC u/s 16(2)(aa)).
+  - `MISSING_IN_BOOKS`: Auto-drafted invoice exists in portal GSTR-2B, but unrecorded in internal accounting ledger (Unclaimed ITC credit).
+- `POST /api/gst/reconciliation-action`: Updates status (`CLAIM_ITC`, `DISPUTE`, `FORCE_MATCH`, `REVERSE`) on single or bulk entries with audit remarks.
+- `POST /api/gst/import-2b`: Parses and ingests official Government GST Portal JSON return downloads (`docdata.b2b`, `docdata.cdnr`).
+
+#### 4. Master UI Elements in `GstReports.tsx` (`/gst`)
+Built in the Flagship Neumorphic Forest Green design system (`#1b4332`, `#2d6a4f`, `#eef2ef`):
+- **Tab Header**: `#tab-gstr2b` (`GSTR-2B ITC Matching Engine [F5] Sec 16(2)(aa)`).
+- **4 Live Telemetry Scorecards**:
+  - `#metric-2b-total-itc`: Total Inward ITC present in GSTR-2B portal statements.
+  - `#metric-2b-safe-itc`: Safe & Claimable ITC meeting Section 16(2)(aa) statutory rules.
+  - `#metric-2b-match-ratio`: Percentage match ratio badge (e.g., `61.1% Matched`).
+  - `#metric-2b-at-risk-itc`: At-Risk Blocked ITC (missing in 2B or tax mismatched).
+  - `#metric-2b-unclaimed-itc`: Unclaimed Credit in 2B omitted in internal accounting ledgers.
+- **5 Category Filter Pills**:
+  - `#filter-recon-all`: All paired records with total count badge.
+  - `#filter-recon-matched`: Safe matched records (`#2d6a4f`).
+  - `#filter-recon-tax_mismatch`: Records with tax discrepancy exceeding tolerance (`#b45309`).
+  - `#filter-recon-missing_in_2b`: Invoices missing from GSTN portal (`#b91c1c`).
+  - `#filter-recon-missing_in_books`: Invoices missing from ERP purchase ledgers (`#6d28d9`).
+- **Control Bar**:
+  - `#btn-open-ingest-2b`: Launches Portal GSTR-2B JSON ingestion modal.
+  - `#btn-bulk-approve-itc`: Bulk approves selected rows for GSTR-3B Table 4(A)(5) credit claiming.
+  - `#input-recon-search`: Real-time search across Supplier Name, GSTIN, and Invoice Number.
+  - `#select-recon-state`: Multi-state filter dropdown based on 2-digit GSTIN state code prefix.
+  - `#btn-tolerance-1`, `#btn-tolerance-5`, `#btn-tolerance-10`: 3-tier differential tolerance switcher (+-Rs.1, +-Rs.5, +-Rs.10).
+  - `#btn-export-2b-reconciliation`: Exports dual-ledger matching data to Excel format.
+- **Dual-Ledger Side-by-Side Reconciliation Table (`#tbl-gstr2b-reconciliation`)**:
+  - `#chk-select-all-recon`: Master header checkbox to select/deselect all rows.
+  - `#chk-recon-row-{idx}`: Row-level checkbox for batch operations.
+  - Status Badge: Displays `MATCHED`, `MISMATCH`, `NOT IN 2B`, or `NOT IN BOOKS`.
+  - Supplier & State: Supplier name, 15-char GSTIN, and 2-digit state code.
+  - Internal Books (Purchase Ledger): Internal voucher number, supplier invoice number, date, taxable value, and tax breakdown.
+  - Government Portal (GSTR-2B): Portal invoice number, date, filing date, taxable value, and tax breakdown.
+  - Variance: Real-time difference in tax and taxable value with color-coded alert highlights.
+  - Audit Action: `#btn-approve-row-{idx}` (Claim ITC), `#btn-dunning-row-{idx}` (Remind Supplier), `#btn-force-row-{idx}` (Book Inward).
+- **Supplier Dunning Notice Dialog (`#modal-supplier-dunning`)**:
+  - Displays supplier GSTIN, invoice number, taxable value, and blocked/disputed tax credit.
+  - Pre-filled statutory notice body in `#textarea-dunning-message` citing Section 16(2)(aa) CGST Act.
+  - Action buttons: `#btn-copy-dunning` (copies notice to clipboard), `#btn-send-whatsapp` (direct WhatsApp Web/Mobile dispatch via `https://wa.me/?text=...`), `#btn-mark-disputed` (flags invoice as disputed), and `#btn-close-dunning-modal` (`[Esc]`).
+- **Portal GSTR-2B JSON Ingestion Modal (`#modal-ingest-portal-2b`)**:
+  - Accepts official Government GST Portal JSON returns in `#textarea-json-2b`.
+  - Action buttons: `#btn-cancel-ingest-modal` (`[Esc]`) and `#btn-submit-ingest-2b` (parses and syncs inward supplies).
+
+#### 5. Automated Selenium Suite & 18-Suite QA Test Matrix
+- **Script**: `test_gstr2b_reconciliation_selenium.py` (13 stages, Exit Code 0, 100% Passed).
+- **Verified Visual Proof Artifacts**:
+  - `verified_gstr2b_telemetry_scorecards.png`: 4 live scorecards (Rs.25.06 Lakhs 2B ITC, Rs.17.56 Lakhs Safe ITC, 61.1% match ratio, Rs.5.35 Lakhs At-Risk, Rs.37.78k Unclaimed).
+  - `verified_supplier_dunning_modal.png`: Section 16(2)(aa) statutory notice generator for Torrent Pharma Distributors (`SUP-28071`, Rs.22,449.98 blocked tax) with WhatsApp dispatch and clipboard copying.
+  - `verified_gstr2b_ingest_modal.png`: Official GST Portal JSON return ingestion modal with official `docdata` schema.
+  - `verified_gstr2b_reconciliation_workbench.png`: Complete dual-ledger side-by-side matching grid with status badges, internal books columns, portal columns, variance, and audit action buttons.
+- **Master QA Test Matrix**: 18 Automated Selenium test suites completely verified passing with Exit Code 0.
+
+

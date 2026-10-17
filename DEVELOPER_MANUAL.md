@@ -2290,5 +2290,154 @@ Implemented in [`src/pages/ComplianceWorkbench.tsx`](file:///c:/Users/DELL/OneDr
 
 ---
 
+## 37. Statutory Multi-State GSTR-1, GSTR-2B & GSTR-3B Reconciliation Cockpit with Section 16(2)(aa) 2B ITC Matching Engine (DOC-43)
+
+### 37.1 Architecture & Statutory Legislative Compliance
+Under the Goods and Services Tax (GST) regime in India, Section 16(2)(aa) of the Central Goods and Services Tax (CGST) Act, 2017 (inserted via Finance Act, 2021 and notified w.e.f. 1 January 2022) mandates that **no registered person shall be entitled to avail Input Tax Credit (ITC)** in respect of any supply of goods or services unless:
+1. The details of the invoice or debit note have been furnished by the supplier in the statement of outward supplies (**Form GSTR-1** or Invoice Furnishing Facility - **IFF**); and
+2. The details of such invoice or debit note have been communicated to the recipient in the auto-drafted statement (**Form GSTR-2B**).
+
+The statutory GST reconciliation engine in `backend/api/gst.py` and `src/pages/gst/GstReports.tsx` provides a 4-way reconciliation matching cockpit with dual-ledger verification, tolerance-based differential analysis ($\pm ₹1$, $\pm ₹5$, $\pm ₹10$), supplier dunning communications via WhatsApp, and bulk ITC claim approvals for monthly GSTR-3B Table 4(A)(5) filings.
+
+```mermaid
+flowchart TD
+    A["Supplier Files GSTR-1 / IFF"] -->|"Auto-Drafted on 14th"| B["Government GSTR-2B Portal JSON"]
+    C["Internal ERP Purchase Vouchers (DOC-03)"] --> D["Normalization Engine (normalize_inv_num)"]
+    B --> D
+    D --> E{"4-Way Comparison Engine (Section 16(2)(aa))"}
+    E -->|"Exact / Fuzzy Match & Tax Diff <= Tol"| F["MATCHED (Safe ITC) -> Auto-Approved for GSTR-3B"]
+    E -->|"Inv Match & Tax Diff > Tol"| G["TAX_MISMATCH -> Variance Warning & Dunning"]
+    E -->|"In Books, Absent in 2B"| H["MISSING_IN_2B (At-Risk Blocked ITC) -> WhatsApp Supplier Dunning"]
+    E -->|"In 2B, Absent in Books"| I["MISSING_IN_BOOKS (Unclaimed Credit) -> 1-Click Purchase Booking"]
+```
+
+### 37.2 Database Schema & Neon PostgreSQL Table
+The GSTR-2B auto-drafted entries are persisted in the `gstr2b_entries` table in PostgreSQL:
+
+```sql
+CREATE TABLE IF NOT EXISTS gstr2b_entries (
+    id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id VARCHAR NOT NULL REFERENCES organizations(id),
+    supplier_name VARCHAR NOT NULL,
+    supplier_gstin VARCHAR(15) NOT NULL,
+    invoice_number VARCHAR NOT NULL,
+    invoice_date DATE NOT NULL,
+    invoice_type VARCHAR DEFAULT 'R',
+    place_of_supply VARCHAR(2),
+    taxable_value NUMERIC(15, 2) NOT NULL DEFAULT 0.0,
+    cgst NUMERIC(15, 2) NOT NULL DEFAULT 0.0,
+    sgst NUMERIC(15, 2) NOT NULL DEFAULT 0.0,
+    igst NUMERIC(15, 2) NOT NULL DEFAULT 0.0,
+    cess NUMERIC(15, 2) NOT NULL DEFAULT 0.0,
+    total_tax NUMERIC(15, 2) NOT NULL DEFAULT 0.0,
+    invoice_value NUMERIC(15, 2) NOT NULL DEFAULT 0.0,
+    return_period VARCHAR(6) NOT NULL,
+    filing_date DATE,
+    itc_available VARCHAR(1) DEFAULT 'Y',
+    reconciliation_status VARCHAR(20) DEFAULT 'PENDING',
+    reconciliation_remarks TEXT,
+    reconciled_with_voucher_id VARCHAR,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_gstr2b_org_period ON gstr2b_entries(organization_id, return_period);
+CREATE INDEX IF NOT EXISTS idx_gstr2b_gstin ON gstr2b_entries(supplier_gstin);
+CREATE INDEX IF NOT EXISTS idx_gstr2b_inv ON gstr2b_entries(invoice_number);
+```
+
+### 37.3 Fuzzy Invoice Normalization Engine
+Because suppliers format invoice numbers differently across billing software (e.g. `INV/2026/0012` vs `INV-2026-12` vs `12`), the matching engine utilizes a two-tier normalization algorithm:
+
+```python
+def normalize_inv_num(inv: str) -> str:
+    """
+    Normalizes invoice numbers for robust GSTR-2B reconciliation:
+    1. Converts string to uppercase.
+    2. Strips special separators: '/', '-', '_', '.', and whitespace.
+    3. Trims leading zeroes to handle zero-padded number variations.
+    Example: 'INV/2026/0042' -> 'INV202642'
+    """
+    if not inv:
+        return ""
+    clean = re.sub(r'[^A-Za-z0-9]', '', str(inv).strip().upper())
+    m = re.match(r'^([A-Z]*)(0*)(\d+)$', clean)
+    if m:
+        prefix, zeros, digits = m.groups()
+        return f"{prefix}{digits}"
+    return clean
+```
+
+### 37.4 Reconciliation Matching Engine & REST API Endpoints
+Located in [`backend/api/gst.py`](file:///c:/Users/DELL/OneDrive/Desktop/erp2/backend/api/gst.py):
+
+| Method | Endpoint | Description | Request Query / Body |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/gst/reconciliation-summary` | Aggregates Safe ITC, At-Risk ITC, Unclaimed ITC, match percentage, and multi-state GSTIN filters. | `?tolerance=10.0&state_code=07` |
+| `GET` | `/api/gst/reconcile-2b` | Returns paired records with books vs portal side-by-side values, diffs, and categorization. | `?tolerance=10.0&state_code=ALL&category=ALL&search=Pharma` |
+| `POST` | `/api/gst/reconciliation-action` | Updates audit status (`CLAIM_ITC`, `DISPUTE`, `FORCE_MATCH`, `REVERSE`) on single or bulk entries. | `{"entry_ids": [...], "action": "CLAIM_ITC", "remarks": "..."}` |
+| `POST` | `/api/gst/import-2b` | Ingests official Government GST Portal JSON download payloads (`b2b`, `b2ba`, `cdnr`). | `{"portal_json": { "data": { "docdata": { "b2b": [...] } } } }` |
+
+### 37.5 Frontend UI DOM Identifiers & Component Structure
+Implemented in [`src/pages/gst/GstReports.tsx`](file:///c:/Users/DELL/OneDrive/Desktop/erp2/src/pages/gst/GstReports.tsx):
+
+| DOM Element ID | Component Type | Functionality & Audit Description |
+| :--- | :--- | :--- |
+| `#tab-gstr2b` | Tab Button | Activates GSTR-2B ITC Matching Engine workbench (`[F5]` hotkey). |
+| `#gstr2b-workbench` | Container Div | Main reconciliation workspace wrapper. |
+| `#metric-2b-total-itc` | KPI Metric Card | Displays Total Inward ITC present in GSTR-2B portal statements. |
+| `#metric-2b-safe-itc` | KPI Metric Card | Displays Safe & Claimable ITC meeting Section 16(2)(aa) statutory rules. |
+| `#metric-2b-match-ratio` | Badge | Percentage match indicator (e.g., `61.1% Matched`). |
+| `#metric-2b-at-risk-itc` | KPI Metric Card | Displays At-Risk Blocked ITC (missing in 2B or tax mismatched). |
+| `#metric-2b-unclaimed-itc` | KPI Metric Card | Displays Unclaimed Credit in 2B omitted in internal accounting ledgers. |
+| `#filter-recon-all` | Category Pill | Displays all paired reconciliation records. |
+| `#filter-recon-matched` | Category Pill | Filters only records matching within tolerance (`#2d6a4f`). |
+| `#filter-recon-tax_mismatch` | Category Pill | Filters records with tax differential exceeding tolerance (`#b45309`). |
+| `#filter-recon-missing_in_2b` | Category Pill | Filters inward invoices absent on GSTN portal (`#b91c1c`). |
+| `#filter-recon-missing_in_books` | Category Pill | Filters auto-drafted invoices missing in ERP ledger (`#6d28d9`). |
+| `#btn-open-ingest-2b` | Action Button | Opens official Government GST Portal JSON ingestion modal. |
+| `#btn-bulk-approve-itc` | Action Button | Bulk approves all checked records for GSTR-3B Table 4(A)(5) claiming. |
+| `#input-recon-search` | Text Input | Live search filtering by Supplier Name, GSTIN, or Invoice Number. |
+| `#select-recon-state` | Select Dropdown | Multi-state filter based on 2-digit GSTIN state code prefix (`07`, `27`, etc.). |
+| `#btn-tolerance-1` | Button | Switches differential matching tolerance to $\pm ₹1.00$. |
+| `#btn-tolerance-5` | Button | Switches differential matching tolerance to $\pm ₹5.00$. |
+| `#btn-tolerance-10` | Button | Switches differential matching tolerance to $\pm ₹10.00$. |
+| `#btn-export-2b-reconciliation` | Button | Exports matched dual-ledger grid to Excel format. |
+| `#tbl-gstr2b-reconciliation` | Data Table | Dual-ledger side-by-side reconciliation grid. |
+| `#chk-select-all-recon` | Checkbox | Selects or deselects all visible records in table. |
+| `#chk-recon-row-{idx}` | Checkbox | Row-level selection checkbox for bulk batch actions. |
+| `#btn-approve-row-{idx}` | Button | 1-click individual ITC approval button. |
+| `#btn-dunning-row-{idx}` | Button | Opens Supplier Dunning / WhatsApp Communication modal. |
+| `#btn-force-row-{idx}` | Button | 1-click purchase voucher creation for missing books records. |
+| `#modal-supplier-dunning` | Modal Dialog | Supplier notice generator under Section 16(2)(aa) CGST Act. |
+| `#textarea-dunning-message` | Textarea | Pre-filled statutory legal notice with blocked credit amounts. |
+| `#btn-copy-dunning` | Button | Copies statutory reminder message to clipboard. |
+| `#btn-send-whatsapp` | Button | Direct WhatsApp API integration (`https://wa.me/?text=...`). |
+| `#btn-mark-disputed` | Button | Flags invoice as disputed and records audit trail. |
+| `#btn-close-dunning-modal` | Button | Dismisses supplier dunning modal (`[Esc]`). |
+| `#modal-ingest-portal-2b` | Modal Dialog | GST Portal JSON file upload and raw payload parsing dialog. |
+| `#textarea-json-2b` | Textarea | Textarea accepting official GSTR-2B JSON download data. |
+| `#btn-cancel-ingest-modal` | Button | Dismisses portal JSON ingestion modal (`[Esc]`). |
+| `#btn-submit-ingest-2b` | Button | Parses and executes GSTR-2B bulk sync. |
+
+### 37.6 Automated Selenium Verification Runbook
+- **Script**: [`test_gstr2b_reconciliation_selenium.py`](file:///c:/Users/DELL/OneDrive/Desktop/erp2/test_gstr2b_reconciliation_selenium.py) (13 stages, Exit Code 0).
+- **Verified Stages**:
+  1. Stage 1: Authenticates as `admin` (`POST /auth/login`) with organization verification.
+  2. Stage 2: Direct API validation of `GET /api/gst/reconciliation-summary`, `GET /api/gst/reconcile-2b`, and `POST /api/gst/reconciliation-action`.
+  3. Stage 3: Headless Chrome driver initialization (1600x1050 viewport).
+  4. Stage 4: Authentication injection and navigation to `/gst`.
+  5. Stage 5: Switches to Tab `[F5] GSTR-2B ITC Matching Engine`.
+  6. Stage 6: Asserts Telemetry 4 Scorecards (₹25.06 Lakhs 2B ITC, ₹17.56 Lakhs Safe ITC, 61.1% Match Ratio, ₹5.35 Lakhs At-Risk, ₹37.78k Unclaimed). Captures `verified_gstr2b_telemetry_scorecards.png`.
+  7. Stage 7: Switches tolerance levels between $\pm ₹1$, $\pm ₹5$, and $\pm ₹10$.
+  8. Stage 8: Tests all 5 category filter tabs (`ALL`, `MATCHED`, `TAX_MISMATCH`, `MISSING_IN_2B`, `MISSING_IN_BOOKS`).
+  9. Stage 9: Tests live search filter and 2-digit multi-state GSTIN dropdown filter (`07`, `27`).
+  10. Stage 10: Tests master select-all checkbox, individual row checkbox, and bulk ITC approval execution.
+  11. Stage 11: Tests Supplier Dunning notice modal (`#modal-supplier-dunning`), verifies statutory Section 16(2)(aa) notice body, copies text to clipboard, and captures `verified_supplier_dunning_modal.png`.
+  12. Stage 12: Tests Portal GSTR-2B JSON ingestion modal (`#modal-ingest-portal-2b`), asserts GSTN `docdata` schema placeholder, and captures `verified_gstr2b_ingest_modal.png`.
+  13. Stage 13: Tests Excel report export and captures full dual-ledger workbench screenshot `verified_gstr2b_reconciliation_workbench.png`.
+
+---
+
 *End of Developer Manual.*
 

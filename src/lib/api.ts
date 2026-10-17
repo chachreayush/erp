@@ -1422,6 +1422,114 @@ export async function apiGetGstr1Json(fromDate?: string, toDate?: string): Promi
 }
 
 // ==========================================
+// DOC-43: GSTR-2B AUTO-DRAFTED ITC RECONCILIATION APIS
+// ==========================================
+
+export interface Gstr2bSummaryMetrics {
+  total_2b_available_itc: number;
+  reconciled_safe_itc: number;
+  at_risk_itc_exposure: number;
+  unclaimed_itc_credit: number;
+  mismatch_itc_discrepancy: number;
+  match_ratio_percent: number;
+}
+
+export interface Gstr2bSummaryCounts {
+  matched: number;
+  tax_mismatch: number;
+  missing_in_2b: number;
+  missing_in_books: number;
+  total_inward_purchases: number;
+  total_2b_entries: number;
+}
+
+export interface Gstr2bSummaryResponse {
+  metrics: Gstr2bSummaryMetrics;
+  counts: Gstr2bSummaryCounts;
+  available_states: string[];
+  current_tolerance: number;
+  selected_state: string;
+}
+
+export interface Gstr2bRecordBookItem {
+  invoice_id: string;
+  invoice_no: string;
+  supplier_inv_no: string;
+  date: string;
+  taxable: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  total_tax: number;
+  total: number;
+}
+
+export interface Gstr2bRecordPortalItem {
+  id: string;
+  invoice_no: string;
+  date: string;
+  taxable: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  total_tax: number;
+  total: number;
+  filing_date: string;
+  itc_available: string;
+}
+
+export interface Gstr2bRecord {
+  id: string;
+  category: 'MATCHED' | 'TAX_MISMATCH' | 'MISSING_IN_2B' | 'MISSING_IN_BOOKS';
+  supplier_name: string;
+  supplier_gstin: string;
+  state_code: string;
+  books: Gstr2bRecordBookItem | null;
+  gstr2b: Gstr2bRecordPortalItem | null;
+  diff: {
+    taxable_diff: number;
+    tax_diff: number;
+  };
+  status: string;
+  remarks: string;
+}
+
+export async function apiGetGstr2bSummary(tolerance?: number, stateCode?: string): Promise<Gstr2bSummaryResponse> {
+  const response = await apiClient.get<Gstr2bSummaryResponse>("/api/gst/reconciliation-summary", {
+    params: {
+      ...(tolerance !== undefined ? { tolerance } : {}),
+      ...(stateCode ? { state_code: stateCode } : {})
+    }
+  });
+  return response.data;
+}
+
+export async function apiGetGstr2bRecords(params?: {
+  tolerance?: number;
+  state_code?: string;
+  category?: string;
+  search?: string;
+}): Promise<Gstr2bRecord[]> {
+  const response = await apiClient.get<Gstr2bRecord[]>("/api/gst/reconcile-2b", { params });
+  return response.data;
+}
+
+export async function apiPostGstr2bAction(entryIds: string[], action: string, remarks?: string): Promise<{ status: string; action: string; updated_records: number; message: string }> {
+  const response = await apiClient.post("/api/gst/reconciliation-action", {
+    entry_ids: entryIds,
+    action,
+    remarks
+  });
+  return response.data;
+}
+
+export async function apiImportGstr2b(payload: { entries?: any[]; portal_json?: any }): Promise<{ status: string; imported_records: number; message: string }> {
+  const response = await apiClient.post("/api/gst/import-2b", payload);
+  return response.data;
+}
+
+
+// ==========================================
 // BILL-BY-BILL SETTLEMENT & RECEIPT/PAYMENT APIS (DOC-24 & DOC-07)
 // ==========================================
 

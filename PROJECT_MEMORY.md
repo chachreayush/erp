@@ -1030,7 +1030,41 @@ Implemented and verified the production-grade Principal & C&F Operations Managem
 
 ---
 
-## Comprehensive Master QA Test Registry (17 Suites)
+## Statutory Multi-State GSTR-1, GSTR-2B & GSTR-3B Reconciliation Cockpit with Section 16(2)(aa) 2B ITC Matching Engine (DOC-43)
+
+1. **Statutory Legislative Compliance**:
+   - Enforces Section 16(2)(aa) of the CGST Act, 2017: Disallows Input Tax Credit (ITC) claiming in monthly GSTR-3B unless supplier has furnished the invoice in GSTR-1/IFF and it reflects in the recipient's auto-drafted Form GSTR-2B.
+   - Dual-ledger matching engine: Correlates internal purchase vouchers against GSTR-2B entries into 4 distinct categories: `MATCHED`, `TAX_MISMATCH`, `MISSING_IN_2B` (At-risk blocked ITC), and `MISSING_IN_BOOKS` (Unclaimed credit).
+   - Differential Tolerance Switcher: Allows accounts operators to switch tolerance thresholds ($\pm ₹1$, $\pm ₹5$, $\pm ₹10$) to accommodate rounding variances across diverse supplier billing systems.
+   - Multi-State GSTIN Filtering: Supports multi-state operations filtering by 2-digit state code (`07 - Delhi`, `27 - Maharashtra`).
+   - WhatsApp Supplier Dunning Desk: 1-click legal reminder modal pre-populated with Section 16(2)(aa) citation, blocked tax exposure, and instant WhatsApp dispatch (`https://wa.me/?text=...`).
+   - 1-Click Bulk ITC Approval: Atomically marks qualifying records as `CLAIM_ITC` with remarks for monthly GSTR-3B Table 4(A)(5) filings.
+   - Official GST Portal JSON Statement Ingestion: Ingests official JSON returns from `gst.gov.in`, instantly populating database tables and updating compliance scorecards.
+2. **Database Schema**:
+   - Added `models.Gstr2bEntry` (`gstr2b_entries` table in Neon PostgreSQL) with indexes on `(organization_id, return_period)`, `supplier_gstin`, and `invoice_number`.
+3. **Backend REST APIs (`backend/api/gst.py`)**:
+   - `GET /api/gst/reconciliation-summary`: Live scorecards telemetry (Available ITC, Safe ITC, At-Risk ITC, Unclaimed ITC, match ratio, multi-state GSTIN filters).
+   - `GET /api/gst/reconcile-2b`: Itemized dual-ledger records with side-by-side values, taxable diff, tax diff, and audit actions.
+   - `POST /api/gst/reconciliation-action`: Bulk/individual audit status updates (`CLAIM_ITC`, `DISPUTE`, `FORCE_MATCH`, `REVERSE`).
+   - `POST /api/gst/import-2b`: Official GST Portal JSON return ingestion.
+4. **Master UI Elements in `GstReports.tsx` (`/gst`)**:
+   - 4 Live Scorecards: `#metric-2b-total-itc`, `#metric-2b-safe-itc`, `#metric-2b-match-ratio`, `#metric-2b-at-risk-itc`, `#metric-2b-unclaimed-itc`.
+   - Category Pills: `#filter-recon-all`, `#filter-recon-matched`, `#filter-recon-tax_mismatch`, `#filter-recon-missing_in_2b`, `#filter-recon-missing_in_books`.
+   - Control Bar: `#btn-open-ingest-2b`, `#btn-bulk-approve-itc`, `#input-recon-search`, `#select-recon-state`, `#btn-tolerance-1`, `#btn-tolerance-5`, `#btn-tolerance-10`, `#btn-export-2b-reconciliation`.
+   - Dual-Ledger Grid: `#tbl-gstr2b-reconciliation`, `#chk-select-all-recon`, `#chk-recon-row-{idx}`, `#btn-approve-row-{idx}`, `#btn-dunning-row-{idx}`, `#btn-force-row-{idx}`.
+   - Supplier Dunning Modal (`#modal-supplier-dunning`): `#textarea-dunning-message`, `#btn-copy-dunning`, `#btn-send-whatsapp`, `#btn-mark-disputed`, `#btn-close-dunning-modal`.
+   - Portal JSON Ingest Modal (`#modal-ingest-portal-2b`): `#textarea-json-2b`, `#btn-cancel-ingest-modal`, `#btn-submit-ingest-2b`.
+5. **Master Automated Selenium Suite (`test_gstr2b_reconciliation_selenium.py`)**:
+   - 13/13 Stages PASSED (Exit Code 0).
+   - 4 live visual proof screenshots captured:
+     - `verified_gstr2b_telemetry_scorecards.png`
+     - `verified_supplier_dunning_modal.png`
+     - `verified_gstr2b_ingest_modal.png`
+     - `verified_gstr2b_reconciliation_workbench.png`
+
+---
+
+## Comprehensive Master QA Test Registry (18 Suites)
 
 | # | Suite Filename | Focus Area | Result |
 | :--- | :--- | :--- | :--- |
@@ -1051,6 +1085,7 @@ Implemented and verified the production-grade Principal & C&F Operations Managem
 | 15 | `test_client_commission_billing_selenium.py` | C&F commission billing desk, dual-posting outward/inward invoices | 100% PASS (Exit Code 0) |
 | 16 | `test_pharma_expiry_quarantine_selenium.py` | Expiry radar, stock shift quarantine voucher, principal claim bridging | 100% PASS (Exit Code 0) |
 | 17 | `test_gst_einvoice_eway_selenium.py` | Compliance desk, transporter assignment, CBIC slips, NIC Schema 1.1 JSON | 100% PASS (Exit Code 0) |
+| 18 | `test_gstr2b_reconciliation_selenium.py` | GST Cockpit `[F5]`, Scorecards, Tolerance $\pm ₹1/5/10$, Dunning Modal, Ingest 2B Modal | 100% PASS (Exit Code 0) |
 
 ---
 

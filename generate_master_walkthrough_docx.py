@@ -2551,7 +2551,16 @@ def create_full_software_walkthrough():
         ["Compliance Desk (/compliance)", "#btn-open-transport-modal", "[F7]", "Opens Transporter & Vehicle Assignment modal (#modal-transport-assignment)."],
         ["Compliance Desk (/compliance)", "#btn-export-nic-json", "[F8]", "Exports official Government NIC Schema 1.1 Bulk Upload JSON payload."],
         ["Compliance Desk (/compliance)", "#btn-confirm-generate-compliance", "[Enter]", "Executes 1-Click generation of 64-char IRN, 15-digit Ack No, 12-digit E-Way Bill."],
-        ["Compliance Desk (/compliance)", "#btn-print-slip-dialog", "-", "Print trigger for official Government of India CBIC two-part delivery slip."]
+        ["Compliance Desk (/compliance)", "#btn-print-slip-dialog", "-", "Print trigger for official Government of India CBIC two-part delivery slip."],
+        ["GST Workbench (/gst)", "#tab-gstr2b", "[F5]", "Activates GSTR-2B ITC Matching Engine workbench."],
+        ["GST Workbench (/gst)", "#metric-2b-total-itc", "-", "Displays Total Inward ITC present in GSTR-2B statements."],
+        ["GST Workbench (/gst)", "#metric-2b-safe-itc", "-", "Displays Safe & Claimable ITC meeting Section 16(2)(aa) rules."],
+        ["GST Workbench (/gst)", "#metric-2b-at-risk-itc", "-", "Displays At-Risk Blocked ITC missing in 2B or with tax mismatches."],
+        ["GST Workbench (/gst)", "#metric-2b-unclaimed-itc", "-", "Displays Unclaimed Credit in 2B omitted in internal accounting ledgers."],
+        ["GST Workbench (/gst)", "#btn-tolerance-1 / 5 / 10", "-", "3-tier differential matching tolerance switcher (±₹1, ±₹5, ±₹10)."],
+        ["GST Workbench (/gst)", "#btn-bulk-approve-itc", "-", "1-Click bulk approval of matched records for monthly GSTR-3B Table 4(A)(5)."],
+        ["GST Workbench (/gst)", "#modal-supplier-dunning", "[Esc]", "Section 16(2)(aa) notice generator with direct WhatsApp dispatch."],
+        ["GST Workbench (/gst)", "#modal-ingest-portal-2b", "[Esc]", "Official Government GST Portal GSTR-2B JSON return statement ingestion."]
     ]
     style_table(selector_table, [1.5, 2.0, 0.8, 2.7], selector_headers, selector_data)
     doc.add_paragraph().paragraph_format.space_after = Pt(8)
@@ -2617,6 +2626,77 @@ def create_full_software_walkthrough():
     add_screenshot(
         "verified_eway_slip_preview.png",
         "Figure 30.3: Official Government of India CBIC E-Way Bill Delivery Slip (#modal-eway-slip-preview) featuring official header, EWB 244051149018, Part A invoice details (HSN 3004), Part B vehicle conveyance (DL-01-AB-1234), and high-contrast signed digital QR code representation."
+    )
+
+    # =========================================================================
+    # CHAPTER 31: STATUTORY GSTR-1, GSTR-2B & GSTR-3B RECONCILIATION COCKPIT (DOC-43)
+    # =========================================================================
+    doc.add_page_break()
+    add_h1("Chapter 31: Statutory Multi-State GSTR-1, GSTR-2B & GSTR-3B Reconciliation Cockpit with Section 16(2)(aa) 2B ITC Matching Engine (DOC-43)")
+
+    add_h2("31.1 Legislative Framework: Section 16(2)(aa) & Rule 37A ITC Compliance")
+    add_p(
+        "Under Section 16(2)(aa) of the Central Goods and Services Tax (CGST) Act, 2017 (notified w.e.f. 1 January 2022), registered businesses "
+        "are strictly prohibited from availing Input Tax Credit (ITC) in their monthly GSTR-3B returns unless the underlying invoice has been furnished "
+        "by the supplier in their outward statement (Form GSTR-1 or Invoice Furnishing Facility - IFF) and communicated to the recipient in auto-drafted "
+        "Form GSTR-2B. Availing credit without GSTR-2B reflection triggers automated Form GST DRC-01B disparity notices, mandatory 18% per annum interest, "
+        "and statutory credit reversals under Rule 37A."
+    )
+
+    add_h2("31.2 4-Way Matching Matrix & Tolerance Differential Engine")
+    add_p(
+        "The reconciliation engine correlates internal purchase vouchers against portal GSTR-2B records across a dual-ledger side-by-side table, "
+        "applying fuzzy/exact invoice number normalization (stripping special characters and leading zeros) and 3-tier differential tolerance (±₹1, ±₹5, ±₹10):"
+    )
+
+    recon_matrix_table = doc.add_table(rows=1, cols=3)
+    recon_matrix_headers = ["Reconciliation Category", "Status & Audit Criteria", "Operational & Compliance Action"]
+    recon_matrix_data = [
+        [
+            "MATCHED (Safe ITC)",
+            "Invoice present in both Books & GSTR-2B with Tax Variance <= Tolerance (e.g. +-Rs.10).",
+            "Auto-cleared under Section 16(2)(aa). Operators execute 1-Click Bulk Approval (#btn-bulk-approve-itc) to unlock credit for monthly GSTR-3B Table 4(A)(5) availing."
+        ],
+        [
+            "TAX MISMATCH",
+            "Invoice present in both ledgers, but tax discrepancy exceeds configured tolerance.",
+            "Visual orange warning displayed with exact rupee tax and taxable differential. Operators issue vendor debit notes or request invoice amendments."
+        ],
+        [
+            "MISSING IN 2B (At-Risk ITC)",
+            "Purchase voucher recorded in ERP internal books, but absent from Government GST Portal GSTR-2B statement.",
+            "Credit is legally blocked. Operators launch Supplier Dunning Modal (#modal-supplier-dunning) to dispatch Section 16(2)(aa) statutory notice via direct WhatsApp API."
+        ],
+        [
+            "MISSING IN BOOKS (Unclaimed Credit)",
+            "Invoice auto-drafted on GSTR-2B portal, but unrecorded in internal accounting purchase ledgers.",
+            "Represents genuine unclaimed ITC. Operators click 'Book Inward' (#btn-force-row-{idx}) to generate inward purchase vouchers without manual re-keying."
+        ]
+    ]
+    style_table(recon_matrix_table, [1.8, 2.5, 2.7], recon_matrix_headers, recon_matrix_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("31.3 Visual Photographic Evidence: Scorecards, Dunning Modal, Ingest & Workbench")
+    add_p("The automated Selenium test suite (test_gstr2b_reconciliation_selenium.py) verifies all 13 stages with 100% Exit Code 0:")
+
+    add_screenshot(
+        "verified_gstr2b_telemetry_scorecards.png",
+        "Figure 31.1: Telemetry 4 Scorecards showing Total ITC in GSTR-2B (₹25,06,165.98), Safe & Claimable ITC (₹17,55,898.96, 61.1% Matched ratio), At-Risk Blocked ITC (₹5,34,539.49), and Unclaimed Credit in 2B (₹37,782.00)."
+    )
+
+    add_screenshot(
+        "verified_supplier_dunning_modal.png",
+        "Figure 31.2: Section 16(2)(aa) Supplier Dunning Notice Modal (#modal-supplier-dunning) for Torrent Pharma Distributors showing blocked tax exposure of ₹22,449.98, pre-filled legal notice body, copy action, and direct WhatsApp sharing button."
+    )
+
+    add_screenshot(
+        "verified_gstr2b_ingest_modal.png",
+        "Figure 31.3: Government Portal GSTR-2B JSON Ingestion Modal (#modal-ingest-portal-2b) accepting official docdata.b2b payloads for immediate normalization and compliance synchronization."
+    )
+
+    add_screenshot(
+        "verified_gstr2b_reconciliation_workbench.png",
+        "Figure 31.4: Dual-Ledger GSTR-2B Reconciliation Workbench (/gst) displaying category filter pills, tolerance switcher (±₹1, ±₹5, ±₹10), multi-state dropdown, and side-by-side comparative table with audit actions."
     )
 
     # Save to erp2 directory
