@@ -109,7 +109,7 @@ git add . ; git commit -m "docs: exhaustive update of master walkthrough docx, u
 
 This triggers the continuous deployment webhook on Vercel, deploying the application live to `https://erp-rho-three.vercel.app`.
 
-### Step 3: Automated Verification Runbook (15 Test Suites)
+### Step 3: Automated Verification Runbook (16 Test Suites)
 Before staging releases, run the comprehensive local and cloud verification suites:
 ```powershell
 # 1. Type check
@@ -152,6 +152,8 @@ This guarantees 100% production uptime and records visual proof artifacts.
 2. **Never Commit Secrets**: Ensure `.env` in `backend` and `src` is listed in `.gitignore` so database passwords and secret keys are never exposed on GitHub.
 3. **Branch Protection**: The `main` branch represents production code deployed to live pharmacies and cashiers. Ensure all changes are verified via Selenium before pushing to `main`.
 4. **Recent Production Releases**:
+   - `f84a34c`: "feat(doc-41): pharma expiry radar, stock shift quarantine & principal claim settlement desk"
+   - `7720ca8`: "docs: exhaustive update across all developer and user manuals and master walkthrough docx"
    - `d57cb1e`: "feat: top navigation non-overflow menu & client c&f commission billing with dual-posting"
    - `628393e`: "feat: admin enterprise multi-client operations tracking & radar engine"
    - `b225811`: "feat: flagship neumorphic luxury styling for principal and commission engines"
@@ -159,4 +161,5 @@ This guarantees 100% production uptime and records visual proof artifacts.
 
 ---
 *End of Git Workflow Manual.*
+
 

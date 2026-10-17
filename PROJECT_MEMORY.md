@@ -914,5 +914,69 @@ Implemented and verified the production-grade Principal & C&F Operations Managem
 
 ---
 
+## Complete System Architecture & Exhaustive Component Inventory
+
+1. **Topology & Infrastructure**:
+   - **Development Workspace**: `c:\Users\DELL\OneDrive\Desktop\erp2` (Active Vite Port 50005, FastAPI Port 8000).
+   - **Local Git Repository**: `c:\Users\DELL\OneDrive\Desktop\erp` (Branch `main`, remote `origin https://github.com/chachreayush/erp.git`).
+   - **Cloud Production Frontend**: `https://erp-rho-three.vercel.app` (Vercel Edge CDN with HTML5 SPA rewrites).
+   - **Synchronization Tool**: `sync_to_erp.py` (Windows Robocopy mirroring source, backend, and documentation).
+
+2. **Frontend Routes Catalog (35 Routes in `src/App.tsx`)**:
+   - `/`: Counter Workbench (`HomeScreen.tsx`)
+   - `/dashboard`: Executive BI Dashboard (`Dashboard.tsx`)
+   - `/sales`: Marg-Speed Sales Counter Billing (`SalesBill.tsx`)
+   - `/purchase`: Direct Inward Purchase Bill (`PurchaseBill.tsx`)
+   - `/purchase/list`: Inward Purchase Bills Register (`PurchaseList.tsx`)
+   - `/sales-return`: Customer Credit Note (`SalesReturnBill.tsx`)
+   - `/purchase-return`: Supplier Debit Note (`PurchaseReturnBill.tsx`)
+   - `/brk-receive`: Breakage & Damage Receive Entry (`BrkReceiveBill.tsx`)
+   - `/brk-issue`: Breakage & Damage Return to Manufacturer (`BrkIssueBill.tsx`)
+   - `/receipt` & `/finance/receipt`: Customer Collection Voucher (`ReceiptPaymentVoucher.tsx`)
+   - `/payment` & `/finance/payment`: Supplier Payment Voucher (`ReceiptPaymentVoucher.tsx`)
+   - `/journal` & `/finance/journal`: Multi-Leg Journal Voucher Cockpit (`JournalVoucherEntry.tsx`)
+   - `/finance/journal-register`: Journal Register & 1-Click Reversal Desk (`JournalRegister.tsx`)
+   - `/finance/daybook`: Chronological Daily Ledger Audit Trail (`DayBook.tsx`)
+   - `/finance/ledger-statement`: Running Balance Ledger Statement (`LedgerStatement.tsx`)
+   - `/finance/trial-balance`: Double-Entry Trial Balance (`TrialBalance.tsx`)
+   - `/finance/profit-loss`: Revenue, COGS, Gross/Net Profit (`ProfitAndLoss.tsx`)
+   - `/finance/balance-sheet`: Assets, Liabilities, Owner's Equity (`BalanceSheet.tsx`)
+   - `/finance/bank-reconciliation`: BRS Auto-Matching & Cash Counter (`BankReconciliation.tsx`)
+   - `/finance/fixed-assets`: Asset Register & WDV/SLM Depreciation (`FixedAssets.tsx`)
+   - `/finance/expenses`: Direct Expense Payouts & Imprest Claims (`ExpenseManagement.tsx`)
+   - `/finance/outstanding`: Customer & Vendor Ageing Analysis (`OutstandingWorkbench.tsx`)
+   - `/stock`: Active Sellable Inventory Register (`CurrentStock.tsx`)
+   - `/brk-exp-stock`: Non-Saleable Quarantined Stock Register (`CurrentStock.tsx`)
+   - `/inventory-dashboard`: Expiry Radar & Breakage Cockpit (`InventoryDashboard.tsx`)
+   - `/stock-shift`: Atomic Godown Stock Shift Desk (`StockShiftVoucher.tsx`)
+   - `/inventory/replenishment`: Sales Velocity Reorder Engine (`Replenishment.tsx`)
+   - `/cargo`: Logistics Consignment Kanban Board (`CargoBoard.tsx`)
+   - `/cargo/costs`: Multi-Client Freight MIS Center (`CargoCostCenter.tsx`)
+   - `/cargo/pod-exceptions`: 4-Eyes Delivery POD & Claims (`PodExceptionDesk.tsx`)
+   - `/freight/contracts`: Carrier Rate Cards & Rating Sandbox (`FreightRateMaster.tsx`)
+   - `/freight/reconciliation`: 3-Way Transporter Billing Reconciliation (`FreightReconciliationDesk.tsx`)
+   - `/principal`: Principal Control Center & Custody Matrix (`PrincipalControlCenter.tsx`)
+   - `/principal/statement`: Reconstructable Business Statement (`PrincipalStatementDesk.tsx`)
+   - `/commission`: 4-Pillar C&F Commission Engine & Client Billing (`CommissionControlCenter.tsx`)
+   - `/admin/tracking` & `/tracking`: Enterprise Multi-Client Operations Radar (`AdminEnterpriseTracker.tsx`)
+   - `/master/companies` & `/companies`: Product Brand Manufacturers Master (`CompanyMasterDesk.tsx`)
+   - `/clients`: Multi-Tenant Client Management & Mapping (`ClientManagement.tsx`)
+   - `/master/parties`: Debtor & Creditor Master (`PartyMaster.tsx`)
+   - `/gst`: GSTR-1, GSTR-2, GSTR-3B & Government Offline JSON (`GstReports.tsx`)
+   - `/compliance`: E-Invoicing, IRN & QR Generation (`ComplianceWorkbench.tsx`)
+   - `/workflow/inbox`: Maker-Checker Approval Inbox (`WorkflowInbox.tsx`)
+   - `/workflow/designer`: Rule Hierarchy & Simulator (`WorkflowDesigner.tsx`)
+   - `/workflow/monitor`: Turnaround Time & SLA Monitor (`WorkflowMonitor.tsx`)
+   - `/audit`: SHA-256 Chained Event Stream Explorer (`AuditExplorer.tsx`)
+   - `/audit/governance`: Statutory Retention & Legal Holds (`GovernanceConsole.tsx`)
+   - `/reports`: Management Reports Viewer (`ReportViewer.tsx`)
+   - `/reports/designer`: Custom Semantic Report Query Builder (`ReportDesigner.tsx`)
+
+3. **Backend API Routers (40 Modules in `backend/api/`)**:
+   - `sales.py`, `stock.py`, `finance_v2.py`, `reports_v2.py`, `reports.py`, `gst.py`, `admin_tracker.py`, `commission.py`, `principal.py`, `principals.py`, `freight.py`, `cargo.py`, `workflow.py`, `audit.py`, `master.py`, `parties.py`, `pricing.py`, `schemes.py`, `warehouses.py`, `transport.py`, `organizations.py`, `company_analytics.py`, `expenses.py`, `assets.py`, `compliance.py`, `orders.py`, `procurement.py`, `dispatch.py`, `bulletins.py`, `dashboard.py`, `batches.py`, `billing.py`, `claims.py`, `replenishment.py`, `stock_new.py`, `system.py`, `tds_tcs.py`, `append_stock.py`.
+
+---
+
 *End of Master Memory File.*
+
 

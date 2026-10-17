@@ -246,6 +246,57 @@ The ERP is 100% keyboard-navigable. Key shortcuts:
 | `/stock-shift` | `#lbl-success-claim-no` | - | Generated Principal Claim reference (CLM-PRN-XXXX) |
 | `/stock-shift` | `#btn-view-in-audit` | `[F2]` | View voucher in Stock Shift Audit Register |
 | `/stock-shift` | `#btn-view-claim-desk` | `[F8]` | Jump to Principal Claims Desk |
+| `/sales` | `#input-bill-series` | - | Alphanumeric series continuation input (`SLS-YYYY-XXXX`) |
+| `/sales` | `#btn-search-party` | `[F7]` | Debtor Party search modal with live balance and drug license |
+| `/sales` | `#grid-bill-items` | - | Bill item lines grid (Item, Pack, Batch, Exp, Qty, Free, Rate, Dis%, GST%) |
+| `/sales` | `#btn-batch-modal` | `[F3]` | Batch Selection modal showing stock and expiry dates |
+| `/sales` | `#btn-settlement-modal` | `[End]` | Settlement & Payment Mode modal (Cash, Bank, Credit) |
+| `/sales` | `#btn-save-bill` | `[Ctrl+S]` | Saves bill, decrements batch stock, auto-posts double-entry GL voucher |
+| `/purchase` | `#input-purchase-series` | - | Alphanumeric inward bill series input (`PUR-YYYY-XXXX`) |
+| `/purchase` | `#input-vendor-inv-no` | - | Supplier's external invoice reference number |
+| `/purchase` | `#btn-search-vendor` | `[F7]` | Creditor vendor search popup with live ledger balance |
+| `/purchase` | `#btn-save-purchase` | `[Ctrl+S]` | Commits purchase, updates batch stock, auto-posts inventory & accounts payable |
+| `/purchase/list` | `#grid-purchase-bills` | - | Inward purchase bills register with search, filter, and dual-post tags |
+| `/purchase-return` | `#btn-mode-against-bill` | `[F2]` | Activates Against Inward Bill mode to load original purchase line items |
+| `/purchase-return` | `#btn-mode-loose` | `[F3]` | Activates Loose Return mode for ad-hoc debit note issuance |
+| `/purchase-return` | `#select-stock-disposition` | - | Routes returned goods to Saleable, Breakage, or Expired godown |
+| `/purchase-return` | `#btn-save-debit-note` | `[Ctrl+S]` | Posts debit note, adjusts stock, generates reverse GL and ITC entries |
+| `/sales-return` | `#btn-mode-against-bill` | `[F2]` | Activates Against Sales Bill mode to retrieve customer invoice lines |
+| `/sales-return` | `#btn-mode-counter` | `[F3]` | Activates Counter Return mode with returnable quantity validation |
+| `/sales-return` | `#btn-save-credit-note` | `[Ctrl+S]` | Saves credit note, increments stock, auto-posts sales return GL entries |
+| `/brk-receive` | `#input-bkr-series` | - | Alphanumeric Breakage Receive series (`BKR-YYYY-XXXX`) |
+| `/brk-receive` | `#btn-save-bkr` | `[Ctrl+S]` | Posts breakage receive, routing stock strictly into `brk_exp_stock` |
+| `/brk-issue` | `#input-bki-series` | - | Alphanumeric Breakage Issue series (`BKI-YYYY-XXXX`) |
+| `/brk-issue` | `#btn-save-bki` | `[Ctrl+S]` | Posts breakage issue to manufacturer, decrementing `brk_exp_stock` |
+| `/journal` | `#input-journal-series` | - | Alphanumeric Journal series (`JRN-YYYY-XXXX`) |
+| `/journal` | `#btn-auto-balance-gl` | `[Ctrl+B]` | Automatically calculates and inserts balancing Dr/Cr line |
+| `/journal` | `#btn-add-journal-leg` | `[Alt+A]` | Adds new ledger line item to journal entry |
+| `/journal` | `#check-schedule-accrual` | - | Configures scheduled automatic GL reversal on 1st of subsequent month |
+| `/journal` | `#btn-post-journal` | `[Ctrl+S]` | Validates $\sum \text{Dr} = \sum \text{Cr}$ and posts journal voucher to ledger |
+| `/finance/journal-register` | `#btn-reverse-journal` | - | 1-Click atomic GL reversal with linked audit trail |
+| `/finance/expenses` | `#input-expense-amount` | - | Expense payout amount with live P&L impact preview |
+| `/finance/expenses` | `#select-expense-account` | - | Dropdown for 10 statutory P&L expense heads |
+| `/finance/expenses` | `#btn-post-expense` | - | Posts direct cash/bank expense voucher debiting P&L immediately |
+| `/finance/fixed-assets` | `#btn-register-asset` | `[F2]` | Opens modal to register capital asset with Schedule II category |
+| `/finance/fixed-assets` | `#btn-run-depreciation` | `[F5]` | Executes periodic WDV/SLM depreciation run across active assets |
+| `/finance/bank-reconciliation` | `#btn-auto-match-brs` | - | Runs auto-matching algorithm against imported bank statement CSV |
+| `/finance/bank-reconciliation` | `#btn-cash-drawer-tally` | `[F8]` | Opens RBI physical currency denomination counter and cash discrepancy report |
+| `/finance/outstanding` | `#tab-btn-debtors` | - | Outstanding customer debit balances with 0-30, 31-60, 61-90, >90d ageing |
+| `/finance/outstanding` | `#tab-btn-creditors` | - | Outstanding vendor credit liabilities with ageing analysis |
+| `/gst` | `#tab-btn-gstr1` | - | GSTR-1 Outward Supplies return tables (B2B, B2CS, CDNR, HSN, Docs) |
+| `/gst` | `#tab-btn-gstr2` | - | GSTR-2 Inward ITC register matching purchase bills and debit notes |
+| `/gst` | `#tab-btn-gstr3b` | - | GSTR-3B Monthly consolidated return calculation |
+| `/gst` | `#btn-export-gstn-json` | - | Exports official Government Offline Utility JSON file for `gst.gov.in` |
+| `/reports` | `#select-report-category` | - | Financial, inventory, sales, and audit report catalog |
+| `/reports/designer` | `#btn-execute-query` | - | Runs custom semantic report query builder |
+| `/workflow/inbox` | `#btn-approve-task` | - | 1-Click task approval with maker-checker verification |
+| `/workflow/inbox` | `#btn-reject-task` | - | Opens mandatory rejection remarks dialog |
+| `/workflow/designer` | `#input-sim-amount` | - | Approval threshold simulator sandbox |
+| `/workflow/monitor` | `#chart-sla-adherence` | - | SLA adherence metrics and average resolution TAT |
+| `/master/parties` | `#btn-new-party` | `[F2]` | Opens new customer/vendor registration dialog |
+| `/master/parties` | `#input-party-gstin` | - | Party GSTIN with statutory checksum validation |
+| `/stock` | `#input-stock-search` | - | Instant search across product formulations, batches, and godowns |
+| `/inventory/replenishment` | `#btn-generate-reorder` | - | Computes reorder quantities based on minimum stock and sales velocity |
 
 ---
 
@@ -259,6 +310,27 @@ The ERP is 100% keyboard-navigable. Key shortcuts:
   - `POST /api/stock/shifts`: Atomic reallocation transaction with optional dual-filing of `PrincipalClaim` and itemized `PrincipalClaimLine`s.
   - `GET /api/stock/shifts`: Historical audit register of `SHF-2026-XXXX` vouchers.
 - **Automated QA Verification**: `test_pharma_expiry_quarantine_selenium.py` (13 stages, 100% Passed, Exit Code 0).
+
+---
+
+### 2.24 Complete Operational Navigation & Menu Sizing Standard
+
+1. **Responsive Top Navigation Architecture**:
+   - Reorganized into 10 streamlined, non-wrapping parent categories fitting standard desktop displays (1366px, 1440px, 1920px):
+     `Dashboard` | `Master ▾` | `Finance & Accounting ▾` | `Inventory ▾` | `Sales & Purchase ▾` | `C&F & Logistics ▾` | `Workflows [F4] ▾` | `GST & Compliance ▾` | `CRM & Admin ▾` | `Reports ▾`.
+   - Accessible via arrow key traversal (`ArrowLeft`, `ArrowRight`, `ArrowDown`, `ArrowUp`), `Enter` navigation, and `Esc` dismissal.
+
+2. **Counter Launcher Hotkeys on HomeScreen (`/`)**:
+   - `[F2]`: Sales Counter Billing
+   - `[F5]`: Supplier Payment Voucher
+   - `[F6]`: Customer Receipt Voucher
+   - `[Ctrl+1]`: Cargo & Consignment Management Board
+   - `[Ctrl+2]`: Freight Contracts & Carrier Rate Master
+   - `[Ctrl+3]`: Principal Operations & Custody Control Center
+   - `[Ctrl+4]`: C&F Commission & Recovery Engine
+   - `[Ctrl+5]`: Product Company Master & Manufacturer Desk
+   - `[Ctrl+6]`: Enterprise Multi-Client Operations Radar
+   - `[Esc]`: Application Exit confirmation modal (`#modal-exit-app`)
 
 ---
 

@@ -333,42 +333,146 @@ def _auto_post_accounting(db: Session, invoice: models.Invoice):
 
 ---
 
-## 7. API Route Directory
+## 7. Exhaustive API Route Directory (All 40 Backend Modules)
 
-### 7.1 `/api/sales` — Transaction & Billing Engine
-* `POST /api/sales/invoices`: Create or upsert an invoice (sales, purchase, returns, breakage). Deducts/adds inventory and auto-posts journal vouchers.
+The ERP application backend is structured into 40 specialized API modules in `backend/api/`, all exposed through FastAPI and protected by JWT authentication and tenant isolation (`organization_id`):
+
+### 7.1 `/api/sales` — Transaction & Billing Engine (`backend/api/sales.py`)
+* `POST /api/sales/invoices`: Create or upsert an invoice (sales, purchase, returns, breakage). Deducts/adds inventory, evaluates margins, and auto-posts double-entry journal vouchers.
 * `GET /api/sales/invoices`: Paginated invoice query with date, customer, type, and status filtering.
-* `GET /api/sales/invoices/{id}`: Detailed invoice view including all item lines.
+* `GET /api/sales/invoices/{id}`: Detailed invoice view including all item lines, tax breakdowns, and linked vouchers.
 * `POST /api/sales/invoices/{id}/cancel`: SAP-style audit reversal. Marks status as `Cancelled`, creates reverse stock adjustments, and posts reversal journal vouchers.
 * `GET /api/sales/invoices/by-customer/{customer_name}`: Fast query of past customer sales invoices for `[F2] Against Bill` returns.
 * `GET /api/sales/invoices/by-supplier/{supplier_name}`: Fast substring query of past supplier inward bills for `[F2] Against Inward Bill` debit notes.
+* `GET /api/sales/series/next`: Resolves next sequential voucher series number based on series code and organization.
 
-### 7.2 `/api/stock` — Inventory & Batch Engine
-* `GET /api/stock/current`: Paginated active inventory (`current_stock`).
-* `GET /api/stock/brk-exp`: Dedicated non-saleable godown inventory (`brk_exp_stock`).
-* `GET /api/products/`: Master product catalog with packaging, MRP, GST rate, and manufacturer mappings.
-* `POST /api/stock/shift`: Internal stock shift voucher (moving stock between Saleable, Breakage, and Expired godowns).
+### 7.2 `/api/stock` — Inventory, Expiry Radar & Stock Shift Engine (`backend/api/stock.py`)
+* `GET /api/stock/current`: Paginated active inventory in `current_stock` godown.
+* `GET /api/stock/brk-exp`: Dedicated non-saleable quarantine godown inventory (`brk_exp_stock`).
+* `GET /api/stock/expiry-cockpit-telemetry`: Computes real-time Main Stock valuation & units, Quarantine stock, 90-day near-expiry risk valuations across 4 buckets, and active pending claims.
+* `GET /api/stock/expiry-radar-batches`: Classifies active batches by risk bucket (`ALL`, `EXPIRED`, `30_DAYS`, `60_DAYS`, `90_DAYS`), manufacturer, and search query.
+* `POST /api/stock/shifts`: Atomic stock reallocation transaction moving stock from `MAIN_SALEABLE_GODOWN` to `QUARANTINE_EXPIRY_GODOWN` decrementing `current_stock` and incrementing `brk_exp_stock`, creating `StockShiftVoucher` + `StockShiftItem`s, and auto-filing `PrincipalClaim` (`CLM-PRN-YYYY-XXXX`).
+* `GET /api/stock/shifts`: Audit register listing historical stock shift vouchers.
+* `GET /api/stock/shifts/{id}`: Full itemized detail of a specific stock shift voucher.
 
-### 7.3 `/api/finance_v2` — Double-Entry Accounting Engine
-* `POST /api/finance/vouchers`: Create multi-leg balanced accounting vouchers (Payment, Receipt, Journal, Contra).
-* `GET /api/finance/vouchers`: Filterable voucher register.
-* `GET /api/finance/daybook`: Real-time chronological day book with running daily totals.
+### 7.3 `/api/finance_v2` — Double-Entry Accounting Engine (`backend/api/finance_v2.py`)
+* `POST /api/finance/vouchers`: Create multi-leg balanced accounting vouchers (Payment `[F5]`, Receipt `[F6]`, Journal, Contra).
+* `GET /api/finance/vouchers`: Filterable voucher register with date range and voucher type filtering.
+* `GET /api/finance/daybook`: Real-time chronological day book with running daily debit and credit totals.
 * `GET /api/finance/ledger-statement/{ledger_id}`: Detailed ledger statement with Dr/Cr splits and running balance.
 * `GET /api/finance/trial-balance`: Real-time Trial Balance verifying $\sum \text{Debits} = \sum \text{Credits}$.
 * `GET /api/finance/profit-loss`: Period P&L statement calculating Gross and Net Profit.
 * `GET /api/finance/balance-sheet`: Balance Sheet calculating Assets, Liabilities, and Owner's Equity.
+* `GET /api/finance/outstanding`: Bill-by-bill outstanding debit/credit clearing and ageing analysis (0-30, 31-60, 61-90, >90 days).
+* `POST /api/finance/allocate-fifo`: Automatic FIFO settlement allocation across unpaid invoices.
 
-### 7.4 `/api/reports_v2` — Reporting & Drill-Down Engine
+### 7.4 `/api/reports_v2` & `/api/reports` — Reporting & Drill-Down Engine (`backend/api/reports_v2.py`, `backend/api/reports.py`)
 * `GET /api/reports_v2/company-wise-sales`: Aggregates invoice lines across all 25+ pharmaceutical manufacturers, calculating invoice counts, units sold, and turnover in `₹`.
 * `GET /api/reports_v2/company-products/{company_id}`: Powers the inline drawer product drill-down for detailed item-level sales.
 * `POST /api/reports_v2/query`: Semantic query execution engine powering the Custom Report Designer.
+* `GET /api/reports/list`: Catalog of pre-configured financial, operational, and audit reports.
 
-### 7.5 `/api/gst` — Statutory GST Compliance Engine
+### 7.5 `/api/gst` — Statutory GST Compliance Engine (`backend/api/gst.py`)
 * `GET /api/gst/summary`: High-level statutory turnover, tax liability, inward purchases, eligible ITC, net cash payable, and accumulated ITC balance.
 * `GET /api/gst/gstr1`: Official GSTR-1 return dataset containing Table 4 (B2B), Table 7 (B2CS), Table 9B (CDNR), Table 12 (HSN Summary), and Table 13 (Documents Issued).
 * `GET /api/gst/gstr2`: Official GSTR-2 inward register detailing supplier bills, supplier GSTINs, and automatic Debit Note ITC reversals.
 * `GET /api/gst/gstr3b`: Monthly consolidated return computing Table 3.1 Outward supplies, Table 4 Eligible ITC, and Table 5.1 Tax payment breakdown (ITC set-off vs cash).
 * `GET /api/gst/gstr1/json`: Official Government GSTN Offline Utility v1.5 payload export directly importable into the Government GST portal (`gst.gov.in`).
+
+### 7.6 `/api/admin/tracking` — Enterprise Multi-Client Radar Engine (`backend/api/admin_tracker.py`)
+* `GET /api/admin/tracking/summary`: Consolidated high-level KPIs (Total Sales, Operating Expenses, Active Cargo, Client Count, Mapped Product Brands).
+* `GET /api/admin/tracking/clients`: Client-by-client operational scorecard matrix with turnover, expenses, cargo count, and mapped manufacturers.
+* `GET /api/admin/tracking/sales`: Multi-client sales invoices ledger with client attribution, customer names, and line items.
+* `GET /api/admin/tracking/expenses`: Multi-client operational claims and C&F depot costs ledger with status badges.
+* `GET /api/admin/tracking/cargo`: Cross-client logistics consignment pipeline displaying transporters, vehicles, and live shipment status.
+
+### 7.7 `/api/commission` — C&F Commission, Deal Terms & Billing Desk (`backend/api/commission.py`)
+* `GET /api/commission/agreements`: Lists 4-pillar commercial deal terms (Sales % Comm, Godown Rent, Staff Salary, Transport Recovery).
+* `POST /api/commission/agreements`: Creates or updates contractual commission deal terms.
+* `POST /api/commission/simulate`: Deterministic sandbox calculation evaluating live turnover against commission slabs.
+* `GET /api/commission/clients/{client_org_id}/telemetry`: 1-Click Auto-Fetch pulling client sales turnover, suggested commission, and depot operating expenses.
+* `POST /api/commission/generate-client-bill`: Generates Outward C&F Service Bill (`CF-BILL-`) and dual-posts Inward Purchase Bill (`PUR-CF-`) into the Client Organization partition.
+* `GET /api/commission/client-bills`: Historical audit register of all generated client commission bills with dual-post references.
+* `GET /api/commission/claims`: Lists all recovery claims packages with approval workflow.
+
+### 7.8 `/api/principal` & `/api/principals` — Principal Operations & Custody Control (`backend/api/principal.py`, `backend/api/principals.py`)
+* `GET /api/principal/dashboard`: 5 KPI telemetry metrics (Custody Stock, Open Claims, Settlements, Reconciliations, Admin Freight Subsidy).
+* `GET /api/principal/custody-stock`: Batch-level custody stock inventory matrix segregated by manufacturer.
+* `POST /api/principal/claims`: Files formal Principal damage/breakage/expiry claims (`CLM-PRN-YYYY-XXXX`).
+* `GET /api/principal/reconciliations`: 3-way reconciliation statements comparing physical vs ledger balances.
+* `GET /api/principal/statements/{principal_id}`: Comprehensive period business statements with SHA-256 seal.
+
+### 7.9 `/api/freight` — Freight Management & Transporter Reconciliation (`backend/api/freight.py`)
+* `GET /api/freight/contracts`: Versioned carrier rate contracts with vehicle types and lane matrices.
+* `POST /api/freight/contracts`: Registers new carrier rate card contract with surcharge rules.
+* `POST /api/freight/calculate`: Deterministic calculation sandbox evaluating weight breaks, distance, and surcharges with formula trace.
+* `GET /api/freight/reconciliation`: 3-way variance audit matching LR freight cost against transporter bills.
+* `POST /api/freight/bills/approve`: Approves carrier invoice within tolerable variance and posts liability to GL Account 5200.
+
+### 7.10 `/api/cargo` — Cargo & Consignment Management Engine (`backend/api/cargo.py`)
+* `GET /api/cargo/consignments`: Kanban shipment pipeline (Planned -> In-Transit -> Delivered).
+* `POST /api/cargo/consignments`: Registers consignment with IATA volumetric CBM auto-calculation and package barcodes (`PKG-YYYY-XXXX-NN`).
+* `GET /api/cargo/costs`: Multi-client freight MIS with single-client vs combined reporting toggle.
+* `POST /api/cargo/pod`: Submits 4-eyes Proof of Delivery with accepted vs damaged quantities.
+
+### 7.11 `/api/workflow` — Business Automation & Approvals Engine (`backend/api/workflow.py`)
+* `GET /api/workflow/inbox`: Pending approval tasks with SLA countdown timers and priority tags.
+* `POST /api/workflow/tasks/{id}/approve`: 1-Click approval with maker-checker 403 authorization enforcement.
+* `POST /api/workflow/tasks/{id}/reject`: Task rejection requiring mandatory audit remarks.
+* `GET /api/workflow/designer/rules`: Configured workflow rules hierarchy.
+* `POST /api/workflow/designer/simulate`: Evaluates sandbox transaction amount against approval hierarchy.
+
+### 7.12 `/api/audit` — Cryptographic Audit Trail & Data Governance (`backend/api/audit.py`)
+* `GET /api/audit/events`: Paginated audit events stream with SHA-256 hash chains.
+* `POST /api/audit/verify-chain`: Traverses sequential hash blocks and certifies 100% cryptographic integrity.
+* `GET /api/audit/events/{id}/diff`: Field-level before/after JSON visual diff inspection.
+* `POST /api/audit/evidence-pack`: Generates cryptographically sealed Auditor Evidence Pack.
+* `GET /api/audit/governance/policies`: Statutory retention schedules (2,920 days MCA/GST standard).
+* `POST /api/audit/governance/holds`: Establishes statutory litigation legal hold.
+
+### 7.13 `/api/master` & Master Subsystems (`backend/api/master.py`, `parties.py`, `pricing.py`, `schemes.py`, `warehouses.py`, `transport.py`)
+* `GET /api/master/parties`: Business partner lookup (Debtors, Creditors, C&F Agents) with GSTIN and drug licenses.
+* `GET /api/master/products`: Master product catalog with packaging, MRP, GST rate, and salt composition.
+* `GET /api/master/ledger-groups`: Statutory Schedule III Account Heads and groupings.
+* `GET /api/master/warehouses`: Multi-godown locations (Main, Breakage, Expiry, Quarantine).
+* `GET /api/master/transport`: Registered transporters and vehicle master.
+* `GET /api/master/schemes`: Promotional schemes and volume discounts matrix.
+* `GET /api/master/pricing`: Tiered pricing formulas and margin rules.
+* `GET /api/master/error-entries`: Crash recovery and unposted transaction staging ledger.
+
+### 7.14 `/api/organizations` & Multi-Tenant Administration (`backend/api/organizations.py`)
+* `GET /api/organizations`: Lists all tenant organizations and client entities.
+* `POST /api/organizations/{org_id}/manufacturers`: Assigns authorized product brands/manufacturers to a client organization with custom commission overrides.
+* `GET /api/organizations/{org_id}/manufacturers`: Queries assigned product manufacturers and contract terms for a specific client.
+
+### 7.15 `/api/company_analytics` — Manufacturer Sales Intelligence (`backend/api/company_analytics.py`)
+* `GET /api/company-analytics/turnover`: Aggregated line-item sales turnover, unit volume, and net revenue per pharmaceutical manufacturer.
+* `GET /api/company-analytics/top-performers/{company_id}`: Top 3 selling products and top 3 purchasing chemist clients per manufacturer.
+
+### 7.16 `/api/expenses` — Operational Expense & Petty Cash Engine (`backend/api/expenses.py`)
+* `POST /api/finance/expenses`: Quick direct cash/bank operational expense posting with live P&L impact.
+* `POST /api/finance/expenses/advances`: Issues employee imprest tour advances.
+* `POST /api/finance/expenses/claims`: Submits itemized multi-line reimbursement claims with advance reconciliation.
+
+### 7.17 `/api/assets` — Fixed Assets & Depreciation Engine (`backend/api/assets.py`)
+* `GET /api/finance/assets`: Fixed assets register with gross block, capitalization date, and salvage value.
+* `POST /api/finance/assets/depreciate`: Executes periodic SLM/WDV depreciation run posting GL entries (`Dr Depreciation Expense`, `Cr Accumulated Depreciation`).
+
+### 7.18 `/api/compliance` — Statutory E-Invoicing & Signed Ledger (`backend/api/compliance.py`)
+* `POST /api/compliance/einvoice/generate`: Generates NIC-compliant IRN and QR payload.
+* `GET /api/compliance/signed-ledger`: Returns cryptographically signed general ledger extract.
+
+### 7.19 `/api/orders` & `/api/procurement` — Order Management & Procurement (`backend/api/orders.py`, `procurement.py`, `dispatch.py`)
+* `GET /api/orders/sales`: Sales orders queue and approvals workflow.
+* `POST /api/orders/dispatch`: Creates dispatch manifests and assigns carrier PODs.
+* `GET /api/procurement/po`: Purchase order master and vendor procurement tracker.
+* `POST /api/procurement/grn`: Goods Receipt Note entry with batch accrual.
+* `GET /api/procurement/vendor-complaints`: Logs vendor quality complaints and debit claim requests.
+
+### 7.20 `/api/bulletins` & `/api/dashboard` — Announcements & Executive BI (`backend/api/bulletins.py`, `dashboard.py`)
+* `GET /api/bulletins`: Company-wide announcements, circulars, and policy alerts.
+* `GET /api/dashboard/kpis`: Real-time executive BI metrics, 7-month comparative sales vs procurement curves, and regional territory sales map data.
+
 
 ---
 
@@ -1265,6 +1369,125 @@ The following master catalog documents every functional UI selector across the E
 | **Principal Control Center** | `/principal` | `#btn-run-reconciliation` | Button | Executes automated 3-way matching engine against external statements. |
 | **Principal Statement Desk** | `/principal/statement` | `#select-statement-principal` | Dropdown | Selects active principal for period drill-down. |
 | **Principal Statement Desk** | `/principal/statement` | `#table-statement-lines` | Grid | Renders reconstructed transaction lines across Inward, Sales, Returns, Claims, Freight. |
+| **Commission Control Center** | `/commission` | `#kpi-earned-commission` | Card | Displays earned turnover commission across client accounts. |
+| **Commission Control Center** | `/commission` | `#kpi-recoverable-expenses` | Card | Displays recoverable depot operating costs. |
+| **Commission Control Center** | `/commission` | `#kpi-approved-claims` | Card | Displays approved recovery claims value. |
+| **Commission Control Center** | `/commission` | `#tab-btn-agreements` | Tab `[F2]` | Opens 4-pillar commercial deal terms and rate cards. |
+| **Commission Control Center** | `/commission` | `#tab-btn-sandbox` | Tab `[F3]` | Opens deterministic calculation sandbox with formula trace. |
+| **Commission Control Center** | `/commission` | `#tab-btn-claims` | Tab `[F4]` | Opens recovery claims desk & dual-post action. |
+| **Commission Control Center** | `/commission` | `#tab-btn-client-billing` | Tab `[F5]` | Opens Client Management C&F Commission & Expense Billing Desk. |
+| **Commission Control Center** | `/commission` | `#client-billing-org-select` | Select | Dropdown to choose client organization from Client Management. |
+| **Commission Control Center** | `/commission` | `#btn-autofetch-client-telemetry` | Button | 1-Click Auto-Fetch pulling live sales turnover and depot expenses. |
+| **Commission Control Center** | `/commission` | `#input-billing-turnover` | Input | Client sales turnover base amount. |
+| **Commission Control Center** | `/commission` | `#input-billing-comm-rate` | Input | Commission percentage rate applied to turnover. |
+| **Commission Control Center** | `/commission` | `#input-billing-comm-amount` | Input | Calculated commission amount with manual override support. |
+| **Commission Control Center** | `/commission` | `#input-billing-rent` | Input | Godown storage rent reimbursement amount. |
+| **Commission Control Center** | `/commission` | `#input-billing-salary` | Input | Depot dedicated staff salaries reimbursement amount. |
+| **Commission Control Center** | `/commission` | `#input-billing-freight` | Input | Freight and transport charges reimbursement amount. |
+| **Commission Control Center** | `/commission` | `#input-billing-handling` | Input | Cargo loading/unloading and handling charges. |
+| **Commission Control Center** | `/commission` | `#input-billing-other` | Input | Miscellaneous ancillary operating expenses. |
+| **Commission Control Center** | `/commission` | `#select-billing-tax-rate` | Select | GST rate selector (18%, 12%, 5%, 0% - SAC 998599). |
+| **Commission Control Center** | `/commission` | `#check-dual-post-purchase` | Checkbox | Checkbox to dual-post directly into Client Inward Purchase Register. |
+| **Commission Control Center** | `/commission` | `#btn-generate-client-bill` | Button | Submits bill generation, creating outward and inward bills. |
+| **Commission Control Center** | `/commission` | `#generated-bill-success-card` | Banner | Displays outward bill number (`CF-BILL-`), inward number (`PUR-CF-`), and claim. |
+| **Commission Control Center** | `/commission` | `#btn-goto-outward-billing` | Button `[F7]` | Jump to Billing Desk to inspect generated Outward Bill. |
+| **Commission Control Center** | `/commission` | `#btn-goto-inward-purchase` | Button `[F9]` | Jump to Purchase Register to inspect dual-posted Inward Bill. |
+| **Admin Multi-Client Radar** | `/admin/tracking` | `#select-tracking-scope` | Select | Toggles between Consolidated multi-client view and single-client isolation. |
+| **Admin Multi-Client Radar** | `/admin/tracking` | `#card-tracking-sales` | Card | Displays gross sales turnover across clients. |
+| **Admin Multi-Client Radar** | `/admin/tracking` | `#card-tracking-expenses` | Card | Displays operating expenses & C&F costs across clients. |
+| **Admin Multi-Client Radar** | `/admin/tracking` | `#card-tracking-cargo` | Card | Displays cargo consignments pipeline with in-transit pulse. |
+| **Admin Multi-Client Radar** | `/admin/tracking` | `#card-tracking-clients` | Card | Displays total active client organizations and mapped product brands. |
+| **Admin Multi-Client Radar** | `/admin/tracking` | `#tab-btn-scorecards` | Tab `[F2]` | Comparative client operational scorecards matrix table with 1-click drilldown. |
+| **Admin Multi-Client Radar** | `/admin/tracking` | `#tab-btn-sales` | Tab `[F3]` | Multi-client sales invoice register with client attribution. |
+| **Admin Multi-Client Radar** | `/admin/tracking` | `#tab-btn-expenses` | Tab `[F4]` | Multi-client operational expense claims with status badges. |
+| **Admin Multi-Client Radar** | `/admin/tracking` | `#tab-btn-cargo` | Tab `[F6]` | Active logistics consignments pipeline board. |
+| **Client Management** | `/clients` | `#btn-open-company-mapping` | Button | Opens Authorized Product Companies assignment modal for selected client. |
+| **Client Management** | `/clients` | `#modal-company-mapping` | Modal | Modal form to map product brands and configure commission override %. |
+| **Client Management** | `/clients` | `#btn-save-company-mapping` | Button | Commits client-manufacturer mapping rules to database. |
+| **Product Company Master** | `/master/companies` | `#kpi-total-companies` | Card | Total registered pharmaceutical manufacturers. |
+| **Product Company Master** | `/master/companies` | `#kpi-total-turnover` | Card | Gross invoice turnover aggregated by manufacturer. |
+| **Product Company Master** | `/master/companies` | `#tbl-company-catalog` | Table | Manufacturer directory with ledger linkages and top product metrics. |
+| **Pharma Expiry Cockpit** | `/inventory-dashboard` | `#card-main-stock` | Card | Real-time Main Saleable Stock Value (`Batch.current_stock`) and healthy units. |
+| **Pharma Expiry Cockpit** | `/inventory-dashboard` | `#card-quarantine-stock` | Card | Quarantined / Brk-Exp Stock Value (`Batch.brk_exp_stock`) and segregated units. |
+| **Pharma Expiry Cockpit** | `/inventory-dashboard` | `#card-near-expiry-risk` | Card | 90-Day Near-Expiry Surveillance Value across 4 critical risk buckets. |
+| **Pharma Expiry Cockpit** | `/inventory-dashboard` | `#card-claim-exposure` | Card | Principal Claims & Debit Note recovery exposure. |
+| **Pharma Expiry Cockpit** | `/inventory-dashboard` | `#tab-btn-radar` | Tab `[F2]` | Real-time batch surveillance table with days to expiry. |
+| **Pharma Expiry Cockpit** | `/inventory-dashboard` | `#filter-bucket-ALL` | Button | Filters all critical batches within 90-day window. |
+| **Pharma Expiry Cockpit** | `/inventory-dashboard` | `#filter-bucket-EXPIRED` | Button | Filters strictly expired batches ($\le 0$ days). |
+| **Pharma Expiry Cockpit** | `/inventory-dashboard` | `#filter-bucket-30_DAYS` | Button | Filters critical batches expiring within 30 days. |
+| **Pharma Expiry Cockpit** | `/inventory-dashboard` | `#filter-bucket-60_DAYS` | Button | Filters warning batches expiring within 60 days. |
+| **Pharma Expiry Cockpit** | `/inventory-dashboard` | `#filter-bucket-90_DAYS` | Button | Filters attention batches expiring within 90 days. |
+| **Pharma Expiry Cockpit** | `/inventory-dashboard` | `#filter-company-select` | Select | Manufacturer / Principal dropdown filter. |
+| **Pharma Expiry Cockpit** | `/inventory-dashboard` | `#search-batches-input` | Input | Live search input for batch number or product name. |
+| **Pharma Expiry Cockpit** | `/inventory-dashboard` | `#tbl-expiry-radar` | Table | Interactive batch surveillance grid with selection checkboxes. |
+| **Pharma Expiry Cockpit** | `/inventory-dashboard` | `#btn-select-all-batches` | Checkbox | Toggles select all batches across active filter set. |
+| **Pharma Expiry Cockpit** | `/inventory-dashboard` | `#btn-shift-selected-action` | Button `[F7]` | Shifts chosen batches to quarantine and routes to `/stock-shift`. |
+| **Pharma Expiry Cockpit** | `/inventory-dashboard` | `#tab-btn-quarantine` | Tab `[F3]` | Quarantined stock ledger showing segregated inventory. |
+| **Pharma Expiry Cockpit** | `/inventory-dashboard` | `#tab-btn-history` | Tab `[F4]` | Stock Shift Audit Register tracking historical `SHF-2026-XXXX` vouchers. |
+| **Stock Shift Desk** | `/stock-shift` | `#select-from-godown` | Select | Source Godown selector (default: Main Saleable Godown). |
+| **Stock Shift Desk** | `/stock-shift` | `#select-to-godown` | Select | Destination Godown selector (default: Quarantine Expiry Godown). |
+| **Stock Shift Desk** | `/stock-shift` | `#input-shift-voucher-no` | Input | Alphanumeric stock shift voucher sequence (`SHF-YYYY-XXXX`). |
+| **Stock Shift Desk** | `/stock-shift` | `#input-shift-date` | Input | Voucher shift execution date. |
+| **Stock Shift Desk** | `/stock-shift` | `#check-auto-claim` | Checkbox | Auto-generate official Principal Claim & Debit Note checkbox. |
+| **Stock Shift Desk** | `/stock-shift` | `#select-principal-claim-target`| Select | Principal selector for debit claim filing (Sun Pharma, Cipla, Krishna). |
+| **Stock Shift Desk** | `/stock-shift` | `#tbl-shift-items` | Table | Shift line items grid with product, batch, exp, qty, rate, value. |
+| **Stock Shift Desk** | `/stock-shift` | `#btn-save-shift-voucher` | Button `[F7]` | Saves voucher, decrements saleable stock, increments quarantine, files claim. |
+| **Stock Shift Desk** | `/stock-shift` | `#stock-shift-success-card` | Card | Success card showing generated voucher number and linked claim number. |
+| **Stock Shift Desk** | `/stock-shift` | `#lbl-success-voucher-no` | Label | Displays generated Stock Shift Voucher number (e.g. `SHF-2026-0001`). |
+| **Stock Shift Desk** | `/stock-shift` | `#lbl-success-claim-no` | Label | Displays generated Principal Claim reference (e.g. `CLM-PRN-2026-0006`). |
+| **Stock Shift Desk** | `/stock-shift` | `#btn-view-in-audit` | Button `[F2]` | Jump to Cockpit Audit Register to inspect newly created voucher. |
+| **Stock Shift Desk** | `/stock-shift` | `#btn-view-claim-desk` | Button `[F8]` | Jump directly to Principal Claims Desk (`/principal`). |
+| **Sales Bill** | `/sales` | `#input-bill-series` | Input | Alphanumeric series continuation input (`SLS-YYYY-XXXX`). |
+| **Sales Bill** | `/sales` | `#btn-search-party` | Button `[F7]` | Opens Debtor Party search modal with live balance and drug license. |
+| **Sales Bill** | `/sales` | `#grid-bill-items` | Table | Bill item lines grid (Item, Pack, Batch, Exp, Qty, Free, Rate, Dis%, GST%). |
+| **Sales Bill** | `/sales` | `#btn-batch-modal` | Button `[F3]` | Opens Batch Selection modal showing stock and expiry dates. |
+| **Sales Bill** | `/sales` | `#btn-settlement-modal` | Button `[End]` | Opens Settlement & Payment Mode modal (Cash, Bank, Credit). |
+| **Sales Bill** | `/sales` | `#btn-save-bill` | Button `[Ctrl+S]` | Saves bill, decrements batch stock, auto-posts double-entry GL voucher. |
+| **Purchase Bill** | `/purchase` | `#input-purchase-series` | Input | Alphanumeric inward bill series input (`PUR-YYYY-XXXX`). |
+| **Purchase Bill** | `/purchase` | `#input-vendor-inv-no` | Input | Supplier's external invoice reference number. |
+| **Purchase Bill** | `/purchase` | `#btn-search-vendor` | Button `[F7]` | Creditor vendor search popup with live ledger balance. |
+| **Purchase Bill** | `/purchase` | `#btn-save-purchase` | Button `[Ctrl+S]` | Commits purchase, updates batch stock, auto-posts inventory & accounts payable. |
+| **Purchase List** | `/purchase/list` | `#grid-purchase-bills` | Table | Ag-Grid inward purchase bills register with search, filter, and dual-post tags. |
+| **Supplier Debit Note** | `/purchase-return` | `#btn-mode-against-bill` | Button `[F2]` | Activates Against Inward Bill mode to load original purchase line items. |
+| **Supplier Debit Note** | `/purchase-return` | `#btn-mode-loose` | Button `[F3]` | Activates Loose Return mode for ad-hoc debit note issuance. |
+| **Supplier Debit Note** | `/purchase-return` | `#select-stock-disposition` | Select | Routes returned goods to Saleable, Breakage, or Expired godown. |
+| **Supplier Debit Note** | `/purchase-return` | `#btn-save-debit-note` | Button `[Ctrl+S]` | Posts debit note, adjusts stock, generates reverse GL and ITC entries. |
+| **Customer Credit Note** | `/sales-return` | `#btn-mode-against-bill` | Button `[F2]` | Activates Against Sales Bill mode to retrieve customer invoice lines. |
+| **Customer Credit Note** | `/sales-return` | `#btn-mode-counter` | Button `[F3]` | Activates Counter Return mode with returnable quantity validation. |
+| **Customer Credit Note** | `/sales-return` | `#btn-save-credit-note` | Button `[Ctrl+S]` | Saves credit note, increments stock, auto-posts sales return GL entries. |
+| **Breakage Receive** | `/brk-receive` | `#input-bkr-series` | Input | Alphanumeric Breakage Receive series (`BKR-YYYY-XXXX`). |
+| **Breakage Receive** | `/brk-receive` | `#btn-save-bkr` | Button `[Ctrl+S]` | Posts breakage receive, routing stock strictly into `brk_exp_stock`. |
+| **Breakage Issue** | `/brk-issue` | `#input-bki-series` | Input | Alphanumeric Breakage Issue series (`BKI-YYYY-XXXX`). |
+| **Breakage Issue** | `/brk-issue` | `#btn-save-bki` | Button `[Ctrl+S]` | Posts breakage issue to manufacturer, decrementing `brk_exp_stock`. |
+| **Journal Voucher** | `/journal` | `#input-journal-series` | Input | Alphanumeric Journal series (`JRN-YYYY-XXXX`). |
+| **Journal Voucher** | `/journal` | `#btn-auto-balance-gl` | Button `[Ctrl+B]` | Automatically calculates and inserts balancing Dr/Cr line. |
+| **Journal Voucher** | `/journal` | `#btn-add-journal-leg` | Button `[Alt+A]` | Adds new ledger line item to journal entry. |
+| **Journal Voucher** | `/journal` | `#check-schedule-accrual` | Checkbox | Configures scheduled automatic GL reversal on 1st of subsequent month. |
+| **Journal Voucher** | `/journal` | `#btn-post-journal` | Button `[Ctrl+S]` | Validates $\sum \text{Dr} = \sum \text{Cr}$ and posts journal voucher to ledger. |
+| **Journal Register** | `/finance/journal-register` | `#btn-reverse-journal` | Button | 1-Click atomic GL reversal with linked audit trail. |
+| **Expense Management** | `/finance/expenses` | `#input-expense-amount` | Input | Expense payout amount with live P&L impact preview. |
+| **Expense Management** | `/finance/expenses` | `#select-expense-account` | Select | Dropdown for 10 statutory P&L expense heads. |
+| **Expense Management** | `/finance/expenses` | `#btn-post-expense` | Button | Posts direct cash/bank expense voucher debiting P&L immediately. |
+| **Fixed Assets** | `/finance/fixed-assets` | `#btn-register-asset` | Button `[F2]` | Opens modal to register capital asset with Schedule II category. |
+| **Fixed Assets** | `/finance/fixed-assets` | `#btn-run-depreciation` | Button `[F5]` | Executes periodic WDV/SLM depreciation run across active assets. |
+| **Bank Reconciliation** | `/finance/bank-reconciliation` | `#btn-auto-match-brs` | Button | Runs auto-matching algorithm against imported bank statement CSV. |
+| **Bank Reconciliation** | `/finance/bank-reconciliation` | `#btn-cash-drawer-tally` | Button `[F8]` | Opens RBI physical currency denomination counter and cash discrepancy report. |
+| **Outstanding Workbench** | `/finance/outstanding` | `#tab-btn-debtors` | Tab | Outstanding customer debit balances with 0-30, 31-60, 61-90, >90d ageing. |
+| **Outstanding Workbench** | `/finance/outstanding` | `#tab-btn-creditors` | Tab | Outstanding vendor credit liabilities with ageing analysis. |
+| **GST Workbench** | `/gst` | `#tab-btn-gstr1` | Tab | GSTR-1 Outward Supplies return tables (B2B, B2CS, CDNR, HSN, Docs). |
+| **GST Workbench** | `/gst` | `#tab-btn-gstr2` | Tab | GSTR-2 Inward ITC register matching purchase bills and debit notes. |
+| **GST Workbench** | `/gst` | `#tab-btn-gstr3b` | Tab | GSTR-3B Monthly consolidated return calculation. |
+| **GST Workbench** | `/gst` | `#btn-export-gstn-json` | Button | Exports official Government Offline Utility JSON file for `gst.gov.in`. |
+| **Report Viewer** | `/reports` | `#select-report-category` | Select | Financial, inventory, sales, and audit report catalog. |
+| **Report Designer** | `/reports/designer` | `#btn-execute-query` | Button | Runs custom semantic report query builder. |
+| **Workflow Inbox** | `/workflow/inbox` | `#btn-approve-task` | Button | 1-Click task approval with maker-checker verification. |
+| **Workflow Inbox** | `/workflow/inbox` | `#btn-reject-task` | Button | Opens mandatory rejection remarks dialog. |
+| **Workflow Designer** | `/workflow/designer` | `#input-sim-amount` | Input | Approval threshold simulator sandbox. |
+| **Workflow Monitor** | `/workflow/monitor` | `#chart-sla-adherence` | Chart | SLA adherence metrics and average resolution TAT. |
+| **Party Master** | `/master/parties` | `#btn-new-party` | Button `[F2]` | Opens new customer/vendor registration dialog. |
+| **Party Master** | `/master/parties` | `#input-party-gstin` | Input | Party GSTIN with statutory checksum validation. |
+| **Current Stock** | `/stock` | `#input-stock-search` | Input | Instant search across product formulations, batches, and godowns. |
+| **Replenishment** | `/inventory/replenishment` | `#btn-generate-reorder` | Button | Computes reorder quantities based on minimum stock and sales velocity. |
 
 ---
 

@@ -673,3 +673,57 @@ The ERP incorporates a dedicated operational expense and employee reimbursement 
      - Stage 10-12: Stock shift configuration, save execution, and success card verification (`SHF-2026-0001` & `CLM-PRN-2026-0006`).
      - Stage 13: Audit table assertion, quarantine stock update (+148 units = 303 units, ₹41,799), and Principal claims desk integration.
 
+---
+
+### 10.24 Master Software Comprehensive System Audit & Exhaustive Screen-by-Screen Element Directory
+
+1. **System Navigation Standard & 10 Top-Level Navigation Menus**:
+   - `Dashboard` (`/`): Counter Workbench, quick operational launcher tiles, and Esc exit modal (`#modal-exit-app`).
+   - `Master ▾`:
+     - Ledger: New (`/master?tab=ledger&action=new`), Modify (`/master?tab=ledger&action=modify`), Delete (`/master?tab=ledger&action=delete`).
+     - Masters: Business Partners (`/master/parties`), Salt (`/master?tab=salt`), Company (`/master?tab=company`), HSN (`/master?tab=hsn`), State (`/master?tab=state`), O/C Balances (`/master?tab=balances`), Account Heads (`/master/ledger-groups`), Principal Master (`/master/principals`), Warehouse Master (`/master/warehouses`), Transport Master (`/master/transport`), Document Series (`/series-master`), Scheme Master (`/master/schemes`), Pricing Master (`/master/pricing`), Crash Recovery (`/master/error-entries`).
+   - `Finance & Accounting ▾`: Payment Voucher (`/payment`, `[F5]`), Receipt Voucher (`/receipt`, `[F6]`), Journal Voucher (`/journal`, `[Ctrl+B]`), Contra Voucher (`/finance/voucher/contra`), Voucher Register (`/finance/vouchers`), Day Book (`/finance/daybook`), Bank Reconciliation (`/finance/bank-reconciliation`), Fixed Assets (`/finance/fixed-assets`), Expense Management (`/finance/expenses`), Ledger Statement (`/finance/ledger-statement`), Trial Balance (`/finance/trial-balance`), Profit & Loss (`/finance/profit-loss`), Balance Sheet (`/finance/balance-sheet`), Scheme Claims (`/finance/claims`), Ledger Groups (`/master/ledger-groups`), Accounts & Ledgers (`/finance`).
+   - `Inventory ▾`: Product Create/Modify (`/inventory`), View Stock (`/stock`), Brk/Exp Stock (`/brk-exp-stock`), Expiry & Breakage Cockpit (`/inventory-dashboard`, `[F2]`), Internal Expiry Shift (`/stock-shift`, `[F7]`), Reorder Engine (`/inventory/replenishment`).
+   - `Sales & Purchase ▾`: Sales Order (`/sales-order-master`), Order Approvals (`/order-approvals`), Dispatch & POD (`/dispatch-manager`), Billing Consolidation (`/billing-consolidation`), Sales Bill (`/sales?type=bill`, `[F2]`), Challan, Sales Return (`/sales-return`), Purchase Order (`/po`), GRN (`/grn`), Vendor Complaints (`/vendor-complaints`), Purchase Bill (`/purchase?type=bill`), Purchase Challan, Debit Note (`/purchase-return`), Breakage Receive (`/brk-receive`), Breakage Issue (`/brk-issue`), Stock Issue, Stock Receive.
+   - `C&F & Logistics ▾`: Principal & C&F Operations (`/principal`, `[Ctrl+3]`), C&F Commission & Recovery Engine (`/commission`, `[Ctrl+4]`), Admin Multi-Client Radar (`/admin/tracking`, `[Ctrl+6]`), Cargo & Consignment Board (`/cargo`, `[Ctrl+1]`), Freight Contracts & Rates (`/freight/contracts`, `[Ctrl+2]`), Transporter Reconciliation (`/freight/reconciliation`), Cargo Cost Center (`/cargo/costs`), POD & Transit Exception Desk (`/cargo/pod-exceptions`).
+   - `Workflows [F4] ▾`: Approval Inbox (`/workflow/inbox`, `[F4]`), Rule Designer (`/workflow/designer`), Execution & SLA Monitor (`/workflow/monitor`), Audit Trail Explorer (`/audit`), Data Governance Console (`/audit/governance`).
+   - `GST & Compliance ▾`: GSTR-1 (`/gst?tab=gstr1`), GSTR-2 (`/gst?tab=gstr2`), GSTR-3B (`/gst?tab=gstr3b`), Finance Reports (`/finance-reports`), Compliance Workbench (`/compliance`), Signed Ledger (`/compliance/signed`).
+   - `CRM & Admin ▾`: CRM Dashboard (`/crm`), Client Management (`/clients`), Admin Multi-Client Radar (`/admin/tracking`), Product Companies Master (`/master/companies`), Bulletin Board (`/bulletin`), Settings (`/settings`).
+   - `Reports ▾`: Report Viewer (`/reports`), Custom Report Designer (`/reports/designer`).
+
+2. **Counter Workbench Launcher Hotkeys (`/`)**:
+   - `[F2]`: Sales Counter Billing
+   - `[F5]`: Supplier Payment Voucher
+   - `[F6]`: Customer Receipt Voucher
+   - `[Ctrl+1]`: Cargo & Consignment Management Board
+   - `[Ctrl+2]`: Freight Contracts & Carrier Rate Master
+   - `[Ctrl+3]`: Principal Operations & Custody Control Center
+   - `[Ctrl+4]`: C&F Commission & Recovery Engine
+   - `[Ctrl+5]`: Product Company Master & Manufacturer Desk
+   - `[Ctrl+6]`: Enterprise Multi-Client Operations Radar
+   - `[Esc]`: Application Exit Confirmation Modal (`#modal-exit-app`)
+
+3. **Master Screen-by-Screen UI Element & Selector Catalog**:
+   - **Receipt Voucher (`/receipt`)**: `#voucher-series-input`, `#party-search-input` `[F7]`, `#btn-auto-allocate-fifo` `[Alt+A]`, `#btn-post-voucher` `[Ctrl+S]`.
+   - **Payment Voucher (`/payment`)**: `#voucher-series-input`, `#party-search-input` `[F7]`, `#btn-auto-allocate-fifo` `[Alt+A]`, `#btn-post-voucher` `[Ctrl+S]`.
+   - **Sales Bill (`/sales`)**: `#input-bill-series`, `#btn-search-party` `[F7]`, `#grid-bill-items`, `#btn-batch-modal` `[F3]`, `#btn-settlement-modal` `[End]`, `#btn-save-bill` `[Ctrl+S]`.
+   - **Purchase Bill (`/purchase`)**: `#input-purchase-series`, `#input-vendor-inv-no`, `#btn-search-vendor` `[F7]`, `#btn-save-purchase` `[Ctrl+S]`.
+   - **Debit Note (`/purchase-return`)**: `#btn-mode-against-bill` `[F2]`, `#btn-mode-loose` `[F3]`, `#select-stock-disposition`, `#btn-save-debit-note` `[Ctrl+S]`.
+   - **Credit Note (`/sales-return`)**: `#btn-mode-against-bill` `[F2]`, `#btn-mode-counter` `[F3]`, `#btn-save-credit-note` `[Ctrl+S]`.
+   - **Breakage Receive (`/brk-receive`)**: `#input-bkr-series`, `#btn-save-bkr` `[Ctrl+S]`.
+   - **Breakage Issue (`/brk-issue`)**: `#input-bki-series`, `#btn-save-bki` `[Ctrl+S]`.
+   - **Journal Voucher (`/journal`)**: `#input-journal-series`, `#btn-auto-balance-gl` `[Ctrl+B]`, `#btn-add-journal-leg` `[Alt+A]`, `#check-schedule-accrual`, `#btn-post-journal` `[Ctrl+S]`.
+   - **Expenses Desk (`/finance/expenses`)**: `#input-expense-amount`, `#select-expense-account`, `#btn-post-expense`.
+   - **Bank Reconciliation (`/finance/bank-reconciliation`)**: `#btn-auto-match-brs`, `#btn-cash-drawer-tally` `[F8]`.
+   - **GST Desk (`/gst`)**: `#tab-btn-gstr1`, `#tab-btn-gstr2`, `#tab-btn-gstr3b`, `#btn-export-gstn-json`.
+   - **Cargo Board (`/cargo`)**: `#btn-register-consignment` `[F6]`, `#drawer-consignment-detail`, `#toggle-combined-reporting`.
+   - **Freight Master (`/freight/contracts`)**: `#btn-new-contract` `[F2]`, `#tab-btn-sandbox` `[F4]`, `#btn-enter-transporter-bill`.
+   - **Principal Desk (`/principal`)**: `#kpi-active-principals`, `#tab-btn-stock` `[F2]`, `#tab-btn-claims` `[F3]`, `#btn-open-claim-modal` `[F7]`, `#tab-btn-statement` `[F5]`.
+   - **Commission Desk (`/commission`)**: `#tab-btn-agreements` `[F2]`, `#tab-btn-sandbox` `[F3]`, `#tab-btn-claims` `[F4]`, `#tab-btn-client-billing` `[F5]`, `#client-billing-org-select`, `#btn-autofetch-client-telemetry`, `#check-dual-post-purchase`, `#btn-generate-client-bill`, `#generated-bill-success-card`.
+   - **Admin Multi-Client Radar (`/admin/tracking`)**: `#select-tracking-scope`, `#card-tracking-sales`, `#card-tracking-expenses`, `#card-tracking-cargo`, `#card-tracking-clients`, `#tab-btn-scorecards` `[F2]`, `#tab-btn-sales` `[F3]`, `#tab-btn-expenses` `[F4]`, `#tab-btn-cargo` `[F6]`.
+   - **Pharma Expiry Cockpit (`/inventory-dashboard`)**: `#card-main-stock`, `#card-quarantine-stock`, `#card-near-expiry-risk`, `#card-claim-exposure`, `#tab-btn-radar` `[F2]`, `#filter-bucket-ALL`, `#filter-bucket-EXPIRED`, `#filter-bucket-30_DAYS`, `#filter-bucket-60_DAYS`, `#filter-bucket-90_DAYS`, `#btn-shift-selected-action` `[F7]`, `#tab-btn-quarantine` `[F3]`, `#tab-btn-history` `[F4]`.
+   - **Stock Shift Desk (`/stock-shift`)**: `#select-from-godown`, `#select-to-godown`, `#check-auto-claim`, `#select-principal-claim-target`, `#tbl-shift-items`, `#btn-save-shift-voucher` `[F7]`, `#stock-shift-success-card`, `#lbl-success-voucher-no`, `#lbl-success-claim-no`, `#btn-view-in-audit` `[F2]`, `#btn-view-claim-desk` `[F8]`.
+
+4. **Complete 16-Suite Automated QA Test Matrix (100% Pass Rate)**:
+   - All 16 automated Selenium test suites (`test_master_all_6_modules_selenium.py`, `test_reports_and_finance_selenium.py`, `test_gst_compliance_selenium.py`, `test_receipt_payment_settlement_selenium.py`, `test_journal_accrual_engine_selenium.py`, `test_direct_expense_ui_selenium.py`, `test_fixed_assets_selenium.py`, `test_bank_recon_cash_selenium.py`, `test_dashboard_bi_control_center_selenium.py`, `test_workflow_approval_automation_selenium.py`, `test_audit_governance_selenium.py`, `test_cargo_consignment_selenium.py`, `test_freight_logistics_selenium.py`, `test_principal_operations_selenium.py`, `test_client_commission_billing_selenium.py`, `test_pharma_expiry_quarantine_selenium.py`) verified passing with Exit Code 0 against live PostgreSQL database.
+

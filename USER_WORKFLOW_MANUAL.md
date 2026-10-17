@@ -1680,5 +1680,159 @@ A prominent success banner (`#stock-shift-success-card`) appears displaying:
 
 ---
 
+## 36. Master System Navigation, Screen Options & Operator Hotkey Directory
+
+This section provides the master operational roadmap for every screen, menu option, sub-menu path, and hotkey binding across the entire ERP application.
+
+### 36.1 The 10 Top-Level Navigation Categories & All Submenu Options
+
+```
++---------------------------------------------------------------------------------------------------------------------+
+| [Dashboard] [Master ▾] [Finance & Accounting ▾] [Inventory ▾] [Sales & Purchase ▾] [C&F & Logistics ▾] [Workflows [F4] ▾] [GST & Compliance ▾] [CRM & Admin ▾] [Reports ▾] |
++---------------------------------------------------------------------------------------------------------------------+
+```
+
+1. **`Dashboard` (`/`)**:
+   - Opens the Counter Workbench and Quick Operational Launcher tiles.
+
+2. **`Master ▾`**:
+   - `Ledger ▾`:
+     - New Ledger (`/master?tab=ledger&action=new`)
+     - Modify Ledger (`/master?tab=ledger&action=modify`)
+     - Delete Ledger (`/master?tab=ledger&action=delete`)
+   - `Masters ▾`:
+     - Business Partners (`/master/parties`): Customer and supplier master with GSTIN and drug license.
+     - Salt (`/master?tab=salt`): Active chemical composition library.
+     - Company (`/master?tab=company`): Product brand manufacturers.
+     - HSN (`/master?tab=hsn`): Harmonized System of Nomenclature tax codes.
+     - State (`/master?tab=state`): GST state code master.
+     - O/C Balances (`/master?tab=balances`): Opening and closing account balances.
+     - Account Heads (`/master/ledger-groups`): Statutory Schedule III ledger grouping hierarchy.
+     - Principal Master (`/master/principals`): Pharmaceutical principals and commercial contracts.
+     - Warehouse Master (`/master/warehouses`): Godown and depot location master.
+     - Transport Master (`/master/transport`): Transporters and fleet vehicle registry.
+     - Document Series (`/series-master`): Marg/Tally alphanumeric voucher series continuation definitions.
+     - Scheme Master (`/master/schemes`): Promotional volume discounts and item schemes.
+     - Pricing & Formulas (`/master/pricing`): Multi-tier price structures and margin rules.
+     - Crash Recovery (`/master/error-entries`): Staged uncommitted vouchers inspection and recovery.
+
+3. **`Finance & Accounting ▾`**:
+   - `Payment Voucher` (`/finance/voucher/payment` or `/payment`): Supplier payment entry `[F5]`.
+   - `Receipt Voucher` (`/finance/voucher/receipt` or `/receipt`): Customer collection entry `[F6]`.
+   - `Journal Voucher` (`/finance/voucher/journal` or `/journal`): Multi-leg GL balancing entry `[Ctrl+B]`.
+   - `Contra Voucher` (`/finance/voucher/contra`): Cash-to-bank and inter-bank transfers.
+   - `Voucher Register` (`/finance/vouchers`): Complete register of all posted accounting vouchers.
+   - `Day Book` (`/finance/daybook`): Daily chronological audit trail of debits and credits.
+   - `Bank Reconciliation` (`/finance/bank-reconciliation`): BRS auto-matching and cash denomination counter `[F8]`.
+   - `Fixed Assets` (`/finance/fixed-assets`): Capital asset tracking and periodic WDV/SLM depreciation runs.
+   - `Expense Management` (`/finance/expenses`): Direct operational expense payouts and employee imprest advances.
+   - `Ledger Statement` (`/finance/ledger-statement`): Running balance statement for any debtor, creditor, or nominal account.
+   - `Trial Balance` (`/finance/trial-balance`): Statutory verification that $\sum \text{Debits} = \sum \text{Credits}$.
+   - `Profit & Loss` (`/finance/profit-loss`): Revenue, COGS, gross margin, and net profit statement.
+   - `Balance Sheet` (`/finance/balance-sheet`): Statement of assets, liabilities, and owner's equity.
+   - `Scheme Claims` (`/finance/claims`): Settlement of trade schemes and manufacturer discounts.
+   - `Ledger Groups` (`/master/ledger-groups`): Account grouping hierarchy management.
+   - `Accounts & Ledgers` (`/finance`): Chart of accounts workbench.
+
+4. **`Inventory ▾`**:
+   - `Product ▾`:
+     - Create Product (`/inventory?action=create`)
+     - Modify Product (`/inventory?action=modify`)
+   - `Current Stock ▾`:
+     - View Stock (`/stock`): Active sellable inventory in `current_stock`.
+     - Brk/Exp Stock (`/brk-exp-stock`): Non-saleable inventory in `brk_exp_stock`.
+     - Expiry & Breakage Cockpit (`/inventory-dashboard`): Live surveillance, risk buckets, and radar table `[F2]`.
+   - `Claims & Replenishment ▾`:
+     - Expiry & Breakage Cockpit (`/inventory-dashboard`): Direct link.
+     - Internal Expiry Shift (`/stock-shift`): Atomic godown reallocation desk `[F7]`.
+     - Reorder Engine (`/inventory/replenishment`): Automated purchase replenishment based on sales velocity.
+
+5. **`Sales & Purchase ▾`**:
+   - `Sale ▾`:
+     - Sales Order (`/sales-order-master`)
+     - Order Approvals (`/order-approvals`)
+     - Dispatch & POD (`/dispatch-manager`)
+     - Billing Consolidation (`/billing-consolidation`)
+     - Bill (`/sales?type=bill`): Fast counter billing desk `[F2]`.
+     - Challan (`/sales?type=challan`): Outward delivery challan.
+     - Sales Return (`/sales?type=credit_note`): Sales return entry.
+     - Modify Bill (`/sales?type=modify-bill`)
+     - Modify Challan (`/sales?type=modify-challan`)
+   - `Purchase ▾`:
+     - Purchase Order (`/po`)
+     - Goods Receipt Note GRN (`/grn`)
+     - Vendor Complaints (`/vendor-complaints`)
+     - Purchase Bill (`/purchase?type=bill`): Inward purchase bill entry.
+     - Purchase Challan (`/purchase?type=challan`)
+     - Modify Purchase (`/purchase?type=modify-bill`)
+     - Modify Purchase Challan (`/purchase?type=modify-challan`)
+   - `Sale Return ▾`: Credit Note (`/sales-return?type=credit`), Challan, Modify.
+   - `Purchase Return ▾`: Debit Note (`/purchase-return?type=debit`), Challan, Modify.
+   - `Brk/Exp Receive ▾`: Receive Entry (`/brk-receive?type=entry`), Challan, Modify.
+   - `Brk/Exp Issue ▾`: Issue Entry (`/brk-issue?type=entry`), Challan, Modify.
+   - `GST Inward (Expenses)` (`/gst-inward?type=entry`)
+   - `GST Outward (Services)` (`/gst-outward?type=entry`)
+   - `Stock Issue` (`/stock-issue?type=entry`)
+   - `Stock Receive` (`/stock-receive?type=entry`)
+   - `Sales Order` (`/sales-order?type=entry`)
+
+6. **`C&F & Logistics ▾`**:
+   - `Principal & C&F Operations` (`/principal`): Custody stock matrix, damage claims desk `[F7]`, 3-way recon, and business statement.
+   - `C&F Commission & Recovery Engine` (`/commission`): 4-pillar deal terms, deterministic sandbox, and client billing desk `[F5]`.
+   - `Admin Multi-Client Radar` (`/admin/tracking`): Cross-client sales, expenses, cargo, and client scorecards matrix.
+   - `Cargo & Consignment Board` (`/cargo`): Kanban shipment board with volumetric CBM calculator and package barcodes.
+   - `Freight Contracts & Rates` (`/freight/contracts`): Transporter rate cards and calculation sandbox `[F4]`.
+   - `Transporter Reconciliation` (`/freight/reconciliation`): 3-way variance matching and GL Account 5200 posting.
+   - `Cargo Cost Allocation Center` (`/cargo/costs`): Admin-funded freight reporting with combined multi-client toggle.
+   - `POD & Transit Exception Desk` (`/cargo/pod-exceptions`): 4-eyes delivery sign-off and damage exception logging.
+
+7. **`Workflows [F4] ▾`**:
+   - `Approval Inbox [F4]` (`/workflow/inbox`): Unified approvals queue with SLA timers and maker-checker validation.
+   - `Rule Designer` (`/workflow/designer`): Visual approval threshold hierarchy and sandbox amount simulator.
+   - `Execution & SLA Monitor` (`/workflow/monitor`): Enterprise turnaround times and SLA adherence metrics.
+   - `Audit Trail Explorer` (`/audit`): Cryptographic SHA-256 chained event stream, before/after diff drawer, and evidence pack export `[E]`.
+   - `Data Governance Console` (`/audit/governance`): Statutory 2,920-day retention policies, legal holds, and anomaly radar.
+
+8. **`GST & Compliance ▾`**:
+   - `GSTR-1` (`/gst?tab=gstr1`): Outward sales tax tables (B2B, B2CS, CDNR, HSN, Docs) and Government Offline JSON export.
+   - `GSTR-2` (`/gst?tab=gstr2`): Inward purchase ITC register with automated Debit Note ITC reversals.
+   - `GSTR-3B` (`/gst?tab=gstr3b`): Monthly consolidated return and cash vs ITC tax set-off calculations.
+   - `Finance Reports` (`/finance-reports`): Statutory tax audit and compliance reports.
+   - `Compliance Workbench` (`/compliance`): NIC-compliant E-Invoicing and IRN/QR code desk.
+   - `Signed Ledger` (`/compliance/signed`): Cryptographically sealed ledger audit extract.
+
+9. **`CRM & Admin ▾`**:
+   - `CRM Dashboard` (`/crm`): Customer relationship management and sales lead pipeline.
+   - *(When logged in as `am_admin`)*:
+     - `Client Management` (`/clients`): Client organization management, user invitations, and authorized product brand assignments with commission overrides.
+     - `Admin Multi-Client Radar` (`/admin/tracking`): Consolidated operational surveillance across all client companies.
+     - `Product Companies Master` (`/master/companies`): Brand manufacturer master with sales turnover analytics.
+   - `Bulletin Board` (`/bulletin`): Company announcements and operational circulars.
+   - `Settings` (`/settings`): System preferences, themes, print templates, and database backup configurations.
+
+10. **`Reports ▾`**:
+    - `Report Viewer` (`/reports`): Filterable financial, inventory, and sales analytics reports.
+    - `Custom Report Designer` (`/reports/designer`): Visual semantic report query builder.
+
+---
+
+### 36.2 HomeScreen Counter Workbench Launcher Hotkeys (`/`)
+
+| Hotkey | Title / Screen | Purpose |
+| :--- | :--- | :--- |
+| `[F2]` | Sales Counter Billing | Opens Marg-speed sales billing desk (`/sales?type=bill`). |
+| `[F5]` | Supplier Payment Voucher | Records outward payment to suppliers (`/payment`). |
+| `[F6]` | Customer Receipt Voucher | Records inward collection from customers (`/receipt`). |
+| `[Ctrl+1]` | Cargo & Consignment Board | Opens logistics consignment kanban board (`/cargo`). |
+| `[Ctrl+2]` | Freight Contracts & Rates | Carrier contract slabs and rating sandbox (`/freight/contracts`). |
+| `[Ctrl+3]` | Principal Operations Center | Custody stock, claims, and reconciliation (`/principal`). |
+| `[Ctrl+4]` | C&F Commission Engine | 4-pillar deal terms and client billing desk (`/commission`). |
+| `[Ctrl+5]` | Product Company Master | Manufacturer directory and turnover intelligence (`/master/companies`). |
+| `[Ctrl+6]` | Admin Multi-Client Radar | Consolidated multi-client operations command center (`/admin/tracking`). |
+| `[Esc]` | Exit Application Modal | Displays confirmation modal (`#modal-exit-app`) to log out or exit. |
+
+---
+
 *End of User Workflow Manual.*
+
 

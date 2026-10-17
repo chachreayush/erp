@@ -391,8 +391,38 @@ The ERP reporting and double-entry accounting engine has been verified with **10
 | **Stock Shift (`/stock-shift`)** | `#select-from-godown` | Dropdown | Selects source godown (Main Saleable Godown). |
 | **Stock Shift (`/stock-shift`)** | `#select-to-godown` | Dropdown | Selects destination godown (Quarantine / Expiry Godown). |
 | **Stock Shift (`/stock-shift`)** | `#check-auto-claim` | Checkbox | Toggles automated generation of official Principal Expiry Claim (`CLM-PRN-`). |
+| **Stock Shift (`/stock-shift`)** | `#select-principal-claim-target` | Dropdown | Selects Principal entity for claim filing. |
+| **Stock Shift (`/stock-shift`)** | `#tbl-shift-items` | Grid | Shift line items grid with product, batch, exp, qty, rate, value. |
 | **Stock Shift (`/stock-shift`)** | `#btn-save-shift-voucher` | Button `[F7]` | Executes atomic stock shift reallocation and files debit note claim. |
 | **Stock Shift (`/stock-shift`)** | `#stock-shift-success-card` | Banner | Displays generated voucher (`SHF-2026-XXXX`) and claim reference. |
+| **Stock Shift (`/stock-shift`)** | `#lbl-success-voucher-no` | Label | Generated shift voucher number. |
+| **Stock Shift (`/stock-shift`)** | `#lbl-success-claim-no` | Label | Generated principal claim number. |
+| **Stock Shift (`/stock-shift`)** | `#btn-view-in-audit` | Button `[F2]` | Navigates to Stock Shift Audit Register. |
+| **Stock Shift (`/stock-shift`)** | `#btn-view-claim-desk` | Button `[F8]` | Navigates to Principal Claims Desk (`/principal`). |
+| **Sales Bill (`/sales`)** | `#input-bill-series` | Input | Alphanumeric sales invoice sequence. |
+| **Sales Bill (`/sales`)** | `#btn-search-party` | Button `[F7]` | Party lookup modal with live balance. |
+| **Sales Bill (`/sales`)** | `#btn-batch-modal` | Button `[F3]` | Batch selection popup. |
+| **Sales Bill (`/sales`)** | `#btn-settlement-modal` | Button `[End]` | Settlement discount & payment modal. |
+| **Sales Bill (`/sales`)** | `#btn-save-bill` | Button `[Ctrl+S]` | Saves bill and updates stock & GL. |
+| **Purchase Bill (`/purchase`)** | `#input-purchase-series` | Input | Inward purchase sequence series. |
+| **Purchase Bill (`/purchase`)** | `#btn-search-vendor` | Button `[F7]` | Vendor lookup with live ledger balance. |
+| **Purchase Bill (`/purchase`)** | `#btn-save-purchase` | Button `[Ctrl+S]` | Commits purchase to inventory and accounts payable. |
+| **Customer Credit Note (`/sales-return`)**| `#btn-mode-against-bill` | Button `[F2]` | Loads original sales invoice lines. |
+| **Customer Credit Note (`/sales-return`)**| `#btn-mode-counter` | Button `[F3]` | Direct counter return entry. |
+| **Supplier Debit Note (`/purchase-return`)**| `#btn-mode-against-bill`| Button `[F2]` | Loads original inward purchase bill lines. |
+| **Supplier Debit Note (`/purchase-return`)**| `#select-stock-disposition` | Dropdown | Directs returned goods to Saleable, Breakage, or Expired. |
+| **Breakage Receive (`/brk-receive`)** | `#btn-save-bkr` | Button `[Ctrl+S]` | Routes damaged goods to `brk_exp_stock`. |
+| **Breakage Issue (`/brk-issue`)** | `#btn-save-bki` | Button `[Ctrl+S]` | Returns damaged goods to manufacturer. |
+| **Journal Voucher (`/journal`)** | `#btn-auto-balance-gl` | Button `[Ctrl+B]` | Auto-inserts balancing Dr/Cr line. |
+| **Journal Voucher (`/journal`)** | `#check-schedule-accrual` | Checkbox | Schedules automatic 1st-of-month reversal. |
+| **Expense Desk (`/finance/expenses`)** | `#btn-post-expense` | Button | Posts direct cash/bank expense to P&L. |
+| **Fixed Assets (`/finance/fixed-assets`)**| `#btn-run-depreciation` | Button `[F5]` | Runs periodic WDV/SLM depreciation. |
+| **Bank Recon (`/finance/bank-reconciliation`)**| `#btn-cash-drawer-tally` | Button `[F8]` | RBI denomination counter and cash discrepancy report. |
+| **GST Workbench (`/gst`)** | `#btn-export-gstn-json` | Button | Exports official JSON payload for `gst.gov.in`. |
+| **Workflow Inbox (`/workflow/inbox`)** | `#btn-approve-task` | Button | Approves task with maker-checker security. |
+| **Party Master (`/master/parties`)** | `#btn-new-party` | Button `[F2]` | Opens new customer/vendor creation modal. |
+| **Current Stock (`/stock`)** | `#input-stock-search` | Input | Instant search across formulations and batches. |
+| **Replenishment (`/inventory/replenishment`)**| `#btn-generate-reorder` | Button | Calculates reorder quantities based on velocity. |
 
 ---
 

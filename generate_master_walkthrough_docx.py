@@ -2465,6 +2465,89 @@ def create_full_software_walkthrough():
         "Figure 28.3: Quarantined & Breakage Stock Ledger tab ([F3]) reflecting real-time reallocation (303 units, ₹41,799) with direct action button to File Principal Expiry Claim."
     )
 
+    add_screenshot(
+        "verified_principal_claim_from_shift.png",
+        "Figure 28.4: Principal Claims Desk (/principal) displaying linked Claim CLM-PRN-2026-0006 originating from Stock Shift SHF-2026-0001 for automated debit note recovery."
+    )
+
+    # =========================================================================
+    # CHAPTER 29: MASTER SCREEN-BY-SCREEN UI ELEMENT & OPERATIONAL HOTKEY DIRECTORY
+    # =========================================================================
+    doc.add_page_break()
+    add_h1("Chapter 29: Master Screen-by-Screen UI Element & Operational Hotkey Directory")
+
+    add_h2("29.1 Architecture of the 10 Top-Level Parent Menus")
+    add_p(
+        "To ensure zero screen overflow on standard desktop monitors (1366x768, 1440x900, 1920x1080), the ERP navigation bar "
+        "is engineered with 10 streamlined parent categories with full keyboard arrow traversal (ArrowLeft, ArrowRight, ArrowDown, ArrowUp), "
+        "Enter navigation, and universal Esc dismissal:"
+    )
+
+    nav_table = doc.add_table(rows=1, cols=3)
+    nav_headers = ["Top Menu", "Route / Primary Submenus", "Key Capabilities & Roles"]
+    nav_data = [
+        ["1. Dashboard", "/ (HomeScreen)", "Counter Workbench, quick operational launcher tiles, and Esc exit modal."],
+        ["2. Master ▾", "Ledger, Business Partners, Salt, Company, HSN, State, Series, Schemes, Pricing", "Core configuration, business partners master, alphanumeric series continuation, and pricing rules."],
+        ["3. Finance & Accounting ▾", "Payment, Receipt, Journal, Contra, Day Book, BRS, Fixed Assets, Expenses, P&L, BS", "ACID double-entry general ledger, FIFO settlement allocation, statutory financial statements."],
+        ["4. Inventory ▾", "Product Create/Modify, View Stock, Brk/Exp Stock, Expiry Cockpit, Stock Shift, Replenishment", "Multi-godown inventory management, real-time shelf-life surveillance, and atomic stock shift reallocation."],
+        ["5. Sales & Purchase ▾", "Sales Bill, Challan, Purchase Bill, Credit Note, Debit Note, Brk Receive, Brk Issue, Orders, GRN", "Complete 6 transaction voucher modules, fast counter billing, barcode scanning, and PO tracking."],
+        ["6. C&F & Logistics ▾", "Principal Ops, Commission Engine, Multi-Client Radar, Cargo Board, Freight Rates, Transporter Recon", "Carrying & Forwarding operations, 4-pillar commercial deal terms, carrier rate cards, and billing desk."],
+        ["7. Workflows [F4] ▾", "Approval Inbox, Rule Designer, SLA Monitor, Audit Trail Explorer, Data Governance Console", "Maker-checker approval hierarchy, SHA-256 tamper-evident event stream, and statutory retention policies."],
+        ["8. GST & Compliance ▾", "GSTR-1, GSTR-2, GSTR-3B, Finance Reports, E-Invoice Desk, Signed Ledger", "Statutory GST returns, government offline JSON utility export, and digital invoice signing."],
+        ["9. CRM & Admin ▾", "CRM Dashboard, Client Management, Multi-Client Radar, Product Companies, Bulletin, Settings", "Multi-tenant tenant management, product brand assignment, company-wide circulars, and system settings."],
+        ["10. Reports ▾", "Report Viewer, Custom Report Designer", "Management analytics, drill-down company sales, and visual semantic report query designer."]
+    ]
+    style_table(nav_table, [1.5, 2.7, 2.8], nav_headers, nav_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("29.2 Master UI Element & Selector Directory Across All 35 Routes")
+    add_p("The following master reference catalog details the functional selectors, IDs, and hotkey bindings for software developers and quality assurance engineers:")
+
+    selector_table = doc.add_table(rows=1, cols=4)
+    selector_headers = ["Screen Context", "UI Selector / Element ID", "Hotkey", "Functionality & Business Invariant"]
+    selector_data = [
+        ["Counter Workbench (/)", "#hub-btn-sales-bill", "[F2]", "Opens Marg-speed counter billing desk with sequential series continuation."],
+        ["Counter Workbench (/)", "#hub-btn-receipt-voucher", "[F6]", "Opens Customer Collection & Receipt Voucher desk."],
+        ["Counter Workbench (/)", "#hub-btn-payment-voucher", "[F5]", "Opens Supplier Outward Payment Voucher desk."],
+        ["Counter Workbench (/)", "#hub-btn-cargo-management", "[Ctrl+1]", "Opens logistics consignment Kanban board."],
+        ["Counter Workbench (/)", "#hub-btn-freight-management", "[Ctrl+2]", "Opens carrier contracts and freight rating sandbox."],
+        ["Counter Workbench (/)", "#hub-btn-principal-management", "[Ctrl+3]", "Opens Principal operations, custody stock, and claims desk."],
+        ["Counter Workbench (/)", "#hub-btn-commission-management", "[Ctrl+4]", "Opens C&F Commission Engine & Client Billing Desk."],
+        ["Counter Workbench (/)", "#hub-btn-admin-tracking", "[Ctrl+6]", "Opens Enterprise Multi-Client Operations Radar."],
+        ["Counter Workbench (/)", "#modal-exit-app", "[Esc]", "Application exit confirmation dialog with Enter exit and Esc cancel."],
+        ["Receipt Voucher (/receipt)", "#btn-auto-allocate-fifo", "[Alt+A]", "Executes 1-click FIFO allocation across open customer invoices."],
+        ["Payment Voucher (/payment)", "#btn-auto-allocate-fifo", "[Alt+A]", "Executes 1-click FIFO allocation across open vendor purchase bills."],
+        ["Journal Voucher (/journal)", "#btn-auto-balance-gl", "[Ctrl+B]", "Auto-calculates and inserts balancing Dr/Cr line."],
+        ["Journal Voucher (/journal)", "#check-schedule-accrual", "-", "Schedules automatic 1st-of-month general ledger reversal."],
+        ["Expense Desk (/finance/expenses)", "#btn-post-expense", "-", "Posts direct cash/bank operational expense debiting P&L immediately."],
+        ["Bank Recon (/finance/bank-reconciliation)", "#btn-cash-drawer-tally", "[F8]", "Opens RBI currency denomination counter and cash discrepancy report."],
+        ["GST Workbench (/gst)", "#btn-export-gstn-json", "-", "Exports official Government Offline Utility JSON file for gst.gov.in."],
+        ["Audit Explorer (/audit)", "#btn-verify-chain", "-", "Traverses sequential SHA-256 hash blocks certifying 100% integrity."],
+        ["Audit Explorer (/audit)", "#drawer-audit-diff", "[Enter]", "Slide-over before/after JSON diff comparison drawer."],
+        ["Cargo Board (/cargo)", "#btn-register-consignment", "[F6]", "Registers consignment with IATA volumetric CBM auto-calculation."],
+        ["Freight Master (/freight/contracts)", "#tab-btn-sandbox", "[F4]", "Evaluates deterministic freight calculation with formula trace."],
+        ["Principal Desk (/principal)", "#btn-open-claim-modal", "[F7]", "Opens Principal breakage/damage claim modal with [Esc] dismissal."],
+        ["Commission Desk (/commission)", "#tab-btn-client-billing", "[F5]", "Opens Client Management C&F Commission & Expense Billing Desk."],
+        ["Commission Desk (/commission)", "#btn-autofetch-client-telemetry", "-", "1-Click Auto-Fetch pulling client turnover and depot operating expenses."],
+        ["Commission Desk (/commission)", "#check-dual-post-purchase", "-", "Toggles automated dual-posting into the client company inward purchase register."],
+        ["Commission Desk (/commission)", "#btn-generate-client-bill", "-", "Atomically creates outward service bill (CF-BILL-) and inward purchase bill (PUR-CF-)."],
+        ["Radar (/admin/tracking)", "#select-tracking-scope", "-", "Toggles between Consolidated multi-client view and single-client isolation."],
+        ["Radar (/admin/tracking)", "#tab-btn-scorecards", "[F2]", "Displays comparative client scorecards matrix with 1-click drilldown."],
+        ["Expiry Cockpit (/inventory-dashboard)", "#card-main-stock", "-", "Displays real-time Main Saleable Stock Value and Healthy Units count."],
+        ["Expiry Cockpit (/inventory-dashboard)", "#card-quarantine-stock", "-", "Displays Quarantined Stock Value and Segregated Units count in brk_exp_stock."],
+        ["Expiry Cockpit (/inventory-dashboard)", "#card-near-expiry-risk", "-", "Displays 90-Day Near-Expiry Risk Valuation across 4 critical risk buckets."],
+        ["Expiry Cockpit (/inventory-dashboard)", "#card-claim-exposure", "-", "Displays active Principal Claims & Debit Note exposure."],
+        ["Expiry Cockpit (/inventory-dashboard)", "#tab-btn-radar", "[F2]", "Opens Expiry Radar table with alert pills and search filters."],
+        ["Expiry Cockpit (/inventory-dashboard)", "#btn-shift-selected-action", "[F7]", "Shifts chosen batches to quarantine and routes to /stock-shift."],
+        ["Stock Shift Desk (/stock-shift)", "#select-from-godown", "-", "Selects source godown (Main Saleable Godown)."],
+        ["Stock Shift Desk (/stock-shift)", "#select-to-godown", "-", "Selects destination godown (Quarantine / Expiry Godown)."],
+        ["Stock Shift Desk (/stock-shift)", "#check-auto-claim", "-", "Toggles automated generation of official Principal Expiry Claim (CLM-PRN-)."],
+        ["Stock Shift Desk (/stock-shift)", "#btn-save-shift-voucher", "[F7]", "Executes atomic stock shift reallocation and files debit note claim."],
+        ["Stock Shift Desk (/stock-shift)", "#stock-shift-success-card", "-", "Displays generated voucher (SHF-2026-XXXX) and claim reference."]
+    ]
+    style_table(selector_table, [1.5, 2.0, 0.8, 2.7], selector_headers, selector_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
     # Save to erp2 directory
     output_path = r"C:\Users\DELL\OneDrive\Desktop\erp2\ERP_ENTERPRISE_SYSTEM_COMPLETE_SOFTWARE_MASTER_WALKTHROUGH.docx"
     doc.save(output_path)
