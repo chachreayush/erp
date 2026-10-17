@@ -47,9 +47,8 @@ export const apiClient = axios.create({
   // baseURL: Prefix for all requests. "/auth/login" becomes "http://localhost:8000/auth/login"
   baseURL: API_BASE_URL,
 
-  // timeout: If the server doesn't respond in 10 seconds, fail with an error.
-  // Prevents the UI from hanging indefinitely on network issues.
-  timeout: 30000, // 30 seconds for complete GL posting and cloud DB latency
+  // timeout: 60 seconds to accommodate Render cloud cold-starts and Neon DB latency
+  timeout: 60000,
 
   // headers: Default headers sent with every request.
   // "Content-Type: application/json" tells the server we're sending JSON.

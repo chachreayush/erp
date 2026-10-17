@@ -37,7 +37,8 @@ class ClientRegistrationRequest(BaseModel):
     org_code: str = Field(..., min_length=2, max_length=20)
     admin_name: str = Field(..., min_length=2, max_length=255)
     admin_username: str = Field(..., min_length=2, max_length=100)
-    admin_password: str = Field(..., min_length=8)
+    admin_password: str = Field(..., min_length=6)
+    is_admin_company: bool = Field(default=False)
 
 
 class ImpersonateRequest(BaseModel):

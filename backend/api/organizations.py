@@ -35,17 +35,24 @@ def register_client(request: ClientRegistrationRequest, current_user = Depends(g
     if current_user.role != UserRole.AM_ADMIN.value:
         raise HTTPException(status_code=403, detail="Only AM Admin can register new clients")
     
+    clean_org_code = request.org_code.strip().upper()
+    if not clean_org_code:
+        raise HTTPException(status_code=400, detail="Organization code cannot be blank")
+
     # Check if organization code already exists
-    existing_organization = db.query(Organization).filter(Organization.org_code == request.org_code).first()
+    existing_organization = db.query(Organization).filter(
+        (Organization.org_code == clean_org_code) | (Organization.org_code == request.org_code.strip())
+    ).first()
     if existing_organization:
         raise HTTPException(status_code=400, detail="Organization code already in use")
         
+    is_admin = bool(getattr(request, "is_admin_company", False))
 
     # 1. Create the new Organization
     new_organization = Organization(
-        name=request.org_name,
-        org_code=request.org_code,
-        is_am=request.is_admin_company
+        name=request.org_name.strip(),
+        org_code=clean_org_code,
+        is_am=is_admin
     )
     db.add(new_organization)
     db.flush() # Flush to get the new_organization.id
@@ -53,10 +60,10 @@ def register_client(request: ClientRegistrationRequest, current_user = Depends(g
     # 2. Create the Admin User for this organization
     admin_user = User(
         organization_id=new_organization.id,
-        name=request.admin_name,
-        username=request.admin_username,
+        name=request.admin_name.strip(),
+        username=request.admin_username.strip(),
         hashed_password=hash_password(request.admin_password),
-        role=UserRole.AM_ADMIN.value if request.is_admin_company else UserRole.CM_ADMIN.value
+        role=UserRole.AM_ADMIN.value if is_admin else UserRole.CM_ADMIN.value
     )
     db.add(admin_user)
     db.flush()

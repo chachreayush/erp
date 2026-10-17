@@ -25,9 +25,10 @@ export function RegisterClientModal({ isOpen, onClose, onSuccess }: RegisterClie
   if (!isOpen) return null
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
     setFormData(prev => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [name]: name === 'org_code' ? value.toUpperCase().replace(/\s+/g, '-') : value
     }))
   }
 
@@ -36,8 +37,21 @@ export function RegisterClientModal({ isOpen, onClose, onSuccess }: RegisterClie
     setIsLoading(true)
     setError(null)
     
+    if (formData.admin_password.length < 6) {
+      setError('Admin password must be at least 6 characters.')
+      setIsLoading(false)
+      return
+    }
+
     try {
-      await apiRegisterOrganization(formData)
+      const payload = {
+        org_name: formData.org_name.trim(),
+        org_code: formData.org_code.trim().toUpperCase(),
+        admin_name: formData.admin_name.trim(),
+        admin_username: formData.admin_username.trim(),
+        admin_password: formData.admin_password
+      }
+      await apiRegisterOrganization(payload)
       onSuccess() // Close modal and refresh list
       setFormData({
         org_name: '',
@@ -51,7 +65,9 @@ export function RegisterClientModal({ isOpen, onClose, onSuccess }: RegisterClie
       let errorMessage = 'Failed to register client'
       const detail = err.response?.data?.detail
       
-      if (typeof detail === 'string') {
+      if (err.code === 'ECONNABORTED' || err.message?.toLowerCase().includes('timeout')) {
+        errorMessage = 'The cloud server took longer than expected to respond (cloud instance waking up from sleep). Please click "Register Client" once more to complete registration.'
+      } else if (typeof detail === 'string') {
         errorMessage = detail
       } else if (Array.isArray(detail)) {
         // Handle Pydantic validation error array
@@ -100,7 +116,8 @@ export function RegisterClientModal({ isOpen, onClose, onSuccess }: RegisterClie
         {error && (
           <div style={{
             padding: '12px', marginBottom: '20px', borderRadius: 'var(--radius-md)',
-            backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-danger)', fontSize: '14px'
+            backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-danger)', fontSize: '14px',
+            lineHeight: 1.4
           }}>
             {error}
           </div>
@@ -127,7 +144,10 @@ export function RegisterClientModal({ isOpen, onClose, onSuccess }: RegisterClie
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>Organization Code</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '13px', fontWeight: 600 }}>Organization Code</label>
+              <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Auto-capitalized (e.g. KSK-HDA)</span>
+            </div>
             <input 
               name="org_code"
               value={formData.org_code}
@@ -137,7 +157,8 @@ export function RegisterClientModal({ isOpen, onClose, onSuccess }: RegisterClie
               style={{
                 width: '100%', padding: '10px 12px',
                 backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-md)', color: 'var(--color-text)'
+                borderRadius: 'var(--radius-md)', color: 'var(--color-text)',
+                textTransform: 'uppercase', letterSpacing: '0.5px'
               }}
             />
           </div>
@@ -180,7 +201,10 @@ export function RegisterClientModal({ isOpen, onClose, onSuccess }: RegisterClie
               />
             </div>
             <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>Admin Password</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 600 }}>Admin Password</label>
+                <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Min 6 chars</span>
+              </div>
               <div style={{ position: 'relative' }}>
                 <Key size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
                 <input 
@@ -189,6 +213,7 @@ export function RegisterClientModal({ isOpen, onClose, onSuccess }: RegisterClie
                   value={formData.admin_password}
                   onChange={handleChange}
                   required
+                  minLength={6}
                   placeholder="••••••••"
                   style={{
                     width: '100%', padding: '10px 12px 10px 36px',
