@@ -132,6 +132,7 @@ C:\Python313\python.exe test_freight_logistics_selenium.py
 C:\Python313\python.exe test_principal_operations_selenium.py
 C:\Python313\python.exe test_client_commission_billing_selenium.py
 C:\Python313\python.exe test_pharma_expiry_quarantine_selenium.py
+C:\Python313\python.exe test_gst_einvoice_eway_selenium.py
 ```
 
 ### Step 4: Live Cloud Verification
@@ -152,6 +153,8 @@ This guarantees 100% production uptime and records visual proof artifacts.
 2. **Never Commit Secrets**: Ensure `.env` in `backend` and `src` is listed in `.gitignore` so database passwords and secret keys are never exposed on GitHub.
 3. **Branch Protection**: The `main` branch represents production code deployed to live pharmacies and cashiers. Ensure all changes are verified via Selenium before pushing to `main`.
 4. **Recent Production Releases**:
+   - `HEAD`: "feat(doc-42): statutory gst e-way bill & e-invoice desk with nic json & transport slips"
+   - `35475e0`: "docs: exhaustive update across all developer and user manuals and master walkthrough docx"
    - `f84a34c`: "feat(doc-41): pharma expiry radar, stock shift quarantine & principal claim settlement desk"
    - `7720ca8`: "docs: exhaustive update across all developer and user manuals and master walkthrough docx"
    - `d57cb1e`: "feat: top navigation non-overflow menu & client c&f commission billing with dual-posting"

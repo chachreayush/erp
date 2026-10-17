@@ -297,6 +297,14 @@ The ERP is 100% keyboard-navigable. Key shortcuts:
 | `/master/parties` | `#input-party-gstin` | - | Party GSTIN with statutory checksum validation |
 | `/stock` | `#input-stock-search` | - | Instant search across product formulations, batches, and godowns |
 | `/inventory/replenishment` | `#btn-generate-reorder` | - | Computes reorder quantities based on minimum stock and sales velocity |
+| `/compliance` | `#card-qualifying-invoices` | - | Telemetry scorecard for qualifying outbound consignments (≥ ₹50,000) |
+| `/compliance` | `#card-pending-eway` | - | Consignments pending E-Way Bill Part A & B transport slips |
+| `/compliance` | `#card-generated-irn` | - | Invoices with verified cryptographic IRN and digital QR codes |
+| `/compliance` | `#card-compliance-rate` | - | Live statutory compliance rating and color-coded progress bar |
+| `/compliance` | `#btn-open-transport-modal` | `[F7]` | Opens Transporter & Vehicle Assignment modal (`#modal-transport-assignment`) |
+| `/compliance` | `#btn-export-nic-json` | `[F8]` | Exports official Government NIC Schema 1.1 Bulk Upload JSON |
+| `/compliance` | `#btn-confirm-generate-compliance` | `[Enter]` | 1-Click generation of 64-char IRN, 15-digit Ack No, 12-digit E-Way Bill |
+| `/compliance` | `#btn-print-slip-dialog` | - | Print trigger for official Government of India CBIC two-part delivery slip |
 
 ---
 
@@ -313,7 +321,21 @@ The ERP is 100% keyboard-navigable. Key shortcuts:
 
 ---
 
-### 2.24 Complete Operational Navigation & Menu Sizing Standard
+### 2.24 Module 24 — DOC-42: Statutory GST E-Way Bill & E-Invoice (IRN) Generation Desk with NIC Offline JSON & Transport Part A/B Slips
+
+- **Route**: `/compliance` (or Top Nav `GST & Compliance ▾` &rarr; `Compliance Workbench`).
+- **Core Purpose**: Rule 138 CGST Rules and Rule 48(4) E-Invoicing statutory compliance desk for all B2B consignments $\ge ₹50,000$. Features real-time qualifying invoice detection, 1-click cryptographic IRN/Ack generation, 12-digit E-Way bill generation with distance validity calculation (1 day per 200 km), signed digital QR code generation, official CBIC printable two-part delivery slips (Part A & Part B), and National Informatics Centre (NIC) Schema 1.1 bulk JSON generation.
+- **Backend APIs**:
+  - `GET /api/compliance/summary`: Real-time statutory telemetry (qualifying invoices, pending EWB, generated IRN, compliance rate, transporters).
+  - `GET /api/compliance/invoices`: Filterable qualifying consignments register with live compliance badges.
+  - `POST /api/compliance/generate-eway-irn`: Atomic cryptographic generation of 64-char IRN, 15-digit Ack No, 12-digit EWB No, validity period, and QR payload.
+  - `GET /api/compliance/eway-slip/{invoice_id}`: Structured CBIC two-part delivery slip data with driver handover layout.
+  - `POST /api/compliance/export-nic-json`: Strict Government-compliant bulk upload JSON payload.
+- **Automated QA Verification**: `test_gst_einvoice_eway_selenium.py` (13 stages, 100% Passed, Exit Code 0).
+
+---
+
+### 2.25 Complete Operational Navigation & Menu Sizing Standard
 
 1. **Responsive Top Navigation Architecture**:
    - Reorganized into 10 streamlined, non-wrapping parent categories fitting standard desktop displays (1366px, 1440px, 1920px):

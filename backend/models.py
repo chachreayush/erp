@@ -1835,6 +1835,18 @@ class EinvoiceEwayLog(Base):
     request_payload_json = Column(JSONB, nullable=True)
     response_payload_json = Column(JSONB, nullable=True)
 
+    # Transport & Dispatch Metadata (DOC-42)
+    transporter_id = Column(String(100), nullable=True)
+    transporter_name = Column(String(255), nullable=True)
+    transporter_gstin = Column(String(50), nullable=True)
+    vehicle_no = Column(String(50), nullable=True)
+    vehicle_type = Column(String(30), default="REGULAR", nullable=True)
+    distance_km = Column(Numeric(10, 2), default=100.0, nullable=True)
+    transport_mode = Column(String(30), default="ROAD", nullable=True)
+    doc_type = Column(String(20), default="INV", nullable=True)
+    supply_type = Column(String(20), default="B2B", nullable=True)
+    qr_code_svg = Column(Text, nullable=True)
+
 class TdsTcsTransaction(Base):
     __tablename__ = "tds_tcs_transactions"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

@@ -423,6 +423,14 @@ The ERP reporting and double-entry accounting engine has been verified with **10
 | **Party Master (`/master/parties`)** | `#btn-new-party` | Button `[F2]` | Opens new customer/vendor creation modal. |
 | **Current Stock (`/stock`)** | `#input-stock-search` | Input | Instant search across formulations and batches. |
 | **Replenishment (`/inventory/replenishment`)**| `#btn-generate-reorder` | Button | Calculates reorder quantities based on velocity. |
+| **Compliance Desk (`/compliance`)** | `#card-qualifying-invoices` | Scorecard | Displays qualifying outbound consignments (≥ ₹50,000). |
+| **Compliance Desk (`/compliance`)** | `#card-pending-eway` | Scorecard | Consignments awaiting Part B transport slips. |
+| **Compliance Desk (`/compliance`)** | `#card-generated-irn` | Scorecard | Consignments certified with cryptographic IRN hashes. |
+| **Compliance Desk (`/compliance`)** | `#card-compliance-rate` | Scorecard | Live percentage statutory compliance progress bar. |
+| **Compliance Desk (`/compliance`)** | `#btn-open-transport-modal` | Button `[F7]` | Opens Transporter & Vehicle Assignment modal (`#modal-transport-assignment`). |
+| **Compliance Desk (`/compliance`)** | `#btn-export-nic-json` | Button `[F8]` | Exports official Government NIC Schema 1.1 Bulk Upload JSON. |
+| **Compliance Desk (`/compliance`)** | `#btn-confirm-generate-compliance` | Button `[Enter]` | 1-Click generation of 64-char IRN, 15-digit Ack No, 12-digit E-Way Bill. |
+| **Compliance Desk (`/compliance`)** | `#btn-print-slip-dialog` | Button | Print trigger for official Government of India CBIC two-part delivery slip. |
 
 ---
 
@@ -435,7 +443,18 @@ The ERP reporting and double-entry accounting engine has been verified with **10
 
 ---
 
-## 29. Comprehensive Automated QA Test Suite Registry (16 Suites)
+## 29. Module 29 — DOC-42: Statutory GST E-Way Bill & E-Invoice (IRN) Generation Desk with NIC Offline JSON & Transport Part A/B Slips
+
+### 29.1 Workflow Summary & Core Objectives
+1. **Rule 138 & Rule 48(4) Statutory Transit Clearances**: Real-time identification of all outbound sales invoices $\ge ₹50,000$ requiring mandatory Government E-Way Bills and cryptographic IRN certifications.
+2. **Interactive Transport & Conveyance Assignment**: Operators assign registered transporter fleet operators (Delhi-NCR Express Cargo, Varanasi Freight, etc.), conveyance vehicle registration numbers (e.g. `DL-01-AB-1234`), journey distance, transport mode, and vehicle type with automated validity duration calculation (1 day per 200 KM for regular cargo).
+3. **1-Click Cryptographic IRN, Ack No & 12-Digit EWB Generation**: In 1-click, the desk generates 64-character SHA-256 IRN hashes, 15-digit Ack numbers, 12-digit E-Way Bill numbers (prefixed with `24`), signed digital QR codes, and sets status to `SUCCESS`.
+4. **Official CBIC Part A & Part B Delivery Challans**: Printable official Government of India format with supplier/recipient GSTINs, dispatch addresses, document details, HSN `3004`, valuation, Part B vehicle details, and high-contrast signed digital QR code representation.
+5. **Government NIC Schema 1.1 Offline Bulk JSON Generation**: 1-click download of official Schema 1.1 JSON bulk upload payloads for direct upload to `einvoice1.gst.gov.in`.
+
+---
+
+## 30. Comprehensive Automated QA Test Suite Registry (17 Suites)
 
 | # | Test Suite File | Module Coverage | Assertions Target & Status |
 | :--- | :--- | :--- | :--- |
@@ -455,6 +474,7 @@ The ERP reporting and double-entry accounting engine has been verified with **10
 | 14 | `test_principal_operations_selenium.py` | Control Center, Custody Stock Matrix, Claims Desk `[F7]`, Recon | 100% PASS: Principal agreement governance and reconciliation statements. |
 | 15 | `test_client_commission_billing_selenium.py` | Top Nav 10-Item layout, C&F Billing Desk `[F5]`, Dual-Posting | 100% PASS: Auto-fetch telemetry, outward bill `CF-BILL-`, and inward purchase `PUR-CF-`. |
 | 16 | `test_pharma_expiry_quarantine_selenium.py` | Expiry Radar `[F2]`, Stock Shift Desk `[F7]`, Auto-Claims `CLM-PRN-` | 100% PASS: Atomic batch stock reallocation, quarantine ledger, and Principal claims bridging. |
+| 17 | `test_gst_einvoice_eway_selenium.py` | Compliance Desk `[F2]`, Transporter Modal `[F7]`, CBIC Part A/B Slips, NIC JSON `[F8]` | 100% PASS: Real-time telemetry, 1-click IRN/E-Way Bill generation, vehicle `DL-01-AB-1234`, CBIC Part A/B delivery slips, and signed digital QR code. |
 
 ---
 

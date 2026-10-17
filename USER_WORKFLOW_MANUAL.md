@@ -1833,6 +1833,105 @@ This section provides the master operational roadmap for every screen, menu opti
 
 ---
 
+## 37. Statutory GST E-Way Bill & E-Invoice (IRN) Generation Desk (DOC-42)
+
+### 37.1 Operational Purpose & Statutory Requirements
+In Indian pharmaceutical wholesale and distribution operations, every outbound consignment with a taxable transaction value exceeding **₹50,000** (or any inter-state supply regardless of threshold in specific product classes) legally requires statutory transit clearances under **Rule 138 of the CGST Rules, 2017**:
+1. **Invoice Reference Number (IRN)**: Real-time 64-character SHA-256 hash certified by the Government Invoice Registration Portal (IRP).
+2. **Signed Digital QR Code**: Machine-readable cryptographic token for transit inspection officers.
+3. **Electronic Way Bill (E-Way Bill)**: 12-digit transit certificate containing **Part A** (Consignment metadata) and **Part B** (Vehicle and transporter assignment).
+
+The **Statutory GST E-Way Bill & E-Invoice Desk (DOC-42)** (`/compliance`) streamlines this workflow into an interactive, high-speed desk designed with the Flagship Neumorphic Forest Green design system (`#1b4332`, `#2d6a4f`, `#eef2ef`).
+
+### 37.2 Operational Step-by-Step Operator Workflow
+
+```
+[Sales Billing Desk]  ──(Invoice Value ≥ ₹50,000)──►  [Compliance Workbench /compliance]
+                                                                  │
+       ┌──────────────────────────────────────────────────────────┴─────────────────────────┐
+       ▼                                                          ▼                         ▼
+[F2: Qualifying Desk]                                    [F3: EWB & IRN Register]    [F4: NIC Export]
+  • Filter: ⚡ Pending E-Way / 🔒 Pending IRN               • Audit 64-char IRN hash    • Download Schema 1.1 JSON
+  • Search Consignee / Doc No                              • 12-digit EWB Registry     • Offline IRP Portal Upload
+  • Multi-Select Consignments [x]                          • 1-Click Print Slip        • Zero-Error Bulk Sync
+       │
+       ▼ [F7]
+[Transport Modal #modal-transport-assignment]
+  • Select Transporter (e.g., Delhi-NCR Express Cargo)
+  • Conveyance No: DL-01-AB-1234
+  • Distance: 180 KM (Auto-Calculated Validity: 1 Day)
+  • Toggles: [✓] Generate E-Way Bill  [✓] Generate IRN & QR
+       │
+       ▼ [Confirm & Generate]
+[CBIC Two-Part Delivery Slip #modal-eway-slip-preview]
+  • Official Government of India Header
+  • Part A: Supplier/Buyer GSTINs, HSN 3004, Valuation
+  • Part B: Vehicle DL-01-AB-1234, Mode: Road, Transporter
+  • High-Contrast Signed Digital QR Code
+  • [Print Slip] Action for Transporter Handover Copy
+```
+
+#### Step 1: Navigating to Compliance Desk
+- From the global top navigation bar, open **`GST & Compliance ▾`** and select **`Compliance Workbench`** (`/compliance`).
+- Or press `[Esc]` from submodules and navigate to `/compliance`.
+
+#### Step 2: Reviewing Live Telemetry Scorecards
+The desk apex prominently displays 4 live operational telemetry scorecards:
+1. **Qualifying Consignments (`#card-qualifying-invoices`)**: Total outbound B2B sales invoices exceeding the ₹50,000 statutory limit and their gross consignment valuation.
+2. **Pending E-Way Bills (`#card-pending-eway`)**: Invoices currently awaiting Part B vehicle registration and dispatch documentation.
+3. **Generated IRNs & QR (`#card-generated-irn`)**: Count of invoices successfully certified with IRP cryptographic IRN hashes.
+4. **Statutory Compliance (`#card-compliance-rate`)**: Real-time compliance percentage with dynamic status bar (Green $\ge 80\%$, Amber $40-80\%$, Red $<40\%$).
+
+#### Step 3: Filtering & Selecting Consignments (`[F2]`)
+1. Click the filter pills to isolate operational queues:
+   - **`[All Consignments]`**: Displays full tenant qualifying register.
+   - **`[⚡ Pending E-Way]`**: Displays consignments ready for dispatch missing Part B vehicle details.
+   - **`[🔒 Pending IRN]`**: Displays consignments requiring IRP invoice hashing.
+   - **`[✓ Fully Compliant]`**: Displays consignments with both active E-Way bills and IRN hashes.
+2. Use the instant search box (`#search-compliance-input`) to search by invoice number (e.g. `CF-BILL-2026-0002`) or consignee name.
+3. Select checkboxes for consignments requiring transit clearance (`#checkbox-inv-{id}` or master checkbox `#btn-select-all-compliance`).
+
+#### Step 4: Conveyance & Transporter Assignment (`[F7]`)
+1. Press `[F7]` or click **`⚡ Assign Transport & Generate`** (`#btn-open-transport-modal`).
+2. The Neumorphic dialog (`#modal-transport-assignment`) opens with a consignment valuation summary.
+3. **Select Registered Transporter** (`#select-transporter`): Choose from pre-configured fleet operators (Delhi-NCR Express Cargo, Varanasi Logistics & Freight, Western India Bulk Transport, SpeedX Pharma Carriers).
+4. **Enter Vehicle Number** (`#input-vehicle-no`): Input vehicle registration (e.g. `DL-01-AB-1234`).
+5. **Enter Distance in KM** (`#input-transport-distance`): Enter journey distance (e.g. `180`). The desk automatically calculates statutory validity under CBIC Rule 138 (1 day per 200 KM for regular cargo).
+6. **Select Transport Mode** (`#select-transport-mode`): Choose Road (1), Rail (2), Air (3), or Ship (4).
+7. **Select Vehicle Type** (`#select-vehicle-type`): Regular Cargo Carrier or Over Dimensional Cargo (ODC).
+8. Verify statutory output toggles (`#toggle-gen-eway` and `#toggle-gen-irn`).
+9. Click **`Confirm & Generate Compliance Slips`** (`#btn-confirm-generate-compliance`).
+
+#### Step 5: Registry Surveillance & CBIC Slip Printing (`[F3]`)
+1. Switch to **`[F3] E-Way & IRN Register`** (`#tab-eway-register`).
+2. Verify generated 64-character cryptographic IRN hash, 15-digit Ack No, 12-digit E-Way Bill Number (starting with `24`), validity period, and assigned vehicle.
+3. Click **`Print Slip`** (`#btn-print-eway-slip-{id}`) to open the official CBIC two-part delivery challan (`#modal-eway-slip-preview`):
+   - **Header**: Government of India — CBIC E-Way Bill.
+   - **E-Way Bill No & QR**: High-contrast signed digital QR code representation with validation hash.
+   - **PART - A**: Supplier/recipient GSTINs, dispatch address, invoice number, date, value of goods, HSN code (`3004 - Medicaments`), and reason for transportation.
+   - **PART - B**: Vehicle number (`DL-01-AB-1234`), road mode, entered date, and transporter details.
+   - Click **`Print Slip`** (`#btn-print-slip-dialog`) to generate clean driver delivery copies.
+
+#### Step 6: Offline NIC Schema 1.1 Bulk JSON Export (`[F4]` or `[F8]`)
+1. Switch to **`[F4] NIC JSON Export Center`** (`#tab-nic-center`) or press `[F8]` from anywhere on the workbench.
+2. The desk compiles official bulk JSON payloads compliant with NIC e-Invoice Schema 1.1 including `TranDtls`, `DocDtls`, `SellerDtls`, `BuyerDtls`, `ItemList`, `ValDtls`, and `EwbDtls`.
+3. Click **`Download NIC Bulk Upload JSON`** (`#btn-download-nic-json`).
+4. Upload directly to the Government IRP portal (`einvoice1.gst.gov.in`) for batch statutory clearance.
+
+### 37.3 Operational Keyboard Shortcuts Reference
+
+| Shortcut Key | Action / Functionality | Target Scope |
+| :--- | :--- | :--- |
+| `[F2]` | Switch to Qualifying Invoices Desk | Activates Tab 1 (`#tab-qualifying-invoices`). |
+| `[F3]` | Switch to E-Way & IRN Register | Activates Tab 2 (`#tab-eway-register`). |
+| `[F4]` | Switch to NIC JSON Export Center | Activates Tab 3 (`#tab-nic-center`). |
+| `[F5]` | Refresh Compliance Telemetry | Re-queries summary KPIs and invoices (`#btn-refresh-compliance`). |
+| `[F7]` | Open Transport & Generation Modal | Opens vehicle assignment modal for selected invoices (`#btn-open-transport-modal`). |
+| `[F8]` | Export NIC Bulk Upload JSON | Instantly compiles and downloads Schema 1.1 JSON payload (`#btn-export-nic-json`). |
+| `[Esc]` | Close Active Modal / Exit Desk | Closes slip preview or transport modal; returns to `/gst` from main desk (`#btn-back-gst`). |
+
+---
+
 *End of User Workflow Manual.*
 
 

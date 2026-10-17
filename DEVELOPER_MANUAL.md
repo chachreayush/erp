@@ -2147,5 +2147,148 @@ In pharmaceutical distribution and C&F logistics, batch shelf-life surveillance 
 
 ---
 
+## 36. Statutory GST E-Way Bill & E-Invoice (IRN) Generation Desk (DOC-42)
+
+### 36.1 Statutory Architecture & Statutory Mandate
+Under Indian Goods and Services Tax (GST) law (Rule 138 of CGST Rules, 2017) and statutory E-Invoicing mandates (Rule 48(4)), all registered pharmaceutical wholesale and distribution enterprises dispatching goods with invoice valuations $\ge ₹50,000$ (and mandatory for all B2B inter-state consignments) must generate:
+1. **Cryptographic Invoice Reference Number (IRN)**: A unique 64-character SHA-256 cryptographic hash certified by the Government Invoice Registration Portal (IRP).
+2. **Signed Digital QR Code**: Tamper-proof, cryptographically signed matrix barcode containing supplier GSTIN, recipient GSTIN, invoice number, date, item summary, invoice valuation, and acknowledgment number.
+3. **Electronic Way Bill (E-Way Bill)**: A 12-digit statutory transit authorization consisting of **Part A** (supplier/buyer GSTINs, dispatch/delivery addresses, consignment value, HSN codes) and **Part B** (conveyance details: vehicle registration number, transport mode, transporter ID/GSTIN, and journey distance).
+
+DOC-42 provides an integrated, Marg-speed operational workbench (`/compliance`) built on the Flagship Neumorphic Forest Green design system (`#1b4332`, `#2d6a4f`, `#eef2ef`) facilitating real-time consignment surveillance, 1-click IRN/E-Way Bill generation, official CBIC transport slip generation, and offline National Informatics Centre (NIC) Schema 1.1 bulk JSON exports.
+
+### 36.2 Enhanced Database Schema: `EinvoiceEwayLog`
+Located in [`backend/models.py`](file:///c:/Users/DELL/OneDrive/Desktop/erp2/backend/models.py):
+
+```python
+class EinvoiceEwayLog(Base):
+    __tablename__ = "einvoice_eway_logs"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    invoice_id = Column(UUID(as_uuid=True), ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    log_type = Column(String(20), nullable=False) # 'EINVOICE', 'EWAYBILL', 'EINVOICE_EWAY'
+    status = Column(String(20), nullable=False)   # 'PENDING', 'EXPORTED', 'SUCCESS', 'ERROR'
+    
+    # Evidence from IRP
+    irn = Column(String(100), nullable=True)
+    ack_no = Column(String(100), nullable=True)
+    ack_date = Column(String(50), nullable=True)
+    signed_qr_data = Column(Text, nullable=True)
+    signed_invoice_data = Column(Text, nullable=True)
+    eway_bill_no = Column(String(100), nullable=True)
+    eway_bill_valid_till = Column(String(50), nullable=True)
+    
+    # Audit trail
+    error_message = Column(Text, nullable=True)
+    request_payload_json = Column(JSONB, nullable=True)
+    response_payload_json = Column(JSONB, nullable=True)
+
+    # Transport & Dispatch Metadata (DOC-42)
+    transporter_id = Column(String(100), nullable=True)
+    transporter_name = Column(String(255), nullable=True)
+    transporter_gstin = Column(String(50), nullable=True)
+    vehicle_no = Column(String(50), nullable=True)
+    vehicle_type = Column(String(30), default="REGULAR", nullable=True)  # REGULAR, ODC
+    distance_km = Column(Numeric(10, 2), default=100.0, nullable=True)
+    transport_mode = Column(String(30), default="ROAD", nullable=True)   # ROAD, RAIL, AIR, SHIP
+    doc_type = Column(String(20), default="INV", nullable=True)          # INV, CRN, DBN
+    supply_type = Column(String(20), default="B2B", nullable=True)       # B2B, B2G, EXP
+    qr_code_svg = Column(Text, nullable=True)
+```
+
+### 36.3 Backend API Directory (`backend/api/compliance.py`)
+
+| HTTP Method | Endpoint | Description | Query / Request Payload | Response Schema |
+| :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/api/compliance/summary` | Real-time statutory compliance telemetry metrics. | None (reads `current_user.organization_id`) | `{ "total_qualifying_count": int, "total_qualifying_val": float, "pending_eway_count": int, "pending_eway_val": float, "generated_irn_count": int, "generated_irn_val": float, "compliance_rate": float, "transporters": list }` |
+| `GET` | `/api/compliance/invoices` | Filterable qualifying sales consignment register ($\ge ₹50,000$). | `status` (`ALL`, `PENDING_EWAY`, `PENDING_IRN`, `COMPLETED`), `search`, `limit` | `List[QualifyingInvoice]` with `id`, `invoice_number`, `date`, `customer_name`, `customer_gstin`, `grand_total`, `has_irn`, `irn`, `has_eway`, `eway_bill_no`, `vehicle_no`, `compliance_status` |
+| `POST` | `/api/compliance/generate-eway-irn` | 1-Click atomic generation of 64-char IRN, 15-digit Ack No, 12-digit EWB No, validity period, and QR payload. | `GenerateEwayIrnRequest`: `{ "invoice_ids": [...], "transporter_id": str, "vehicle_no": str, "distance_km": float, "transport_mode": str, "generate_irn": bool, "generate_eway": bool }` | `{ "status": "success", "results": [ { "invoice_id": str, "irn": str, "ack_no": str, "eway_bill_no": str, "eway_valid_till": str, ... } ] }` |
+| `GET` | `/api/compliance/eway-slip/{invoice_id}` | Structured CBIC official two-part delivery slip data. | Path parameter `invoice_id` | `{ "slip_title": "GOVERNMENT OF INDIA - CBIC E-WAY BILL", "eway_bill_no": str, "valid_until": str, "part_a": { ... }, "part_b": { ... }, "irn": str, "signed_qr_data": str }` |
+| `POST` | `/api/compliance/export-nic-json` | Government-standard offline bulk upload JSON (Schema 1.1). | `{ "invoice_ids": [...] }` | `{ "status": "success", "filename": str, "invoice_count": int, "payload": [...] }` |
+
+### 36.4 Frontend Component Architecture & Master UI Selector Catalog
+Implemented in [`src/pages/ComplianceWorkbench.tsx`](file:///c:/Users/DELL/OneDrive/Desktop/erp2/src/pages/ComplianceWorkbench.tsx) under Route `/compliance`:
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ [←] STATUTORY COMPLIANCE & LOGISTICS DESK  [DOC-42]  [NIC & CBIC COMPLIANT]             │
+│ Statutory GST E-Way Bill & E-Invoice Desk (DOC-42)     [F5] [F7 Assign Transport] [F8]  │
+├───────────────────┬───────────────────┬───────────────────┬────────────────────────────┤
+│ QUALIFYING        │ PENDING E-WAY     │ GENERATED IRN     │ STATUTORY COMPLIANCE       │
+│ 101 Consignments  │ 100 Consignments  │ 1 Consignment     │ 1% Live Progress Bar       │
+│ Gross: ₹2.13 Cr   │ Pending: ₹2.11 Cr │ Value: ₹1.42 L    │ Target: 100%               │
+├───────────────────┴───────────────────┴───────────────────┴────────────────────────────┤
+│ [F2] Qualifying Invoices Desk (100)  │  [F3] E-Way & IRN Register (1)  │  [F4] NIC Export │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ [All Consignments]  [⚡ Pending E-Way]  [🔒 Pending IRN]  [✓ Compliant]  [Search Box]    │
+├────┬──────────────┬────────────┬──────────────────┬────────────┬──────────┬───────────┤
+│ [x]│ CF-BILL-0002 │ 2026-10-16 │ KRISHNA MEDICAL  │ ₹1,42,190  │ 24405... │ [Print]   │
+└────┴──────────────┴────────────┴──────────────────┴────────────┴──────────┴───────────┘
+```
+
+#### Master DOM Element Catalog
+
+| DOM Selector ID / XPath | Component Element | Functional Role & Behavior |
+| :--- | :--- | :--- |
+| `#btn-back-gst` | Button | Returns to GST statutory reports center (`/gst`) or hotkey `[Esc]`. |
+| `#btn-refresh-compliance` | Button | Re-fetches live summary scorecards and invoices via hotkey `[F5]`. |
+| `#btn-open-transport-modal` | Primary Action Button | Opens transport assignment dialog (`#modal-transport-assignment`) for selected consignments (`[F7]`). |
+| `#btn-export-nic-json` | Secondary Action Button | Downloads official Schema 1.1 JSON payload for direct upload to GST portal (`[F8]`). |
+| `#card-qualifying-invoices` | Telemetry Scorecard | Displays total qualifying consignments ($\ge ₹50,000$) and gross consignment value. |
+| `#card-pending-eway` | Telemetry Scorecard | Displays count and pending valuation awaiting Part B transport conveyance slips. |
+| `#card-generated-irn` | Telemetry Scorecard | Displays count and valuation of invoices with verified IRN cryptographic hashes. |
+| `#card-compliance-rate` | Telemetry Scorecard | Live percentage rating and color-coded statutory compliance progress bar. |
+| `#tab-qualifying-invoices` | Operational Tab | Activates qualifying invoices desk (`[F2]`). |
+| `#tab-eway-register` | Operational Tab | Activates historical registry of generated E-Way bills & IRNs (`[F3]`). |
+| `#tab-nic-center` | Operational Tab | Activates NIC JSON Schema 1.1 sandbox and offline instructions (`[F4]`). |
+| `#btn-filter-all` | Filter Pill | Displays all qualifying invoices in active tenant organization. |
+| `#btn-filter-pending-eway` | Filter Pill | Filters invoices missing Part B vehicle transport details. |
+| `#btn-filter-pending-irn` | Filter Pill | Filters invoices awaiting IRP cryptographic IRN generation. |
+| `#btn-filter-compliant` | Filter Pill | Filters consignments possessing both verified IRN and valid 12-digit E-Way bill. |
+| `#search-compliance-input` | Search Input | Instant real-time search by document number or customer name. |
+| `#btn-select-all-compliance` | Table Checkbox | Master checkbox to select or deselect all visible qualifying invoices. |
+| `#tbl-qualifying-invoices` | Data Table | Grid displaying Doc No, Date, Consignee, Destination, Value, EWB, and IRN. |
+| `#checkbox-inv-{id}` | Row Checkbox | Toggles inclusion of specific consignment for batch transport generation. |
+| `#cell-inv-no-{id}` | Table Cell | Displays invoice number and party GSTIN. |
+| `#btn-action-generate-{id}` | Row Action Button | Launches transport assignment dialog targeted specifically for single invoice. |
+| `#btn-view-slip-{id}` | Row Action Button | Opens CBIC Part A & Part B slip preview modal (`#modal-eway-slip-preview`). |
+| `#tbl-compliance-history` | Data Table | Registry log in Tab [F3] showing Doc No, Party, IRN, Ack No, EWB No, Validity, and Vehicle. |
+| `#btn-print-eway-slip-{id}` | Row Action Button | Direct 1-click preview and print trigger for CBIC E-Way Bill slip. |
+| `#modal-transport-assignment` | Modal Dialog | Neumorphic overlay to assign conveyance and dispatch parameters. |
+| `#select-transporter` | Select Dropdown | Quick-selects pre-registered transporter profiles (Delhi-NCR Express, Varanasi Logistics, etc.). |
+| `#input-vehicle-no` | Text Input | Captures conveyance registration number (e.g. `DL-01-AB-1234`). |
+| `#input-transport-distance` | Number Input | Captures distance in KM; automatically recalculates validity (1 day per 200 KM). |
+| `#select-transport-mode` | Select Dropdown | Road (1), Rail (2), Air (3), or Ship (4). |
+| `#select-vehicle-type` | Select Dropdown | Regular Cargo Carrier or Over Dimensional Cargo (ODC). |
+| `#toggle-gen-eway` | Checkbox | Toggles generation of 12-digit E-Way Bill and Part A/B transport slips. |
+| `#toggle-gen-irn` | Checkbox | Toggles generation of 64-character cryptographic IRN and signed digital QR code. |
+| `#btn-confirm-generate-compliance` | Submit Button | Atomically creates `EinvoiceEwayLog` records and updates invoice compliance status. |
+| `#btn-cancel-transport-modal` | Cancel Button | Closes conveyance modal without saving changes (`[Esc]`). |
+| `#modal-eway-slip-preview` | Modal Dialog | Fullscreen official Government CBIC two-part delivery slip preview. |
+| `#btn-print-slip-dialog` | Print Button | Triggers browser system print dialog for driver handover copies. |
+| `#btn-close-slip-modal` | Close Button | Closes delivery slip modal (`[Esc]`). |
+| `#compliance-status-banner` | Alert Banner | Visual confirmation banner indicating generated IRNs and E-Way bills. |
+
+### 36.5 Automated Selenium Verification Runbook
+- **Script**: [`test_gst_einvoice_eway_selenium.py`](file:///c:/Users/DELL/OneDrive/Desktop/erp2/test_gst_einvoice_eway_selenium.py) (13 stages, Exit Code 0).
+- **Verified Stages**:
+  1. Stage 1: Authenticates as `admin` (`POST /auth/login`) with organization verification.
+  2. Stage 2: Validates live telemetry KPIs (`GET /api/compliance/summary`) verifying 101 qualifying consignments (₹2,13,32,858.85 gross).
+  3. Stage 3: Asserts qualifying invoice list API (`GET /api/compliance/invoices?status=ALL`).
+  4. Stage 4: Initializes Headless Chrome with 1600x1000 viewport.
+  5. Stage 5: Injects `erp-auth` and `token` credentials into `localStorage` and `sessionStorage`, navigating to `/compliance`.
+  6. Stage 6: Asserts Flagship Neumorphic Apex Header title and `NIC & CBIC COMPLIANT` statutory badge.
+  7. Stage 7: Asserts all 4 live telemetry scorecards (`#card-qualifying-invoices`, `#card-pending-eway`, `#card-generated-irn`, `#card-compliance-rate`).
+  8. Stage 8: Interacts with tabs and filter pills (`Pending E-Way`, `Pending IRN`, `All Consignments`).
+  9. Stage 9: Executes live search for `CF-BILL`, asserts 66 qualifying checkboxes rendered, and selects consignment.
+  10. Stage 10: Opens `#modal-transport-assignment`, populates vehicle `DL-01-AB-1234`, distance 180 KM, and captures screenshot `verified_transport_assignment_modal.png`.
+  11. Stage 11: Executes 1-click generation, asserting success feedback banner `#compliance-status-banner`.
+  12. Stage 12: Switches to Tab `[F3] E-Way & IRN Register`, asserts row containing generated 64-char IRN and 12-digit E-Way bill starting with `24`, and captures screenshot `verified_compliance_cockpit.png`.
+  13. Stage 13: Opens `#modal-eway-slip-preview`, verifies official CBIC header, Part A, Part B, vehicle `DL-01-AB-1234`, signed digital QR code representation, action button `#btn-print-slip-dialog`, and captures screenshot `verified_eway_slip_preview.png`.
+
+---
+
 *End of Developer Manual.*
 

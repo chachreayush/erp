@@ -977,6 +977,83 @@ Implemented and verified the production-grade Principal & C&F Operations Managem
 
 ---
 
+## Pharma Expiry Radar, Stock Shift Quarantine Engine & Principal Debit Note Settlement Desk (DOC-41)
+
+1. **Architecture & Flow**:
+   - Real-time batch shelf-life surveillance (`/inventory-dashboard`) across 4 risk horizons: 🔴 Expired ($\le 0$ days), 🟠 Critical ($\le 30$ days), 🟡 Warning ($\le 60$ days), and 🔵 Attention ($\le 90$ days).
+   - Atomic Godown Stock Shift (`/stock-shift`): Reallocates batch inventory from `MAIN_SALEABLE_GODOWN` to `QUARANTINE_EXPIRY_GODOWN` by atomically decrementing `Batch.current_stock` and incrementing `Batch.brk_exp_stock`.
+   - Automated Principal Debit Note Claim Bridging: Toggling `#check-auto-claim` automatically generates a formal `PrincipalClaim` (`CLM-PRN-YYYY-XXXX`) and itemized `PrincipalClaimLine`s under the selected Principal (*Sun Pharma*, *Cipla*, *Krishna Medical Agencies*), creating an instant audit trail in the Principal Claims Desk (`/principal`).
+2. **Backend APIs**:
+   - `GET /api/stock/expiry-cockpit-telemetry`: Aggregate live KPIs across Main Stock, Quarantine, 30/60/90-day risk buckets, and pending claims.
+   - `GET /api/stock/expiry-radar-batches`: Classified batches with days to expiry, status tags, current stock, and valuation.
+   - `POST /api/stock/shifts`: Atomic reallocation transaction with optional dual-filing of `PrincipalClaim` and itemized lines.
+   - `GET /api/stock/shifts`: Historical audit register of `SHF-2026-XXXX` vouchers.
+3. **Automated QA Verification (`test_pharma_expiry_quarantine_selenium.py`)**:
+   - 13/13 Stages PASSED (Exit Code 0).
+   - Live visual proof screenshots captured:
+     - `verified_pharma_expiry_cockpit.png`
+     - `verified_expiry_radar_batches.png`
+     - `verified_stock_shift_voucher.png`
+     - `verified_stock_shift_claim_success.png`
+     - `verified_quarantine_stock_ledger.png`
+     - `verified_principal_claim_from_shift.png`
+
+---
+
+## Statutory GST E-Way Bill & E-Invoice (IRN) Generation Desk (DOC-42)
+
+1. **Statutory Transit Clearance Engine**:
+   - Real-time qualification detection: Identifies all outbound B2B sales invoices exceeding the **₹50,000** statutory threshold (Rule 138 of CGST Rules, 2017) and inter-state consignments.
+   - 1-Click Cryptographic IRN & EWB Generation: Computes 64-character SHA-256 IRN hash, 15-digit Ack No, 12-digit E-Way Bill number starting with `24`, journey validity calculation (1 day per 200 km), and signed digital QR code payload.
+   - Printable CBIC Two-Part Delivery Slips: Official Government format featuring Part A (Supplier/Recipient GSTINs, Document Details, Valuation, HSN `3004 - Medicaments`), Part B (Vehicle number `DL-01-AB-1234`, Road Mode, Transporter Details), and high-contrast signed digital QR code representation.
+   - Offline National Informatics Centre (NIC) Bulk JSON Generation: Generates official Schema 1.1 bulk JSON upload payloads with `TranDtls`, `DocDtls`, `SellerDtls`, `BuyerDtls`, `ItemList`, `ValDtls`, and `EwbDtls`.
+2. **Database Schema**:
+   - Enhanced `models.EinvoiceEwayLog` with `transporter_id`, `transporter_name`, `transporter_gstin`, `vehicle_no`, `vehicle_type`, `distance_km`, `transport_mode`, `doc_type`, `supply_type`, and `qr_code_svg`.
+3. **Backend APIs (`backend/api/compliance.py`)**:
+   - `GET /api/compliance/summary`: Live scorecards telemetry (Qualifying invoices, pending EWB, generated IRN, compliance rate, transporters).
+   - `GET /api/compliance/invoices`: Filterable qualifying consignments register with live compliance badges.
+   - `POST /api/compliance/generate-eway-irn`: Atomic cryptographic generation of 64-char IRN, 15-digit Ack No, 12-digit EWB No, validity period, and QR payload.
+   - `GET /api/compliance/eway-slip/{invoice_id}`: Structured CBIC two-part delivery slip data with driver handover layout.
+   - `POST /api/compliance/export-nic-json`: Strict Government-compliant bulk upload JSON payload.
+4. **Master UI Elements in `ComplianceWorkbench.tsx` (`/compliance`)**:
+   - 4 Live Scorecards: `#card-qualifying-invoices`, `#card-pending-eway`, `#card-generated-irn`, `#card-compliance-rate`.
+   - 3 High-Contrast Tabs: `[F2] Qualifying Invoices Desk` (`#tab-qualifying-invoices`), `[F3] E-Way & IRN Register` (`#tab-eway-register`), `[F4] NIC Export Center` (`#tab-nic-center`).
+   - Filters & Search: `#btn-filter-all`, `#btn-filter-pending-eway`, `#btn-filter-pending-irn`, `#btn-filter-compliant`, `#search-compliance-input`.
+   - Transporter & Vehicle Modal (`#modal-transport-assignment`): `#select-transporter`, `#input-vehicle-no`, `#input-transport-distance`, `#select-transport-mode`, `#select-vehicle-type`, `#toggle-gen-eway`, `#toggle-gen-irn`, `#btn-confirm-generate-compliance`.
+   - CBIC Printable Slip Modal (`#modal-eway-slip-preview`): `#btn-print-slip-dialog`, `#btn-close-slip-modal`, Part A and Part B sections, signed digital QR representation.
+5. **Master Automated Selenium Suite (`test_gst_einvoice_eway_selenium.py`)**:
+   - 13/13 Stages PASSED (Exit Code 0).
+   - 3 live visual proof screenshots captured:
+     - `verified_transport_assignment_modal.png`
+     - `verified_compliance_cockpit.png`
+     - `verified_eway_slip_preview.png`
+
+---
+
+## Comprehensive Master QA Test Registry (17 Suites)
+
+| # | Suite Filename | Focus Area | Result |
+| :--- | :--- | :--- | :--- |
+| 1 | `test_master_all_6_modules_selenium.py` | Sales, Purchase, Debit/Credit Notes, Breakage Issue/Receive | 100% PASS (Exit Code 0) |
+| 2 | `test_reports_and_finance_selenium.py` | Day Book, Ledger, Trial Balance, P&L, Balance Sheet, BRS | 100% PASS (Exit Code 0) |
+| 3 | `test_gst_compliance_selenium.py` | GSTR-1, GSTR-2, GSTR-3B, Offline JSON, E-Invoice Desk | 100% PASS (Exit Code 0) |
+| 4 | `test_receipt_payment_settlement_selenium.py` | Receipt `[F6]`, Payment `[F5]`, FIFO Bill Allocation `[Alt+A]` | 100% PASS (Exit Code 0) |
+| 5 | `test_journal_accrual_engine_selenium.py` | Double-entry journal voucher, auto-balancing, accrual scheduler | 100% PASS (Exit Code 0) |
+| 6 | `test_direct_expense_ui_selenium.py` | Direct expenses, live P&L impact box, imprest advances | 100% PASS (Exit Code 0) |
+| 7 | `test_fixed_assets_selenium.py` | Fixed assets registration, periodic WDV/SLM depreciation | 100% PASS (Exit Code 0) |
+| 8 | `test_bank_recon_cash_selenium.py` | BRS bank reconciliation, physical cash counter drawer tally | 100% PASS (Exit Code 0) |
+| 9 | `test_dashboard_bi_control_center_selenium.py` | Executive BI dashboard, sales curves, opex donut, territory map | 100% PASS (Exit Code 0) |
+| 10 | `test_workflow_approval_automation_selenium.py` | Multi-tier approval workflows, Maker-Checker, Designer | 100% PASS (Exit Code 0) |
+| 11 | `test_audit_governance_selenium.py` | SHA-256 chained audit stream, before/after diffs, legal holds | 100% PASS (Exit Code 0) |
+| 12 | `test_cargo_consignment_selenium.py` | Logistics consignment kanban board, CBM volumetric calc, POD desk | 100% PASS (Exit Code 0) |
+| 13 | `test_freight_logistics_selenium.py` | Carrier rate contracts, rating calculation sandbox, transporter recon | 100% PASS (Exit Code 0) |
+| 14 | `test_principal_operations_selenium.py` | Principal custody stock matrix, claims desk, 3-way reconciliation | 100% PASS (Exit Code 0) |
+| 15 | `test_client_commission_billing_selenium.py` | C&F commission billing desk, dual-posting outward/inward invoices | 100% PASS (Exit Code 0) |
+| 16 | `test_pharma_expiry_quarantine_selenium.py` | Expiry radar, stock shift quarantine voucher, principal claim bridging | 100% PASS (Exit Code 0) |
+| 17 | `test_gst_einvoice_eway_selenium.py` | Compliance desk, transporter assignment, CBIC slips, NIC Schema 1.1 JSON | 100% PASS (Exit Code 0) |
+
+---
+
 *End of Master Memory File.*
 
 
