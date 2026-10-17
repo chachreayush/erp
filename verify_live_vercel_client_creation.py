@@ -1,14 +1,12 @@
 import time
 import json
 import uuid
+import sys
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-
-import sys
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -48,7 +46,7 @@ def verify_live_vercel_client_registration():
         log("  Screenshot saved: verified_live_vercel_login_chips.png")
 
         # Step 2: Click Demo Admin Login and await Live Cloud JWT
-        log("\n[STEP 2] Clicking '⚡ Explore Live Demo as Admin (Full Cloud Access)'...")
+        log("\n[STEP 2] Clicking 'Explore Live Demo as Admin (Full Cloud Access)'...")
         demo_btn.click()
         time.sleep(6)
 
@@ -74,7 +72,7 @@ def verify_live_vercel_client_registration():
 
         # Step 4: Open Register Client Modal
         log("\n[STEP 4] Opening Register Client Modal...")
-        register_btn = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Register Client') or contains(., 'New Client')]")))
+        register_btn = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Register New Client') or contains(., 'Register Client') or @id='btn-register-new-client']")))
         register_btn.click()
         time.sleep(2)
 
@@ -88,24 +86,22 @@ def verify_live_vercel_client_registration():
 
         log(f"\n[STEP 5] Registering new client: {test_org_name} ({test_org_code})...")
 
-        # Find input fields
-        inputs = driver.find_elements(By.CSS_SELECTOR, "input")
-        log(f"  Found {len(inputs)} inputs in modal.")
-
-        # Fill via script for 100% reliable React state binding
+        # Fill fields using React nativeInputValueSetter
         driver.execute_script("""
-            const inputs = document.querySelectorAll('input');
-            const values = arguments[0];
-            inputs[0].value = values.name;
-            inputs[0].dispatchEvent(new Event('input', { bubbles: true }));
-            inputs[1].value = values.code;
-            inputs[1].dispatchEvent(new Event('input', { bubbles: true }));
-            inputs[2].value = values.adminName;
-            inputs[2].dispatchEvent(new Event('input', { bubbles: true }));
-            inputs[3].value = values.username;
-            inputs[3].dispatchEvent(new Event('input', { bubbles: true }));
-            inputs[4].value = values.password;
-            inputs[4].dispatchEvent(new Event('input', { bubbles: true }));
+            const setReactInput = (sel, val) => {
+                const el = document.querySelector(sel);
+                if (el) {
+                    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                    setter.call(el, val);
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            };
+            setReactInput('input[name=\"org_name\"], #input-client-org-name', arguments[0].name);
+            setReactInput('input[name=\"org_code\"], #input-client-org-code', arguments[0].code);
+            setReactInput('input[name=\"admin_name\"], #input-client-admin-name', arguments[0].adminName);
+            setReactInput('input[name=\"admin_username\"], #input-client-admin-username', arguments[0].username);
+            setReactInput('input[name=\"admin_password\"], #input-client-admin-password', arguments[0].password);
         """, {
             "name": test_org_name,
             "code": test_org_code,
@@ -117,14 +113,25 @@ def verify_live_vercel_client_registration():
 
         # Step 6: Submit Registration Form
         log("\n[STEP 6] Submitting client registration...")
-        submit_btn = driver.find_element(By.XPATH, "//button[@type='submit' and (contains(., 'Register Client') or contains(., 'Register'))]")
+        submit_btn = driver.find_element(By.XPATH, "//button[@type='submit' and (contains(., 'Register Client') or contains(., 'Register') or @id='btn-submit-register-client')]")
         submit_btn.click()
         log("  Clicked submit button, awaiting cloud DB write...")
 
-        # Wait for modal to close and client to appear
-        time.sleep(5)
-        wait.until(EC.presence_of_element_located((By.XPATH, f"//*[contains(text(), '{test_org_code}')]")))
-        log(f"  SUCCESS: Newly registered client '{test_org_name}' with code '{test_org_code}' found in live organizations list!")
+        # Monitor modal state or error message
+        for i in range(15):
+            time.sleep(2)
+            error_el = driver.find_elements(By.XPATH, "//div[contains(@style, 'danger') or contains(@class, 'error') or contains(text(), 'Failed')]")
+            if error_el and error_el[0].is_displayed():
+                log(f"  WARNING: Error alert visible in modal: '{error_el[0].text}'")
+
+            # Check if organization code appears on the page
+            page_text = driver.page_source
+            if test_org_code in page_text:
+                log(f"  SUCCESS: Newly registered client '{test_org_name}' with code '{test_org_code}' found in live organizations list!")
+                break
+        else:
+            driver.save_screenshot(r"C:\Users\DELL\.gemini\antigravity\brain\8eeeb440-bbec-4ca3-a399-79618929579d\error_client_registration.png")
+            raise AssertionError(f"Organization code {test_org_code} not found in page after registration submission!")
 
         driver.save_screenshot(r"C:\Users\DELL\.gemini\antigravity\brain\8eeeb440-bbec-4ca3-a399-79618929579d\verified_live_vercel_client_registered.png")
         log("  Screenshot saved: verified_live_vercel_client_registered.png")
