@@ -132,7 +132,12 @@ export default function ClientManagementPage() {
           >
             Enterprise Multi-Client Radar
           </Button>
-          <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setIsRegisterModalOpen(true)}>
+          <Button
+            id="btn-register-new-client"
+            variant="primary"
+            leftIcon={<Plus size={16} />}
+            onClick={() => setIsRegisterModalOpen(true)}
+          >
             Register New Client
           </Button>
         </div>

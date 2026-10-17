@@ -157,6 +157,7 @@ export function RegisterClientModal({ isOpen, onClose, onSuccess }: RegisterClie
             <div style={{ position: 'relative' }}>
               <Building2 size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
               <input 
+                id="input-client-org-name"
                 name="org_name"
                 value={formData.org_name}
                 onChange={handleChange}
@@ -177,6 +178,7 @@ export function RegisterClientModal({ isOpen, onClose, onSuccess }: RegisterClie
               <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>Auto-capitalized (e.g. KSK-HDA)</span>
             </div>
             <input 
+              id="input-client-org-code"
               name="org_code"
               value={formData.org_code}
               onChange={handleChange}
@@ -198,6 +200,7 @@ export function RegisterClientModal({ isOpen, onClose, onSuccess }: RegisterClie
             <div style={{ position: 'relative' }}>
               <User size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
               <input 
+                id="input-client-admin-name"
                 name="admin_name"
                 value={formData.admin_name}
                 onChange={handleChange}
@@ -216,6 +219,7 @@ export function RegisterClientModal({ isOpen, onClose, onSuccess }: RegisterClie
             <div style={{ flex: 1 }}>
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600 }}>Admin Username</label>
               <input 
+                id="input-client-admin-username"
                 name="admin_username"
                 value={formData.admin_username}
                 onChange={handleChange}
@@ -236,6 +240,7 @@ export function RegisterClientModal({ isOpen, onClose, onSuccess }: RegisterClie
               <div style={{ position: 'relative' }}>
                 <Key size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
                 <input 
+                  id="input-client-admin-password"
                   type="password"
                   name="admin_password"
                   value={formData.admin_password}
@@ -254,8 +259,8 @@ export function RegisterClientModal({ isOpen, onClose, onSuccess }: RegisterClie
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-            <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button type="submit" variant="primary" isLoading={isLoading}>Register Client</Button>
+            <Button id="btn-cancel-register-client" type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+            <Button id="btn-submit-register-client" type="submit" variant="primary" isLoading={isLoading}>Register Client</Button>
           </div>
         </form>
       </Card>
