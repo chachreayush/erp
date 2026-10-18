@@ -2536,5 +2536,165 @@ When `POST /api/organizations/register` is invoked:
 
 ---
 
+## 39. Enterprise Purchase Order, Intelligent Stock Replenishment Radar & Vendor Procurement Desk (DOC-45)
+
+### 39.1 Architectural Overview & Procure-to-Pay (P2P) Lifecycle
+
+DOC-45 automates the end-to-end procurement and inventory replenishment pipeline in the Enterprise ERP. The engine continuously reconciles physical warehouse batch stocks against safety inventory parameters (min_stock_level and 
+eorder_quantity), identifies replenishment deficits, applies multi-vendor rate optimization, generates structured sequential Purchase Orders (PO-YYYYMM-XXXX), facilitates instant vendor dispatch via WhatsApp API, and converts approved POs directly into Inward Purchase Vouchers (/purchase).
+
+`
++-----------------------------------------------------------------------------------+
+|                        INVENTORY SAFETY & DEFICIT RADAR                           |
+|  - Real-Time Batch Aggregation (SUM of current_stock where expiry > today)        |
+|  - Effective Stock = Current Stock + Pending In-Transit PO Qty                    |
+|  - Deficit Qty = MAX(0, min_stock_level - Effective Stock)                       |
++-----------------------------------------------------------------------------------+
+                                         |
+                                         v
++-----------------------------------------------------------------------------------+
+|                     MULTI-VENDOR BEST-RATE OPTIMIZATION ENGINE                    |
+|  - Analyzes Historical Purchase Vouchers across Suppliers                         |
+|  - Net Effective Rate = Offered Rate * (1 - Discount %)                           |
+|  - Vendor Badging: BEST_PRICE, FASTEST_DELIVERY, LONGEST_CREDIT, BULK_DISCOUNT   |
++-----------------------------------------------------------------------------------+
+                                         |
+                                         v
++-----------------------------------------------------------------------------------+
+|                   KEYBOARD-ACCELERATED PO BUILDER & BULK GENERATOR                |
+|  - 1-Click Grouped PO Generation by Supplier [F7] (#btn-bulk-generate-pos)        |
+|  - Interactive PO Line Item Grid [F3] with Dynamic GST 18% Tax Calculation        |
++-----------------------------------------------------------------------------------+
+                                         |
+                    +--------------------+--------------------+
+                    |                                         |
+                    v                                         v
++---------------------------------------+ +-----------------------------------------+
+|     SUPPLIER DISPATCH MODAL [F1]      | |    INWARD PURCHASE CONVERSION DESK      |
+|  - Structured WhatsApp Text Generator | |  - POST /api/procurement/.../convert    |
+|  - Direct WhatsApp Web API Launcher   | |  - Auto-Creates Invoice (type='purchase')|
+|  - Print Slip Format                  | |  - Redirects Operator to /purchase      |
++---------------------------------------+ +-----------------------------------------+
+`
+
+### 39.2 Autonomous Stock Replenishment Mathematical Engine
+
+1. **Physical Available Stock**:
+   \\text{Current Stock} = \\sum_{b \\in \\text{Batches}} b.\\text{current\\_stock} \\quad (b.\\text{expiry} > \\text{today})
+2. **Pending Pipeline Offset**:
+   \\text{Pending PO Qty} = \\sum_{i \\in \\text{ActivePOItems}} (i.\\text{quantity} - i.\\text{received\\_qty})
+3. **Effective Stock**:
+   \\text{Effective Stock} = \\text{Current Stock} + \\text{Pending PO Qty}
+4. **Deficit Determination**:
+   \\text{Deficit Qty} = \\max(0, p.\\text{min\\_stock\\_level} - \\text{Effective Stock})
+5. **Recommended Order Quantity**:
+   \\text{Suggested Qty} = \\max(\\text{Deficit Qty}, p.\\text{reorder\\_quantity}) \\quad \\text{if } \\text{Deficit Qty} > 0 \\text{ or } \\text{Current Stock} == 0
+6. **Projected Capital Outlay**:
+   \\text{Estimated Outlay} = \\sum \\text{Suggested Qty} \\times p.\\text{p\\_rate}
+
+### 39.3 Relational Database Schema & Data Models
+
+#### purchase_orders
+`sql
+CREATE TABLE purchase_orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    po_number VARCHAR(100) NOT NULL,
+    date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    vendor_id UUID NOT NULL REFERENCES parties(id) ON DELETE RESTRICT,
+    status VARCHAR(50) NOT NULL DEFAULT 'DRAFT', -- DRAFT, APPROVED, PARTIAL, COMPLETED, CANCELLED
+    expected_delivery TIMESTAMP NULL,
+    supply_classification VARCHAR(50) NULL,
+    total_amount NUMERIC(15, 2) DEFAULT 0.00,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX ix_purchase_orders_org ON purchase_orders(organization_id);
+CREATE INDEX ix_purchase_orders_number ON purchase_orders(po_number);
+`
+
+#### purchase_order_items
+`sql
+CREATE TABLE purchase_order_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    po_id UUID NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
+    product_id UUID NULL REFERENCES products(id) ON DELETE SET NULL,
+    product_name VARCHAR(255) NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    received_qty INTEGER NOT NULL DEFAULT 0,
+    rate NUMERIC(10, 2) NOT NULL,
+    line_total NUMERIC(15, 2) NOT NULL
+);
+CREATE INDEX ix_purchase_order_items_po ON purchase_order_items(po_id);
+`
+
+### 39.4 RESTful API Directory (ackend/api/procurement.py)
+
+| Method | Endpoint | Description & Logic | Response / Status |
+| :--- | :--- | :--- | :--- |
+| GET | /api/procurement/replenishment-radar | Scans active inventory against safety parameters, aggregates unexpired batches, calculates deficits, and yields telemetry scorecards. | 200 OK (Scorecards + Deficit Items) |
+| GET | /api/procurement/vendor-rate-comparison/{product_id} | Gathers vendor historical purchase vouchers and quotes, net effective rates, payment terms, and optimization badges. | 200 OK (Comparative Quotes) |
+| POST| /api/procurement/generate-from-replenishment | Takes selected deficit items, partitions them by vendor, and creates approved sequential Purchase Orders. | 200 OK (Created POs) |
+| GET | /api/procurement/orders | Retrieves organization's PO directory with resolved vendor names, item lines, and status badges. | 200 OK (List of POs) |
+| POST| /api/procurement/orders | Creates a new manual Purchase Order with line items, delivery date, and total tax estimation. | 200 OK (PurchaseOrderResponse) |
+| PATCH|/api/procurement/orders/{po_id}/status | Updates order state (DRAFT, APPROVED, COMPLETED, CANCELLED). | 200 OK (Status Response) |
+| POST| /api/procurement/orders/{po_id}/convert-to-purchase | Converts approved PO into Inward Purchase Bill (Invoice), generates InvoiceItem rows, marks PO received, and sets status COMPLETED. | 200 OK (Invoice Reference) |
+
+### 39.5 Master Screen-by-Screen DOM Element & Selector Catalog
+
+| Screen / Component | Element Selector / ID | Type | Functional Role & Validation Logic |
+| :--- | :--- | :--- | :--- |
+| **Telemetry Header** | #card-critical-stock | Metric Card | Displays total count of 0-stock products requiring emergency PO. |
+| **Telemetry Header** | #card-reorder-stock | Metric Card | Displays total count of items below safety stock reorder point. |
+| **Telemetry Header** | #card-replenishment-budget | Metric Card | Displays total projected replenishment capital outlay in ₹ INR. |
+| **Telemetry Header** | #card-pending-pos | Metric Card | Displays count and total value of active in-transit PO pipeline. |
+| **Tab Navigation** | #tab-po-directory | Button [F1] | Switches to Master PO Directory table view. |
+| **Tab Navigation** | #tab-replenishment-radar | Button [F2] | Switches to Autonomous Deficit Radar grid. |
+| **Tab Navigation** | #tab-create-po | Button [F3] | Switches to Keyboard-Operated PO Authoring Workbench. |
+| **Tab Navigation** | #tab-vendor-rates | Button [F4] | Switches to Multi-Vendor Rate Intelligence & Comparison. |
+| **Master Directory** | #input-search-po | Text Input | Live filter for PO number, supplier legal name, or line items. |
+| **Master Directory** | #btn-filter-status-{status}| Pill Button | Filters directory by status (ll, pproved, completed, draft). |
+| **Master Directory** | #btn-dispatch-po-{id} | Button | Opens Supplier WhatsApp & Print Slip Modal for target PO. |
+| **Master Directory** | #btn-convert-po-purchase-{id}| Button | Opens Inward Purchase Bill Conversion Confirmation Dialog. |
+| **Replenishment Radar**| #checkbox-select-all | Checkbox | Selects/deselects all deficit items for bulk PO creation. |
+| **Replenishment Radar**| #checkbox-item-{id} | Checkbox | Toggles target deficit line item for procurement bundling. |
+| **Replenishment Radar**| #btn-bulk-generate-pos | Button [F7] | Dispatches 1-Click Bulk PO Generation grouped by vendor. |
+| **Replenishment Radar**| #btn-view-vendor-rates-{id}| Link / Button | Directly opens vendor comparison matrix for target product. |
+| **Create PO Workbench**| #input-po-number | Text Input | Pre-filled sequential PO number (e.g. PO-202610-0001). |
+| **Create PO Workbench**| #input-po-date | Date Input | Order placement date (defaults to current system date). |
+| **Create PO Workbench**| #select-po-vendor | Select | Dropdown listing verified pharmaceutical supplier parties. |
+| **Create PO Workbench**| #input-po-delivery | Date Input | Expected consignment delivery date (defaults to $+3$ days). |
+| **Create PO Workbench**| #select-po-product-{idx} | Select | Product dropdown in line item builder. |
+| **Create PO Workbench**| #input-po-qty-{idx} | Number Input | Line quantity with automatic total calculation. |
+| **Create PO Workbench**| #input-po-rate-{idx} | Number Input | Purchase rate per unit (pre-filled from master p_rate). |
+| **Create PO Workbench**| #btn-add-po-row | Button | Appends new line item row to the purchase order grid. |
+| **Create PO Workbench**| #btn-save-purchase-order | Button [Enter] | Validates lines, calculates 18% GST, and dispatches PO. |
+| **Dispatch Modal** | #modal-po-dispatch | Modal Dialog | Container for supplier communication and formatted slip. |
+| **Dispatch Modal** | #textarea-po-dispatch-text | Textarea | Structured plain-text WhatsApp order template with items & total. |
+| **Dispatch Modal** | #btn-copy-po-whatsapp | Button | Copies formatted order text to clipboard with alert confirmation. |
+| **Dispatch Modal** | #btn-open-whatsapp-web | External Link | Deep-links to https://api.whatsapp.com/send?text=.... |
+| **Dispatch Modal** | #btn-close-dispatch-modal | Button [Esc] | Dismisses modal dialog. |
+| **Conversion Modal** | #modal-convert-po-purchase| Modal Dialog | Container for Goods Inward conversion confirmation. |
+| **Conversion Modal** | #btn-confirm-convert-po | Button | Dispatches conversion endpoint and navigates to /purchase. |
+
+### 39.6 Automated Selenium Verification Runbook (Suite 20)
+- **Script**: 	est_procurement_po_replenishment_selenium.py (10 stages, 100% Pass, Exit Code 0).
+- **Run Command**:
+  `powershell
+  C:\Python313\python.exe test_procurement_po_replenishment_selenium.py
+  `
+- **Execution Stages**:
+  1. Stage 1: Authenticates against backend (http://localhost:8000/auth/login) and acquires JWT Bearer token.
+  2. Stage 2: Validates GET /api/procurement/replenishment-radar scorecards and deficit items.
+  3. Stage 3: Validates GET /api/procurement/vendor-rate-comparison/{product_id} multi-vendor quote matrix.
+  4. Stage 4: Spawns headless Chrome WebDriver (1600x1050).
+  5. Stage 5: Injects erp-auth session store into localStorage and sessionStorage.
+  6. Stage 6: Navigates to /po, asserts 4 Telemetry Scorecards, captures erified_po_replenishment_scorecards.png.
+  7. Stage 7: Switches to [F2] Stock Replenishment Radar, asserts deficit items and bulk button, captures erified_po_replenishment_radar.png.
+  8. Stage 8: Switches to [F3] Create New PO, fills line items, calculates GST, saves PO, captures erified_po_creation_workbench.png.
+  9. Stage 9: Asserts created PO in Master Directory [F1], opens Supplier Dispatch Slip modal, validates WhatsApp text, captures erified_po_supplier_dispatch_modal.png.
+  10. Stage 10: Tests 1-Click Convert PO to Inward Purchase Bill (#modal-convert-po-purchase), confirms database creation and status completion.
+
+---
+
 *End of Developer Manual.*
 

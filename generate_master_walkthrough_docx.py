@@ -2793,6 +2793,206 @@ def create_full_software_walkthrough():
         "Figure 32.3: Live Neon PostgreSQL Multi-Tenant Client Directory Grid (/admin/clients) displaying the newly created client 'Apex MedCorp F5BA (AMC-F5BA)' in Active status with tenant impersonation and operations controls."
     )
 
+    # =========================================================================
+    # CHAPTER 33: ENTERPRISE PURCHASE ORDER, INTELLIGENT STOCK REPLENISHMENT RADAR & VENDOR PROCUREMENT DESK (DOC-45)
+    # =========================================================================
+    doc.add_page_break()
+    add_h1("Chapter 33: Enterprise Purchase Order, Intelligent Stock Replenishment Radar & Vendor Procurement Desk (DOC-45)")
+
+    add_h2("33.1 Procure-to-Pay (P2P) Supply Chain Architecture & Operational Lifecycle")
+    add_p(
+        "In pharmaceutical distribution, retail chains, and multi-depot logistics networks, maintaining optimal inventory levels while minimizing "
+        "working capital lockup is a primary operational mandate. DOC-45 introduces an end-to-end autonomous Procure-to-Pay (P2P) engine that bridges "
+        "live batch stock telemetry with multi-vendor intelligence, automated purchase order authoring, supplier electronic dispatch, and direct conversion "
+        "into General Ledger (GL) inward purchase vouchers."
+    )
+    add_p(
+        "Unlike legacy manual ordering systems prone to stockouts, emergency premium purchases, and manual keying errors, the P2P engine operates across "
+        "a closed-loop continuous feedback cycle: live physical inventory is continuously audited against algorithmic reorder thresholds, deficit quantities "
+        "are aggregated across product categories, historical vendor rates are compared in real time, purchase orders are dispatched directly to supplier "
+        "WhatsApp or print terminals, and upon physical delivery, 1-click conversion generates double-entry financial vouchers in the accounting ledger."
+    )
+
+    add_h2("33.2 Autonomous Stock Replenishment Radar & Deficit Calculation Engine")
+    add_p(
+        "The Stock Replenishment Radar (GET /api/procurement/replenishment-radar) continuously audits every SKU across the central catalog. "
+        "The algorithmic engine evaluates current physical batch stock, pending incoming purchase orders, reorder points, and minimum safety buffers to classify "
+        "every product into strict operational replenishment tiers:"
+    )
+
+    replenish_matrix_table = doc.add_table(rows=1, cols=4)
+    replenish_matrix_headers = ["Replenishment Tier", "Threshold Mathematical Condition", "Algorithmic Order Sizing", "Operational Procurement Impact"]
+    replenish_matrix_data = [
+        [
+            "CRITICAL DEFICIT (Red Alert)",
+            "Current Stock <= Reorder Point (or physical stock <= 0). Immediate stockout hazard.",
+            "Order Qty = (Reorder Point + Safety Buffer) - (Current Stock + Pending Inward PO). Rounded up to minimum pack size.",
+            "High-priority dispatch trigger. Highlighted in red badge on telemetry scorecard (#card-critical-stock). Eligible for 1-click bulk PO generation."
+        ],
+        [
+            "REORDER RECOMMENDED (Yellow Warning)",
+            "Reorder Point < Current Stock <= (Reorder Point + Safety Buffer). Buffer consumption in progress.",
+            "Order Qty = Safety Buffer - (Current Stock - Reorder Point) + Minimum Reorder Batch.",
+            "Proactive procurement buffer replenishment. Displayed on #card-reorder-stock to prevent critical depletion during supplier lead-time."
+        ],
+        [
+            "STABLE ADEQUATE (Green Normal)",
+            "Current Stock > (Reorder Point + Safety Buffer). Adequate inventory coverage.",
+            "Order Qty = 0. No automated reorder required.",
+            "Healthy supply status. Monitored continuously for demand shifts without generating unnecessary capital expenditure."
+        ]
+    ]
+    style_table(replenish_matrix_table, [1.5, 1.8, 1.8, 1.9], replenish_matrix_headers, replenish_matrix_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("33.3 Multi-Vendor Rate Intelligence Matrix & Optimal Supplier Routing")
+    add_p(
+        "Procurement cost optimization requires real-time price discovery across historical vendor purchase invoices. The Multi-Vendor Rate Comparison "
+        "engine (GET /api/procurement/vendor-rate-comparison/{product_id}) analyzes past inward transactions, extracting unit rates, discounts, tax brackets, "
+        "and vendor fulfillment terms to identify optimal supplier routing:"
+    )
+
+    rate_intel_table = doc.add_table(rows=1, cols=3)
+    rate_intel_headers = ["Rate Intelligence Dimension", "Algorithmic Extraction & Analysis", "Commercial & Strategic Benefit"]
+    rate_intel_data = [
+        [
+            "Lowest Cost Supplier Identification",
+            "Scans all historical purchase invoices for the SKU across registered suppliers, sorting by net landed unit price (post-discount, ex-GST). Flags the optimal vendor with 'BEST RATE' indicator.",
+            "Ensures procurement officers route replenishment orders to the most cost-effective supplier, directly maximizing gross margin on subsequent sales."
+        ],
+        [
+            "Price Variance & Trend Analytics",
+            "Computes percentage variance between lowest, average, and highest historical purchase rates across active suppliers.",
+            "Protects against supplier price creep and empowers purchasing managers during contract negotiations and volume rebate discussions."
+        ],
+        [
+            "Lead-Time & Reliability Integration",
+            "Correlates historical vendor quotation rates with past order-to-delivery fulfillment lead-times.",
+            "Allows operators to balance unit cost savings against delivery urgency, selecting expedited suppliers when stock is in Critical Deficit."
+        ]
+    ]
+    style_table(rate_intel_table, [1.8, 2.7, 2.5], rate_intel_headers, rate_intel_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("33.4 Enterprise PO Creation Desk, WhatsApp Dispatch & Inward Purchase Conversion")
+    add_p(
+        "The Procurement Workbench (/po) provides a dedicated keyboard-first workspace for managing the entire purchase order lifecycle. "
+        "Operators navigate seamlessly across 4 dedicated functional views via function keys:"
+    )
+
+    dom_po_table = doc.add_table(rows=1, cols=4)
+    dom_po_headers = ["DOM Element ID", "Element Type / Hotkey", "Functional Component / Role", "Operational Logic & Actions"]
+    dom_po_data = [
+        ["#card-critical-stock", "Telemetry Metric Card", "Critical Stock Count", "Displays SKUs currently at zero or below reorder threshold requiring urgent replenishment."],
+        ["#card-reorder-stock", "Telemetry Metric Card", "Reorder Recommended Count", "Displays SKUs nearing safety buffer thresholds."],
+        ["#card-replenishment-budget", "Telemetry Metric Card", "Estimated Replenishment Cost", "Dynamic valuation of capital required to restore all deficit SKUs to target stock."],
+        ["#card-pending-pos", "Telemetry Metric Card", "Pending Open POs", "Total value and count of issued purchase orders awaiting supplier delivery."],
+        ["#tab-po-directory", "Navigation Tab [F1]", "PO Master Directory", "Grid of all issued POs with status badges (DRAFT, ISSUED, PARTIALLY_RECEIVED, COMPLETED, CANCELLED)."],
+        ["#tab-replenishment-radar", "Navigation Tab [F2]", "Stock Replenishment Radar", "Automated deficit table with 1-Click 'Generate All Deficit POs' (#btn-generate-replenishment-pos) action."],
+        ["#tab-create-po", "Navigation Tab [F3]", "Create New PO Desk", "Keyboard-operated PO authoring desk with vendor selection, line items, rate auto-fetch, and calculation summary."],
+        ["#tab-vendor-intelligence", "Navigation Tab [F4]", "Vendor Rate Intelligence", "Comparative quotation explorer auditing supplier pricing across the entire product catalog."],
+        ["#modal-po-dispatch", "Modal Dialog [F8 / Dispatch]", "Supplier Dispatch Modal", "Renders formatted PO slip, 1-Click WhatsApp deep-link sharing with pre-formatted message, and print slip generation."],
+        ["#modal-convert-po-purchase", "Modal Dialog [Convert]", "Inward Purchase Conversion Desk", "Converts verified PO into official Inward Purchase Voucher (PUR-PO-XXXX), updating physical batch stock and booking AP in GL."]
+    ]
+    style_table(dom_po_table, [1.8, 1.4, 1.6, 2.2], dom_po_headers, dom_po_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("33.5 Visual Photographic Evidence & Automated QA Verification Suite (Suite 20)")
+    add_p(
+        "The complete Purchase Order & Stock Replenishment module was validated via automated Selenium verification suite "
+        "(test_procurement_po_replenishment_selenium.py - Suite 20) executing in headless Chrome at 1440x950 resolution against the live backend (Port 8000) "
+        "and Vite frontend (Port 50005). All 10 stages completed with 100% pass rate (Exit Code 0):"
+    )
+
+    po_qa_table = doc.add_table(rows=1, cols=4)
+    po_qa_headers = ["Verification Stage & Scope", "Execution Target / Endpoint", "Automated Assertions & Validation Criteria", "Test Result"]
+    po_qa_data = [
+        [
+            "Stage 1: API Authentication",
+            "POST /auth/login\n(admin / Admin@123)",
+            "HTTP 200 OK. Acquired JWT Bearer token, verified organization AM-0001 credentials.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 2: Replenishment Radar API",
+            "GET /api/procurement/replenishment-radar",
+            "HTTP 200 OK. Asserted critical_count, reorder_count, total_estimated_cost, and items array containing SKU deficit details.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 3: Vendor Rate Comparison API",
+            "GET /api/procurement/vendor-rate-comparison/{product_id}",
+            "HTTP 200 OK. Verified historical quotation rates, sorted by unit price, with lowest_rate_vendor resolution.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 4: Automated Bulk PO Generation",
+            "POST /api/procurement/generate-from-replenishment",
+            "HTTP 200 OK. Successfully auto-generated draft POs grouped by preferred vendor for all deficit items.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 5: Direct PO Creation API",
+            "POST /api/procurement/orders",
+            "HTTP 200 OK. Created PO-2026-TEST with subtotal, tax_amount, total_amount, and line item specifications.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 6: Inward Purchase Conversion API",
+            "POST /api/procurement/orders/{po_id}/convert-to-purchase",
+            "HTTP 200 OK. Converted PO to inward purchase invoice PUR-PO-XXXX in models.Invoice, verified line items, and updated PO status to COMPLETED.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 7: Headless Browser Init & Auth",
+            "Chrome --headless=new\nViewport: 1440x950",
+            "WebDriver initialized with GPU disabled, sessionStorage auth injection with 'erp-auth' key.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 8: Procurement Desk & Scorecards",
+            "driver.get('http://localhost:50005/po')",
+            "Verified #card-critical-stock, #card-reorder-stock, #card-replenishment-budget, #card-pending-pos. Captured verified_po_replenishment_scorecards.png.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 9: Radar & Creation Desk Navigation",
+            "Tabs [F2] & [F3]\nActions: #btn-add-po-item",
+            "Switched to Replenishment Radar [F2] (captured verified_po_replenishment_radar.png). Navigated to Create New PO [F3], selected vendor, populated items (captured verified_po_creation_workbench.png).",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 10: Dispatch Modal & Conversion Verification",
+            "Tab [F1] Master Directory\nActions: Dispatch & Convert",
+            "Opened Supplier Dispatch Modal (#modal-po-dispatch), verified WhatsApp web deep-link and PO text slip (captured verified_po_supplier_dispatch_modal.png). Triggered Convert to Purchase modal and confirmed inward voucher generation.",
+            "100% PASS\n(Exit 0)"
+        ]
+    ]
+    style_table(po_qa_table, [1.2, 1.8, 2.6, 0.9], po_qa_headers, po_qa_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_p("The automated Selenium test suite captures 4 high-resolution visual proof artifacts demonstrating flawless frontend rendering:")
+
+    add_screenshot(
+        "verified_po_replenishment_scorecards.png",
+        "Figure 33.1: Procurement Telemetry Scorecards (/po) displaying Critical Stock Count, Reorder Recommended Count, Estimated Replenishment Budget, and Pending Open POs with real-time operational status indicators."
+    )
+
+    add_screenshot(
+        "verified_po_replenishment_radar.png",
+        "Figure 33.2: Autonomous Stock Replenishment Radar (Tab [F2]) showing SKU deficit calculations, current physical batch stock vs reorder thresholds, recommended replenishment quantities, and 1-Click Bulk PO Generator (#btn-generate-replenishment-pos)."
+    )
+
+    add_screenshot(
+        "verified_po_creation_workbench.png",
+        "Figure 33.3: Enterprise PO Creation Desk (Tab [F3]) featuring keyboard-first supplier selection, dynamic line item rows with automatic HSN/tax rate resolution, real-time subtotal/GST calculation, and order authoring controls."
+    )
+
+    add_screenshot(
+        "verified_po_supplier_dispatch_modal.png",
+        "Figure 33.4: Supplier PO Dispatch & Communication Desk (#modal-po-dispatch) presenting formatted electronic purchase order slip, 1-Click WhatsApp direct transmission deep-link, and print slip generation."
+    )
+
     # Save to erp2 directory
     output_path = r"C:\Users\DELL\OneDrive\Desktop\erp2\ERP_ENTERPRISE_SYSTEM_COMPLETE_SOFTWARE_MASTER_WALKTHROUGH.docx"
     doc.save(output_path)

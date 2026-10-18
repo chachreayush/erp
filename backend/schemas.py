@@ -1597,6 +1597,7 @@ class PurchaseOrderResponse(PurchaseOrderBase):
     organization_id: UUID4
     created_at: datetime
     items: List[PurchaseOrderItemResponse] = []
+    vendor_name: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 class VendorComplaintBase(BaseModel):

@@ -72,7 +72,7 @@ const subItemsMap: Record<string, { label: string; path: string }[]> = {
     { label: 'Modify Challan', path: '/sales?type=modify-challan' }
   ],
   'purchase': [
-    { label: 'Purchase Order', path: '/po' },
+    { label: 'Purchase Orders & Replenishment Radar', path: '/po' },
     { label: 'Goods Receipt Note (GRN)', path: '/grn' },
     { label: 'Vendor Complaints', path: '/vendor-complaints' },
     { label: 'Purchase Bill', path: '/purchase?type=bill' },
@@ -163,6 +163,7 @@ const inventorySubItemsMap: Record<string, { label: string; path: string }[]> = 
   'claims': [
     { label: 'Expiry & Breakage Cockpit', path: '/inventory-dashboard' },
     { label: 'Internal Expiry Shift', path: '/stock-shift' },
+    { label: 'Replenishment Radar & POs', path: '/po' },
     { label: 'Reorder Engine', path: '/inventory/replenishment' }
   ],
   'current-stock': [

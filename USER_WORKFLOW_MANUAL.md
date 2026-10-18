@@ -2107,6 +2107,111 @@ In the upper right header of the Client Management desk, click **`Register New C
 
 ---
 
+## 40. Enterprise Purchase Order, Intelligent Stock Replenishment & Vendor Procurement Workflow (DOC-45)
+
+### 40.1 Navigating to Procurement & Purchase Order Desk
+
+Operators can launch the Procurement & Replenishment Desk via multiple ergonomic routes:
+1. **Top Navigation Non-Wrapping Bar**: Click **`Purchases ▾` &rarr; `Purchase Orders & Replenishment Radar`** or **`Inventory ▾` &rarr; `Claims & Replenishment` &rarr; `Replenishment Radar & POs`**.
+2. **Direct URL Route**: Navigate directly to `/po`.
+3. **Function Hotkeys**: Press `[F1]` to `[F4]` to transition instantly between tabs.
+
+---
+
+### 40.2 Interpreting Telemetry 4 Scorecards
+
+Upon entering `/po`, four real-time telemetry cards reflect the organization's purchasing health:
+1. **Critical Out of Stock** (`#card-critical-stock`): Red alert card showing the exact count of items with zero physical unexpired balance in the warehouse.
+2. **Below Reorder Level** (`#card-reorder-stock`): Amber warning card showing products where effective stock (physical stock + pending POs) has dropped below configured minimum safety thresholds.
+3. **Projected Deficit Outlay** (`#card-replenishment-budget`): Forest Green financial metric calculating the total capital required in ₹ INR to restore all deficit items back to safety stock levels.
+4. **Active PO Pipeline** (`#card-pending-pos`): Blue operational metric tracking open, approved, and partially fulfilled purchase orders currently in transit.
+
+---
+
+### 40.3 Stock Replenishment Radar & 1-Click Bulk PO Generation Workflow (`[F2]`)
+
+The Autonomous Replenishment Radar eliminates manual stock audits:
+1. Press **`[F2]`** or click **`[F2] Stock Replenishment Radar`** (`#tab-replenishment-radar`).
+2. Use filter pills to isolate urgency:
+   - **`All Deficits`** (`#btn-radar-filter-all`): Lists all items below reorder level or out of stock.
+   - **`0-Stock Only`** (`#btn-radar-filter-critical`): Focuses solely on emergency zero-stock medicines.
+   - **`Below Safety Stock`** (`#btn-radar-filter-reorder`): Displays items requiring proactive reorder.
+3. Review line item parameters: Current Stock, Safety Minimum, Deficit Quantity, Suggested Order Quantity, Purchase Rate, and Estimated Outlay.
+4. Select items using checkboxes (`#checkbox-item-{id}` or master `#checkbox-select-all`).
+5. Click **`[F7] Generate Bulk POs`** (`#btn-bulk-generate-pos`).
+6. The engine automatically partitions selected medicines by their preferred supplier, calculates totals, generates sequential Purchase Orders (`PO-YYYYMM-XXXX`), and transitions to the Master PO Directory.
+
+---
+
+### 40.4 Creating a Custom Purchase Order Workflow (`[F3]`)
+
+For ad-hoc or special consignment purchasing:
+1. Press **`[F3]`** or click **`[F3] Create New Purchase Order`** (`#tab-create-po`).
+2. Verify or customize the auto-generated sequential PO Number (`#input-po-number`).
+3. Select the target **Supplier / Vendor** (`#select-po-vendor`).
+4. Set the **Expected Delivery Date** (`#input-po-delivery`) and enter optional supply classification notes (`#input-po-supply-type`).
+5. In the line items grid:
+   - Select the medicine from the dropdown (`#select-po-product-{idx}`). The standard purchase rate automatically pre-fills.
+   - Enter the desired **Quantity** (`#input-po-qty-{idx}`).
+   - Adjust purchase rate or click **`+ Add Line Item`** (`#btn-add-po-row`) to add more items.
+6. The summary box automatically computes Subtotal, Estimated 18% Pharma GST, and Grand Total.
+7. Click **`Submit & Approve Purchase Order [Enter]`** (`#btn-save-purchase-order`).
+
+---
+
+### 40.5 Multi-Vendor Rate Intelligence & Supplier Comparison (`[F4]`)
+
+To optimize purchasing margins:
+1. Press **`[F4]`** or click **`[F4] Vendor Rate Intelligence`** (`#tab-vendor-rates`).
+2. Select any product from the dropdown (`#select-rate-comparison-product`).
+3. The system renders a comparative supplier matrix displaying:
+   - Supplier Legal Name & GSTIN.
+   - Offered Rate & Negotiated Discount %.
+   - **Net Effective Purchase Rate** (after discount).
+   - **Payment Credit Terms** (e.g. 21, 30, 45, or 60 days).
+   - **Delivery Lead Time** in days.
+   - **Optimization Badge**: Visual tags highlighting `BEST_PRICE`, `FASTEST_DELIVERY`, `LONGEST_CREDIT`, or `BULK_DISCOUNT`.
+
+---
+
+### 40.6 Supplier WhatsApp & Print Slip Dispatch Workflow
+
+1. In the **Master PO Directory** (`[F1]`), locate any active Purchase Order.
+2. Click the green **`Dispatch`** button (`#btn-dispatch-po-{id}`).
+3. The **Supplier Dispatch Slip Modal** (`#modal-po-dispatch`) opens, displaying a clean plain-text template formatted specifically for messaging apps.
+4. Options available:
+   - **`Copy WhatsApp Text`** (`#btn-copy-po-whatsapp`): Copies the entire formatted order breakdown to the clipboard for pasting into Telegram, WhatsApp Desktop, or Email.
+   - **`Open in WhatsApp`** (`#btn-open-whatsapp-web`): Launches WhatsApp Web with the pre-filled message ready to send.
+   - Press **`[Esc]`** or click the close icon (`#btn-close-dispatch-modal`) to dismiss.
+
+---
+
+### 40.7 Converting an Approved Purchase Order to Goods Inward Bill (`/purchase`)
+
+When consignments arrive at the warehouse gate:
+1. In the **Master PO Directory** (`[F1]`), find the target approved Purchase Order.
+2. Click the dark green **`Book Inward`** button (`#btn-convert-po-purchase-{id}`).
+3. The confirmation dialog (`#modal-convert-po-purchase`) appears, summarizing the PO number, vendor, and target invoice number (`PUR-PO-XXXX`).
+4. Click **`Confirm & Generate Purchase Bill`** (`#btn-confirm-convert-po`).
+5. The system automatically creates an inward purchase bill in the accounting ledger, marks all PO items as received, marks the PO as `COMPLETED`, and seamlessly redirects the operator to `/purchase` with all items pre-loaded.
+
+---
+
+### 40.8 Operational Keyboard Shortcuts Reference
+
+| Shortcut Key | Action / Functionality | Scope / Screen Context |
+| :--- | :--- | :--- |
+| `[F1]` | Switch to Master PO Directory Tab | Anywhere inside `/po` desk. |
+| `[F2]` | Switch to Stock Replenishment Radar Tab | Anywhere inside `/po` desk. |
+| `[F3]` | Switch to Create New Purchase Order Tab | Anywhere inside `/po` desk. |
+| `[F4]` | Switch to Vendor Rate Intelligence Tab | Anywhere inside `/po` desk. |
+| `[F5]` | Refresh Master Data, Telemetry & Deficits | Header Refresh Action. |
+| `[F7]` | 1-Click Generate Bulk POs for Selected Deficits | Stock Replenishment Radar Tab (`[F2]`). |
+| `[Enter]` | Submit & Approve New Purchase Order | Create New PO Workbench (`[F3]`). |
+| `[Esc]` | Close Dispatch Slip or Conversion Modal | Active Modal Dialogs. |
+
+---
+
 *End of User Workflow Manual.*
 
 

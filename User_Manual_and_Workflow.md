@@ -498,7 +498,20 @@ The ERP reporting and double-entry accounting engine has been verified with **10
 
 ---
 
-## 32. Comprehensive Automated QA Test Suite Registry (19 Suites)
+## 32. Module 32 — DOC-45: Enterprise Purchase Order, Intelligent Stock Replenishment Radar & Vendor Procurement Desk
+
+### 32.1 Workflow Summary & Core Objectives
+1. **Autonomous Stock Replenishment Radar**: Reconciles unexpired batch stock across all physical godowns against safety stock thresholds (`min_stock_level` and `reorder_quantity`).
+2. **Deficit & Replenishment Analytics**: Calculates real-time deficit quantity and recommended purchase order volumes, accounting for pending in-transit purchase orders.
+3. **Multi-Vendor Best-Rate Optimizer**: Compares multiple pharmaceutical suppliers by historical purchase rates, offered discounts, net effective costs, and payment credit terms (e.g. 21 vs 60 days).
+4. **1-Click Bulk PO Generation**: Automatically partitions selected deficit medicines by their preferred vendor and generates sequential Purchase Orders (`PO-YYYYMM-XXXX`) with a single click (`[F7]`).
+5. **Keyboard-Operated PO Authoring Desk (`/po`)**: Provides rapid keyboard data entry (`Enter`, `Tab`, `Arrow` keys) for ad-hoc purchase orders with automatic 18% GST calculation.
+6. **Supplier WhatsApp & Print Slip Dispatch**: Generates a pre-formatted plain-text order slip ready for 1-click copying or direct WhatsApp Web launching (`https://api.whatsapp.com/send?text=...`).
+7. **1-Click Convert PO to Inward Purchase Bill**: Bridges the procurement lifecycle directly into the accounting ledger by converting approved POs into Inward Purchase Bills (`PUR-PO-XXXX`), marking lines received and redirecting to `/purchase`.
+
+---
+
+## 33. Comprehensive Automated QA Test Suite Registry (20 Suites)
 
 | # | Test Suite File | Module Coverage | Assertions Target & Status |
 | :--- | :--- | :--- | :--- |
@@ -521,6 +534,7 @@ The ERP reporting and double-entry accounting engine has been verified with **10
 | 17 | `test_gst_einvoice_eway_selenium.py` | Compliance Desk `[F2]`, Transporter Modal `[F7]`, CBIC Part A/B Slips, NIC JSON `[F8]` | 100% PASS: Real-time telemetry, 1-click IRN/E-Way Bill generation, vehicle `DL-01-AB-1234`, CBIC Part A/B delivery slips, and signed digital QR code. |
 | 18 | `test_gstr2b_reconciliation_selenium.py` | GST Cockpit `[F5]`, Scorecards, Tolerance $\pm ₹1/5/10$, Dunning Modal, Ingest 2B Modal | 100% PASS: Dual-ledger matching, Telemetry 4 Scorecards (₹25.06L 2B ITC, ₹17.56L Safe ITC, 61.1% match), WhatsApp Dunning, and JSON ingestion. |
 | 19 | `verify_live_vercel_client_creation.py` | Live Vercel Auth, Presets, Client Management, Modal Form, Neon DB Write | 100% PASS: Live production cloud authentication, genuine JWT acquisition, client registration (`AMC-F5BA`), and dynamic grid rendering. |
+| 20 | `test_procurement_po_replenishment_selenium.py` | Procurement Desk `/po`, Scorecards, Radar `[F2]`, Bulk PO `[F7]`, Builder `[F3]`, WhatsApp Slip, Convert to Inward Bill | 100% PASS: 10/10 Stages PASSED. Telemetry 4 Scorecards, autonomous deficit calculation, line item builder, supplier WhatsApp dispatch modal, and database purchase conversion. |
 
 ---
 

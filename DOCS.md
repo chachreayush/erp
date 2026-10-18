@@ -958,3 +958,67 @@ Built in the Flagship Luxury Forest Green design system (`#1b4332`, `#2d6a4f`, `
   - `verified_live_vercel_client_registered.png`: Client registration modal during live cloud submission with field values for `Apex MedCorp F5BA` (`AMC-F5BA`).
   - `verified_live_vercel_clients_grid.png`: Client Management page grid displaying newly registered client card `Apex MedCorp F5BA` (`AMC-F5BA`) alongside existing tenant organizations (`KMA`, `KSK-HDA`, `SAM-INDR`, `Test Org`, `Test Client Corp`).
 - **Master QA Test Matrix**: 19 Automated Selenium test suites completely verified passing with Exit Code 0.
+
+
+### 10.28 Enterprise Purchase Order, Intelligent Stock Replenishment Radar & Vendor Procurement Desk (DOC-45)
+
+#### 1. Business & Operational Background
+In pharmaceutical and C&F distribution supply chains, manual inventory reviews often cause devastating stock-outs on fast-moving medicines or overstocking on slow-moving inventory. DOC-45 bridges inventory safety thresholds (min_stock_level and 
+eorder_quantity) with autonomous deficit detection, multi-vendor rate intelligence, 1-click bulk Purchase Order generation, keyboard-operated PO authoring (/po), and direct 1-click conversion into inward purchase bills (/purchase).
+
+#### 2. System Architecture & Autonomous Replenishment Formula
+1. **Current Physical Stock Calculation**: Real-time aggregation of unexpired batch quantities:
+   \\text{Current Stock} = \\sum_{\\text{batch} \\in \\text{Batches}} \\text{batch.current\\_stock} \\quad (\\text{where } \\text{expiry} > \\text{today})
+2. **Effective Stock & Deficit Formula**:
+   \\text{Pending PO Qty} = \\sum_{\\text{po} \\in \\text{ActivePOs}} (\\text{item.quantity} - \\text{item.received\\_qty})
+   \\text{Effective Stock} = \\text{Current Stock} + \\text{Pending PO Qty}
+   \\text{Deficit Qty} = \\max(0, \\text{min\\_stock\\_level} - \\text{Effective Stock})
+   \\text{Suggested Order Qty} = \\max(\\text{Deficit Qty}, \\text{reorder\\_quantity})
+3. **Classification & Categorization**:
+   - CRITICAL_OUT_OF_STOCK: Current Stock == 0
+   - BELOW_REORDER_LEVEL: Effective Stock <= min_stock_level
+   - OPTIMAL_STOCK: Effective Stock > min_stock_level
+
+#### 3. Backend Endpoints in pi/procurement.py
+- GET /api/procurement/replenishment-radar: Returns telemetry scorecards (Critical 0-stock, Below Reorder, Projected Deficit Outlay, Active PO Pipeline) and deficit items requiring procurement.
+- GET /api/procurement/vendor-rate-comparison/{product_id}: Compares suppliers based on historical purchase vouchers, offered rates, discounts, net effective rate, payment credit days (e.g. 30 vs 60 days), and optimization badges (BEST_PRICE, LONGEST_CREDIT, FASTEST_DELIVERY, BULK_DISCOUNT).
+- POST /api/procurement/generate-from-replenishment: Takes selected deficit items, groups them by target vendor, and auto-generates formal sequential POs (PO-YYYYMM-XXXX) with line items.
+- GET /api/procurement/orders: Retrieves master list of purchase orders with vendor name resolution.
+- POST /api/procurement/orders: Creates customized purchase order with line items, tax estimation, and delivery schedules.
+- PATCH /api/procurement/orders/{po_id}/status: Transitions order lifecycle (DRAFT, APPROVED, COMPLETED, CANCELLED).
+- POST /api/procurement/orders/{po_id}/convert-to-purchase: Converts approved PO into an inward purchase bill (PUR-PO-XXXX), links lines to InvoiceItem, marks items received, and transitions status to COMPLETED.
+
+#### 4. Frontend Master UI Elements in PurchaseOrderMaster.tsx (/po)
+Built in the Flagship Luxury Forest Green design system (#1b4332, #2d6a4f, #eef2ef):
+- **4 Telemetry Scorecards**:
+  - #card-critical-stock: Critical 0-Stock Items indicator.
+  - #card-reorder-stock: Below Safety Stock threshold count.
+  - #card-replenishment-budget: Total Projected Replenishment Capital Outlay.
+  - #card-pending-pos: Active PO Orders Pipeline count & value.
+- **Tabbed Interface with Function Keys**:
+  - [F1] Master PO Directory (#tab-po-directory): Search bar (#input-search-po), status filters (#btn-filter-status-all, #btn-filter-status-approved, etc.), and order action buttons:
+    - #btn-dispatch-po-{id}: Launches Supplier WhatsApp / Print Slip Modal.
+    - #btn-convert-po-purchase-{id}: Launches Inward Purchase Bill Conversion Modal.
+  - [F2] Stock Replenishment Radar (#tab-replenishment-radar):
+    - Multi-select checkbox (#checkbox-select-all, #checkbox-item-{id}).
+    - Deficit analytics table with current stock, min safety, deficit qty, and suggested order qty.
+    - #btn-bulk-generate-pos: 1-Click Bulk PO Generator button.
+  - [F3] Create New Purchase Order (#tab-create-po):
+    - Header inputs: #input-po-number, #input-po-date, #select-po-vendor, #input-po-delivery, #input-po-supply-type.
+    - Line item builder: #select-po-product-{idx}, #input-po-qty-{idx}, #input-po-rate-{idx}, #btn-remove-po-row-{idx}, #btn-add-po-row.
+    - Save action: #btn-save-purchase-order ([Enter]).
+  - [F4] Vendor Rate Intelligence (#tab-vendor-rates):
+    - Product selector: #select-rate-comparison-product.
+    - Comparative table with net effective rates, discounts, credit terms, and badges.
+- **Modals**:
+  - #modal-po-dispatch: Formatted PO slip with #textarea-po-dispatch-text, #btn-copy-po-whatsapp, #btn-open-whatsapp-web, #btn-close-dispatch-modal.
+  - #modal-convert-po-purchase: #btn-confirm-convert-po, #btn-close-convert-modal, automated redirection to /purchase.
+
+#### 5. Master Automated Selenium Suite & 20-Suite QA Test Matrix
+- **Script**: 	est_procurement_po_replenishment_selenium.py (10 stages, Exit Code 0, 100% Pass).
+- **Verified Visual Proof Artifacts**:
+  - erified_po_replenishment_scorecards.png: 4 Telemetry scorecards with real-time deficit counts and budget outlay.
+  - erified_po_replenishment_radar.png: Interactive Stock Replenishment Radar with deficit items and bulk PO generator.
+  - erified_po_creation_workbench.png: Keyboard-accelerated PO authoring workbench with line items and GST calculation.
+  - erified_po_supplier_dispatch_modal.png: Supplier WhatsApp and print dispatch slip modal.
+- **Master QA Test Matrix**: Expanded to **20 Automated Selenium test suites** completely passing with 100% Exit Code 0.

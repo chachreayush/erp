@@ -1093,7 +1093,38 @@ Implemented and verified the production-grade Principal & C&F Operations Managem
 
 ---
 
-## Comprehensive Master QA Test Registry (19 Suites)
+## DOC-45: Enterprise Purchase Order, Intelligent Stock Replenishment Radar & Vendor Procurement Desk
+
+1. **Autonomous Replenishment Radar (`GET /api/procurement/replenishment-radar`)**:
+   - Reconciles active product inventory with unexpired batch quantities.
+   - Calculates effective stock: $\\text{Physical Stock} + \\text{Pending PO Qty}$.
+   - Determines deficit quantity: $\\max(0, \\text{min\\_stock\\_level} - \\text{Effective Stock})$.
+   - Computes suggested purchase volume: $\\max(\\text{Deficit Qty}, \\text{reorder\\_quantity})$.
+   - Returns 4 Telemetry Scorecards: Critical 0-Stock Count, Below Reorder Count, Total Projected Deficit Outlay (₹ INR), and Active PO Pipeline.
+2. **Multi-Vendor Best-Rate Optimizer (`GET /api/procurement/vendor-rate-comparison/{product_id}`)**:
+   - Compares supplier quotes from historical purchase invoices and master party profiles.
+   - Computes Net Effective Rate: $\\text{Offered Rate} \\times (1 - \\text{Discount \\%})$.
+   - Evaluates payment credit terms (e.g. 21 vs 60 days) and delivery lead times.
+   - Categorizes vendors with badges: `BEST_PRICE`, `FASTEST_DELIVERY`, `LONGEST_CREDIT`, `BULK_DISCOUNT`.
+3. **1-Click Bulk PO Generation (`POST /api/procurement/generate-from-replenishment`)**:
+   - Partitions selected deficit line items by preferred supplier.
+   - Generates sequential Purchase Orders (`PO-YYYYMM-XXXX`) with line items.
+4. **Keyboard-Operated PO Authoring Desk (`/po`)**:
+   - Built in Flagship Luxury Forest Green design system (`#1b4332`, `#2d6a4f`).
+   - 4 Tabs: `[F1]` Master PO Directory, `[F2]` Replenishment Radar, `[F3]` Create New PO, `[F4]` Vendor Rate Intelligence.
+   - Supplier WhatsApp & Print Slip Modal (`#modal-po-dispatch`) with direct copy and WhatsApp Web URL.
+   - Inward Purchase Bill Conversion Modal (`#modal-convert-po-purchase`), converting PO to `PUR-PO-XXXX` and updating GL.
+5. **Master Automated Selenium Suite (`test_procurement_po_replenishment_selenium.py`)**:
+   - 10/10 Stages PASSED (Exit Code 0).
+   - Visual artifacts captured:
+     - `verified_po_replenishment_scorecards.png`
+     - `verified_po_replenishment_radar.png`
+     - `verified_po_creation_workbench.png`
+     - `verified_po_supplier_dispatch_modal.png`
+
+---
+
+## Comprehensive Master QA Test Registry (20 Suites)
 
 | # | Suite Filename | Focus Area | Result |
 | :--- | :--- | :--- | :--- |
@@ -1116,6 +1147,7 @@ Implemented and verified the production-grade Principal & C&F Operations Managem
 | 17 | `test_gst_einvoice_eway_selenium.py` | Compliance desk, transporter assignment, CBIC slips, NIC Schema 1.1 JSON | 100% PASS (Exit Code 0) |
 | 18 | `test_gstr2b_reconciliation_selenium.py` | GST Cockpit `[F5]`, Scorecards, Tolerance $\pm ₹1/5/10$, Dunning Modal, Ingest 2B Modal | 100% PASS (Exit Code 0) |
 | 19 | `verify_live_vercel_client_creation.py` | Live Vercel Auth, Presets, Client Management, Modal Form, Neon DB Write | 100% PASS (Exit Code 0) |
+| 20 | `test_procurement_po_replenishment_selenium.py` | Procurement Desk `/po`, Scorecards, Radar `[F2]`, Bulk PO `[F7]`, Builder `[F3]`, WhatsApp Slip, Convert to Inward Bill | 100% PASS (Exit Code 0) |
 
 ---
 

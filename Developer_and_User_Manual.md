@@ -361,7 +361,21 @@ The ERP is 100% keyboard-navigable. Key shortcuts:
 
 ---
 
-### 2.27 Complete Operational Navigation & Menu Sizing Standard
+### 2.27 Module 27 — DOC-45: Enterprise Purchase Order, Intelligent Stock Replenishment Radar & Vendor Procurement Desk
+
+- **Route**: `/po`.
+- **Core Purpose**: End-to-end procurement and inventory replenishment cockpit. Continuously correlates warehouse batch stock against safety reorder parameters (`min_stock_level` and `reorder_quantity`), identifies deficits, provides multi-vendor rate intelligence, supports 1-click bulk PO generation grouped by vendor (`[F7]`), includes a keyboard-operated PO builder with dynamic 18% GST calculation (`[F3]`), generates supplier WhatsApp & print dispatch slips (`#modal-po-dispatch`), and enables 1-click conversion of approved POs directly into Inward Purchase Bills (`PUR-PO-XXXX`) with automated redirect to `/purchase`.
+- **Backend APIs**:
+  - `GET /api/procurement/replenishment-radar`: Telemetry scorecards and deficit items needing procurement.
+  - `GET /api/procurement/vendor-rate-comparison/{product_id}`: Multi-vendor quotes, net effective rates, and badges.
+  - `POST /api/procurement/generate-from-replenishment`: 1-Click bulk PO generator grouped by supplier.
+  - `GET /api/procurement/orders` & `POST /api/procurement/orders`: Master PO directory and order creation.
+  - `POST /api/procurement/orders/{po_id}/convert-to-purchase`: Converts PO to Inward Purchase Bill in GL.
+- **Automated QA Verification**: `test_procurement_po_replenishment_selenium.py` (10 stages, 100% Passed, Exit Code 0).
+
+---
+
+### 2.28 Complete Operational Navigation & Menu Sizing Standard
 
 1. **Responsive Top Navigation Architecture**:
    - Reorganized into 10 streamlined, non-wrapping parent categories fitting standard desktop displays (1366px, 1440px, 1920px):
