@@ -1022,3 +1022,240 @@ Built in the Flagship Luxury Forest Green design system (#1b4332, #2d6a4f, #eef2
   - erified_po_creation_workbench.png: Keyboard-accelerated PO authoring workbench with line items and GST calculation.
   - erified_po_supplier_dispatch_modal.png: Supplier WhatsApp and print dispatch slip modal.
 - **Master QA Test Matrix**: Expanded to **20 Automated Selenium test suites** completely passing with 100% Exit Code 0.
+
+
+### 10.29 Master Enterprise Screen Element, Keybinding & Telemetry Matrix (DOC-1 to DOC-45 Exhaustive Reference)
+
+#### 1. Exhaustive Screen-by-Screen DOM & Options Directory
+Every functional screen, option, toggle, and element created across the ERP system is itemized below for developers and system operators:
+
+| Screen Name & Route | DOM ID / Selector | Type & Hotkey | Functional Purpose & Validation Engine |
+| :--- | :--- | :--- | :--- |
+| **Counter Workbench (`/`)** | `#hub-btn-sales-bill` | Button `[F2]` | Direct launcher for Counter Sales Billing with series continuation. |
+| **Counter Workbench (`/`)** | `#hub-btn-receipt-voucher` | Button `[F6]` | Direct launcher for Customer Receipts & Settlement Allocation. |
+| **Counter Workbench (`/`)** | `#hub-btn-payment-voucher` | Button `[F5]` | Direct launcher for Supplier Payments & Ledger Clearing. |
+| **Counter Workbench (`/`)** | `#hub-btn-cargo-management` | Button `[Ctrl+1]` | Direct launcher for Cargo & Consignment Management Board. |
+| **Counter Workbench (`/`)** | `#hub-btn-freight-management` | Button `[Ctrl+2]` | Direct launcher for Freight Contracts & Carrier Rate Master. |
+| **Counter Workbench (`/`)** | `#hub-btn-principal-management`| Button `[Ctrl+3]` | Direct launcher for Principal Operations & Consignment Custody. |
+| **Counter Workbench (`/`)** | `#hub-btn-commission-management`| Button `[Ctrl+4]` | Direct launcher for C&F Commission & Expense Recovery Engine. |
+| **Counter Workbench (`/`)** | `#hub-btn-admin-tracking` | Button `[Ctrl+6]` | Direct launcher for Admin Enterprise Multi-Client Operations Radar. |
+| **Counter Workbench (`/`)** | `#hub-btn-audit-trail` | Button | Direct launcher for Cryptographic SHA-256 Audit Trail Explorer. |
+| **Counter Workbench (`/`)** | `#modal-exit-app` | Modal `[Esc]` | High-contrast application exit modal with `Enter` (Exit) and `Esc` (Cancel). |
+| **Header Navigation** | `#btn-workflow-dropdown` | Dropdown `[F4]` | Expands workflow operations (Inbox, Designer, Monitor, Audit, Governance). |
+| **Header Navigation** | `parent-menu-btn-cf` | Dropdown | Expands C&F & Logistics operations (Principal, Commission, Radar, Cargo, Freight). |
+| **Sales Bill (`/sales`)** | `#input-bill-series` | Input | Alphanumeric invoice sequence input (`SLS-YYYY-XXXX`). Edits saved to localStorage. |
+| **Sales Bill (`/sales`)** | `#btn-search-party` | Button `[F7]` | Debtor party lookup modal with live ledger balance and drug licenses. |
+| **Sales Bill (`/sales`)** | `#grid-bill-items` | Grid Table | 8-Row Marg billing grid (Item, Pack, Batch, Exp, Qty, Free, Rate, Dis%, GST%). |
+| **Sales Bill (`/sales`)** | `#btn-batch-modal` | Button `[F3]` | Batch modal with stock, expiry MM/YY, and MRP for active product. |
+| **Sales Bill (`/sales`)** | `#btn-settlement-modal` | Button `[End]` | Settlement discount & payment modal (Cash, Bank, Credit) with round-off preview. |
+| **Sales Bill (`/sales`)** | `#btn-save-bill` | Button `[Ctrl+S]` | Commits bill, decrements batch stock, posts GL entries, advances series. |
+| **Purchase Inward (`/purchase`)** | `#input-purchase-series` | Input | Alphanumeric inward purchase series input (`PUR-YYYY-XXXX`). |
+| **Purchase Inward (`/purchase`)** | `#input-vendor-inv-no` | Input | Supplier's external invoice reference number (`party_inv_no`). |
+| **Purchase Inward (`/purchase`)** | `#btn-search-vendor` | Button `[F7]` | Creditor vendor search modal with live ledger balance. |
+| **Purchase Inward (`/purchase`)** | `#btn-save-purchase` | Button `[Ctrl+S]` | Accrues batches, increments stock, posts Accounts Payable in GL. |
+| **Purchase Register (`/purchase/list`)** | `#grid-purchase-bills` | Ag-Grid | Inward purchase bills register with search, filter, and dual-post tags. |
+| **Supplier Debit Note (`/purchase-return`)** | `#btn-mode-against-bill` | Button `[F2]` | Activates Against Inward Bill mode to load original purchase line items. |
+| **Supplier Debit Note (`/purchase-return`)** | `#btn-mode-loose` | Button `[F3]` | Activates Loose Return mode for ad-hoc debit note issuance. |
+| **Supplier Debit Note (`/purchase-return`)** | `#select-stock-disposition` | Select | Directs returned goods to `Saleable`, `Breakage Godown`, or `Expired Godown`. |
+| **Supplier Debit Note (`/purchase-return`)** | `#btn-save-debit-note` | Button `[Ctrl+S]` | Posts debit note, adjusts stock, generates reverse GL and ITC reversal entries. |
+| **Customer Credit Note (`/sales-return`)** | `#btn-mode-against-bill` | Button `[F2]` | Activates Against Sales Bill mode to retrieve customer invoice lines. |
+| **Customer Credit Note (`/sales-return`)** | `#btn-mode-counter` | Button `[F3]` | Activates Counter Return mode with returnable quantity caps. |
+| **Customer Credit Note (`/sales-return`)** | `#btn-save-credit-note` | Button `[Ctrl+S]` | Saves credit note, increments stock, auto-posts sales return GL entries. |
+| **Breakage Receive (`/brk-receive`)** | `#input-bkr-series` | Input | Alphanumeric Breakage Receive series continuation (`BKR-YYYY-XXXX`). |
+| **Breakage Receive (`/brk-receive`)** | `#btn-save-bkr` | Button `[Ctrl+S]` | Posts breakage receive, routing stock strictly into quarantined `brk_exp_stock`. |
+| **Breakage Issue (`/brk-issue`)** | `#input-bki-series` | Input | Alphanumeric Breakage Issue series continuation (`BKI-YYYY-XXXX`). |
+| **Breakage Issue (`/brk-issue`)** | `#btn-save-bki` | Button `[Ctrl+S]` | Posts breakage issue to manufacturer, decrementing `brk_exp_stock`. |
+| **Customer Receipt (`/receipt`)** | `#voucher-series-input` | Input | Alphanumeric receipt series continuation (`REC-YYYY-XXXX`). |
+| **Customer Receipt (`/receipt`)** | `#party-search-input` | Input `[F7]` | Triggers Debtor Party Search modal with live running balance and drug licenses. |
+| **Customer Receipt (`/receipt`)** | `#voucher-amount-input` | Input | Payout amount; automatically recalculates unallocated floating credit dynamically. |
+| **Customer Receipt (`/receipt`)** | `#btn-auto-allocate-fifo` | Button `[Alt+A]` | Executes FIFO auto-allocation across pending customer invoices. |
+| **Customer Receipt (`/receipt`)** | `#btn-post-voucher` | Button `[Ctrl+S]` | Posts receipt voucher to GL, updates ledger balances, increments sequence series. |
+| **Supplier Payment (`/payment`)** | `#voucher-series-input` | Input | Alphanumeric payment series continuation (`PAY-YYYY-XXXX`). |
+| **Supplier Payment (`/payment`)** | `#party-search-input` | Input `[F7]` | Triggers Creditor Vendor Search modal with live running balance and bank details. |
+| **Supplier Payment (`/payment`)** | `#btn-auto-allocate-fifo` | Button `[Alt+A]` | Executes FIFO auto-allocation across pending vendor purchase bills. |
+| **Journal Voucher (`/journal`)** | `#input-journal-series` | Input | Alphanumeric Journal series continuation (`JRN-YYYY-XXXX`). |
+| **Journal Voucher (`/journal`)** | `#btn-auto-balance-gl` | Button `[Ctrl+B]` | Automatically calculates and inserts balancing Dr/Cr line. |
+| **Journal Voucher (`/journal`)** | `#btn-add-journal-leg` | Button `[Alt+A]` | Adds new ledger line item row to journal entry grid. |
+| **Journal Voucher (`/journal`)** | `#check-schedule-accrual` | Checkbox | Configures scheduled automatic GL reversal on 1st of subsequent month. |
+| **Journal Voucher (`/journal`)** | `#btn-post-journal` | Button `[Ctrl+S]` | Validates sum(Dr) == sum(Cr) and commits journal voucher to GL. |
+| **Direct Expense Desk (`/finance/expenses`)** | `#input-expense-amount` | Input | Expense payout amount with live P&L impact preview. |
+| **Direct Expense Desk (`/finance/expenses`)** | `#select-expense-account` | Select | Dropdown listing 10 statutory P&L expense heads. |
+| **Direct Expense Desk (`/finance/expenses`)** | `#btn-post-expense` | Button | Posts direct cash/bank expense voucher debiting P&L immediately. |
+| **Fixed Assets (`/finance/assets`)** | `#btn-register-asset` | Button `[F2]` | Opens modal to register capital asset with Schedule II statutory category. |
+| **Fixed Assets (`/finance/assets`)** | `#btn-run-depreciation` | Button `[F5]` | Executes periodic WDV/SLM depreciation run across active assets. |
+| **Bank Recon (`/finance/bank-reconciliation`)** | `#btn-auto-match-brs` | Button | Runs auto-matching algorithm against imported bank statement CSV. |
+| **Bank Recon (`/finance/bank-reconciliation`)** | `#btn-cash-drawer-tally` | Button `[F8]` | Opens RBI physical currency denomination counter and cash discrepancy report. |
+| **Audit Explorer (`/audit`)** | `#input-audit-search` | Input `[Ctrl+F]` | Fuzzy search across audit trail by document number, actor, or reason. |
+| **Audit Explorer (`/audit`)** | `#btn-verify-chain` | Button | Traverses cryptographic SHA-256 hash chain and certifies 100% integrity. |
+| **Audit Explorer (`/audit`)** | `#drawer-audit-diff` | Drawer `[Enter]` | Slides over before/after field diff with sensitive data masking. |
+| **Audit Explorer (`/audit`)** | `#btn-export-evidence-pack` | Button `[E]` | Generates auditor-compliant sealed JSON evidence pack. |
+| **Governance (`/audit/governance`)** | `#tab-retention-policies` | Tab | Displays statutory retention schedules and 2,920-day MCA/GST policies. |
+| **Governance (`/audit/governance`)** | `#btn-apply-legal-hold` | Button | Opens modal to establish statutory litigation preservation legal hold. |
+| **Governance (`/audit/governance`)** | `#grid-forensic-anomalies` | Grid | Displays real-time anomaly detection radar for velocity and after-hours edits. |
+| **Cargo Board (`/cargo`)** | `#btn-register-consignment` | Button `[F6]` | Opens consignment registration modal with volumetric CBM calculator. |
+| **Cargo Board (`/cargo`)** | `#drawer-consignment-detail` | Drawer | Slide-over drawer showing package barcodes, weights, and status advance. |
+| **Cargo Costs (`/cargo/costs`)** | `#toggle-combined-reporting` | Toggle | Switches between single-tenant and aggregated multi-client MIS view. |
+| **POD Desk (`/cargo/pod-exceptions`)** | `#btn-record-delivery-pod` | Button | Submits delivery POD with accepted vs short/damaged quantity validation. |
+| **Freight Master (`/freight/contracts`)** | `#btn-new-contract` | Button `[F2]` | Opens modal to create new carrier contract with lane slabs. |
+| **Freight Master (`/freight/contracts`)** | `#tab-btn-rate-cards` | Tab `[F2]` | Carrier rate card directory. |
+| **Freight Master (`/freight/contracts`)** | `#tab-btn-sandbox` | Tab `[F4]` | Freight calculation rating sandbox evaluating fuel surcharges and minimums. |
+| **Freight Recon (`/freight/reconciliation`)** | `#tab-btn-unreconciled` | Tab `[F2]` | Unmatched freight vouchers workbench for 3-way variance auditing. |
+| **Principal (`/principal`)** | `#btn-open-claim-modal` | Button `[F7]` | Opens Principal breakage/damage claim modal with [Esc] dismissal. |
+| **Principal (`/principal`)** | `#tab-btn-custody` | Tab `[F2]` | Principal custody inventory stock matrix showing SKU segregation. |
+| **Principal (`/principal`)** | `#tab-btn-claims` | Tab `[F3]` | Principal claims & returns register. |
+| **Principal (`/principal`)** | `#tab-btn-reconciliation` | Tab `[F4]` | 3-Way physical vs ledger reconciliation workspace. |
+| **Principal (`/principal`)** | `#tab-btn-statement` | Tab `[F5]` | Periodic business reconciliation statement with cryptographic hash. |
+| **Commission (`/commission`)** | `#tab-btn-agreements` | Tab `[F2]` | 4-Pillar C&F deal terms and rate cards (Storage, Staff, Freight, Comm %). |
+| **Commission (`/commission`)** | `#tab-btn-sandbox` | Tab `[F3]` | Deterministic calculation sandbox & formula trace. |
+| **Commission (`/commission`)** | `#tab-btn-claims` | Tab `[F4]` | Recovery claims desk & dual-post action. |
+| **Commission (`/commission`)** | `#tab-btn-client-billing` | Tab `[F5]` | Client C&F Commission & Expense Billing Desk. |
+| **Commission (`/commission`)** | `#client-billing-org-select` | Select | Client organization dropdown selector (e.g. Krishna Medical Agencies). |
+| **Commission (`/commission`)** | `#btn-autofetch-client-telemetry` | Button | 1-Click Auto-Fetch turnover and depot operating expenses. |
+| **Commission (`/commission`)** | `#input-billing-turnover` | Input | Client sales turnover input base for commission calculation. |
+| **Commission (`/commission`)** | `#input-billing-comm-rate` | Input | Commission percentage input (e.g. 5.0%). |
+| **Commission (`/commission`)** | `#input-billing-rent` | Input | Godown storage rent reimbursement input. |
+| **Commission (`/commission`)** | `#input-billing-salary` | Input | Depot staff salaries reimbursement input. |
+| **Commission (`/commission`)** | `#input-billing-freight` | Input | Freight & transport recharge input. |
+| **Commission (`/commission`)** | `#check-dual-post-purchase` | Checkbox | Toggles automated dual-posting into the client company's inward purchase register. |
+| **Commission (`/commission`)** | `#btn-generate-client-bill` | Button | Atomically creates outward bill (`CF-BILL-`) and inward purchase bill (`PUR-CF-`). |
+| **Commission (`/commission`)** | `#generated-bill-success-card` | Banner | Success feedback card with outward/inward invoice numbers. |
+| **Commission (`/commission`)** | `#btn-goto-outward-billing` | Button `[F7]` | Jump to Outward Bill in Billing Desk. |
+| **Commission (`/commission`)** | `#btn-goto-inward-purchase` | Button `[F9]` | Jump to Inward Bill in Purchase Register. |
+| **Radar (`/admin/tracking`)** | `#select-tracking-scope` | Select | Consolidated vs single client scope selector. |
+| **Radar (`/admin/tracking`)** | `#card-tracking-sales` | Metric Card | Gross sales turnover KPI scorecard. |
+| **Radar (`/admin/tracking`)** | `#card-tracking-expenses` | Metric Card | Operating expenses & C&F KPI scorecard. |
+| **Radar (`/admin/tracking`)** | `#card-tracking-cargo` | Metric Card | Cargo consignments pipeline KPI card. |
+| **Radar (`/admin/tracking`)** | `#tab-btn-scorecards` | Tab `[F2]` | Client operational scorecards matrix tab with 1-click drilldown. |
+| **Radar (`/admin/tracking`)** | `#tab-btn-sales` | Tab `[F3]` | Cross-client sales ledger tab. |
+| **Radar (`/admin/tracking`)** | `#tab-btn-expenses` | Tab `[F4]` | Multi-client expense claims tab. |
+| **Radar (`/admin/tracking`)** | `#tab-btn-cargo` | Tab `[F6]` | Logistics pipeline tracking tab. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#card-main-stock` | Metric Card | Main Saleable Stock Value & Healthy Units KPI scorecard. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#card-quarantine-stock` | Metric Card | Quarantined / Brk-Exp Stock Value KPI scorecard. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#card-near-expiry-risk` | Metric Card | 90-Day Near-Expiry Risk Batches KPI scorecard. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#card-claim-exposure` | Metric Card | Principal Claims & Debit Note Exposure KPI scorecard. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#tab-btn-radar` | Tab `[F2]` | Expiry Radar table and alert filters tab. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#filter-bucket-ALL` | Filter Pill | All Critical near-expiry filter pill. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#filter-bucket-EXPIRED` | Filter Pill | Expired stock (<0d) filter pill. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#filter-bucket-30_DAYS` | Filter Pill | Critical <30 days near-expiry filter pill. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#filter-bucket-60_DAYS` | Filter Pill | Warning <60 days near-expiry filter pill. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#filter-bucket-90_DAYS` | Filter Pill | Attention <90 days near-expiry filter pill. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#filter-company-select` | Select | Manufacturer / Principal dropdown filter. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#search-batches-input` | Input | Batch / SKU search text input. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#tbl-expiry-radar` | Grid Table | Real-time batch surveillance table. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#btn-select-all-batches` | Checkbox | Multi-batch select all checkbox toggle. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#btn-shift-selected-action` | Button `[F7]` | Shift selected batches to quarantine action button. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#tab-btn-quarantine` | Tab `[F3]` | Quarantined & Breakage Stock Ledger tab. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#tab-btn-history` | Tab `[F4]` | Stock Shift Audit Register historical vouchers tab. |
+| **Stock Shift Desk (`/stock-shift`)** | `#select-from-godown` | Select | Source Godown selector (Main Saleable Godown). |
+| **Stock Shift Desk (`/stock-shift`)** | `#select-to-godown` | Select | Destination Godown selector (Quarantine / Expiry Godown). |
+| **Stock Shift Desk (`/stock-shift`)** | `#check-auto-claim` | Checkbox | Auto-generate Principal claim & debit note checkbox. |
+| **Stock Shift Desk (`/stock-shift`)** | `#select-principal-claim-target` | Select | Target Principal dropdown (Sun Pharma, Cipla, Krishna). |
+| **Stock Shift Desk (`/stock-shift`)** | `#tbl-shift-items` | Grid Table | Shift line items grid with product, batch, exp, qty, rate, value. |
+| **Stock Shift Desk (`/stock-shift`)** | `#btn-save-shift-voucher` | Button `[F7]` | Save Shift Voucher & execute atomic stock reallocation. |
+| **Stock Shift Desk (`/stock-shift`)** | `#stock-shift-success-card` | Banner | Shift success card with voucher and claim references. |
+| **Stock Shift Desk (`/stock-shift`)** | `#lbl-success-voucher-no` | Label | Generated Stock Shift Voucher number (`SHF-2026-XXXX`). |
+| **Stock Shift Desk (`/stock-shift`)** | `#lbl-success-claim-no` | Label | Generated Principal Claim reference (`CLM-PRN-XXXX`). |
+| **Stock Shift Desk (`/stock-shift`)** | `#btn-view-in-audit` | Button `[F2]` | View voucher in Stock Shift Audit Register. |
+| **Stock Shift Desk (`/stock-shift`)** | `#btn-view-claim-desk` | Button `[F8]` | Jump to Principal Claims Desk. |
+| **Compliance Desk (`/compliance`)** | `#card-qualifying-invoices` | Metric Card | Telemetry scorecard for qualifying outbound consignments (>= Rs. 50,000). |
+| **Compliance Desk (`/compliance`)** | `#card-pending-eway` | Metric Card | Consignments pending E-Way Bill Part A & B transport slips. |
+| **Compliance Desk (`/compliance`)** | `#card-generated-irn` | Metric Card | Invoices with verified cryptographic IRN and digital QR codes. |
+| **Compliance Desk (`/compliance`)** | `#card-compliance-rate` | Metric Card | Live statutory compliance rating and color-coded progress bar. |
+| **Compliance Desk (`/compliance`)** | `#btn-open-transport-modal` | Button `[F7]` | Opens Transporter & Vehicle Assignment modal (`#modal-transport-assignment`). |
+| **Compliance Desk (`/compliance`)** | `#btn-export-nic-json` | Button `[F8]` | Exports official Government NIC Schema 1.1 Bulk Upload JSON. |
+| **Compliance Desk (`/compliance`)** | `#btn-confirm-generate-compliance` | Button `[Enter]` | 1-Click generation of 64-char IRN, 15-digit Ack No, 12-digit E-Way Bill. |
+| **Compliance Desk (`/compliance`)** | `#btn-print-slip-dialog` | Button | Print trigger for official Government of India CBIC two-part delivery slip. |
+| **Transport Modal (`/compliance`)** | `#modal-transport-assignment` | Modal Dialog | Modal for configuring carrier, vehicle registration, and distance. |
+| **Transport Modal (`/compliance`)** | `#select-transporter-id` | Select | Dropdown listing registered transporter logistics partners. |
+| **Transport Modal (`/compliance`)** | `#input-vehicle-number` | Text Input | Transporter conveyance vehicle registration number (e.g. DL-01-AB-1234). |
+| **Transport Modal (`/compliance`)** | `#input-transit-distance` | Number Input | Transit distance in KM; auto-computes validity (1 day per 200 KM). |
+| **Transport Modal (`/compliance`)** | `#btn-assign-transport-submit` | Button | Saves vehicle details to consignment record. |
+| **CBIC Slip Modal (`/compliance`)** | `#modal-eway-slip-preview` | Modal Dialog | Full-screen official Government of India CBIC delivery slip preview. |
+| **GST Workbench (`/gst`)** | `#tab-gstr2b` | Tab `[F5]` | Activates GSTR-2B ITC Matching Engine workbench. |
+| **GST Workbench (`/gst`)** | `#metric-2b-total-itc` | Metric Card | Total auto-drafted ITC available in GSTR-2B statements. |
+| **GST Workbench (`/gst`)** | `#metric-2b-safe-itc` | Metric Card | Safe & Claimable ITC meeting Section 16(2)(aa) statutory rules. |
+| **GST Workbench (`/gst`)** | `#metric-2b-at-risk-itc` | Metric Card | At-risk blocked ITC missing in 2B or with tax mismatches. |
+| **GST Workbench (`/gst`)** | `#metric-2b-unclaimed-itc` | Metric Card | Unclaimed credit in 2B unbooked in internal ERP ledgers. |
+| **GST Workbench (`/gst`)** | `#btn-tolerance-1`, `5`, `10` | Button Group | Switches differential matching tolerance (+-Rs.1, +-Rs.5, +-Rs.10). |
+| **GST Workbench (`/gst`)** | `#btn-bulk-approve-itc` | Button | 1-Click bulk approval of matched records for GSTR-3B Table 4(A)(5). |
+| **GST Workbench (`/gst`)** | `#modal-supplier-dunning` | Modal Dialog | Section 16(2)(aa) notice generator with direct WhatsApp sharing. |
+| **GST Workbench (`/gst`)** | `#textarea-dunning-message` | Textarea | Pre-filled legal dunning notice body with invoice and tax numbers. |
+| **GST Workbench (`/gst`)** | `#btn-copy-dunning` | Button | Copies Section 16(2)(aa) notice text to clipboard. |
+| **GST Workbench (`/gst`)** | `#btn-send-whatsapp` | Link Button | Dispatches notice directly to supplier WhatsApp Web/Mobile. |
+| **GST Workbench (`/gst`)** | `#modal-ingest-portal-2b` | Modal Dialog | Official Government GST Portal GSTR-2B JSON statement ingestion dialog. |
+| **GST Workbench (`/gst`)** | `#textarea-json-2b` | Textarea | Ingests official b2b/cdnr payload from gst.gov.in. |
+| **Login Screen (`/login`)** | `#btn-quick-fill-admin` | Button / Chip | 1-Click preset button filling AM-0001 / admin / Admin@123. |
+| **Login Screen (`/login`)** | `#btn-quick-fill-client` | Button / Chip | 1-Click preset button filling KMA / SAN / Admin@123. |
+| **Login Screen (`/login`)** | `#btn-demo-login` | Button | 1-Click full cloud access button authenticating with live backend. |
+| **Client Management (`/clients`)** | `#btn-register-new-client` | Button | Opens Register Client Modal. |
+| **Client Management (`/clients`)** | `#btn-open-enterprise-radar` | Button | Direct launcher to Enterprise Multi-Client Operations Radar (`/admin/tracking`). |
+| **Register Client Modal** | `#input-client-org-name` | Text Input | Client organization legal entity name (min 3 chars). |
+| **Register Client Modal** | `#input-client-org-code` | Text Input | Alphanumeric tenant code (e.g. AMC-F5BA; auto-capitalized). |
+| **Register Client Modal** | `#input-client-admin-name` | Text Input | Initial Client Admin display name. |
+| **Register Client Modal** | `#input-client-admin-username` | Text Input | Initial Client Admin login username. |
+| **Register Client Modal** | `#input-client-admin-password` | Password Input | Initial Client Admin password (min 6 chars). |
+| **Register Client Modal** | `#btn-cancel-register-client` | Button `[Esc]` | Dismisses modal dialog. |
+| **Register Client Modal** | `#btn-submit-register-client` | Button | Submits client registration form to cloud backend with JWT header. |
+| **Procurement Desk (`/po`)** | `#card-critical-stock` | Metric Card | Displays count of emergency zero-stock SKUs requiring replenishment. |
+| **Procurement Desk (`/po`)** | `#card-reorder-stock` | Metric Card | Displays count of SKUs below safety stock reorder thresholds. |
+| **Procurement Desk (`/po`)** | `#card-replenishment-budget` | Metric Card | Total estimated capital outlay required to restore target inventory. |
+| **Procurement Desk (`/po`)** | `#card-pending-pos` | Metric Card | Total count and valuation of open/in-transit purchase orders. |
+| **Procurement Desk (`/po`)** | `#tab-po-directory` | Button `[F1]` | Switches to Master Purchase Order Directory grid. |
+| **Procurement Desk (`/po`)** | `#tab-replenishment-radar` | Button `[F2]` | Switches to Autonomous Stock Replenishment Radar. |
+| **Procurement Desk (`/po`)** | `#tab-create-po` | Button `[F3]` | Switches to Keyboard-Operated PO Authoring Workbench. |
+| **Procurement Desk (`/po`)** | `#tab-vendor-rates` | Button `[F4]` | Switches to Multi-Vendor Quotation Rate Intelligence Matrix. |
+| **Procurement Desk (`/po`)** | `#input-search-po` | Text Input | Search filter for PO number, vendor legal name, or line items. |
+| **Procurement Desk (`/po`)** | `#btn-filter-status-all` | Button | Shows all purchase orders in directory. |
+| **Procurement Desk (`/po`)** | `#btn-filter-status-approved` | Button | Filters directory for approved, open purchase orders. |
+| **Procurement Desk (`/po`)** | `#btn-filter-status-completed`| Button | Filters directory for orders converted to inward purchase bills. |
+| **Procurement Desk (`/po`)** | `#btn-filter-status-cancelled`| Button | Filters directory for cancelled purchase orders. |
+| **Procurement Desk (`/po`)** | `#btn-filter-status-draft` | Button | Filters directory for draft purchase orders. |
+| **Procurement Desk (`/po`)** | `#btn-dispatch-po-{id}` | Button | Opens Supplier WhatsApp & Print Slip Modal for targeted PO. |
+| **Procurement Desk (`/po`)** | `#btn-convert-po-purchase-{id}`| Button | Opens Inward Purchase Bill Conversion Confirmation Dialog. |
+| **Procurement Desk (`/po`)** | `#checkbox-select-all` | Checkbox | Selects/deselects all deficit items in Replenishment Radar. |
+| **Procurement Desk (`/po`)** | `#checkbox-item-{id}` | Checkbox | Toggles target deficit line item for bulk PO creation. |
+| **Procurement Desk (`/po`)** | `#btn-bulk-generate-pos` | Button `[F7]` | Dispatches 1-Click Bulk PO Generation grouped by preferred vendor. |
+| **Procurement Desk (`/po`)** | `#btn-view-vendor-rates-{id}`| Button | Jumps to Vendor Rate Comparison tab pre-filtering target product. |
+| **Procurement Desk (`/po`)** | `#input-po-number` | Text Input | Alphanumeric PO sequence continuation input (`PO-YYYYMM-XXXX`). |
+| **Procurement Desk (`/po`)** | `#input-po-date` | Date Input | Order placement date (defaults to system date). |
+| **Procurement Desk (`/po`)** | `#select-po-vendor` | Select | Dropdown listing active verified pharmaceutical suppliers. |
+| **Procurement Desk (`/po`)** | `#input-po-delivery` | Date Input | Expected consignment delivery date (defaults to +3 days). |
+| **Procurement Desk (`/po`)** | `#input-po-supply-type` | Text Input | Classification notes (Standard, Cold-Chain, Emergency Replenishment). |
+| **Procurement Desk (`/po`)** | `#select-po-product-{idx}` | Select | Product dropdown in line item builder row. |
+| **Procurement Desk (`/po`)** | `#input-po-qty-{idx}` | Number Input | Line quantity with automatic line total computation. |
+| **Procurement Desk (`/po`)** | `#input-po-rate-{idx}` | Number Input | Purchase rate per unit (auto-populated from master catalog). |
+| **Procurement Desk (`/po`)** | `#btn-remove-po-row-{idx}` | Button | Deletes line item row from PO builder. |
+| **Procurement Desk (`/po`)** | `#btn-add-po-row` | Button | Appends new line item row to the purchase order grid. |
+| **Procurement Desk (`/po`)** | `#btn-save-purchase-order` | Button `[Enter]` | Validates lines, calculates 18% GST, and dispatches PO. |
+| **Procurement Desk (`/po`)** | `#modal-po-dispatch` | Modal Dialog | Supplier WhatsApp & Print Slip container modal. |
+| **Procurement Desk (`/po`)** | `#textarea-po-dispatch-text` | Textarea | Formatted plain-text WhatsApp order slip with line items and totals. |
+| **Procurement Desk (`/po`)** | `#btn-copy-po-whatsapp` | Button | Copies formatted slip to system clipboard with alert confirmation. |
+| **Procurement Desk (`/po`)** | `#btn-open-whatsapp-web` | Link Button | Launches WhatsApp Web with pre-populated message via direct deep link. |
+| **Procurement Desk (`/po`)** | `#btn-close-dispatch-modal` | Button `[Esc]` | Dismisses dispatch modal. |
+| **Procurement Desk (`/po`)** | `#modal-convert-po-purchase` | Modal Dialog | Confirmation dialog for converting approved PO to Inward Purchase Bill. |
+| **Procurement Desk (`/po`)** | `#btn-confirm-convert-po` | Button | Generates inward purchase bill `PUR-PO-XXXX` and redirects to `/purchase`. |
+| **Procurement Desk (`/po`)** | `#btn-close-convert-modal` | Button `[Esc]` | Dismisses conversion modal. |
+| **Procurement Desk (`/po`)** | `#select-rate-comparison-product` | Select | Product selector in Vendor Rate Intelligence matrix. |
+
+#### 2. Master Verification Matrix (20 Automated Suites)
+The entire software stack across all 45 documents is 100% verified via 20 comprehensive automated Selenium suites:
+1. `test_master_all_6_modules_selenium.py` (Sales, Purchase, DN, CN, BKI, BKR)
+2. `test_reports_and_finance_selenium.py` (Financial Reports & Statements)
+3. `test_gst_compliance_selenium.py` (Statutory GSTR-1, 2, 3B Returns)
+4. `test_receipt_payment_settlement_selenium.py` (Customer Receipt & Supplier Payment)
+5. `test_journal_accrual_engine_selenium.py` (Multi-Leg Journal Accruals)
+6. `test_direct_expense_ui_selenium.py` (Direct Expenses & Petty Cash)
+7. `test_fixed_assets_selenium.py` (Fixed Assets & Depreciation)
+8. `test_bank_recon_cash_selenium.py` (BRS & Cash Denomination Counter)
+9. `test_dashboard_bi_control_center_selenium.py` (Executive BI Control Center)
+10. `test_workflow_approval_automation_selenium.py` (Multi-Tier Workflows)
+11. `test_audit_governance_selenium.py` (Cryptographic Audit Trail)
+12. `test_cargo_consignment_selenium.py` (Cargo & Logistics Movement)
+13. `test_freight_logistics_selenium.py` (Freight Rate Master & Recon)
+14. `test_principal_operations_selenium.py` (Principal Custody & Claims)
+15. `test_client_commission_billing_selenium.py` (C&F Billing & Dual-Posting)
+16. `test_pharma_expiry_quarantine_selenium.py` (Expiry Radar & Stock Shifts)
+17. `test_gst_einvoice_eway_selenium.py` (E-Way Bill & IRN Desk)
+18. `test_gstr2b_reconciliation_selenium.py` (GSTR-2B ITC Matching Engine)
+19. `verify_live_vercel_client_creation.py` (Production Cloud Client Onboarding)
+20. `test_procurement_po_replenishment_selenium.py` (Purchase Orders & Replenishment Radar)

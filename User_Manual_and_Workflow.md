@@ -346,9 +346,11 @@ The ERP reporting and double-entry accounting engine has been verified with **10
 
 ---
 
-## 26. Master Screen-by-Screen UI Element & Hotkey Catalog (Updated)
+## 26. Master Screen-by-Screen UI Element & Semantic DOM Catalog
 
-| Screen Context | UI Element Selector / ID | Control Type & Hotkey | Operational Functionality & Business Rule |
+This master catalog documents every semantic DOM ID, control element, keyboard hotkey, and business validation rule implemented across the ERP application. Developers and QA engineers must ensure all DOM selectors remain stable.
+
+| Screen Context & Route | UI Element Selector / ID | Control Type & Hotkey | Operational Functionality, Business Logic & Validation Rules |
 | :--- | :--- | :--- | :--- |
 | **Counter Workbench (`/`)** | `#hub-btn-sales-bill` | Button `[F2]` | Opens Counter Sales Billing screen with sequential invoice continuation. |
 | **Counter Workbench (`/`)** | `#hub-btn-receipt-voucher` | Button `[F6]` | Opens Customer Collection & Receipt Voucher screen. |
@@ -360,160 +362,565 @@ The ERP reporting and double-entry accounting engine has been verified with **10
 | **Counter Workbench (`/`)** | `#hub-btn-admin-tracking` | Button `[Ctrl+6]` | Launches Enterprise Multi-Client Operations Radar. |
 | **Counter Workbench (`/`)** | `#hub-btn-audit-trail` | Button | Opens Cryptographic SHA-256 Audit Trail Explorer. |
 | **Counter Workbench (`/`)** | `#modal-exit-app` | Modal `[Esc]` | Application exit confirmation dialog with Exit `[Enter]` and Cancel `[Esc]`. |
-| **Header** | `#btn-workflow-dropdown` | Dropdown `[F4]` | Expands workflows menu with Inbox, Designer, Monitor, Audit Trail, and Governance. |
-| **Header** | `parent-menu-btn-cf` | Dropdown | Expands C&F & Logistics menu with Principal, Commission, Radar, Cargo, Freight, Recon. |
-| **Receipt Voucher (`/receipt`)** | `#btn-auto-allocate-fifo` | Button `[Alt+A]` | Executes FIFO auto-allocation across pending customer invoices. |
-| **Payment Voucher (`/payment`)** | `#btn-auto-allocate-fifo` | Button `[Alt+A]` | Executes FIFO auto-allocation across pending vendor purchase bills. |
+| **Application Header** | `#btn-workflow-dropdown` | Dropdown `[F4]` | Expands workflows menu with Inbox, Designer, Monitor, Audit Trail, and Governance. |
+| **Application Header** | `parent-menu-btn-cf` | Dropdown | Expands C&F & Logistics menu with Principal, Commission, Radar, Cargo, Freight, Recon. |
+| **Counter Sales (`/sales`)** | `#input-bill-series` | Input | Alphanumeric sales invoice sequence input (`SLS-YYYY-XXXX`). Edits auto-saved to localStorage. |
+| **Counter Sales (`/sales`)** | `#btn-search-party` | Button `[F7]` | Opens Debtor Party search modal with real-time balance, drug license numbers, and GSTIN. |
+| **Counter Sales (`/sales`)** | `#grid-bill-items` | Grid Table | 8-Row Marg billing grid (Item, Pack, Batch, Exp, Qty, Free, Rate, Dis%, GST%). `Enter` walks fields. |
+| **Counter Sales (`/sales`)** | `#btn-batch-modal` | Button `[F3]` | Opens Batch Selection modal showing stock, expiry dates, and MRP for the active product. |
+| **Counter Sales (`/sales`)** | `#btn-settlement-modal` | Button `[End]` | Opens Settlement & Payment Mode modal (Cash, Bank, Credit, Cheque) with round-off preview. |
+| **Counter Sales (`/sales`)** | `#btn-save-bill` | Button `[Ctrl+S]` | Validates items, decrements batch stock, posts double-entry GL voucher, advances bill sequence. |
+| **Purchase Inward (`/purchase`)** | `#input-purchase-series` | Input | Inward purchase sequence series input (`PUR-YYYY-XXXX`). |
+| **Purchase Inward (`/purchase`)** | `#input-vendor-inv-no` | Input | Supplier's external invoice reference number (`party_inv_no`). |
+| **Purchase Inward (`/purchase`)** | `#btn-search-vendor` | Button `[F7]` | Creditor vendor search popup with live ledger balance and payment terms. |
+| **Purchase Inward (`/purchase`)** | `#btn-save-purchase` | Button `[Ctrl+S]` | Commits purchase, creates batches, updates physical stock, and posts accounts payable. |
+| **Purchase Register (`/purchase/list`)** | `#grid-purchase-bills` | Ag-Grid | Inward purchase bills register with search, filter, and bilateral dual-post tags. |
+| **Supplier Debit Note (`/purchase-return`)** | `#btn-mode-against-bill` | Button `[F2]` | Activates Against Inward Bill mode to load original purchase line items. |
+| **Supplier Debit Note (`/purchase-return`)** | `#btn-mode-loose` | Button `[F3]` | Activates Loose Return mode for ad-hoc debit note issuance. |
+| **Supplier Debit Note (`/purchase-return`)** | `#select-stock-disposition` | Dropdown | Directs returned goods to `Saleable`, `Breakage Godown`, or `Expired Godown`. |
+| **Supplier Debit Note (`/purchase-return`)** | `#btn-save-debit-note` | Button `[Ctrl+S]` | Posts debit note, adjusts inventory, generates reverse GL and ITC reversal entries. |
+| **Customer Credit Note (`/sales-return`)** | `#btn-mode-against-bill` | Button `[F2]` | Activates Against Sales Bill mode to retrieve customer invoice lines. |
+| **Customer Credit Note (`/sales-return`)** | `#btn-mode-counter` | Button `[F3]` | Activates Counter Return mode with returnable quantity caps. |
+| **Customer Credit Note (`/sales-return`)** | `#btn-save-credit-note` | Button `[Ctrl+S]` | Saves credit note, increments stock, auto-posts sales return GL entries. |
+| **Breakage Receive (`/brk-receive`)** | `#input-bkr-series` | Input | Alphanumeric Breakage Receive series continuation (`BKR-YYYY-XXXX`). |
+| **Breakage Receive (`/brk-receive`)** | `#btn-save-bkr` | Button `[Ctrl+S]` | Posts breakage receive, routing stock strictly into quarantined `brk_exp_stock`. |
+| **Breakage Issue (`/brk-issue`)** | `#input-bki-series` | Input | Alphanumeric Breakage Issue series continuation (`BKI-YYYY-XXXX`). |
+| **Breakage Issue (`/brk-issue`)** | `#btn-save-bki` | Button `[Ctrl+S]` | Posts breakage issue to manufacturer, decrementing `brk_exp_stock`. |
+| **Customer Receipt (`/receipt`)** | `#voucher-series-input` | Input | Alphanumeric receipt series continuation (`REC-YYYY-XXXX`). |
+| **Customer Receipt (`/receipt`)** | `#party-search-input` | Input `[F7]` | Triggers Debtor Party Search modal with live running balance and drug licenses. |
+| **Customer Receipt (`/receipt`)** | `#voucher-amount-input` | Input | Payout amount; automatically recalculates unallocated floating credit dynamically. |
+| **Customer Receipt (`/receipt`)** | `#btn-auto-allocate-fifo` | Button `[Alt+A]` | Executes FIFO auto-allocation across pending customer invoices. |
+| **Customer Receipt (`/receipt`)** | `#btn-post-voucher` | Button `[Ctrl+S]` | Posts receipt voucher to GL, updates ledger balances, increments sequence series. |
+| **Supplier Payment (`/payment`)** | `#voucher-series-input` | Input | Alphanumeric payment series continuation (`PAY-YYYY-XXXX`). |
+| **Supplier Payment (`/payment`)** | `#party-search-input` | Input `[F7]` | Triggers Creditor Vendor Search modal with live running balance and bank details. |
+| **Supplier Payment (`/payment`)** | `#btn-auto-allocate-fifo` | Button `[Alt+A]` | Executes FIFO auto-allocation across pending vendor purchase bills. |
+| **Journal Voucher (`/journal`)** | `#input-journal-series` | Input | Alphanumeric Journal series continuation (`JRN-YYYY-XXXX`). |
+| **Journal Voucher (`/journal`)** | `#btn-auto-balance-gl` | Button `[Ctrl+B]` | Automatically calculates and inserts balancing Dr/Cr line. |
+| **Journal Voucher (`/journal`)** | `#btn-add-journal-leg` | Button `[Alt+A]` | Adds new ledger line item row to journal entry grid. |
+| **Journal Voucher (`/journal`)** | `#check-schedule-accrual` | Checkbox | Configures scheduled automatic GL reversal on 1st of subsequent month. |
+| **Journal Voucher (`/journal`)** | `#btn-post-journal` | Button `[Ctrl+S]` | Validates sum(Dr) == sum(Cr) and commits journal voucher to GL. |
+| **Journal Register (`/finance/journal-register`)** | `#btn-reverse-journal` | Button | 1-Click atomic GL reversal with linked audit trail. |
+| **Direct Expense Desk (`/finance/expenses`)** | `#input-expense-amount` | Input | Expense payout amount with live P&L impact preview. |
+| **Direct Expense Desk (`/finance/expenses`)** | `#select-expense-account` | Select | Dropdown listing 10 statutory P&L expense heads. |
+| **Direct Expense Desk (`/finance/expenses`)** | `#btn-post-expense` | Button | Posts direct cash/bank expense voucher debiting P&L immediately. |
+| **Fixed Assets (`/finance/assets`)** | `#btn-register-asset` | Button `[F2]` | Opens modal to register capital asset with Schedule II statutory category. |
+| **Fixed Assets (`/finance/assets`)** | `#btn-run-depreciation` | Button `[F5]` | Executes periodic WDV/SLM depreciation run across active assets. |
+| **Bank Recon (`/finance/bank-reconciliation`)** | `#btn-auto-match-brs` | Button | Runs auto-matching algorithm against imported bank statement CSV. |
+| **Bank Recon (`/finance/bank-reconciliation`)** | `#btn-cash-drawer-tally` | Button `[F8]` | Opens RBI physical currency denomination counter and cash discrepancy report. |
+| **Audit Explorer (`/audit`)** | `#input-audit-search` | Input `[Ctrl+F]` | Fuzzy search across audit trail by document number, actor, or reason. |
 | **Audit Explorer (`/audit`)** | `#btn-verify-chain` | Button | Traverses cryptographic SHA-256 hash chain and certifies 100% integrity. |
+| **Audit Explorer (`/audit`)** | `#drawer-audit-diff` | Drawer `[Enter]` | Slides over before/after field diff with sensitive data masking. |
+| **Audit Explorer (`/audit`)** | `#btn-export-evidence-pack` | Button `[E]` | Generates auditor-compliant sealed JSON evidence pack. |
+| **Governance (`/audit/governance`)** | `#tab-retention-policies` | Tab | Displays statutory retention schedules and 2,920-day MCA/GST policies. |
+| **Governance (`/audit/governance`)** | `#btn-apply-legal-hold` | Button | Opens modal to establish statutory litigation preservation legal hold. |
+| **Governance (`/audit/governance`)** | `#grid-forensic-anomalies` | Grid | Displays real-time anomaly detection radar for velocity and after-hours edits. |
 | **Cargo Board (`/cargo`)** | `#btn-register-consignment` | Button `[F6]` | Opens consignment registration modal with volumetric CBM calculator. |
-| **Freight Master (`/freight/contracts`)** | `#tab-btn-sandbox` | Tab `[F4]` | Evaluates live freight calculations with formula trace. |
+| **Cargo Board (`/cargo`)** | `#drawer-consignment-detail` | Drawer | Slide-over drawer showing package barcodes, weights, and status advance. |
+| **Cargo Costs (`/cargo/costs`)** | `#toggle-combined-reporting` | Toggle | Switches between single-tenant and aggregated multi-client MIS view. |
+| **POD Desk (`/cargo/pod-exceptions`)** | `#btn-record-delivery-pod` | Button | Submits delivery POD with accepted vs short/damaged quantity validation. |
+| **Freight Master (`/freight/contracts`)** | `#btn-new-contract` | Button `[F2]` | Opens modal to create new carrier contract with lane slabs. |
+| **Freight Master (`/freight/contracts`)** | `#tab-btn-rate-cards` | Tab `[F2]` | Carrier rate card directory. |
+| **Freight Master (`/freight/contracts`)** | `#tab-btn-sandbox` | Tab `[F4]` | Freight calculation rating sandbox evaluating fuel surcharges and minimums. |
+| **Freight Recon (`/freight/reconciliation`)** | `#tab-btn-unreconciled` | Tab `[F2]` | Unmatched freight vouchers workbench for 3-way variance auditing. |
 | **Principal (`/principal`)** | `#btn-open-claim-modal` | Button `[F7]` | Opens Principal breakage/damage claim modal with [Esc] dismissal. |
-| **Commission (`/commission`)** | `#tab-btn-client-billing` | Tab `[F5]` | Opens Client Management C&F Commission & Expense Billing Desk. |
-| **Commission (`/commission`)** | `#btn-autofetch-client-telemetry` | Button | 1-Click Auto-Fetch client sales turnover and depot operating expenses. |
+| **Principal (`/principal`)** | `#tab-btn-custody` | Tab `[F2]` | Principal custody inventory stock matrix showing SKU segregation. |
+| **Principal (`/principal`)** | `#tab-btn-claims` | Tab `[F3]` | Principal claims & returns register. |
+| **Principal (`/principal`)** | `#tab-btn-reconciliation` | Tab `[F4]` | 3-Way physical vs ledger reconciliation workspace. |
+| **Principal (`/principal`)** | `#tab-btn-statement` | Tab `[F5]` | Periodic business reconciliation statement with cryptographic hash. |
+| **Commission (`/commission`)** | `#tab-btn-agreements` | Tab `[F2]` | 4-Pillar C&F deal terms and rate cards (Storage, Staff, Freight, Comm %). |
+| **Commission (`/commission`)** | `#tab-btn-sandbox` | Tab `[F3]` | Deterministic calculation sandbox & formula trace. |
+| **Commission (`/commission`)** | `#tab-btn-claims` | Tab `[F4]` | Recovery claims desk & dual-post action. |
+| **Commission (`/commission`)** | `#tab-btn-client-billing` | Tab `[F5]` | Client C&F Commission & Expense Billing Desk. |
+| **Commission (`/commission`)** | `#client-billing-org-select` | Select | Client organization dropdown selector (e.g. Krishna Medical Agencies). |
+| **Commission (`/commission`)** | `#btn-autofetch-client-telemetry` | Button | 1-Click Auto-Fetch turnover and depot operating expenses. |
+| **Commission (`/commission`)** | `#input-billing-turnover` | Input | Client sales turnover input base for commission calculation. |
+| **Commission (`/commission`)** | `#input-billing-comm-rate` | Input | Commission percentage input (e.g. 5.0%). |
+| **Commission (`/commission`)** | `#input-billing-rent` | Input | Godown storage rent reimbursement input. |
+| **Commission (`/commission`)** | `#input-billing-salary` | Input | Depot staff salaries reimbursement input. |
+| **Commission (`/commission`)** | `#input-billing-freight` | Input | Freight & transport recharge input. |
 | **Commission (`/commission`)** | `#check-dual-post-purchase` | Checkbox | Toggles automated dual-posting into the client company's inward purchase register. |
 | **Commission (`/commission`)** | `#btn-generate-client-bill` | Button | Atomically creates outward bill (`CF-BILL-`) and inward purchase bill (`PUR-CF-`). |
-| **Commission (`/commission`)** | `#btn-goto-outward-billing` | Button `[F7]` | Quick jump to Outward Bill in Billing Desk. |
-| **Commission (`/commission`)** | `#btn-goto-inward-purchase` | Button `[F9]` | Quick jump to Inward Bill in Purchase Register. |
-| **Radar (`/admin/tracking`)** | `#select-tracking-scope` | Dropdown | Toggles between Consolidated multi-client view and single-client isolation. |
-| **Radar (`/admin/tracking`)** | `#tab-btn-scorecards` | Tab `[F2]` | Displays comparative client scorecards matrix with 1-click drilldown. |
-| **Radar (`/admin/tracking`)** | `#tab-btn-sales` | Tab `[F3]` | Displays multi-client sales invoice register with client attribution. |
-| **Radar (`/admin/tracking`)** | `#tab-btn-expenses` | Tab `[F4]` | Displays multi-client operational expense claims. |
-| **Radar (`/admin/tracking`)** | `#tab-btn-cargo` | Tab `[F6]` | Displays active cargo logistics pipeline with in-transit pulse. |
-| **Expiry Cockpit (`/inventory-dashboard`)** | `#card-main-stock` | Scorecard | Displays real-time Main Saleable Stock Value and Healthy Units count. |
-| **Expiry Cockpit (`/inventory-dashboard`)** | `#card-quarantine-stock` | Scorecard | Displays Quarantined Stock Value and Segregated Units count in `brk_exp_stock`. |
-| **Expiry Cockpit (`/inventory-dashboard`)** | `#card-near-expiry-risk` | Scorecard | Displays 90-Day Near-Expiry Risk Valuation and Batches count. |
-| **Expiry Cockpit (`/inventory-dashboard`)** | `#card-claim-exposure` | Scorecard | Displays active Principal Claims & Debit Note exposure. |
-| **Expiry Cockpit (`/inventory-dashboard`)** | `#tab-btn-radar` | Tab `[F2]` | Opens Expiry Radar table with alert pills and search filters. |
-| **Expiry Cockpit (`/inventory-dashboard`)** | `#btn-select-all-batches` | Button | Toggles multi-batch selection across all active radar candidates. |
-| **Expiry Cockpit (`/inventory-dashboard`)** | `#btn-shift-selected-action` | Button `[F7]` | Shifts chosen batches to quarantine and opens Stock Shift Voucher desk. |
-| **Expiry Cockpit (`/inventory-dashboard`)** | `#tab-btn-quarantine` | Tab `[F3]` | Displays Quarantined Stock Ledger with direct claim filing action. |
-| **Expiry Cockpit (`/inventory-dashboard`)** | `#tab-btn-history` | Tab `[F4]` | Displays Stock Shift Audit Register with linked claim badges. |
-| **Stock Shift (`/stock-shift`)** | `#select-from-godown` | Dropdown | Selects source godown (Main Saleable Godown). |
-| **Stock Shift (`/stock-shift`)** | `#select-to-godown` | Dropdown | Selects destination godown (Quarantine / Expiry Godown). |
-| **Stock Shift (`/stock-shift`)** | `#check-auto-claim` | Checkbox | Toggles automated generation of official Principal Expiry Claim (`CLM-PRN-`). |
-| **Stock Shift (`/stock-shift`)** | `#select-principal-claim-target` | Dropdown | Selects Principal entity for claim filing. |
-| **Stock Shift (`/stock-shift`)** | `#tbl-shift-items` | Grid | Shift line items grid with product, batch, exp, qty, rate, value. |
-| **Stock Shift (`/stock-shift`)** | `#btn-save-shift-voucher` | Button `[F7]` | Executes atomic stock shift reallocation and files debit note claim. |
-| **Stock Shift (`/stock-shift`)** | `#stock-shift-success-card` | Banner | Displays generated voucher (`SHF-2026-XXXX`) and claim reference. |
-| **Stock Shift (`/stock-shift`)** | `#lbl-success-voucher-no` | Label | Generated shift voucher number. |
-| **Stock Shift (`/stock-shift`)** | `#lbl-success-claim-no` | Label | Generated principal claim number. |
-| **Stock Shift (`/stock-shift`)** | `#btn-view-in-audit` | Button `[F2]` | Navigates to Stock Shift Audit Register. |
-| **Stock Shift (`/stock-shift`)** | `#btn-view-claim-desk` | Button `[F8]` | Navigates to Principal Claims Desk (`/principal`). |
-| **Sales Bill (`/sales`)** | `#input-bill-series` | Input | Alphanumeric sales invoice sequence. |
-| **Sales Bill (`/sales`)** | `#btn-search-party` | Button `[F7]` | Party lookup modal with live balance. |
-| **Sales Bill (`/sales`)** | `#btn-batch-modal` | Button `[F3]` | Batch selection popup. |
-| **Sales Bill (`/sales`)** | `#btn-settlement-modal` | Button `[End]` | Settlement discount & payment modal. |
-| **Sales Bill (`/sales`)** | `#btn-save-bill` | Button `[Ctrl+S]` | Saves bill and updates stock & GL. |
-| **Purchase Bill (`/purchase`)** | `#input-purchase-series` | Input | Inward purchase sequence series. |
-| **Purchase Bill (`/purchase`)** | `#btn-search-vendor` | Button `[F7]` | Vendor lookup with live ledger balance. |
-| **Purchase Bill (`/purchase`)** | `#btn-save-purchase` | Button `[Ctrl+S]` | Commits purchase to inventory and accounts payable. |
-| **Customer Credit Note (`/sales-return`)**| `#btn-mode-against-bill` | Button `[F2]` | Loads original sales invoice lines. |
-| **Customer Credit Note (`/sales-return`)**| `#btn-mode-counter` | Button `[F3]` | Direct counter return entry. |
-| **Supplier Debit Note (`/purchase-return`)**| `#btn-mode-against-bill`| Button `[F2]` | Loads original inward purchase bill lines. |
-| **Supplier Debit Note (`/purchase-return`)**| `#select-stock-disposition` | Dropdown | Directs returned goods to Saleable, Breakage, or Expired. |
-| **Breakage Receive (`/brk-receive`)** | `#btn-save-bkr` | Button `[Ctrl+S]` | Routes damaged goods to `brk_exp_stock`. |
-| **Breakage Issue (`/brk-issue`)** | `#btn-save-bki` | Button `[Ctrl+S]` | Returns damaged goods to manufacturer. |
-| **Journal Voucher (`/journal`)** | `#btn-auto-balance-gl` | Button `[Ctrl+B]` | Auto-inserts balancing Dr/Cr line. |
-| **Journal Voucher (`/journal`)** | `#check-schedule-accrual` | Checkbox | Schedules automatic 1st-of-month reversal. |
-| **Expense Desk (`/finance/expenses`)** | `#btn-post-expense` | Button | Posts direct cash/bank expense to P&L. |
-| **Fixed Assets (`/finance/fixed-assets`)**| `#btn-run-depreciation` | Button `[F5]` | Runs periodic WDV/SLM depreciation. |
-| **Bank Recon (`/finance/bank-reconciliation`)**| `#btn-cash-drawer-tally` | Button `[F8]` | RBI denomination counter and cash discrepancy report. |
-| **GST Workbench (`/gst`)** | `#btn-export-gstn-json` | Button | Exports official JSON payload for `gst.gov.in`. |
-| **Workflow Inbox (`/workflow/inbox`)** | `#btn-approve-task` | Button | Approves task with maker-checker security. |
-| **Party Master (`/master/parties`)** | `#btn-new-party` | Button `[F2]` | Opens new customer/vendor creation modal. |
-| **Current Stock (`/stock`)** | `#input-stock-search` | Input | Instant search across formulations and batches. |
-| **Replenishment (`/inventory/replenishment`)**| `#btn-generate-reorder` | Button | Calculates reorder quantities based on velocity. |
-| **Compliance Desk (`/compliance`)** | `#card-qualifying-invoices` | Scorecard | Displays qualifying outbound consignments (≥ ₹50,000). |
-| **Compliance Desk (`/compliance`)** | `#card-pending-eway` | Scorecard | Consignments awaiting Part B transport slips. |
-| **Compliance Desk (`/compliance`)** | `#card-generated-irn` | Scorecard | Consignments certified with cryptographic IRN hashes. |
-| **Compliance Desk (`/compliance`)** | `#card-compliance-rate` | Scorecard | Live percentage statutory compliance progress bar. |
+| **Commission (`/commission`)** | `#generated-bill-success-card` | Banner | Success feedback card with outward/inward invoice numbers. |
+| **Commission (`/commission`)** | `#btn-goto-outward-billing` | Button `[F7]` | Jump to Outward Bill in Billing Desk. |
+| **Commission (`/commission`)** | `#btn-goto-inward-purchase` | Button `[F9]` | Jump to Inward Bill in Purchase Register. |
+| **Radar (`/admin/tracking`)** | `#select-tracking-scope` | Select | Consolidated vs single client scope selector. |
+| **Radar (`/admin/tracking`)** | `#card-tracking-sales` | Metric Card | Gross sales turnover KPI scorecard. |
+| **Radar (`/admin/tracking`)** | `#card-tracking-expenses` | Metric Card | Operating expenses & C&F KPI scorecard. |
+| **Radar (`/admin/tracking`)** | `#card-tracking-cargo` | Metric Card | Cargo consignments pipeline KPI card. |
+| **Radar (`/admin/tracking`)** | `#tab-btn-scorecards` | Tab `[F2]` | Client operational scorecards matrix tab with 1-click drilldown. |
+| **Radar (`/admin/tracking`)** | `#tab-btn-sales` | Tab `[F3]` | Cross-client sales ledger tab. |
+| **Radar (`/admin/tracking`)** | `#tab-btn-expenses` | Tab `[F4]` | Multi-client expense claims tab. |
+| **Radar (`/admin/tracking`)** | `#tab-btn-cargo` | Tab `[F6]` | Logistics pipeline tracking tab. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#card-main-stock` | Metric Card | Main Saleable Stock Value & Healthy Units KPI scorecard. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#card-quarantine-stock` | Metric Card | Quarantined / Brk-Exp Stock Value KPI scorecard. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#card-near-expiry-risk` | Metric Card | 90-Day Near-Expiry Risk Batches KPI scorecard. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#card-claim-exposure` | Metric Card | Principal Claims & Debit Note Exposure KPI scorecard. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#tab-btn-radar` | Tab `[F2]` | Expiry Radar table and alert filters tab. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#filter-bucket-ALL` | Filter Pill | All Critical near-expiry filter pill. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#filter-bucket-EXPIRED` | Filter Pill | Expired stock (<0d) filter pill. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#filter-bucket-30_DAYS` | Filter Pill | Critical <30 days near-expiry filter pill. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#filter-bucket-60_DAYS` | Filter Pill | Warning <60 days near-expiry filter pill. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#filter-bucket-90_DAYS` | Filter Pill | Attention <90 days near-expiry filter pill. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#filter-company-select` | Select | Manufacturer / Principal dropdown filter. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#search-batches-input` | Text Input | Batch / SKU search text input. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#tbl-expiry-radar` | Grid Table | Real-time batch surveillance table. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#btn-select-all-batches` | Checkbox | Multi-batch select all checkbox toggle. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#btn-shift-selected-action` | Button `[F7]` | Shift selected batches to quarantine action button. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#tab-btn-quarantine` | Tab `[F3]` | Quarantined & Breakage Stock Ledger tab. |
+| **Expiry Cockpit (`/inventory-dashboard`)** | `#tab-btn-history` | Tab `[F4]` | Stock Shift Audit Register historical vouchers tab. |
+| **Stock Shift Desk (`/stock-shift`)** | `#select-from-godown` | Select | Source Godown selector (Main Saleable Godown). |
+| **Stock Shift Desk (`/stock-shift`)** | `#select-to-godown` | Select | Destination Godown selector (Quarantine / Expiry Godown). |
+| **Stock Shift Desk (`/stock-shift`)** | `#check-auto-claim` | Checkbox | Auto-generate Principal claim & debit note checkbox. |
+| **Stock Shift Desk (`/stock-shift`)** | `#select-principal-claim-target` | Select | Target Principal dropdown (Sun Pharma, Cipla, Krishna). |
+| **Stock Shift Desk (`/stock-shift`)** | `#tbl-shift-items` | Grid Table | Shift line items grid with product, batch, exp, qty, rate, value. |
+| **Stock Shift Desk (`/stock-shift`)** | `#btn-save-shift-voucher` | Button `[F7]` | Save Shift Voucher & execute atomic stock reallocation. |
+| **Stock Shift Desk (`/stock-shift`)** | `#stock-shift-success-card` | Banner | Shift success card with voucher and claim references. |
+| **Stock Shift Desk (`/stock-shift`)** | `#lbl-success-voucher-no` | Label | Generated Stock Shift Voucher number (`SHF-2026-XXXX`). |
+| **Stock Shift Desk (`/stock-shift`)** | `#lbl-success-claim-no` | Label | Generated Principal Claim reference (`CLM-PRN-XXXX`). |
+| **Stock Shift Desk (`/stock-shift`)** | `#btn-view-in-audit` | Button `[F2]` | View voucher in Stock Shift Audit Register. |
+| **Stock Shift Desk (`/stock-shift`)** | `#btn-view-claim-desk` | Button `[F8]` | Jump to Principal Claims Desk. |
+| **Compliance Desk (`/compliance`)** | `#card-qualifying-invoices` | Metric Card | Telemetry scorecard for qualifying outbound consignments (>= Rs. 50,000). |
+| **Compliance Desk (`/compliance`)** | `#card-pending-eway` | Metric Card | Consignments pending E-Way Bill Part A & B transport slips. |
+| **Compliance Desk (`/compliance`)** | `#card-generated-irn` | Metric Card | Invoices with verified cryptographic IRN and digital QR codes. |
+| **Compliance Desk (`/compliance`)** | `#card-compliance-rate` | Metric Card | Live statutory compliance rating and color-coded progress bar. |
 | **Compliance Desk (`/compliance`)** | `#btn-open-transport-modal` | Button `[F7]` | Opens Transporter & Vehicle Assignment modal (`#modal-transport-assignment`). |
 | **Compliance Desk (`/compliance`)** | `#btn-export-nic-json` | Button `[F8]` | Exports official Government NIC Schema 1.1 Bulk Upload JSON. |
 | **Compliance Desk (`/compliance`)** | `#btn-confirm-generate-compliance` | Button `[Enter]` | 1-Click generation of 64-char IRN, 15-digit Ack No, 12-digit E-Way Bill. |
 | **Compliance Desk (`/compliance`)** | `#btn-print-slip-dialog` | Button | Print trigger for official Government of India CBIC two-part delivery slip. |
+| **Transport Modal (`/compliance`)** | `#modal-transport-assignment` | Modal Dialog | Modal for configuring carrier, vehicle registration, and distance. |
+| **Transport Modal (`/compliance`)** | `#select-transporter-id` | Select | Dropdown listing registered transporter logistics partners. |
+| **Transport Modal (`/compliance`)** | `#input-vehicle-number` | Text Input | Transporter conveyance vehicle registration number (e.g. DL-01-AB-1234). |
+| **Transport Modal (`/compliance`)** | `#input-transit-distance` | Number Input | Transit distance in KM; auto-computes validity (1 day per 200 KM). |
+| **Transport Modal (`/compliance`)** | `#btn-assign-transport-submit` | Button | Saves vehicle details to consignment record. |
+| **CBIC Slip Modal (`/compliance`)** | `#modal-eway-slip-preview` | Modal Dialog | Full-screen official Government of India CBIC delivery slip preview. |
 | **GST Workbench (`/gst`)** | `#tab-gstr2b` | Tab `[F5]` | Activates GSTR-2B ITC Matching Engine workbench. |
-| **GST Workbench (`/gst`)** | `#metric-2b-total-itc` | Scorecard | Total auto-drafted ITC available in GSTR-2B statements. |
-| **GST Workbench (`/gst`)** | `#metric-2b-safe-itc` | Scorecard | Safe & Claimable ITC meeting Section 16(2)(aa) statutory rules. |
-| **GST Workbench (`/gst`)** | `#metric-2b-at-risk-itc` | Scorecard | At-risk blocked ITC missing in 2B or with tax mismatches. |
-| **GST Workbench (`/gst`)** | `#metric-2b-unclaimed-itc` | Scorecard | Unclaimed credit in 2B unbooked in internal ERP ledgers. |
-| **GST Workbench (`/gst`)** | `#btn-tolerance-1`, `5`, `10` | Buttons | Switches differential matching tolerance ($\pm ₹1$, $\pm ₹5$, $\pm ₹10$). |
+| **GST Workbench (`/gst`)** | `#metric-2b-total-itc` | Metric Card | Total auto-drafted ITC available in GSTR-2B statements. |
+| **GST Workbench (`/gst`)** | `#metric-2b-safe-itc` | Metric Card | Safe & Claimable ITC meeting Section 16(2)(aa) statutory rules. |
+| **GST Workbench (`/gst`)** | `#metric-2b-at-risk-itc` | Metric Card | At-risk blocked ITC missing in 2B or with tax mismatches. |
+| **GST Workbench (`/gst`)** | `#metric-2b-unclaimed-itc` | Metric Card | Unclaimed credit in 2B unbooked in internal ERP ledgers. |
+| **GST Workbench (`/gst`)** | `#btn-tolerance-1`, `5`, `10` | Button Group | Switches differential matching tolerance (+-Rs.1, +-Rs.5, +-Rs.10). |
 | **GST Workbench (`/gst`)** | `#btn-bulk-approve-itc` | Button | 1-Click bulk approval of matched records for GSTR-3B Table 4(A)(5). |
-| **GST Workbench (`/gst`)** | `#modal-supplier-dunning` | Modal | Section 16(2)(aa) notice generator with direct WhatsApp sharing. |
-| **GST Workbench (`/gst`)** | `#modal-ingest-portal-2b` | Modal | Official Government GST Portal GSTR-2B JSON statement ingestion. |
-| **Login Screen (`/login`)** | `#btn-quick-fill-admin` | Button | 1-Click preset button filling `AM-0001` / `admin` / `Admin@123`. |
-| **Login Screen (`/login`)** | `#btn-quick-fill-client` | Button | 1-Click preset button filling `KMA` / `SAN` / `Admin@123`. |
+| **GST Workbench (`/gst`)** | `#modal-supplier-dunning` | Modal Dialog | Section 16(2)(aa) notice generator with direct WhatsApp sharing. |
+| **GST Workbench (`/gst`)** | `#textarea-dunning-message` | Textarea | Pre-filled legal dunning notice body with invoice and tax numbers. |
+| **GST Workbench (`/gst`)** | `#btn-copy-dunning` | Button | Copies Section 16(2)(aa) notice text to clipboard. |
+| **GST Workbench (`/gst`)** | `#btn-send-whatsapp` | Link Button | Dispatches notice directly to supplier WhatsApp Web/Mobile. |
+| **GST Workbench (`/gst`)** | `#modal-ingest-portal-2b` | Modal Dialog | Official Government GST Portal GSTR-2B JSON statement ingestion dialog. |
+| **GST Workbench (`/gst`)** | `#textarea-json-2b` | Textarea | Ingests official b2b/cdnr payload from gst.gov.in. |
+| **Login Screen (`/login`)** | `#btn-quick-fill-admin` | Button / Chip | 1-Click preset button filling AM-0001 / admin / Admin@123. |
+| **Login Screen (`/login`)** | `#btn-quick-fill-client` | Button / Chip | 1-Click preset button filling KMA / SAN / Admin@123. |
 | **Login Screen (`/login`)** | `#btn-demo-login` | Button | 1-Click full cloud access button authenticating with live backend. |
 | **Client Management (`/clients`)** | `#btn-register-new-client` | Button | Opens Register Client Modal. |
 | **Client Management (`/clients`)** | `#btn-open-enterprise-radar` | Button | Direct launcher to Enterprise Multi-Client Operations Radar (`/admin/tracking`). |
-| **Register Client Modal** | `#input-client-org-name` | Input | Client organization legal entity name. |
-| **Register Client Modal** | `#input-client-org-code` | Input | Alphanumeric tenant code (auto-capitalized). |
-| **Register Client Modal** | `#input-client-admin-name` | Input | Initial Client Admin display name. |
-| **Register Client Modal** | `#input-client-admin-username` | Input | Initial Client Admin login username. |
-| **Register Client Modal** | `#input-client-admin-password` | Input | Initial Client Admin password (min 6 chars). |
-| **Register Client Modal** | `#btn-cancel-register-client` | Button | Dismisses modal dialog (`[Esc]`). |
-| **Register Client Modal** | `#btn-submit-register-client` | Button | Submits client registration form to cloud backend. |
+| **Register Client Modal** | `#input-client-org-name` | Text Input | Client organization legal entity name (min 3 chars). |
+| **Register Client Modal** | `#input-client-org-code` | Text Input | Alphanumeric tenant code (e.g. AMC-F5BA; auto-capitalized). |
+| **Register Client Modal** | `#input-client-admin-name` | Text Input | Initial Client Admin display name. |
+| **Register Client Modal** | `#input-client-admin-username` | Text Input | Initial Client Admin login username. |
+| **Register Client Modal** | `#input-client-admin-password` | Password Input | Initial Client Admin password (min 6 chars). |
+| **Register Client Modal** | `#btn-cancel-register-client` | Button `[Esc]` | Dismisses modal dialog. |
+| **Register Client Modal** | `#btn-submit-register-client` | Button | Submits client registration form to cloud backend with JWT header. |
+| **Procurement Desk (`/po`)** | `#card-critical-stock` | Metric Card | Displays count of emergency zero-stock SKUs requiring replenishment. |
+| **Procurement Desk (`/po`)** | `#card-reorder-stock` | Metric Card | Displays count of SKUs below safety stock reorder thresholds. |
+| **Procurement Desk (`/po`)** | `#card-replenishment-budget` | Metric Card | Total estimated capital outlay required to restore target inventory. |
+| **Procurement Desk (`/po`)** | `#card-pending-pos` | Metric Card | Total count and valuation of open/in-transit purchase orders. |
+| **Procurement Desk (`/po`)** | `#tab-po-directory` | Button `[F1]` | Switches to Master Purchase Order Directory grid. |
+| **Procurement Desk (`/po`)** | `#tab-replenishment-radar` | Button `[F2]` | Switches to Autonomous Stock Replenishment Radar. |
+| **Procurement Desk (`/po`)** | `#tab-create-po` | Button `[F3]` | Switches to Keyboard-Operated PO Authoring Workbench. |
+| **Procurement Desk (`/po`)** | `#tab-vendor-rates` | Button `[F4]` | Switches to Multi-Vendor Quotation Rate Intelligence Matrix. |
+| **Procurement Desk (`/po`)** | `#input-search-po` | Text Input | Search filter for PO number, vendor legal name, or line items. |
+| **Procurement Desk (`/po`)** | `#btn-filter-status-all` | Button | Shows all purchase orders in directory. |
+| **Procurement Desk (`/po`)** | `#btn-filter-status-approved` | Button | Filters directory for approved, open purchase orders. |
+| **Procurement Desk (`/po`)** | `#btn-filter-status-completed`| Button | Filters directory for orders converted to inward purchase bills. |
+| **Procurement Desk (`/po`)** | `#btn-filter-status-cancelled`| Button | Filters directory for cancelled purchase orders. |
+| **Procurement Desk (`/po`)** | `#btn-filter-status-draft` | Button | Filters directory for draft purchase orders. |
+| **Procurement Desk (`/po`)** | `#btn-dispatch-po-{id}` | Button | Opens Supplier WhatsApp & Print Slip Modal for targeted PO. |
+| **Procurement Desk (`/po`)** | `#btn-convert-po-purchase-{id}`| Button | Opens Inward Purchase Bill Conversion Confirmation Dialog. |
+| **Procurement Desk (`/po`)** | `#checkbox-select-all` | Checkbox | Selects/deselects all deficit items in Replenishment Radar. |
+| **Procurement Desk (`/po`)** | `#checkbox-item-{id}` | Checkbox | Toggles target deficit line item for bulk PO creation. |
+| **Procurement Desk (`/po`)** | `#btn-bulk-generate-pos` | Button `[F7]` | Dispatches 1-Click Bulk PO Generation grouped by preferred vendor. |
+| **Procurement Desk (`/po`)** | `#btn-view-vendor-rates-{id}`| Button | Jumps to Vendor Rate Comparison tab pre-filtering target product. |
+| **Procurement Desk (`/po`)** | `#input-po-number` | Text Input | Alphanumeric PO sequence continuation input (`PO-YYYYMM-XXXX`). |
+| **Procurement Desk (`/po`)** | `#input-po-date` | Date Input | Order placement date (defaults to system date). |
+| **Procurement Desk (`/po`)** | `#select-po-vendor` | Select | Dropdown listing active verified pharmaceutical suppliers. |
+| **Procurement Desk (`/po`)** | `#input-po-delivery` | Date Input | Expected consignment delivery date (defaults to +3 days). |
+| **Procurement Desk (`/po`)** | `#input-po-supply-type` | Text Input | Classification notes (Standard, Cold-Chain, Emergency Replenishment). |
+| **Procurement Desk (`/po`)** | `#select-po-product-{idx}` | Select | Product dropdown in line item builder row. |
+| **Procurement Desk (`/po`)** | `#input-po-qty-{idx}` | Number Input | Line quantity with automatic line total computation. |
+| **Procurement Desk (`/po`)** | `#input-po-rate-{idx}` | Number Input | Purchase rate per unit (auto-populated from master catalog). |
+| **Procurement Desk (`/po`)** | `#btn-remove-po-row-{idx}` | Button | Deletes line item row from PO builder. |
+| **Procurement Desk (`/po`)** | `#btn-add-po-row` | Button | Appends new line item row to the purchase order grid. |
+| **Procurement Desk (`/po`)** | `#btn-save-purchase-order` | Button `[Enter]` | Validates lines, calculates 18% GST, and dispatches PO. |
+| **Procurement Desk (`/po`)** | `#modal-po-dispatch` | Modal Dialog | Supplier WhatsApp & Print Slip container modal. |
+| **Procurement Desk (`/po`)** | `#textarea-po-dispatch-text` | Textarea | Formatted plain-text WhatsApp order slip with line items and totals. |
+| **Procurement Desk (`/po`)** | `#btn-copy-po-whatsapp` | Button | Copies formatted slip to system clipboard with alert confirmation. |
+| **Procurement Desk (`/po`)** | `#btn-open-whatsapp-web` | Link Button | Launches WhatsApp Web with pre-populated message via direct deep link. |
+| **Procurement Desk (`/po`)** | `#btn-close-dispatch-modal` | Button `[Esc]` | Dismisses dispatch modal. |
+| **Procurement Desk (`/po`)** | `#modal-convert-po-purchase` | Modal Dialog | Confirmation dialog for converting approved PO to Inward Purchase Bill. |
+| **Procurement Desk (`/po`)** | `#btn-confirm-convert-po` | Button | Generates inward purchase bill `PUR-PO-XXXX` and redirects to `/purchase`. |
+| **Procurement Desk (`/po`)** | `#btn-close-convert-modal` | Button `[Esc]` | Dismisses conversion modal. |
+| **Procurement Desk (`/po`)** | `#select-rate-comparison-product` | Select | Product selector in Vendor Rate Intelligence matrix. |
 
 ---
 
 ## 28. Module 28 — DOC-41: Pharma Expiry Radar, Stock Shift Quarantine Engine & Principal Debit Note Settlement Desk
 
-### 28.1 Workflow Summary & Core Objectives
-1. **Real-Time Expiry Radar**: Operators monitor active inventory across 4 risk horizons: 🔴 Expired ($\le 0$ days), 🟠 Critical ($\le 30$ days), 🟡 Warning ($\le 60$ days), and 🔵 Attention ($\le 90$ days).
-2. **Atomic Stock Reallocation**: 1-click shift from `MAIN_SALEABLE_GODOWN` to `QUARANTINE_EXPIRY_GODOWN` atomically decreases `Batch.current_stock` and increases `Batch.brk_exp_stock`.
-3. **Automated Principal Claim & Debit Note Bridging**: Toggling `#check-auto-claim` automatically generates a formal `PrincipalClaim` (`CLM-PRN-YYYY-XXXX`) and itemized `PrincipalClaimLine`s under the selected Principal (*Sun Pharma*, *Cipla*, *Krishna Medical Agencies*), creating an instant audit trail in the Principal Claims Desk (`/principal`).
+### 28.1 Operational Overview & Problem Context
+In pharmaceutical wholesale and retail operations, expired medicines represent both a regulatory hazard and a direct financial loss. Drug authorities strictly prohibit saleable storage of medicines past their expiry date, while pharmaceutical distribution agreements allow distributors to claim 100% credit or replacement from manufacturers (Principals) provided batches are segregated in a timely manner.
+
+DOC-41 introduces a closed-loop Expiry Surveillance and Physical Quarantine engine:
+1. **Continuous Shelf-Life Surveillance**: Categorizes warehouse stock into 4 time horizons: Expired (<0 days), Critical (<30 days), Warning (<60 days), and Attention (<90 days).
+2. **Physical Godown Segregation**: Atomically moves inventory from `MAIN_SALEABLE_GODOWN` to `QUARANTINE_EXPIRY_GODOWN`, adjusting `Batch.current_stock` and `Batch.brk_exp_stock`.
+3. **Automated Principal Debit Note Bridging**: Generates formal `PrincipalClaim` (`CLM-PRN-YYYY-XXXX`) records linked to the specific manufacturer for debit note recovery.
+
+### 28.2 Step-by-Step Operator Workflow
+
+```
++-----------------------------------------------------------------------------------+
+|                        EXPIRY SURVEILLANCE & SHIFT PIPELINE                       |
+|                                                                                   |
+|  [F2] Expiry Radar  -->  Multi-Batch Select  -->  [F7] Shift to Quarantine        |
+|          |                                                  |                     |
+|          v                                                  v                     |
+|  4 Risk Buckets                                   Stock Shift Desk (/stock-shift) |
+|  - Red: Expired                                             |                     |
+|  - Orange: <30d                                   Toggle Auto-Claim (#check)      |
+|  - Yellow: <60d                                             |                     |
+|  - Blue: <90d                                               v                     |
+|                                                   [F7] Save Shift Voucher         |
+|                                                             |                     |
+|                                                   Generates SHF-2026-XXXX         |
+|                                                   & CLM-PRN-YYYY-XXXX in GL       |
++-----------------------------------------------------------------------------------+
+```
+
+#### Step 1: Accessing the Cockpit
+- Navigate to `/inventory-dashboard` or `/inventory/dashboard`, or click **`Inventory ▾` &rarr; `Expiry & Breakage Cockpit`**.
+- Review the 4 Header Scorecards:
+  - `#card-main-stock`: Total valuation and units in healthy saleable storage.
+  - `#card-quarantine-stock`: Valuation and units currently locked in breakage/expiry godowns.
+  - `#card-near-expiry-risk`: Valuation of batches expiring within the next 90 days.
+  - `#card-claim-exposure`: Active unsettled claims submitted to principals.
+
+#### Step 2: Filtering and Selecting Batches on the Radar
+- Press `[F2]` to activate the **Expiry Radar** table (`#tbl-expiry-radar`).
+- Click filter pills to focus on immediate risks:
+  - `#filter-bucket-EXPIRED`: Batches already past expiry date (immediate compliance action).
+  - `#filter-bucket-30_DAYS`: Batches expiring within 30 days.
+  - `#filter-company-select`: Filter by manufacturer (e.g. *Sun Pharma*, *Cipla*).
+- Check the boxes for batches to quarantine (`#btn-select-all-batches` for all, or individual row checkboxes).
+
+#### Step 3: Executing the Stock Shift
+- Click **`[F7] Shift Selected to Quarantine`** (`#btn-shift-selected-action`).
+- The system opens the **Stock Shift Voucher Desk** (`/stock-shift`) pre-loaded with the selected batches.
+- Confirm source godown (`#select-from-godown`) is set to `Main Saleable Godown` and destination (`#select-to-godown`) is set to `Quarantine / Expiry Godown`.
+- Ensure `#check-auto-claim` is checked to automatically file a debit note claim.
+- Select the target Principal entity (`#select-principal-claim-target`).
+- Press **`[F7] Save Shift Voucher`** (`#btn-save-shift-voucher`).
+
+#### Step 4: Verification & Audit
+- The system generates voucher `SHF-2026-XXXX` and claim `CLM-PRN-YYYY-XXXX`, displaying the success banner.
+- Press `[F2]` (`#btn-view-in-audit`) to view the voucher in the Stock Shift Audit Register.
+- Press `[F8]` (`#btn-view-claim-desk`) to open the Principal Claims Desk (`/principal`) to track supplier reimbursement.
 
 ---
 
 ## 29. Module 29 — DOC-42: Statutory GST E-Way Bill & E-Invoice (IRN) Generation Desk with NIC Offline JSON & Transport Part A/B Slips
 
-### 29.1 Workflow Summary & Core Objectives
-1. **Rule 138 & Rule 48(4) Statutory Transit Clearances**: Real-time identification of all outbound sales invoices $\ge ₹50,000$ requiring mandatory Government E-Way Bills and cryptographic IRN certifications.
-2. **Interactive Transport & Conveyance Assignment**: Operators assign registered transporter fleet operators (Delhi-NCR Express Cargo, Varanasi Freight, etc.), conveyance vehicle registration numbers (e.g. `DL-01-AB-1234`), journey distance, transport mode, and vehicle type with automated validity duration calculation (1 day per 200 KM for regular cargo).
-3. **1-Click Cryptographic IRN, Ack No & 12-Digit EWB Generation**: In 1-click, the desk generates 64-character SHA-256 IRN hashes, 15-digit Ack numbers, 12-digit E-Way Bill numbers (prefixed with `24`), signed digital QR codes, and sets status to `SUCCESS`.
-4. **Official CBIC Part A & Part B Delivery Challans**: Printable official Government of India format with supplier/recipient GSTINs, dispatch addresses, document details, HSN `3004`, valuation, Part B vehicle details, and high-contrast signed digital QR code representation.
-5. **Government NIC Schema 1.1 Offline Bulk JSON Generation**: 1-click download of official Schema 1.1 JSON bulk upload payloads for direct upload to `einvoice1.gst.gov.in`.
+### 29.1 Operational Overview & Statutory Rules
+Under Rule 138 of the CGST Rules, 2017, registered businesses transporting consignments valued at ₹50,000 or above must carry an electronic E-Way Bill. Furthermore, under Rule 48(4), notified taxpayers must generate an electronic invoice with a 64-character Invoice Reference Number (IRN) and signed digital QR code before goods leave the warehouse.
+
+DOC-42 provides a centralized Compliance Desk (`/compliance`) that automates compliance:
+1. **Automatic Consignment Qualification**: Identifies all outbound B2B sales bills with grand total $\ge ₹50,000$.
+2. **Interactive Transport Assignment**: Records carrier fleet name, vehicle registration number (e.g. `DL-01-AB-1234`), and transit distance, automatically calculating statutory validity (1 day per 200 KM).
+3. **1-Click Cryptographic IRN & EWB Engine**: Generates 64-char SHA-256 IRN hash, 15-digit Ack No, 12-digit E-Way Bill number (prefixed with `24`), and digital QR code representation.
+4. **CBIC Official Two-Part Slips**: Generates printable official delivery slips with Part A (invoice/goods details) and Part B (vehicle conveyance).
+5. **Government NIC Schema 1.1 Bulk JSON Export**: Produces standardized bulk upload JSON payloads for direct upload to `einvoice1.gst.gov.in`.
+
+### 29.2 Step-by-Step Operator Workflow
+
+```
++-----------------------------------------------------------------------------------+
+|                        GST COMPLIANCE & TRANSIT DISPATCH                          |
+|                                                                                   |
+|  Outbound Invoices (>= Rs. 50k)  -->  [F7] Assign Transporter & Vehicle (Part B)  |
+|                                                  |                                |
+|                                                  v                                |
+|                                       [Enter] Generate Compliance                 |
+|                                                  |                                |
+|                                                  v                                |
+|                                       - 64-char SHA-256 IRN                       |
+|                                       - 15-digit Ack Number                       |
+|                                       - 12-digit E-Way Bill (24xxxxxxxxxx)        |
+|                                       - High-Contrast Digital QR Code             |
+|                                                  |                                |
+|                         +------------------------+------------------------+       |
+|                         |                                                 |       |
+|                         v                                                 v       |
+|             Print CBIC Delivery Slip                           Export NIC 1.1 JSON|
+|             (Driver Handover with QR)                          (Government Portal)|
++-----------------------------------------------------------------------------------+
+```
+
+#### Step 1: Navigating to Compliance Desk
+- Click **`GST & Compliance ▾` &rarr; `Compliance Workbench`** or navigate to `/compliance`.
+- Review the 4 Top Telemetry Scorecards:
+  - `#card-qualifying-invoices`: Total count of outbound invoices $\ge ₹50,000$.
+  - `#card-pending-eway`: Consignments awaiting vehicle assignment and Part B slips.
+  - `#card-generated-irn`: Invoices certified with cryptographic IRN hashes.
+  - `#card-compliance-rate`: Live percentage compliance rating progress bar.
+
+#### Step 2: Assigning Transporter & Vehicle Details
+- In the consignments table, select an invoice pending transport assignment.
+- Press `[F7]` or click **`Assign Transport`** (`#btn-open-transport-modal`).
+- In `#modal-transport-assignment`:
+  - Select the registered logistics carrier (`#select-transporter-id`) (e.g. *Delhi-NCR Express Cargo*).
+  - Type the vehicle registration number (`#input-vehicle-number`) (e.g. `DL-01-AB-1234`).
+  - Enter the transit distance in KM (`#input-transit-distance`) (e.g. `180`). The system displays calculated validity (e.g. 1 day).
+  - Click `#btn-assign-transport-submit` to save.
+
+#### Step 3: 1-Click IRN & E-Way Bill Generation
+- Click **`[Enter] Confirm & Generate`** (`#btn-confirm-generate-compliance`).
+- The system atomically computes the SHA-256 hash, Ack No, EWB number, and signed QR string, marking the invoice as `SUCCESS`.
+
+#### Step 4: Printing CBIC Slips & Exporting NIC JSON
+- Click **`Print Slip`** (`#btn-print-slip-dialog`) to open `#modal-eway-slip-preview`. Print the official two-part delivery slip with QR code for the delivery driver.
+- Press `[F8]` or click **`Export NIC JSON`** (`#btn-export-nic-json`) to download the official Schema 1.1 JSON payload for offline portal archival.
 
 ---
 
-## 30. Module 30 — DOC-43: Statutory Multi-State GSTR-1, GSTR-2B & GSTR-3B Reconciliation Cockpit with Section 16(2)(aa) 2B ITC Matching Engine & Supplier Dunning
+## 30. Module 30 — DOC-43: Statutory Multi-State GSTR-1, GSTR-2B & GSTR-3B Reconciliation Cockpit with Section 16(2)(aa) 2B ITC Matching Engine
 
-### 30.1 Workflow Summary & Core Objectives
-1. **Section 16(2)(aa) CGST Compliance**: Enforces statutory restrictions disallowing input tax credit in GSTR-3B unless invoices are uploaded by suppliers in GSTR-1 and auto-drafted into recipient Form GSTR-2B.
-2. **Dual-Ledger 4-Way Matching Engine**: Correlates purchase vouchers against 2B records into `MATCHED`, `TAX_MISMATCH`, `MISSING_IN_2B`, and `MISSING_IN_BOOKS`.
-3. **Tolerance & Multi-State Filtering**: Allows differential tolerance adjustments ($\pm ₹1$, $\pm ₹5$, $\pm ₹10$) and 2-digit GSTIN state code filtering (`07`, `27`).
-4. **Supplier WhatsApp Dunning Desk**: Generates pre-populated Section 16(2)(aa) legal notice citing blocked tax credits with direct WhatsApp Web and mobile dispatch (`https://wa.me/?text=...`).
-5. **1-Click Bulk ITC Approval**: Unlocks safe credits for monthly GSTR-3B Table 4(A)(5) availing.
-6. **Government Portal GSTR-2B JSON Ingestion**: Ingests official JSON returns from `gst.gov.in`, immediately synchronizing database tables and recalculating compliance scorecards.
+### 30.1 Operational Overview & Statutory Rules
+Under Section 16(2)(aa) of the CGST Act, 2017 (effective 1 January 2022), registered businesses cannot claim Input Tax Credit (ITC) in GSTR-3B unless the supplier has furnished the invoice in Form GSTR-1 and it is reflected in the recipient's auto-drafted Form GSTR-2B. Claiming unreflected ITC triggers mandatory DRC-01B notices, 18% annual interest, and credit reversals under Rule 37A.
+
+DOC-43 provides an end-to-end 2B ITC Reconciliation Cockpit:
+1. **Side-by-Side Dual-Ledger Matching**: Correlates ERP purchase vouchers against portal GSTR-2B records across 4 categories:
+   - `MATCHED`: Invoice present in both ledgers within configured tolerance ($\pm ₹1$, $\pm ₹5$, $\pm ₹10$). Legally safe ITC.
+   - `TAX_MISMATCH`: Invoice present in both ledgers but tax variance exceeds tolerance.
+   - `MISSING_IN_2B`: Purchase voucher recorded in ERP but missing from GSTR-2B. At-risk blocked credit.
+   - `MISSING_IN_BOOKS`: Auto-drafted invoice on GSTR-2B but unbooked in ERP books. Unclaimed credit.
+2. **Tolerance Switcher**: Toggle differential thresholds ($\pm ₹1$, $\pm ₹5$, $\pm ₹10$) to absorb statutory rounding discrepancies.
+3. **Multi-State GSTIN Filtering**: Filter records by 2-digit GST state codes (`07` Delhi, `27` Maharashtra).
+4. **Supplier WhatsApp Dunning**: Generates official Section 16(2)(aa) dunning notices with direct WhatsApp Web dispatch to delinquent vendors.
+5. **1-Click Bulk Approval**: Unlocks safe matched credits for monthly GSTR-3B Table 4(A)(5) availing.
+6. **Portal JSON Ingestion**: Ingests official GSTR-2B JSON returns (`b2b`, `cdnr`) directly from `gst.gov.in`.
+
+### 30.2 Step-by-Step Operator Workflow
+
+```
++-----------------------------------------------------------------------------------+
+|                        GSTR-2B ITC RECONCILIATION WORKFLOW                        |
+|                                                                                   |
+|  [F5] GSTR-2B Tab (/gst)  -->  Review 4 Scorecards (Safe vs At-Risk ITC)          |
+|                                                  |                                |
+|                                                  v                                |
+|                        Set Tolerance (+-Rs.1, +-Rs.5, +-Rs.10)                    |
+|                        & State Filter (07-Delhi, 27-Maharashtra)                  |
+|                                                  |                                |
+|           +--------------------------------------+---------------------+          |
+|           |                                                            |          |
+|           v                                                            v          |
+|  MATCHED RECORDS (Safe ITC)                               MISSING IN 2B (At-Risk) |
+|  - Check row / Select All                                 - Click Dunning Icon    |
+|  - Click [1-Click Bulk Approve]                           - Open Dunning Modal    |
+|  - Unlocks ITC for GSTR-3B Table 4(A)(5)                  - [Send via WhatsApp]   |
++-----------------------------------------------------------------------------------+
+```
+
+#### Step 1: Navigating to the Reconciliation Workbench
+- Navigate to `/gst` and click Tab **`[F5] GSTR-2B ITC Matching Engine`** (`#tab-gstr2b`).
+- Inspect the 4 Telemetry Scorecards:
+  - `#metric-2b-total-itc`: Total ITC available in GSTR-2B statement.
+  - `#metric-2b-safe-itc`: Safe & Claimable ITC meeting Section 16(2)(aa) compliance.
+  - `#metric-2b-at-risk-itc`: Blocked credit missing from 2B or having tax mismatches.
+  - `#metric-2b-unclaimed-itc`: Legitimate credit auto-drafted on portal but missing in ERP books.
+
+#### Step 2: Configuring Matching Tolerance & State Scope
+- Click tolerance buttons (`#btn-tolerance-1`, `#btn-tolerance-5`, `#btn-tolerance-10`) to adjust variance thresholds.
+- Select target operating state code (`#select-recon-state`) to filter multi-state branches.
+
+#### Step 3: Approving Matched Records for GSTR-3B
+- Click the `#filter-recon-matched` category pill.
+- Select all matched records via master checkbox (`#chk-select-all-recon`).
+- Click **`1-Click Bulk Approve Matched ITC`** (`#btn-bulk-approve-itc`). The system flags records as `CLAIM_ITC` for auto-populating GSTR-3B Table 4(A)(5).
+
+#### Step 4: Dunning Delinquent Suppliers via WhatsApp
+- Click the `#filter-recon-missing_in_2b` category pill to view at-risk invoices.
+- On any vendor row (e.g. *Torrent Pharma*), click the WhatsApp dunning icon (`#btn-dunning-row-{idx}`).
+- The **Supplier Dunning Modal** (`#modal-supplier-dunning`) opens with pre-populated Section 16(2)(aa) legal notice citing invoice number, date, and blocked tax amount.
+- Click **`Copy Notice Text`** (`#btn-copy-dunning`) or click **`Send via WhatsApp Web`** (`#btn-send-whatsapp`) to immediately notify the supplier.
+
+#### Step 5: Ingesting Government Portal JSON Statements
+- When a new monthly GSTR-2B return is downloaded from `gst.gov.in`, click **`Ingest Portal 2B JSON`** (`#btn-open-ingest-2b`).
+- Paste the official JSON payload into `#textarea-json-2b` and click `#btn-submit-ingest-2b`. The database reconciles all records instantly.
 
 ---
 
 ## 31. Module 31 — DOC-44: Enterprise Cloud Authentication, Multi-Tenant Session Recovery & Production Client Onboarding Desk
 
-### 31.1 Workflow Summary & Core Objectives
-1. **Asynchronous Production Cloud Handshake**: Operators sign in using `⚡ Explore Live Demo as Admin (Full Cloud Access)` (`#btn-demo-login`) or autofill chips (`#btn-quick-fill-admin`, `#btn-quick-fill-client`). Retrieves a genuine, cryptographically signed 8-hour JWT access token with full `am_admin` God-mode authority from the live Render backend.
-2. **Multi-Tenant Client Provisioning**: Operators navigate to `/clients` and click `Register New Client` (`#btn-register-new-client`) to launch the registration dialog.
-3. **Self-Healing Session Recovery Engine**: If the operator's browser holds a mock or expired session, the modal transparently refreshes cloud credentials in the background before submitting `POST /api/organizations/register`, eliminating 401 Unauthorized interruptions.
-4. **Automated Chart of Accounts Seeding**: Upon registration, backend triggers `seed_chart_of_accounts(new_organization.id, db)`, populating 40+ statutory General Ledger accounts (Cash, Banks, Debtors, Creditors, Sales, Purchases, GST Output/Input, Indirect Expenses) for the new tenant.
-5. **Immediate Multi-Tenant Reflection**: Newly created client cards (e.g., `Apex MedCorp F5BA`, `AMC-F5BA`) appear dynamically in the organizations grid with 1-click `Switch to ERP ->` impersonation.
+### 31.1 Operational Overview & Problem Context
+In enterprise cloud deployments on the Vercel Edge Network (`https://erp-rho-three.vercel.app`) communicating with Render FastAPI and Neon PostgreSQL, tenant organizations require cryptographically signed JWT bearer tokens with active database sessions.
+
+DOC-44 resolves authentication and client onboarding:
+1. **Asynchronous Production Cloud Handshake**: Upgraded 1-click demo button (`#btn-demo-login`) to authenticate with live cloud backend (`AM-0001` / `admin` / `Admin@123`), acquiring an authentic 8-hour JWT access token with full `am_admin` God-mode authority.
+2. **1-Click Autofill Credential Presets**: Preset chips on the login card (`#btn-quick-fill-admin` for `AM-0001` and `#btn-quick-fill-client` for `KMA`) allow immediate testing.
+3. **Transparent Session Self-Healing**: Transparently detects mock tokens (`demo-preview-jwt-token`) and acquires authentic cloud credentials in the background before submitting onboarding forms, eliminating 401 Unauthorized errors.
+4. **Multi-Tenant Client Provisioning**: Complete onboarding form (`#btn-register-new-client`) that creates client company records, tenant administrator credentials, and automatically seeds 40+ statutory General Ledger accounts.
+
+### 31.2 Step-by-Step Operator Workflow
+
+```
++-----------------------------------------------------------------------------------+
+|                        CLOUD ONBOARDING & AUTHENTICATION                          |
+|                                                                                   |
+|  Login Screen (/login)                                                            |
+|  - Click [#btn-demo-login] or [#btn-quick-fill-admin]                             |
+|  - Authenticates with Render FastAPI -> Acquires 8-hour JWT Bearer Token           |
+|                                                  |                                |
+|                                                  v                                |
+|  Client Management (/clients)                                                     |
+|  - Click [#btn-register-new-client]                                               |
+|  - Modal checks session -> Self-heals mock tokens transparently                   |
+|  - Fill Organization Name & Code (AMC-F5BA)                                       |
+|  - Fill Admin Name, Username & Password                                           |
+|                                                  |                                |
+|                                                  v                                |
+|  Click [#btn-submit-register-client]                                              |
+|  - POST /api/organizations/register                                               |
+|  - Seeds 40+ Chart of Accounts                                                    |
+|  - Renders new client card in Neon DB grid                                        |
+|  - 1-Click [Switch to ERP ->] impersonation                                       |
++-----------------------------------------------------------------------------------+
+```
+
+#### Step 1: Logging in to Production Cloud
+- Open `https://erp-rho-three.vercel.app/login`.
+- Click **`⚡ Explore Live Demo as Admin (Full Cloud Access)`** (`#btn-demo-login`) or click `#btn-quick-fill-admin`.
+- The system authenticates against the live cloud backend, receives an authentic JWT token, and redirects to the Counter Workbench (`/`).
+
+#### Step 2: Navigating to Client Management
+- Navigate to `/clients` or click **`CRM & Admin ▾` &rarr; `Client Management`**.
+- Review existing registered tenant organizations.
+- Click **`+ Register New Client`** (`#btn-register-new-client`).
+
+#### Step 3: Completing Client Organization Registration
+- The modal opens and automatically runs `ensureLiveCloudAuthSession` to guarantee active database authorization.
+- Fill the required fields:
+  - Organization Name (`#input-client-org-name`): Legal corporate or pharmacy name (e.g. `Apex MedCorp F5BA`).
+  - Organization Code (`#input-client-org-code`): Unique tenant prefix (e.g. `AMC-F5BA`; auto-capitalized).
+  - Admin Full Name (`#input-client-admin-name`): Primary tenant administrator name.
+  - Admin Username (`#input-client-admin-username`): Login username for tenant admin.
+  - Admin Password (`#input-client-admin-password`): Initial login password (min 6 characters).
+- Click **`Register Organization & Deploy ERP`** (`#btn-submit-register-client`).
+
+#### Step 4: Verification & Tenant Impersonation
+- The modal closes, and the newly created tenant card appears immediately in the live multi-tenant grid.
+- Click **`Switch to ERP →`** on the tenant card to impersonate the client company and configure their local operational masters.
 
 ---
 
 ## 32. Module 32 — DOC-45: Enterprise Purchase Order, Intelligent Stock Replenishment Radar & Vendor Procurement Desk
 
-### 32.1 Workflow Summary & Core Objectives
+### 32.1 Operational Overview & P2P Architecture
+In pharmaceutical supply chains, maintaining optimal inventory while avoiding capital lockup requires real-time coordination between physical batch stock, reorder thresholds, vendor pricing, and accounts payable.
+
+DOC-45 introduces an end-to-end Procure-to-Pay (P2P) automation engine:
 1. **Autonomous Stock Replenishment Radar**: Reconciles unexpired batch stock across all physical godowns against safety stock thresholds (`min_stock_level` and `reorder_quantity`).
-2. **Deficit & Replenishment Analytics**: Calculates real-time deficit quantity and recommended purchase order volumes, accounting for pending in-transit purchase orders.
-3. **Multi-Vendor Best-Rate Optimizer**: Compares multiple pharmaceutical suppliers by historical purchase rates, offered discounts, net effective costs, and payment credit terms (e.g. 21 vs 60 days).
-4. **1-Click Bulk PO Generation**: Automatically partitions selected deficit medicines by their preferred vendor and generates sequential Purchase Orders (`PO-YYYYMM-XXXX`) with a single click (`[F7]`).
-5. **Keyboard-Operated PO Authoring Desk (`/po`)**: Provides rapid keyboard data entry (`Enter`, `Tab`, `Arrow` keys) for ad-hoc purchase orders with automatic 18% GST calculation.
-6. **Supplier WhatsApp & Print Slip Dispatch**: Generates a pre-formatted plain-text order slip ready for 1-click copying or direct WhatsApp Web launching (`https://api.whatsapp.com/send?text=...`).
-7. **1-Click Convert PO to Inward Purchase Bill**: Bridges the procurement lifecycle directly into the accounting ledger by converting approved POs into Inward Purchase Bills (`PUR-PO-XXXX`), marking lines received and redirecting to `/purchase`.
+2. **Deficit Calculation Formula**:
+   $$\text{Effective Stock} = \text{Current Stock} + \text{Pending Incoming PO Qty}$$
+   $$\text{Deficit Qty} = \max(0, \text{min\_stock\_level} - \text{Effective Stock})$$
+   $$\text{Suggested Order Qty} = \max(\text{Deficit Qty}, \text{reorder\_quantity})$$
+3. **Multi-Vendor Best-Rate Optimizer**: Compares multiple suppliers by historical purchase rates, discounts, net effective costs, and payment credit terms (e.g. 21 vs 60 days).
+4. **1-Click Bulk PO Generation**: Partitions selected deficit medicines by preferred supplier and auto-generates formal sequential Purchase Orders (`PO-YYYYMM-XXXX`).
+5. **Keyboard-Operated PO Authoring Desk (`/po`)**: Fast keyboard entry (`Enter`, `Tab`, `Arrow` keys) for custom purchase orders with dynamic 18% GST calculation.
+6. **Supplier WhatsApp & Print Slip Dispatch**: Generates formatted plain-text order slips ready for 1-click copying or direct WhatsApp Web launching (`https://wa.me/?text=...`).
+7. **1-Click Convert PO to Inward Purchase Bill**: Converts approved POs directly into Inward Purchase Bills (`PUR-PO-XXXX`), marking line items as received, updating inventory stock, and posting liabilities to the General Ledger.
+
+### 32.2 Step-by-Step Operator Workflow
+
+```
++-----------------------------------------------------------------------------------+
+|                        PROCURE-TO-PAY (P2P) WORKFLOW                              |
+|                                                                                   |
+|  [F2] Replenishment Radar (/po)                                                   |
+|  - Live Deficit Calculations across all SKUs                                      |
+|  - Checkboxes for Deficit Items                                                   |
+|  - [F7] Generate Bulk POs (Grouped by Vendor)                                     |
+|                                                  |                                |
+|                         +------------------------+------------------------+       |
+|                         |                                                 |       |
+|                         v                                                 v       |
+|             [F1] Master PO Directory                          [F3] Create New PO  |
+|             - Review Issued POs                               - Keyboard Builder  |
+|             - Filter by Status                                - Dynamic 18% GST   |
+|                         |                                                 |       |
+|                         +------------------------+------------------------+       |
+|                                                  |                                |
+|                                                  v                                |
+|                                       Click [Dispatch] Button                     |
+|                                       - Supplier WhatsApp Slip Modal              |
+|                                       - 1-Click Copy or Open WhatsApp Web         |
+|                                                  |                                |
+|                                                  v                                |
+|                                       Consignment Arrives at Gate                 |
+|                                       - Click [Book Inward] Button                |
+|                                       - Generates PUR-PO-XXXX in GL               |
+|                                       - Stock Accrued & PO Marked COMPLETED       |
++-----------------------------------------------------------------------------------+
+```
+
+#### Step 1: Reviewing Telemetry 4 Scorecards
+- Navigate to `/po` or click **`Purchases ▾` &rarr; `Purchase Orders & Replenishment Radar`**.
+- Inspect the 4 Telemetry Scorecards:
+  - `#card-critical-stock`: Emergency zero-stock items requiring immediate reorder.
+  - `#card-reorder-stock`: Items that have dipped below configured safety stock levels.
+  - `#card-replenishment-budget`: Total projected capital outlay in ₹ INR to restore target inventory.
+  - `#card-pending-pos`: Active open purchase orders currently in transit.
+
+#### Step 2: Autonomous Deficit Radar & 1-Click Bulk PO Generation
+- Press `[F2]` or click Tab **`[F2] Stock Replenishment Radar`** (`#tab-replenishment-radar`).
+- Review the deficit grid: Current Physical Stock, Minimum Safety Stock, Deficit Quantity, Suggested Order Quantity, Master Purchase Rate, and Estimated Budget.
+- Filter by urgency using `#btn-radar-filter-all`, `#btn-radar-filter-critical`, or `#btn-radar-filter-reorder`.
+- Select deficit items using `#checkbox-select-all` or individual row checkboxes (`#checkbox-item-{id}`).
+- Click **`[F7] Generate Bulk POs`** (`#btn-bulk-generate-pos`).
+- The system automatically partitions selected items by their preferred vendor, generates sequential Purchase Orders (`PO-YYYYMM-XXXX`), and redirects to the Master PO Directory.
+
+#### Step 3: Authoring a Custom Purchase Order (`[F3]`)
+- For ad-hoc purchasing, press `[F3]` or click Tab **`[F3] Create New PO`** (`#tab-create-po`).
+- Verify the auto-generated sequential PO Number (`#input-po-number`).
+- Select the supplier from `#select-po-vendor`.
+- Set expected delivery date (`#input-po-delivery`) and enter supply classification notes (`#input-po-supply-type`).
+- In the line items grid:
+  - Select medicine from `#select-po-product-{idx}`.
+  - Type the desired quantity (`#input-po-qty-{idx}`).
+  - Purchase rate (`#input-po-rate-{idx}`) auto-fills from master data; adjust if negotiated.
+  - Click `#btn-add-po-row` to add more products.
+- The summary panel automatically computes Subtotal, Estimated 18% Pharma GST, and Grand Total.
+- Press **`Submit & Approve Purchase Order [Enter]`** (`#btn-save-purchase-order`).
+
+#### Step 4: Multi-Vendor Rate Intelligence Matrix (`[F4]`)
+- Press `[F4]` or click Tab **`[F4] Vendor Rate Intelligence`** (`#tab-vendor-rates`).
+- Select any product from `#select-rate-comparison-product`.
+- The matrix displays historical supplier quotes, discounts, net effective landed rates, payment terms (e.g. 21 vs 60 days), delivery lead times, and optimization badges (`BEST_PRICE`, `FASTEST_DELIVERY`, `LONGEST_CREDIT`, `BULK_DISCOUNT`).
+
+#### Step 5: Supplier WhatsApp & Print Slip Dispatch
+- In the **Master PO Directory** (`[F1]`), find the target Purchase Order.
+- Click the green **`Dispatch`** button (`#btn-dispatch-po-{id}`).
+- The **Supplier Dispatch Slip Modal** (`#modal-po-dispatch`) opens with a pre-formatted plain-text order slip.
+- Click **`Copy WhatsApp Text`** (`#btn-copy-po-whatsapp`) to copy the order text, or click **`Open in WhatsApp`** (`#btn-open-whatsapp-web`) to launch WhatsApp Web directly.
+- Press `[Esc]` (`#btn-close-dispatch-modal`) to dismiss.
+
+#### Step 6: 1-Click Conversion to Inward Purchase Bill
+- When goods arrive at the depot, locate the PO in the Master PO Directory (`[F1]`).
+- Click the dark green **`Book Inward`** button (`#btn-convert-po-purchase-{id}`).
+- The confirmation dialog (`#modal-convert-po-purchase`) appears summarizing the PO number, vendor, and target invoice reference (`PUR-PO-XXXX`).
+- Click **`Confirm & Generate Purchase Bill`** (`#btn-confirm-convert-po`).
+- The system atomically creates an Inward Purchase Bill in `models.Invoice`, generates `models.InvoiceItem` lines, marks PO items received, sets status to `COMPLETED`, accrues batch stock, books accounts payable in GL, and redirects to `/purchase`.
 
 ---
 
 ## 33. Comprehensive Automated QA Test Suite Registry (20 Suites)
 
-| # | Test Suite File | Module Coverage | Assertions Target & Status |
+| # | Test Suite Filename | Module Coverage | Assertions Target & Status |
 | :--- | :--- | :--- | :--- |
 | 1 | `test_master_all_6_modules_selenium.py` | Sales, Purchase, DN, CN, BKI, BKR | 100% PASS: All 6 transaction modules with series continuation. |
 | 2 | `test_reports_and_finance_selenium.py` | Day Book, Ledger, Trial Balance, P&L, BS, BRS, Designer | 100% PASS: Full double-entry financial reporting suite. |

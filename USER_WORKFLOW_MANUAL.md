@@ -2212,6 +2212,61 @@ When consignments arrive at the warehouse gate:
 
 ---
 
+---
+
+## 41. Master Enterprise Operator Keybindings, Screen Elements & Fast-Path Cheatsheet
+
+### 41.1 Counter Speed Billing & Keyboard Fast-Path
+The system is built for zero-mouse cashier operation. Billing operators should memorize these standard keys:
+
+| Action / Workflow Step | Shortcut Key | Description & Behavior |
+| :--- | :--- | :--- |
+| **Open Sales Bill** | `[F2]` | Directly launches Counter Sales Billing from Home Workbench. |
+| **Party Lookup Modal** | `[F7]` | Opens searchable customer/vendor dialog with live ledger balance and drug licenses. |
+| **Batch Selection Modal** | `[F3]` | Opens live batch selection dialog displaying unexpired stock, MRP, and trade rate. |
+| **Walk Fields in Grid** | `[Enter]` | Advances across Item -> Batch -> Qty -> Free -> Rate -> Disc% -> Next Row. |
+| **Open Settlement Modal**| `[End]` | Opens Discount, Payment Mode (Cash, Bank, Credit), and Round-off popup. |
+| **Save & Post Voucher** | `[Ctrl+S]` | Saves bill, decrements batch stock, auto-posts GL voucher, auto-advances bill number. |
+| **Supplier Payment** | `[F5]` | Directly launches Supplier Payment Voucher from Home Workbench. |
+| **Customer Receipt** | `[F6]` | Directly launches Customer Receipt Voucher from Home Workbench. |
+| **Auto-Allocate FIFO** | `[Alt+A]` | In Receipt/Payment, auto-allocates settlement amount across oldest unpaid invoices. |
+| **Auto-Balance Journal** | `[Ctrl+B]` | In Journal Voucher, inserts balancing line so sum(Dr) == sum(Cr). |
+| **Cargo Management** | `[Ctrl+1]` | Launches Cargo & Consignment Board with CBM calculator. |
+| **Freight Contracts** | `[Ctrl+2]` | Launches Freight Contracts & Carrier Rate Master. |
+| **Principal Custody** | `[Ctrl+3]` | Launches Principal Operations & Consignment Custody Center. |
+| **C&F Commission** | `[Ctrl+4]` | Launches C&F Commission & Expense Recovery Engine. |
+| **Multi-Client Radar** | `[Ctrl+6]` | Launches Enterprise Multi-Client Operations Radar. |
+| **Universal Exit / Cancel**| `[Esc]` | Dismisses active modal/drawer, or prompts Application Exit Modal on HomeScreen. |
+
+---
+
+### 41.2 Screen-by-Screen Operator Fast-Path Table
+
+| Screen Name | Access Route / Hotkey | Primary Purpose | Key Operator Actions |
+| :--- | :--- | :--- | :--- |
+| **Counter Workbench** | `/` (Home) | Central operational launchpad. | Press `[F2]`, `[F5]`, `[F6]`, `[Ctrl+1]`–`[Ctrl+6]` to launch modules. |
+| **Sales Bill** | `/sales` (`[F2]`) | Customer retail & wholesale billing. | Type drug name, press `[F3]` to select batch, `[End]` to settle, `[Ctrl+S]` to save. |
+| **Purchase Bill** | `/purchase` | Inward stock entry and batch creation. | Enter supplier invoice no, select party (`[F7]`), enter batch, expiry, rate, save. |
+| **Supplier Debit Note** | `/purchase-return` | Returning stock to suppliers/principals. | Press `[F2]` for Against Bill or `[F3]` for Loose Return. Select godown disposition. |
+| **Customer Credit Note** | `/sales-return` | Customer return & credit issuance. | Press `[F2]` for Against Bill or `[F3]` for Counter Return. Adjust returnable qty. |
+| **Breakage Receive** | `/brk-receive` | Chemist damaged return entry. | Accrues damaged stock strictly into isolated `brk_exp_stock` godown. |
+| **Breakage Issue** | `/brk-issue` | Returning damaged stock to vendor. | Deducts non-saleable stock from `brk_exp_stock` for credit recovery. |
+| **Customer Receipt** | `/receipt` (`[F6]`) | Recording customer payment collections. | Enter amount, press `[Alt+A]` for FIFO bill allocation, press `[Ctrl+S]` to post GL. |
+| **Supplier Payment** | `/payment` (`[F5]`) | Recording supplier payments. | Enter amount, press `[Alt+A]` for FIFO purchase bill clearing, `[Ctrl+S]` to post GL. |
+| **Journal Voucher** | `/journal` | Multi-leg GL adjustments & accruals. | Enter legs, press `[Ctrl+B]` to auto-balance, check accrual reversal if needed. |
+| **Operational Expenses** | `/finance/expenses` | Direct P&L disbursements & imprest. | Enter amount, pick expense head (conveyance, freight, tea), post voucher. |
+| **Fixed Assets** | `/finance/assets` | Capital asset depreciation engine. | Press `[F2]` to add asset, press `[F5]` to run periodic WDV/SLM depreciation. |
+| **Bank Reconciliation** | `/finance/bank-reconciliation` | Bank statement reconciliation & cash. | Import CSV, click auto-match. Press `[F8]` for RBI currency drawer tally. |
+| **GST Workbench** | `/gst` | Statutory GSTR-1, 2, 3B returns. | Review tax liability, export offline JSON. Press `[F5]` for 2B ITC matching. |
+| **2B ITC Matching** | `/gst` > Tab `[F5]` | Section 16(2)(aa) input credit audit. | Set tolerance, click bulk approve for matched ITC, launch dunning modal for 2B missing. |
+| **E-Way Bill & IRN** | `/compliance` | Transit e-way bills and e-invoices. | Select invoice >= Rs. 50k, press `[F7]` for transporter/vehicle, generate IRN/EWB, print CBIC slip. |
+| **Pharma Expiry Cockpit**| `/inventory-dashboard` | Shelf-life monitoring & quarantine. | Review risk buckets, select batches on radar (`[F2]`), click `[F7]` to shift to quarantine. |
+| **Stock Shift Desk** | `/stock-shift` | Godown transfer & principal claims. | Move stock from Saleable to Quarantine, check `#check-auto-claim`, save voucher. |
+| **Procurement Desk** | `/po` | Stock replenishment radar & POs. | Review deficit scorecards, press `[F2]` for radar, click `[F7]` for bulk POs, dispatch via WhatsApp. |
+| **Client Management** | `/clients` | Multi-tenant client onboarding. | Click `+ Register New Client`, fill details, deploy ERP, click `Switch to ERP ->`. |
+
+---
+
 *End of User Workflow Manual.*
 
 
