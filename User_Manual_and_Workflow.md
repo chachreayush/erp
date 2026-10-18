@@ -440,6 +440,18 @@ The ERP reporting and double-entry accounting engine has been verified with **10
 | **GST Workbench (`/gst`)** | `#btn-bulk-approve-itc` | Button | 1-Click bulk approval of matched records for GSTR-3B Table 4(A)(5). |
 | **GST Workbench (`/gst`)** | `#modal-supplier-dunning` | Modal | Section 16(2)(aa) notice generator with direct WhatsApp sharing. |
 | **GST Workbench (`/gst`)** | `#modal-ingest-portal-2b` | Modal | Official Government GST Portal GSTR-2B JSON statement ingestion. |
+| **Login Screen (`/login`)** | `#btn-quick-fill-admin` | Button | 1-Click preset button filling `AM-0001` / `admin` / `Admin@123`. |
+| **Login Screen (`/login`)** | `#btn-quick-fill-client` | Button | 1-Click preset button filling `KMA` / `SAN` / `Admin@123`. |
+| **Login Screen (`/login`)** | `#btn-demo-login` | Button | 1-Click full cloud access button authenticating with live backend. |
+| **Client Management (`/clients`)** | `#btn-register-new-client` | Button | Opens Register Client Modal. |
+| **Client Management (`/clients`)** | `#btn-open-enterprise-radar` | Button | Direct launcher to Enterprise Multi-Client Operations Radar (`/admin/tracking`). |
+| **Register Client Modal** | `#input-client-org-name` | Input | Client organization legal entity name. |
+| **Register Client Modal** | `#input-client-org-code` | Input | Alphanumeric tenant code (auto-capitalized). |
+| **Register Client Modal** | `#input-client-admin-name` | Input | Initial Client Admin display name. |
+| **Register Client Modal** | `#input-client-admin-username` | Input | Initial Client Admin login username. |
+| **Register Client Modal** | `#input-client-admin-password` | Input | Initial Client Admin password (min 6 chars). |
+| **Register Client Modal** | `#btn-cancel-register-client` | Button | Dismisses modal dialog (`[Esc]`). |
+| **Register Client Modal** | `#btn-submit-register-client` | Button | Submits client registration form to cloud backend. |
 
 ---
 
@@ -475,7 +487,18 @@ The ERP reporting and double-entry accounting engine has been verified with **10
 
 ---
 
-## 31. Comprehensive Automated QA Test Suite Registry (18 Suites)
+## 31. Module 31 — DOC-44: Enterprise Cloud Authentication, Multi-Tenant Session Recovery & Production Client Onboarding Desk
+
+### 31.1 Workflow Summary & Core Objectives
+1. **Asynchronous Production Cloud Handshake**: Operators sign in using `⚡ Explore Live Demo as Admin (Full Cloud Access)` (`#btn-demo-login`) or autofill chips (`#btn-quick-fill-admin`, `#btn-quick-fill-client`). Retrieves a genuine, cryptographically signed 8-hour JWT access token with full `am_admin` God-mode authority from the live Render backend.
+2. **Multi-Tenant Client Provisioning**: Operators navigate to `/clients` and click `Register New Client` (`#btn-register-new-client`) to launch the registration dialog.
+3. **Self-Healing Session Recovery Engine**: If the operator's browser holds a mock or expired session, the modal transparently refreshes cloud credentials in the background before submitting `POST /api/organizations/register`, eliminating 401 Unauthorized interruptions.
+4. **Automated Chart of Accounts Seeding**: Upon registration, backend triggers `seed_chart_of_accounts(new_organization.id, db)`, populating 40+ statutory General Ledger accounts (Cash, Banks, Debtors, Creditors, Sales, Purchases, GST Output/Input, Indirect Expenses) for the new tenant.
+5. **Immediate Multi-Tenant Reflection**: Newly created client cards (e.g., `Apex MedCorp F5BA`, `AMC-F5BA`) appear dynamically in the organizations grid with 1-click `Switch to ERP ->` impersonation.
+
+---
+
+## 32. Comprehensive Automated QA Test Suite Registry (19 Suites)
 
 | # | Test Suite File | Module Coverage | Assertions Target & Status |
 | :--- | :--- | :--- | :--- |
@@ -497,8 +520,8 @@ The ERP reporting and double-entry accounting engine has been verified with **10
 | 16 | `test_pharma_expiry_quarantine_selenium.py` | Expiry Radar `[F2]`, Stock Shift Desk `[F7]`, Auto-Claims `CLM-PRN-` | 100% PASS: Atomic batch stock reallocation, quarantine ledger, and Principal claims bridging. |
 | 17 | `test_gst_einvoice_eway_selenium.py` | Compliance Desk `[F2]`, Transporter Modal `[F7]`, CBIC Part A/B Slips, NIC JSON `[F8]` | 100% PASS: Real-time telemetry, 1-click IRN/E-Way Bill generation, vehicle `DL-01-AB-1234`, CBIC Part A/B delivery slips, and signed digital QR code. |
 | 18 | `test_gstr2b_reconciliation_selenium.py` | GST Cockpit `[F5]`, Scorecards, Tolerance $\pm ₹1/5/10$, Dunning Modal, Ingest 2B Modal | 100% PASS: Dual-ledger matching, Telemetry 4 Scorecards (₹25.06L 2B ITC, ₹17.56L Safe ITC, 61.1% match), WhatsApp Dunning, and JSON ingestion. |
+| 19 | `verify_live_vercel_client_creation.py` | Live Vercel Auth, Presets, Client Management, Modal Form, Neon DB Write | 100% PASS: Live production cloud authentication, genuine JWT acquisition, client registration (`AMC-F5BA`), and dynamic grid rendering. |
 
 ---
 
 *End of User Manual and Workflows.*
-

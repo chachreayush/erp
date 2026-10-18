@@ -348,7 +348,20 @@ The ERP is 100% keyboard-navigable. Key shortcuts:
 
 ---
 
-### 2.26 Complete Operational Navigation & Menu Sizing Standard
+### 2.26 Module 26 — DOC-44: Enterprise Cloud Authentication, Multi-Tenant Session Recovery & Production Client Onboarding Desk
+
+- **Route**: `/login` and `/clients`.
+- **Core Purpose**: Asynchronous production cloud authentication engine, self-healing session recovery, and multi-tenant client organization provisioning. Authenticates users with genuine 8-hour HMAC-SHA256 JWT tokens against Render FastAPI and Neon PostgreSQL. Features 1-click credential autofill presets (`#btn-quick-fill-admin` for `AM-0001`, `#btn-quick-fill-client` for `KMA`), asynchronous live demo authentication (`#btn-demo-login`), transparent session upgrading in `RegisterClientModal.tsx` and `ClientManagement.tsx`, client tenant provisioning (`POST /api/organizations/register`), automated 40+ Chart of Accounts seeding (`seed_chart_of_accounts`), and 1-click tenant impersonation (`Switch to ERP ->`).
+- **Backend APIs**:
+  - `POST /auth/login`: Bcrypt verification and genuine signed 8-hour JWT access token issuance.
+  - `GET /api/organizations/`: Multi-tenant client companies registry for AM Admin oversight.
+  - `POST /api/organizations/register`: Multi-tenant organization creation, admin user provisioning, and automated Chart of Accounts seeding.
+  - `POST /auth/impersonate`: Tenant switching into isolated client database environments.
+- **Automated QA Verification**: `verify_live_vercel_client_creation.py` (6 stages, 100% Passed against production `https://erp-rho-three.vercel.app`, Exit Code 0).
+
+---
+
+### 2.27 Complete Operational Navigation & Menu Sizing Standard
 
 1. **Responsive Top Navigation Architecture**:
    - Reorganized into 10 streamlined, non-wrapping parent categories fitting standard desktop displays (1366px, 1440px, 1920px):

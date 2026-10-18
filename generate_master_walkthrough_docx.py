@@ -2699,6 +2699,100 @@ def create_full_software_walkthrough():
         "Figure 31.4: Dual-Ledger GSTR-2B Reconciliation Workbench (/gst) displaying category filter pills, tolerance switcher (±₹1, ±₹5, ±₹10), multi-state dropdown, and side-by-side comparative table with audit actions."
     )
 
+    # =========================================================================
+    # CHAPTER 32: ENTERPRISE CLOUD AUTHENTICATION, MULTI-TENANT SESSION RECOVERY & PRODUCTION CLIENT ONBOARDING DESK (DOC-44)
+    # =========================================================================
+    doc.add_page_break()
+    add_h1("Chapter 32: Enterprise Cloud Authentication, Multi-Tenant Session Recovery & Production Client Onboarding Desk (DOC-44)")
+
+    add_h2("32.1 Architectural Overview & Root-Cause Diagnosis")
+    add_p(
+        "In enterprise multi-tenant cloud deployments, secure authentication bridges the client Single Page Application (hosted on the Vercel Edge Network at https://erp-rho-three.vercel.app) "
+        "and the high-concurrency FastAPI core service (hosted on Render at https://erp-backend-liaw.onrender.com), backed by Neon Serverless PostgreSQL. "
+        "During production operations, client registration and administrative tenant onboarding require cryptographically verified JWT bearer tokens with active database sessions."
+    )
+    add_p(
+        "A critical regression was identified during live Vercel operations: the '1-Click Demo Access' shortcut previously assigned a client-side mock string ('demo-preview-jwt-token') "
+        "in browser localStorage. While adequate for offline navigational simulation, this synthetic string lacked a corresponding cryptographic session in PostgreSQL. Consequently, attempting "
+        "to register new client companies via POST /api/organizations/register resulted in HTTP 401 Unauthorized errors from the live cloud backend."
+    )
+
+    add_h2("32.2 Dual-Layered Architectural Resolution: Live JWT Acquisition & Session Self-Healing")
+    add_p(
+        "To achieve 100% production resilience without compromising the rapid 1-click evaluation workflow, a dual-layered architectural solution was implemented:"
+    )
+
+    auth_arch_table = doc.add_table(rows=1, cols=3)
+    auth_arch_headers = ["Layer / Subsystem", "Technical Implementation", "Operational Benefit"]
+    auth_arch_data = [
+        [
+            "Live Cloud Demo Authentication (Login.tsx)",
+            "handleDemoLogin() upgraded to execute an asynchronous REST call to POST /api/auth/token against the live Render gateway using verified cloud credentials ('AM-0001' / 'admin' / 'Admin@123'). On success, an authentic 8-hour JWT Bearer token and full tenant profile are committed to localStorage.",
+            "Eliminates mock tokens entirely during live cloud sessions; enables instant access to production features while preserving full database authorization."
+        ],
+        [
+            "Transparent Session Self-Healing (RegisterClientModal & ClientManagement)",
+            "Embedded proactive session guard (ensureLiveCloudAuthSession) that inspects the active token prior to modal launch and payload submission. If a legacy mock token is detected, it automatically exchanges credentials for a fresh cloud JWT without interrupting user workflow.",
+            "Zero operational friction for operators; protects onboarding workflows against stale tokens, session timeouts, and cold-start authentication lapses."
+        ],
+        [
+            "1-Click Credential Quick-Fill Presets (Login.tsx)",
+            "Rendered interactive quick-fill chips on the login card: '#btn-quick-fill-admin' (pre-populating AM-0001 / admin / Admin@123) and '#btn-quick-fill-client' (pre-populating CM-0001 / manager / Pass@123).",
+            "Permits instant manual credential verification and automated Selenium UI test targeting with zero keyboard typing overhead."
+        ],
+        [
+            "Pydantic Validation & Normalization (backend/routers/organizations.py)",
+            "Normalized organization code extraction, added default boolean fallback for is_admin_company: bool = False in schema models, and extended Axios network timeout from 30s to 60s in src/lib/api.ts to absorb Render cold-starts.",
+            "Prevents schema parsing exceptions and handles cloud container spin-up delays gracefully."
+        ]
+    ]
+    style_table(auth_arch_table, [1.8, 2.7, 2.5], auth_arch_headers, auth_arch_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("32.3 Multi-Tenant Client Registration Modal & DOM Inventory")
+    add_p(
+        "The Client Management console (/admin/clients) provides enterprise administrators with complete lifecycle control over tenant organizations. "
+        "The registration drawer (#btn-register-new-client) presents an exhaustive input specification backed by unique semantic DOM identifiers:"
+    )
+
+    dom_client_table = doc.add_table(rows=1, cols=4)
+    dom_client_headers = ["DOM Element ID", "Element Type", "Field Label / Role", "Validation & Business Logic"]
+    dom_client_data = [
+        ["#btn-register-new-client", "Button", "Register Client Trigger", "Opens modal, initializes auto-generated tenant code, and verifies cloud session."],
+        ["#input-client-org-name", "HTML Input (text)", "Organization Name", "Legal corporate or pharmacy entity name; minimum 3 characters."],
+        ["#input-client-org-code", "HTML Input (text)", "Organization Code", "Unique 4-10 character tenant prefix (e.g. 'AMC-F5BA'); auto-uppercased."],
+        ["#input-client-admin-name", "HTML Input (text)", "Admin Full Name", "Primary tenant administrator full name; auto-creates user record."],
+        ["#input-client-admin-username", "HTML Input (text)", "Admin Username", "System login handle for tenant administrator; checked for global uniqueness."],
+        ["#input-client-admin-password", "HTML Input (password)", "Admin Password", "Initial login secret; minimum 6 characters with secure masking."],
+        ["#btn-submit-register-client", "Button", "Submit Registration", "Dispatches POST /api/organizations/register with active JWT Bearer header."],
+        ["#btn-quick-fill-admin", "Button / Chip", "Admin Preset", "Quick-fills Head Office credentials on Login screen."],
+        ["#btn-quick-fill-client", "Button / Chip", "Client Preset", "Quick-fills Branch Client credentials on Login screen."]
+    ]
+    style_table(dom_client_table, [1.8, 1.3, 1.8, 2.1], dom_client_headers, dom_client_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("32.4 Automated Selenium Verification Suite & Live Production Evidence")
+    add_p(
+        "Verification of the cloud client registration and authentication pipeline is fully automated via verify_live_vercel_client_creation.py (Suite 19). "
+        "The test executes against the live production environment (https://erp-rho-three.vercel.app), validating login presets, session acquisition, "
+        "modal invocation, dynamic client generation, and database grid rendering:"
+    )
+
+    add_screenshot(
+        "verified_live_vercel_login_chips.png",
+        "Figure 32.1: Production Login Screen on Vercel (https://erp-rho-three.vercel.app) displaying 1-Click Credential Quick-Fill Presets (#btn-quick-fill-admin and #btn-quick-fill-client) and Live Asynchronous Demo Access button."
+    )
+
+    add_screenshot(
+        "verified_live_vercel_client_registered.png",
+        "Figure 32.2: Live Client Registration Modal (#btn-register-new-client) populated with dynamic tenant metadata (Apex MedCorp F5BA / AMC-F5BA) and administrator credentials, submitting to live Render FastAPI gateway."
+    )
+
+    add_screenshot(
+        "verified_live_vercel_clients_grid.png",
+        "Figure 32.3: Live Neon PostgreSQL Multi-Tenant Client Directory Grid (/admin/clients) displaying the newly created client 'Apex MedCorp F5BA (AMC-F5BA)' in Active status with tenant impersonation and operations controls."
+    )
+
     # Save to erp2 directory
     output_path = r"C:\Users\DELL\OneDrive\Desktop\erp2\ERP_ENTERPRISE_SYSTEM_COMPLETE_SOFTWARE_MASTER_WALKTHROUGH.docx"
     doc.save(output_path)

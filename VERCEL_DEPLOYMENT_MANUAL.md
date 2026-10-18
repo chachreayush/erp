@@ -111,13 +111,29 @@ app.add_middleware(
    ```
 2. Vercel automatically detects the push, runs `npm install`, executes `npm run build`, and deploys the generated bundle to production within 45 seconds.
 
-### 5.2 Live Cloud Verification
-Run the automated Selenium headless verification script to validate 100% production uptime:
+### 5.2 Live Cloud Functional Verification
+Run the automated Selenium headless verification scripts to validate 100% production uptime across core financial workflows:
 ```powershell
 C:\Python313\python.exe verify_live_vercel_receipt_payment_audit.py
+C:\Python313\python.exe verify_live_vercel_freight_audit.py
+C:\Python313\python.exe verify_live_vercel_principal_audit.py
+C:\Python313\python.exe verify_live_vercel_commission_audit.py
 ```
 
-### 5.2 Manual Deployment via Vercel CLI
+### 5.3 Live Cloud Client Creation & Multi-Tenant Onboarding Verification (DOC-44)
+Verify live client registration on Vercel connecting to Render/Neon PostgreSQL:
+```powershell
+C:\Python313\python.exe verify_live_vercel_client_creation.py
+```
+This script exercises:
+- Live cloud JWT authentication via demo presets (`#btn-quick-fill-admin`)
+- Navigation to `/admin/clients`
+- Opening `#btn-register-new-client` modal
+- Dynamic company registration with auto-generated tenant codes
+- Verification of newly registered tenant cards in the live Neon DB grid
+- Capturing screenshots (`verified_live_vercel_login_chips.png`, `verified_live_vercel_client_registered.png`, `verified_live_vercel_clients_grid.png`).
+
+### 5.4 Manual Deployment via Vercel CLI
 If deploying directly from your local terminal:
 ```powershell
 # Install Vercel CLI globally

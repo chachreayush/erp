@@ -2031,6 +2031,82 @@ Suppliers frequently calculate tax with slight rounding variances (fractional pa
 
 ---
 
+## 39. Enterprise Multi-Tenant Client Onboarding & System Administrator Authentication Workflow (DOC-44)
+
+### 39.1 System Administrator Authentication Options
+The ERP login screen (`/login`) provides multiple authentication methods optimized for both production enterprise operations and rapid multi-tenant administrative testing:
+
+1. **1-Click Live Cloud Access (`#btn-demo-login`)**:
+   - Clicking `⚡ Explore Live Demo as Admin (Full Cloud Access)` initiates an asynchronous cloud authentication handshake against the live FastAPI backend on Render (`https://erp-backend-liaw.onrender.com`).
+   - The button provides real-time loading feedback ("Connecting Cloud Database...") and retrieves a genuine, cryptographically signed 8-hour JWT access token with full `am_admin` God-mode authority.
+   - Upon authentication, operators are redirected directly to the Counter Workbench (`/`).
+
+2. **Quick Autofill Credential Chips**:
+   - `🏢 AM Admin (AM-0001)` (`#btn-quick-fill-admin`): Instantly pre-fills the login form with Account Master System Admin credentials (`Company ID: AM-0001`, `Username: admin`, `Password: Admin@123`).
+   - `🏬 Client Firm (KMA)` (`#btn-quick-fill-client`): Instantly pre-fills the login form with Client Module Admin credentials (`Company ID: KMA`, `Username: SAN`, `Password: Admin@123`).
+
+3. **Standard Manual Credential Sign-In**:
+   - **Company ID**: Enter your registered tenant code (e.g. `AM-0001`, `KMA`, `SAM-INDR`). Automatically capitalized.
+   - **Username**: Enter your assigned username (e.g. `admin`, `SAN`).
+   - **Password**: Enter password; toggle the eye icon (`#btn-toggle-password`) to reveal or conceal plaintext.
+   - Click **`Sign In`** or press **`[Enter]`** to submit.
+
+---
+
+### 39.2 Navigating to Client Management (`/clients`)
+1. From the Top Navigation bar, expand **`CRM & Admin ▾`** and select **`Client Management`**, or navigate directly to `/clients`.
+2. The Client Management page renders a responsive multi-column grid of all registered Client Master (CM) tenant organizations.
+3. Each client card displays:
+   - Client legal entity name and unique organization code (e.g., `KRISHNA MEDICAL AGENCIES (KMA)`).
+   - Operational status badge (`Active` / `Inactive`).
+   - Total registered user accounts count.
+   - **`[Companies]`**: Launches Authorized Product Companies Mapping Modal to bind manufacturer brands.
+   - **`[Permissions]`**: Launches Granular Role Permissions Matrix Modal.
+   - **`Switch to ERP ->`**: One-click impersonation launcher.
+
+---
+
+### 39.3 Step-by-Step Client Onboarding Guide
+
+#### Step 1: Launch Registration Dialog
+In the upper right header of the Client Management desk, click **`Register New Client`** (`#btn-register-new-client`). The Register New Client modal dialog opens.
+
+#### Step 2: Enter Organization Legal Information
+- **Organization Name (`#input-client-org-name`)**: Enter the full legal trading name of the client enterprise (e.g., `Apex MedCorp F5BA`, `Delta Logistics Pvt Ltd`).
+- **Organization Code (`#input-client-org-code`)**: Enter a short alphanumeric tenant identifier (e.g., `AMC-F5BA`, `DELTA-2026`). The input automatically converts lowercase characters to uppercase.
+
+#### Step 3: Configure Initial Client Administrator Account
+- **Admin Name (`#input-client-admin-name`)**: Enter the primary proprietor or manager's full name (e.g., `Dr. Ramesh Mehta`).
+- **Admin Username (`#input-client-admin-username`)**: Enter the login username for the client admin (e.g., `admin_amc-f5ba`, `ramesh.admin`).
+- **Admin Password (`#input-client-admin-password`)**: Enter a secure password (minimum 6 characters).
+
+#### Step 4: Submit Registration & Automated Seeding
+1. Click **`Register Client`** (`#btn-submit-register-client`).
+2. The client application validates the inputs and invokes `POST /api/organizations/register`.
+3. If the operator's current session contains a mock or expired token, the **Self-Healing Session Recovery Engine** automatically refreshes the cloud credentials in the background before submitting.
+4. The backend creates the new organization, hashes the admin password with Bcrypt, and automatically seeds **40+ statutory General Ledger accounts** (Cash, Banks, Debtors, Creditors, Sales, Purchases, GST Output/Input, Indirect Expenses) for the new tenant.
+5. The modal closes automatically, the organizations list refreshes, and the new client card appears immediately in the grid.
+
+---
+
+### 39.4 Client Impersonation & Tenant Switching
+1. To inspect or operate a client's environment, locate the client card and click **`Switch to ERP ->`** (`#btn-switch-to-erp-{org_id}`).
+2. The system executes `POST /auth/impersonate`, stores an impersonation context, and transitions the active session to the client's isolated database schema.
+3. The top banner updates to display the client firm's name.
+4. To return to the master Account Master firm, click the Revert Impersonation link in the top header.
+
+---
+
+### 39.5 Operational Keyboard Shortcuts Reference
+
+| Shortcut Key | Action / Functionality | Target Scope |
+| :--- | :--- | :--- |
+| `[Enter]` | Submit Login Form or Client Registration | Active login or modal form. |
+| `[Esc]` | Dismiss Registration Modal / Close Dialog | Register Client Modal (`RegisterClientModal.tsx`). |
+| `[F5]` | Refresh Active Client Organizations Grid | Client Management Desk (`/clients`). |
+
+---
+
 *End of User Workflow Manual.*
 
 

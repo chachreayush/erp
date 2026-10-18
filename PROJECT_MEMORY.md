@@ -1064,7 +1064,36 @@ Implemented and verified the production-grade Principal & C&F Operations Managem
 
 ---
 
-## Comprehensive Master QA Test Registry (18 Suites)
+## Enterprise Cloud Authentication, Multi-Tenant Session Recovery & Production Client Onboarding Desk (DOC-44)
+
+1. **Production Cloud Authentication Handshake & Architecture**:
+   - Asynchronous Live Cloud Authentication: 1-click demo button (`#btn-demo-login`) initiates live authentication against Render FastAPI backend (`https://erp-backend-liaw.onrender.com`), acquiring a genuine, cryptographically signed 8-hour JWT access token with full `am_admin` God-mode authority.
+   - Quick Autofill Credential Chips: `#btn-quick-fill-admin` (`AM-0001` / `admin` / `Admin@123`) and `#btn-quick-fill-client` (`KMA` / `SAN` / `Admin@123`).
+   - Self-Healing Session Recovery Engine: In `RegisterClientModal.tsx` and `ClientManagement.tsx`, stale or mock preview tokens (`demo-preview-jwt-token`) are transparently upgraded to active cloud sessions in the background before invoking write endpoints.
+2. **Database Schema & Automated Seeding**:
+   - `models.Organization`: Multi-tenant client companies with UUID primary key, unique uppercase `org_code`, and `is_am` flag.
+   - `models.User`: Admin and staff accounts bound to `organization_id` with salted Bcrypt passwords and `role`.
+   - `models.Session`: Active JWT token hashes (`token_hash`) with 8-hour expiration and instant server-side revocation.
+   - `seed_chart_of_accounts`: Atomically populates 40+ statutory General Ledger accounts upon every new client creation.
+3. **Backend REST APIs**:
+   - `POST /auth/login`: Issues genuine 8-hour signed JWT access token.
+   - `GET /api/organizations/`: Returns client companies matrix for AM Admin oversight.
+   - `POST /api/organizations/register`: Enforces AM Admin role, creates organization and admin user, seeds chart of accounts, and commits atomically.
+   - `POST /auth/impersonate`: Transitions active session into client's isolated database environment.
+4. **Master UI Elements**:
+   - Login: `#btn-quick-fill-admin`, `#btn-quick-fill-client`, `#btn-demo-login`.
+   - Client Management: `#btn-register-new-client`, `#btn-open-enterprise-radar`.
+   - Register Client Modal: `#input-client-org-name`, `#input-client-org-code`, `#input-client-admin-name`, `#input-client-admin-username`, `#input-client-admin-password`, `#btn-cancel-register-client`, `#btn-submit-register-client`.
+5. **Master Automated Selenium Suite (`verify_live_vercel_client_creation.py`)**:
+   - 6/6 Stages PASSED (Exit Code 0 against production `https://erp-rho-three.vercel.app`).
+   - Visual artifacts captured:
+     - `verified_live_vercel_login_chips.png`
+     - `verified_live_vercel_client_registered.png`
+     - `verified_live_vercel_clients_grid.png`
+
+---
+
+## Comprehensive Master QA Test Registry (19 Suites)
 
 | # | Suite Filename | Focus Area | Result |
 | :--- | :--- | :--- | :--- |
@@ -1086,6 +1115,7 @@ Implemented and verified the production-grade Principal & C&F Operations Managem
 | 16 | `test_pharma_expiry_quarantine_selenium.py` | Expiry radar, stock shift quarantine voucher, principal claim bridging | 100% PASS (Exit Code 0) |
 | 17 | `test_gst_einvoice_eway_selenium.py` | Compliance desk, transporter assignment, CBIC slips, NIC Schema 1.1 JSON | 100% PASS (Exit Code 0) |
 | 18 | `test_gstr2b_reconciliation_selenium.py` | GST Cockpit `[F5]`, Scorecards, Tolerance $\pm ₹1/5/10$, Dunning Modal, Ingest 2B Modal | 100% PASS (Exit Code 0) |
+| 19 | `verify_live_vercel_client_creation.py` | Live Vercel Auth, Presets, Client Management, Modal Form, Neon DB Write | 100% PASS (Exit Code 0) |
 
 ---
 

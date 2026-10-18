@@ -109,7 +109,7 @@ git add . ; git commit -m "docs: exhaustive update of master walkthrough docx, u
 
 This triggers the continuous deployment webhook on Vercel, deploying the application live to `https://erp-rho-three.vercel.app`.
 
-### Step 3: Automated Verification Runbook (16 Test Suites)
+### Step 3: Automated Verification Runbook (19 Test Suites)
 Before staging releases, run the comprehensive local and cloud verification suites:
 ```powershell
 # 1. Type check
@@ -134,6 +134,7 @@ C:\Python313\python.exe test_client_commission_billing_selenium.py
 C:\Python313\python.exe test_pharma_expiry_quarantine_selenium.py
 C:\Python313\python.exe test_gst_einvoice_eway_selenium.py
 C:\Python313\python.exe test_gstr2b_reconciliation_selenium.py
+C:\Python313\python.exe test_client_management_modal_selenium.py
 ```
 
 ### Step 4: Live Cloud Verification
@@ -143,8 +144,9 @@ C:\Python313\python.exe verify_live_vercel_receipt_payment_audit.py
 C:\Python313\python.exe verify_live_vercel_freight_audit.py
 C:\Python313\python.exe verify_live_vercel_principal_audit.py
 C:\Python313\python.exe verify_live_vercel_commission_audit.py
+C:\Python313\python.exe verify_live_vercel_client_creation.py
 ```
-This guarantees 100% production uptime and records visual proof artifacts.
+This guarantees 100% production uptime, validates cloud multi-tenant client creation, and records visual proof artifacts.
 
 ---
 
@@ -154,14 +156,15 @@ This guarantees 100% production uptime and records visual proof artifacts.
 2. **Never Commit Secrets**: Ensure `.env` in `backend` and `src` is listed in `.gitignore` so database passwords and secret keys are never exposed on GitHub.
 3. **Branch Protection**: The `main` branch represents production code deployed to live pharmacies and cashiers. Ensure all changes are verified via Selenium before pushing to `main`.
 4. **Recent Production Releases**:
-   - `HEAD`: "feat(doc-43): statutory multi-state gstr-1, gstr-2b & gstr-3b reconciliation cockpit with 2b itc matching engine"
-   - `ea6c341`: "fix(vercel): client creation timeout resolution & render cold start resilience"
+   - `HEAD`: "docs: exhaustive synchronization of all enterprise developer, user and master walkthrough manuals"
+   - `2e2a264`: "chore: update live vercel client registration test with synthetic react setter"
+   - `e112a7c`: "fix(client-reg): add semantic DOM IDs for client registration modal and trigger elements"
+   - `55b0a44`: "fix(auth): authenticate demo access with live cloud credentials and auto-upgrade session for client registration on vercel"
+   - `faf8114`: "feat(doc-43): statutory multi-state gstr-1, gstr-2b & gstr-3b reconciliation cockpit with 2b itc matching engine"
+   - `ea6c341`: "fix(client-registration): resolve timeout, pydantic attribute error, and normalize org_code"
    - `06e6bf4`: "feat(doc-42): statutory gst e-way bill & e-invoice desk with nic json & transport slips"
    - `35475e0`: "docs: exhaustive update across all developer and user manuals and master walkthrough docx"
    - `f84a34c`: "feat(doc-41): pharma expiry radar, stock shift quarantine & principal claim settlement desk"
-   - `7720ca8`: "docs: exhaustive update across all developer and user manuals and master walkthrough docx"
-   - `d57cb1e`: "feat: top navigation non-overflow menu & client c&f commission billing with dual-posting"
-   - `628393e`: "feat: admin enterprise multi-client operations tracking & radar engine"
 
 ---
 *End of Git Workflow Manual.*
