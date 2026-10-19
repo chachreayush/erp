@@ -2911,6 +2911,44 @@ This master reference catalog indexes all semantic DOM identifiers and hotkeys i
 | **Procurement Desk (`/po`)** | `#btn-confirm-convert-po` | Button | Generates inward purchase bill `PUR-PO-XXXX` and redirects to `/purchase`. |
 | **Procurement Desk (`/po`)** | `#btn-close-convert-modal` | Button `[Esc]` | Dismisses conversion modal. |
 | **Procurement Desk (`/po`)** | `#select-rate-comparison-product` | Select | Product selector in Vendor Rate Intelligence matrix. |
+| **Goods Receipt Desk (`/grn`)** | `#card-total-inward` | Metric Card | Displays total inward delivery manifests and gross inward value. |
+| **Goods Receipt Desk (`/grn`)** | `#card-pending-inspection` | Metric Card | Displays count of consignments awaiting QC signoff. |
+| **Goods Receipt Desk (`/grn`)** | `#card-accepted-value` | Metric Card | Displays cumulative valuation of approved goods stocked. |
+| **Goods Receipt Desk (`/grn`)** | `#card-damaged-quarantine` | Metric Card | Displays count of transit damaged/broken units segregated in quarantine. |
+| **Goods Receipt Desk (`/grn`)** | `#tab-grn-register` | Button `[F1]` | Switches to Master Inward GRN Register directory. |
+| **Goods Receipt Desk (`/grn`)** | `#tab-gate-inward` | Button `[F2]` | Switches to Gate Inward & PO Matching Workbench. |
+| **Goods Receipt Desk (`/grn`)** | `#tab-barcode-scanner` | Button `[F3]` | Switches to Barcode Rapid Scanner Desk with synthesized audio chime. |
+| **Goods Receipt Desk (`/grn`)** | `#tab-quality-inspection` | Button `[F4]` | Switches to Physical Quality & Cold-Chain Desk. |
+| **Goods Receipt Desk (`/grn`)** | `#select-po` | Select | Dropdown listing approved, open Purchase Orders for auto-matching. |
+| **Goods Receipt Desk (`/grn`)** | `#input-gate-pass` | Text Input | Physical security gate pass tracking number. |
+| **Goods Receipt Desk (`/grn`)** | `#input-vehicle-no` | Text Input | Conveyance vehicle registration number (e.g. DL-01-AB-1234). |
+| **Goods Receipt Desk (`/grn`)** | `#btn-confirm-gate-inward` | Button `[Enter]` | Validates items, calculates shortages, and saves gate inward GRN. |
+| **Goods Receipt Desk (`/grn`)** | `#input-barcode-scanner` | Text Input | High-speed auto-focused barcode input with audio synthesis chirp. |
+| **Goods Receipt Desk (`/grn`)** | `#btn-register-scan` | Button | Registers scanned barcode, matching catalog and incrementing counter. |
+| **Goods Receipt Desk (`/grn`)** | `#select-qc-grn` | Select | Target Goods Receipt Note selector for quality inspection. |
+| **Goods Receipt Desk (`/grn`)** | `#btn-submit-qc-verdict` | Button | Confirms cold-chain temperature, tamper seal, and damage quarantine. |
+| **Goods Receipt Desk (`/grn`)** | `#modal-grn-inspection` | Modal Dialog `[F8]`| Decision modal for passing, rejecting, or quarantining line items. |
+| **Goods Receipt Desk (`/grn`)** | `#modal-convert-grn-purchase`| Modal Dialog | One-click conversion modal generating `PUR-GRN-XXXX` in the General Ledger. |
+| **Goods Receipt Desk (`/grn`)** | `#modal-grn-print-slip` | Modal Dialog `[Ctrl+P]`| Printable warehouse tag and dock inward receipt with complete barcode and inspector stamp. |
+| **Stock Transfer (`/stock-transfer`)** | `#stat-card-active-sto` | Metric Card | Displays total count and valuation of active inter-branch transfer orders. |
+| **Stock Transfer (`/stock-transfer`)** | `#stat-card-in-transit` | Metric Card | Displays count of freight vehicles currently in transit on road. |
+| **Stock Transfer (`/stock-transfer`)** | `#stat-card-transit-val` | Metric Card | Total monetary valuation of goods currently aboard transport carriers (₹). |
+| **Stock Transfer (`/stock-transfer`)** | `#stat-card-transit-loss`| Metric Card | Total monetary value of transit breakage, leakage, and shortages (₹). |
+| **Stock Transfer (`/stock-transfer`)** | `#tab-sto-register` | Button `[F1]` | Switches to Master Stock Transfer Register audit directory. |
+| **Stock Transfer (`/stock-transfer`)** | `#tab-sto-requisition` | Button `[F2]` | Switches to Create Stock Requisition Desk. |
+| **Stock Transfer (`/stock-transfer`)** | `#tab-sto-dispatch` | Button `[F3]` | Switches to Outward Dispatch & Delivery Challan Desk. |
+| **Stock Transfer (`/stock-transfer`)** | `#tab-sto-transit-radar`| Button `[F4]` | Switches to In-Transit Pipeline Radar view with live cold-chain badges. |
+| **Stock Transfer (`/stock-transfer`)** | `#select-source-godown` | Select | Origin supplying depot / mother warehouse dropdown. |
+| **Stock Transfer (`/stock-transfer`)** | `#select-dest-godown` | Select | Destination receiving hub / branch godown dropdown. |
+| **Stock Transfer (`/stock-transfer`)** | `#btn-create-sto-submit`| Button `[Enter]`| Submits and approves STO transfer requisition. |
+| **Stock Transfer (`/stock-transfer`)** | `#input-dispatch-vehicle`| Text Input | Transport vehicle registration number (e.g. DL-01-EF-9988). |
+| **Stock Transfer (`/stock-transfer`)** | `#input-dispatch-carrier`| Text Input | Logistics carrier / fleet company name. |
+| **Stock Transfer (`/stock-transfer`)** | `#input-dispatch-docket` | Text Input | Transporter consignment note / Lorry Receipt (LR) #. |
+| **Stock Transfer (`/stock-transfer`)** | `#input-dispatch-ewb` | Text Input | Statutory 12-digit CBIC E-Way bill number. |
+| **Stock Transfer (`/stock-transfer`)** | `#btn-confirm-dispatch` | Button `[Enter]`| Deducts source inventory and generates Outward Delivery Challan. |
+| **Stock Transfer (`/stock-transfer`)** | `#modal-acknowledge-inward`| Modal Dialog | Destination receiving dock verification, damage quarantine, and tally modal. |
+| **Stock Transfer (`/stock-transfer`)** | `#btn-submit-inward-ack`| Button `[Enter]`| Confirms inward receipt, increments saleable stock, and isolates breakage. |
+| **Stock Transfer (`/stock-transfer`)** | `#modal-print-sto-challan`| Modal Dialog `[Ctrl+P]`| High-contrast printable Rule 55 Inter-Branch Delivery Challan slip. |
 
 ### 40.2 Global State Stores & Key Persistence Architecture
 
@@ -2947,6 +2985,7 @@ This master reference catalog indexes all semantic DOM identifiers and hotkeys i
    - `erp_series_journal`: Tracks active GL journal sequence (`JRN-2026-0038`).
    - `erp_series_po`: Tracks active purchase order sequence (`PO-202610-0001`).
    - `erp_series_grn`: Tracks active Goods Receipt Note sequence (`GRN-YYYYMM-XXXX`).
+   - `erp_series_sto`: Tracks active Stock Transfer Order sequence (`STO-YYYYMM-XXXX`).
 
 ---
 

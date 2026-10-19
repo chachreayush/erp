@@ -67,6 +67,10 @@ This document provides a unified, exhaustive reference bridging technical archit
 | `purchase_orders` | `models.PurchaseOrder` | Master Purchase Order entity. Tracks sequential `po_number`, vendor party reference, delivery date, status (`DRAFT`, `APPROVED`, `COMPLETED`, `CANCELLED`). |
 | `purchase_order_items` | `models.PurchaseOrderItem` | PO line items linked to `purchase_orders.id`. Captures SKU, quantity, received quantity, and purchase rate. |
 | `principal_claims` | `models.PrincipalClaim` | Operational and expiry claims submitted to manufacturers. Captures claim reference `CLM-PRN-YYYY-XXXX`, status, and settlement actions. |
+| `goods_receipt_notes` | `models.GoodsReceiptNote` | Inward receiving dock manifest linking PO, gate pass, vehicle no, cold chain temp, seal status, and inspection verdict. |
+| `goods_receipt_note_items` | `models.GoodsReceiptNoteItem` | Line items tracking ordered, challan, received, accepted, damaged, and shortage quantities. |
+| `stock_transfer_orders` | `models.StockTransferOrder` | Inter-branch/depot transfer order header linking origin/destination godowns, vehicle, carrier, docket, and E-Way bill. |
+| `stock_transfer_order_items` | `models.StockTransferOrderItem` | Line items tracking requested, dispatched, received, damaged, and shortage quantities. |
 | `vouchers` & `voucher_entries` | `models.Voucher`, `models.VoucherEntry` | Double-entry General Ledger. Append-only ledger entries enforcing Debit == Credit balance rule. |
 
 ---
@@ -114,6 +118,17 @@ The ERP implements universal Marg and Tally series continuation through the clie
 | **Procurement** | `GET /api/procurement/vendor-rate-comparison/{product_id}` | Compares supplier historical purchase vouchers, discounts, and credit terms. | 200 OK |
 | **Procurement** | `POST /api/procurement/generate-from-replenishment` | 1-Click bulk PO generator partitioning selected deficit SKUs by vendor. | 200 OK |
 | **Procurement** | `POST /api/procurement/orders/{po_id}/convert-to-purchase` | Converts approved PO into Inward Purchase Bill (`PUR-PO-XXXX`) in GL. | 200 OK |
+| **Goods Receipt** | `GET /api/grn/telemetry` | Real-time scorecards: total inward, pending inspection, accepted, damaged units. | 200 OK |
+| **Goods Receipt** | `GET /api/grn/pending-orders` | Queries approved POs awaiting gate inward receiving. | 200 OK |
+| **Goods Receipt** | `POST /api/grn/` | Creates gate inward manifest, records shortages against delivery challan. | 200 OK |
+| **Goods Receipt** | `PATCH /api/grn/{id}/inspection` | Physical QC & cold chain verdict; isolates damaged units to quarantine. | 200 OK |
+| **Goods Receipt** | `POST /api/grn/{id}/convert-to-purchase` | Converts verified GRN into GL Purchase Bill (`PUR-GRN-XXXX`) with dual batches. | 200 OK |
+| **Stock Transfer**| `GET /api/stock-transfer/telemetry` | Real-time transfer scorecards: active orders, in-transit, transit valuation, transit loss. | 200 OK |
+| **Stock Transfer**| `GET /api/stock-transfer/warehouses` | Warehouse master directory for origin/destination branch selection. | 200 OK |
+| **Stock Transfer**| `GET /api/stock-transfer/orders` | Master register of inter-branch STO transfer orders with status filters. | 200 OK |
+| **Stock Transfer**| `POST /api/stock-transfer/orders` | Creates new inter-branch STO requisition in `DRAFT` status. | 200 OK |
+| **Stock Transfer**| `POST /api/stock-transfer/orders/{id}/dispatch` | Commits transport metadata, decrements origin batch stock (`current_stock`). | 200 OK |
+| **Stock Transfer**| `POST /api/stock-transfer/orders/{id}/acknowledge-inward` | Hub inward receiving tally; increments dest saleable stock and quarantines damage. | 200 OK |
 
 ---
 
@@ -325,6 +340,44 @@ The ERP implements universal Marg and Tally series continuation through the clie
 | **Procurement Desk (`/po`)** | `#btn-confirm-convert-po` | Button | Generates inward purchase bill `PUR-PO-XXXX` and redirects to `/purchase`. |
 | **Procurement Desk (`/po`)** | `#btn-close-convert-modal` | Button `[Esc]` | Dismisses conversion modal. |
 | **Procurement Desk (`/po`)** | `#select-rate-comparison-product` | Select | Product selector in Vendor Rate Intelligence matrix. |
+| **Goods Receipt Desk (`/grn`)** | `#card-total-inward` | Metric Card | Displays total inward delivery manifests and gross inward value. |
+| **Goods Receipt Desk (`/grn`)** | `#card-pending-inspection` | Metric Card | Displays count of consignments awaiting QC signoff. |
+| **Goods Receipt Desk (`/grn`)** | `#card-accepted-value` | Metric Card | Displays cumulative valuation of approved goods stocked. |
+| **Goods Receipt Desk (`/grn`)** | `#card-damaged-quarantine` | Metric Card | Displays count of transit damaged/broken units segregated in quarantine. |
+| **Goods Receipt Desk (`/grn`)** | `#tab-grn-register` | Button `[F1]` | Switches to Master Inward GRN Register directory. |
+| **Goods Receipt Desk (`/grn`)** | `#tab-gate-inward` | Button `[F2]` | Switches to Gate Inward & PO Matching Workbench. |
+| **Goods Receipt Desk (`/grn`)** | `#tab-barcode-scanner` | Button `[F3]` | Switches to Barcode Rapid Scanner Desk with synthesized audio chime. |
+| **Goods Receipt Desk (`/grn`)** | `#tab-quality-inspection` | Button `[F4]` | Switches to Physical Quality & Cold-Chain Desk. |
+| **Goods Receipt Desk (`/grn`)** | `#select-po` | Select | Dropdown listing approved, open Purchase Orders for auto-matching. |
+| **Goods Receipt Desk (`/grn`)** | `#input-gate-pass` | Text Input | Physical security gate pass tracking number. |
+| **Goods Receipt Desk (`/grn`)** | `#input-vehicle-no` | Text Input | Conveyance vehicle registration number (e.g. DL-01-AB-1234). |
+| **Goods Receipt Desk (`/grn`)** | `#btn-confirm-gate-inward` | Button `[Enter]` | Validates items, calculates shortages, and saves gate inward GRN. |
+| **Goods Receipt Desk (`/grn`)** | `#input-barcode-scanner` | Text Input | High-speed auto-focused barcode input with audio synthesis chirp. |
+| **Goods Receipt Desk (`/grn`)** | `#btn-register-scan` | Button | Registers scanned barcode, matching catalog and incrementing counter. |
+| **Goods Receipt Desk (`/grn`)** | `#select-qc-grn` | Select | Target Goods Receipt Note selector for quality inspection. |
+| **Goods Receipt Desk (`/grn`)** | `#btn-submit-qc-verdict` | Button | Confirms cold-chain temperature, tamper seal, and damage quarantine. |
+| **Goods Receipt Desk (`/grn`)** | `#modal-grn-inspection` | Modal Dialog `[F8]`| Decision modal for passing, rejecting, or quarantining line items. |
+| **Goods Receipt Desk (`/grn`)** | `#modal-convert-grn-purchase`| Modal Dialog | One-click conversion modal generating `PUR-GRN-XXXX` in the General Ledger. |
+| **Goods Receipt Desk (`/grn`)** | `#modal-grn-print-slip` | Modal Dialog `[Ctrl+P]`| Printable warehouse tag and dock inward receipt with complete barcode and inspector stamp. |
+| **Stock Transfer (`/stock-transfer`)** | `#stat-card-active-sto` | Metric Card | Displays total count and valuation of active inter-branch transfer orders. |
+| **Stock Transfer (`/stock-transfer`)** | `#stat-card-in-transit` | Metric Card | Displays count of freight vehicles currently in transit on road. |
+| **Stock Transfer (`/stock-transfer`)** | `#stat-card-transit-val` | Metric Card | Total monetary valuation of goods currently aboard transport carriers (₹). |
+| **Stock Transfer (`/stock-transfer`)** | `#stat-card-transit-loss`| Metric Card | Total monetary value of transit breakage, leakage, and shortages (₹). |
+| **Stock Transfer (`/stock-transfer`)** | `#tab-sto-register` | Button `[F1]` | Switches to Master Stock Transfer Register audit directory. |
+| **Stock Transfer (`/stock-transfer`)** | `#tab-sto-requisition` | Button `[F2]` | Switches to Create Stock Requisition Desk. |
+| **Stock Transfer (`/stock-transfer`)** | `#tab-sto-dispatch` | Button `[F3]` | Switches to Outward Dispatch & Delivery Challan Desk. |
+| **Stock Transfer (`/stock-transfer`)** | `#tab-sto-transit-radar`| Button `[F4]` | Switches to In-Transit Pipeline Radar view with live cold-chain badges. |
+| **Stock Transfer (`/stock-transfer`)** | `#select-source-godown` | Select | Origin supplying depot / mother warehouse dropdown. |
+| **Stock Transfer (`/stock-transfer`)** | `#select-dest-godown` | Select | Destination receiving hub / branch godown dropdown. |
+| **Stock Transfer (`/stock-transfer`)** | `#btn-create-sto-submit`| Button `[Enter]`| Submits and approves STO transfer requisition. |
+| **Stock Transfer (`/stock-transfer`)** | `#input-dispatch-vehicle`| Text Input | Transport vehicle registration number (e.g. DL-01-EF-9988). |
+| **Stock Transfer (`/stock-transfer`)** | `#input-dispatch-carrier`| Text Input | Logistics carrier / fleet company name. |
+| **Stock Transfer (`/stock-transfer`)** | `#input-dispatch-docket` | Text Input | Transporter consignment note / Lorry Receipt (LR) #. |
+| **Stock Transfer (`/stock-transfer`)** | `#input-dispatch-ewb` | Text Input | Statutory 12-digit CBIC E-Way bill number. |
+| **Stock Transfer (`/stock-transfer`)** | `#btn-confirm-dispatch` | Button `[Enter]`| Deducts source inventory and generates Outward Delivery Challan. |
+| **Stock Transfer (`/stock-transfer`)** | `#modal-acknowledge-inward`| Modal Dialog | Destination receiving dock verification, damage quarantine, and tally modal. |
+| **Stock Transfer (`/stock-transfer`)** | `#btn-submit-inward-ack`| Button `[Enter]`| Confirms inward receipt, increments saleable stock, and isolates breakage. |
+| **Stock Transfer (`/stock-transfer`)** | `#modal-print-sto-challan`| Modal Dialog `[Ctrl+P]`| High-contrast printable Rule 55 Inter-Branch Delivery Challan slip. |
 
 ---
 
