@@ -994,7 +994,90 @@ The **Goods Receipt Note (GRN) & Physical Inward Inspection Desk** (`/grn`) brid
 
 ---
 
-## 34. Comprehensive Automated QA Test Suite Registry (21 Suites)
+## 34. Module 34: Multi-Branch & Inter-Depot Stock Transfer Order (STO), In-Transit Telemetry & Hub Receiving Desk (`/stock-transfer`)
+
+### 34.1 Purpose & Logistics Scope
+In multi-location supply chains, moving pharmaceutical inventory across central warehouses, regional distribution centers (RDCs), and retail hospital branches requires rigorous custody controls. Stock transfers cannot simply decrement origin stock and inflate destination stock in a single step; inventory is physically in transit on highways, exposed to temperature variations, transit breakages, and carrier delays.
+
+The **Stock Transfer Order (STO) & In-Transit Radar Desk** (`/stock-transfer`) orchestrates the complete inter-depot lifecycle across 4 integrated functional stages:
+1. **Inter-Depot Requisitioning (`[F2]`)**: Branches raise transfer requests based on localized stock-outs or seasonal rebalancing.
+2. **Outward Dispatch Gate & Delivery Challan Generation (`[F3]`)**: Origin warehouse picks and packs goods, records vehicle registration, carrier name, tracking docket, and statutory E-Way Bill numbers, and deducts source warehouse stock (`batch.current_stock -= dispatched_qty`).
+3. **In-Transit Telemetry Radar (`[F4]`)**: Live monitoring of on-road freight consignments, including temperature status badges, transit duration, and route telemetry.
+4. **Hub Receiving & Damage Quarantine (`#modal-acknowledge-inward`)**: Destination receiving bay verifies delivered quantities; intact units enter saleable inventory (`dest_batch.current_stock += received_qty`), while broken units are automatically quarantined (`dest_batch.brk_exp_stock += damaged_qty`) with carrier loss claims generated.
+
+### 34.2 Step-by-Step Operator Instructions
+
+```
+[Branch Depletion / Transfer Requisition]
+                   │
+                   ▼
+    [Tab [F2] Create STO Requisition]
+   - Select Origin & Destination Hubs
+   - Pick Products & Transfer Quantities
+   - Auto-allocates Sequential STO-YYYYMM-XXXX
+                   │
+                   ▼
+    [Tab [F3] Outward Dispatch & Challan]
+   - Enter Vehicle No, Carrier, Docket, EWB No
+   - Deducts Source Warehouse Batch Stock
+   - Status updates to IN_TRANSIT
+                   │
+                   ▼
+    [Tab [F4] In-Transit Telemetry Radar]
+   - Real-Time On-Road Fleet Telemetry
+   - Cold-Chain Temperature Badges (4.2°C OK)
+   - Click "Receive at Hub" upon Arrival
+                   │
+                   ▼
+   [Receiving Modal: Damage Quarantine]
+   - Tally Physical Received vs Dispatched
+   - Intact Units -> Saleable Batch Stock
+   - Broken Units -> Quarantined Stock (brk_exp)
+   - Status updates to COMPLETED / PARTIAL
+                   │
+                   ▼
+     [Rule 55 Delivery Challan Printing]
+   - Formal GST Inter-Branch Transfer Challan
+   - Carrier Disclosures & Security Seals
+   - 4-Tier Signatures (Dispatch, Driver, Hub, QC)
+```
+
+#### Step 1: Raising an Inter-Branch Requisition (`[F2]`)
+- Navigate to `/stock-transfer` and press `[F2]` or click Tab **`[F2] Create Requisition Desk`** (`#tab-sto-requisition`).
+- Choose **Origin Warehouse** (`#select-source-godown`) and **Destination Warehouse** (`#select-dest-godown`).
+- Specify delivery deadline and transfer purpose (e.g. `Emergency Depletion Replenishment`).
+- In the item table, choose the product, specify transfer quantity, and click **`+ Add Item`**.
+- Click **`Submit Transfer Requisition Order`** (`#btn-create-sto-submit`). The system commits the STO in `DRAFT` status.
+
+#### Step 2: Outward Dispatch & Transit Challan Generation (`[F3]`)
+- Switch to Tab **`[F3] Outward Dispatch & Challan`** (`#tab-sto-dispatch`).
+- Select the pending STO and click **`Dispatch Order`** (`#btn-start-dispatch-{id}`).
+- Enter transport details: Vehicle No (`#input-dispatch-vehicle`), Carrier Name (`#input-dispatch-carrier`), Docket No (`#input-dispatch-docket`), and E-Way Bill No (`#input-dispatch-ewb`).
+- Confirm dispatched quantities and click **`Confirm Outward Dispatch & Generate Challan`** (`#btn-confirm-dispatch`).
+- Source batch stock is decremented in real-time, and the order transitions to `IN_TRANSIT`.
+
+#### Step 3: Monitoring Active Consignments on In-Transit Radar (`[F4]`)
+- Click Tab **`[F4] In-Transit Radar`** (`#tab-sto-transit-radar`).
+- View all active on-road shipments with live cold-chain telemetry badges and carrier dockets.
+- When the truck arrives at the receiving bay, click **`Receive at Hub`** (`#btn-in-transit-receive-{id}`).
+
+#### Step 4: Hub Inward Verification & Automatic Damage Quarantine
+- In the Receiving Modal (`#modal-acknowledge-inward`), enter physical counts:
+  - Input `Received Quantity` for intact units.
+  - Input `Damaged / Broken Quantity` for broken units.
+  - Shortages are automatically computed as `max(0, dispatched_qty - (received_qty + damaged_qty))`.
+- Click **`Complete Inward & Update Stock`** (`#btn-submit-inward-ack`).
+- Intact inventory increments destination `current_stock`.
+- Damaged inventory automatically routes to quarantined `brk_exp_stock`.
+- The order status updates to `COMPLETED`.
+
+#### Step 5: Printing Rule 55 Delivery Challan
+- Click the **`Print`** button on any STO to open the Delivery Challan modal (`#modal-print-sto-challan`).
+- Renders statutory Rule 55 inter-branch challan with sender/consignee GSTINs, transport details, itemized HSN codes, and 4-party authorization signatures.
+
+---
+
+## 35. Comprehensive Automated QA Test Suite Registry (22 Suites)
 
 | # | Test Suite Filename | Module Coverage | Assertions Target & Status |
 | :--- | :--- | :--- | :--- |
@@ -1019,6 +1102,7 @@ The **Goods Receipt Note (GRN) & Physical Inward Inspection Desk** (`/grn`) brid
 | 19 | `verify_live_vercel_client_creation.py` | Live Vercel Auth, Presets, Client Management, Modal Form, Neon DB Write | 100% PASS: Live production cloud authentication, genuine JWT acquisition, client registration (`AMC-F5BA`), and dynamic grid rendering. |
 | 20 | `test_procurement_po_replenishment_selenium.py` | Procurement Desk `/po`, Scorecards, Radar `[F2]`, Bulk PO `[F7]`, Builder `[F3]`, WhatsApp Slip, Convert to Inward Bill | 100% PASS: 10/10 Stages PASSED. Telemetry 4 Scorecards, autonomous deficit calculation, line item builder, supplier WhatsApp dispatch modal, and database purchase conversion. |
 | 21 | `test_grn_quality_inspection_selenium.py` | GRN Desk `/grn`, Scorecards, Gate Inward `[F2]`, Barcode Desk `[F3]`, Cold-Chain QC `[F4]`, GL Bill Conversion | 100% PASS: 12/12 Stages PASSED. Telemetry 4 Scorecards, shortage calculation, barcode scan stream with audio chirp, cold-chain logger (2°C-8°C), damage quarantine, and GL conversion. |
+| 22 | `test_stock_transfer_in_transit_selenium.py` | Stock Transfer Desk `/stock-transfer`, Scorecards, Requisition `[F2]`, Outward Dispatch `[F3]`, In-Transit Radar `[F4]`, Damage Quarantine Inward | 100% PASS: 12/12 Stages PASSED. Telemetry 4 Scorecards, origin-destination requisition, outward transport dispatch with vehicle/carrier/docket/EWB, source stock deduction, in-transit telemetry tracking, hub receiving with intact vs damaged stock quarantine, and Rule 55 printable challan. |
 
 ---
 

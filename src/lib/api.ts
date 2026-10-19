@@ -3957,3 +3957,115 @@ export async function apiConvertGrnToPurchase(id: string, payload: any): Promise
   const res = await apiClient.post(`/api/grn/${id}/convert-to-purchase`, payload);
   return res.data;
 }
+
+// ============================================================
+// DOC-47: Multi-Branch & Inter-Depot Stock Transfer Order (STO)
+// ============================================================
+
+export interface StockTransferTelemetry {
+  active_transit_count: number;
+  active_transit_value: number;
+  pending_requisitions: number;
+  acknowledged_today: number;
+  total_transit_variance_units: number;
+}
+
+export interface StockTransferWarehouse {
+  id: string;
+  code: string;
+  name: string;
+  address?: string;
+  manager_name?: string;
+}
+
+export interface StockTransferOrderItemRecord {
+  id: string;
+  transfer_order_id: string;
+  product_id: string;
+  product_name: string;
+  batch_id?: string | null;
+  batch_number?: string | null;
+  expiry_date?: string | null;
+  requested_qty: number;
+  dispatched_qty: number;
+  received_qty: number;
+  transit_loss_qty: number;
+  unit_rate: number;
+  line_total: number;
+  loss_reason?: string | null;
+}
+
+export interface StockTransferOrderRecord {
+  id: string;
+  organization_id: string;
+  order_number: string;
+  order_date: string;
+  status: 'DRAFT' | 'APPROVED' | 'IN_TRANSIT' | 'PARTIALLY_RECEIVED' | 'COMPLETED' | 'CANCELLED';
+  priority: 'ROUTINE' | 'URGENT' | 'EMERGENCY';
+  source_warehouse_id: string;
+  destination_warehouse_id: string;
+  source_warehouse_name: string;
+  destination_warehouse_name: string;
+  expected_delivery_date?: string | null;
+  dispatch_date?: string | null;
+  received_date?: string | null;
+  challan_number?: string | null;
+  vehicle_number?: string | null;
+  transporter_name?: string | null;
+  docket_number?: string | null;
+  eway_bill_number?: string | null;
+  driver_name?: string | null;
+  driver_phone?: string | null;
+  total_items: number;
+  total_requested_qty: number;
+  total_dispatched_qty: number;
+  total_received_qty: number;
+  total_transit_loss_qty: number;
+  total_transfer_value: number;
+  notes?: string | null;
+  created_by?: string | null;
+  dispatched_by?: string | null;
+  acknowledged_by?: string | null;
+  created_at: string;
+  items: StockTransferOrderItemRecord[];
+}
+
+export async function apiGetStockTransferTelemetry(): Promise<StockTransferTelemetry> {
+  const res = await apiClient.get<StockTransferTelemetry>('/api/stock-transfer/telemetry');
+  return res.data;
+}
+
+export async function apiGetStockTransferWarehouses(): Promise<StockTransferWarehouse[]> {
+  const res = await apiClient.get<StockTransferWarehouse[]>('/api/stock-transfer/warehouses');
+  return res.data;
+}
+
+export async function apiGetStockTransferOrders(params?: {
+  status?: string;
+  source_warehouse_id?: string;
+  destination_warehouse_id?: string;
+}): Promise<StockTransferOrderRecord[]> {
+  const res = await apiClient.get<StockTransferOrderRecord[]>('/api/stock-transfer/orders', { params });
+  return res.data;
+}
+
+export async function apiGetStockTransferOrder(id: string): Promise<StockTransferOrderRecord> {
+  const res = await apiClient.get<StockTransferOrderRecord>(`/api/stock-transfer/orders/${id}`);
+  return res.data;
+}
+
+export async function apiCreateStockTransferOrder(payload: any): Promise<any> {
+  const res = await apiClient.post('/api/stock-transfer/orders', payload);
+  return res.data;
+}
+
+export async function apiDispatchStockTransferOrder(id: string, payload: any): Promise<any> {
+  const res = await apiClient.post(`/api/stock-transfer/orders/${id}/dispatch`, payload);
+  return res.data;
+}
+
+export async function apiAcknowledgeStockTransferInward(id: string, payload: any): Promise<any> {
+  const res = await apiClient.post(`/api/stock-transfer/orders/${id}/acknowledge-inward`, payload);
+  return res.data;
+}
+

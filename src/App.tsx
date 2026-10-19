@@ -106,6 +106,7 @@ import CurrentStockPage from './pages/stock/CurrentStock'
 
 import GstReports from './pages/gst/GstReports'
 import InventoryDashboard from './pages/inventory/InventoryDashboard';
+import StockTransferMaster from './pages/inventory/StockTransferMaster';
 
 
 import Replenishment from './pages/inventory/Replenishment';
@@ -227,6 +228,7 @@ function App() {
         <Route path="purchase/modify"  element={<PurchaseList />} />
         <Route path="po" element={<PurchaseOrderMaster />} />
         <Route path="grn" element={<GoodsReceiptNoteMaster />} />
+        <Route path="stock-transfer" element={<StockTransferMaster />} />
         <Route path="vendor-complaints" element={<VendorComplaints />} />
 
         <Route path="sales-return"     element={<SalesReturnBill />} />

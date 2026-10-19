@@ -1558,6 +1558,81 @@ class GoodsReceiptNoteItem(Base):
     grn = relationship("GoodsReceiptNote", back_populates="items")
 
 
+# -- DOC-47: Multi-Branch & Inter-Depot Stock Transfer Order (STO) & In-Transit Telemetry --
+
+class StockTransferOrder(Base):
+    __tablename__ = "stock_transfer_orders"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    order_number = Column(String(100), nullable=False, index=True) # STO-YYYYMM-XXXX
+    order_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    status = Column(String(50), nullable=False, default="DRAFT", index=True) # DRAFT, APPROVED, IN_TRANSIT, PARTIALLY_RECEIVED, COMPLETED, CANCELLED
+    priority = Column(String(20), nullable=False, default="ROUTINE") # ROUTINE, URGENT, EMERGENCY
+
+    source_warehouse_id = Column(UUID(as_uuid=True), ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False, index=True)
+    destination_warehouse_id = Column(UUID(as_uuid=True), ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False, index=True)
+
+    expected_delivery_date = Column(DateTime, nullable=True)
+    dispatch_date = Column(DateTime, nullable=True)
+    received_date = Column(DateTime, nullable=True)
+
+    # In-Transit Logistics & Transport Metadata
+    challan_number = Column(String(100), nullable=True) # STD-YYYYMM-XXXX
+    vehicle_number = Column(String(50), nullable=True)
+    transporter_name = Column(String(100), nullable=True)
+    docket_number = Column(String(50), nullable=True)
+    eway_bill_number = Column(String(50), nullable=True)
+    driver_name = Column(String(100), nullable=True)
+    driver_phone = Column(String(20), nullable=True)
+
+    # Telemetry Totals
+    total_items = Column(Integer, default=0)
+    total_requested_qty = Column(Numeric(12, 2), default=0.0)
+    total_dispatched_qty = Column(Numeric(12, 2), default=0.0)
+    total_received_qty = Column(Numeric(12, 2), default=0.0)
+    total_transit_loss_qty = Column(Numeric(12, 2), default=0.0)
+    total_transfer_value = Column(Numeric(15, 2), default=0.0)
+
+    notes = Column(Text, nullable=True)
+    created_by = Column(String(100), nullable=True)
+    dispatched_by = Column(String(100), nullable=True)
+    acknowledged_by = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    source_warehouse = relationship("Warehouse", foreign_keys=[source_warehouse_id])
+    destination_warehouse = relationship("Warehouse", foreign_keys=[destination_warehouse_id])
+    items = relationship("StockTransferOrderItem", back_populates="transfer_order", cascade="all, delete-orphan")
+
+
+class StockTransferOrderItem(Base):
+    __tablename__ = "stock_transfer_order_items"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    transfer_order_id = Column(UUID(as_uuid=True), ForeignKey("stock_transfer_orders.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_id = Column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="RESTRICT"), nullable=False, index=True)
+    batch_id = Column(UUID(as_uuid=True), ForeignKey("batches.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    product_name = Column(String(255), nullable=False)
+    batch_number = Column(String(100), nullable=True)
+    expiry_date = Column(String(20), nullable=True)
+
+    requested_qty = Column(Numeric(12, 2), nullable=False, default=0.0)
+    dispatched_qty = Column(Numeric(12, 2), nullable=False, default=0.0)
+    received_qty = Column(Numeric(12, 2), nullable=False, default=0.0)
+    transit_loss_qty = Column(Numeric(12, 2), nullable=False, default=0.0)
+
+    unit_rate = Column(Numeric(12, 2), nullable=False, default=0.0)
+    line_total = Column(Numeric(15, 2), nullable=False, default=0.0)
+    loss_reason = Column(String(255), nullable=True)
+
+    transfer_order = relationship("StockTransferOrder", back_populates="items")
+    product = relationship("Product")
+    batch = relationship("Batch")
+
+
 class VendorComplaint(Base):
     __tablename__ = "vendor_complaints"
 

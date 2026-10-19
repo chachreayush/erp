@@ -1356,3 +1356,72 @@ DOC-46 introduces the enterprise **Goods Receipt Note (GRN) & Physical Inward In
 | **Barcode Desk (`/grn`)** | `#btn-register-scan` | Button | Registers scanned barcode, matching catalog and incrementing counter. |
 | **QC Desk (`/grn`)** | `#select-qc-grn` | Select | Target Goods Receipt Note selector for quality inspection. |
 | **QC Desk (`/grn`)** | `#btn-submit-qc-verdict` | Button | Confirms cold-chain temperature, tamper seal, and damage quarantine. |
+
+---
+
+### 10.31 DOC-47: Multi-Branch & Inter-Depot Stock Transfer Order (STO), In-Transit Telemetry & Hub Receiving Desk (`/stock-transfer`)
+
+#### 10.31.1 Architecture & Supply Chain Lifecycle
+In enterprise pharmaceutical distribution, retail networks, and multi-depot C&F warehousing, inventory must flow seamlessly between central depots (Mother Hubs), regional distribution centers, and branch godowns without distorting commercial sales turnover or trade payables.
+
+DOC-47 introduces the **Multi-Branch & Inter-Depot Stock Transfer Order (STO), In-Transit Telemetry & Hub Receiving Desk** at route `/stock-transfer`. It establishes a closed-loop internal supply chain lifecycle:
+1. **Stock Transfer Order (STO Requisition)**: Initiated by branch managers or central replenishment planners (`STO-YYYYMM-XXXX`) specifying source warehouse, destination warehouse, transfer priority (`ROUTINE`, `URGENT`, `EMERGENCY`), expected arrival date, and line item quantities.
+2. **Outward Dispatch & Goods Delivery Challan (STD)**: Source warehouse allocates specific inventory batches, captures carrier details (vehicle number, transporter name, docket/LR reference, and statutory CBIC E-Way bill number), and generates the official Goods Delivery Challan (`STD-YYYYMM-XXXX`) compliant with GST Rule 55.
+3. **In-Transit Virtual Godown Segregation**: Dispatched items are immediately deducted from the source warehouse's physical stock (`batch.current_stock -= dispatched_qty`) and placed into a virtual `IN_TRANSIT` status, preventing unauthorized billing while preserving enterprise asset valuation on the balance sheet.
+4. **Live In-Transit Pipeline Radar**: Real-time telemetry monitoring consignments currently on the road, route lanes (e.g. `Central Mother Depot ➔ North Zone Distribution Hub`), carrier information, driver contact, and arrival schedule tracking.
+5. **Destination Hub Inward Acknowledgement & Discrepancy Resolution**: Receiving warehouse inspects arrival, tallies received units against dispatched quantities, identifies transit damage or leakage, and automatically segregates inventory:
+   - Verified intact units increment destination saleable stock (`batch.current_stock += received_qty`).
+   - Damaged units increment quarantine stock (`batch.brk_exp_stock += damaged_qty`).
+   - Transit shortages (`dispatched - received`) auto-generate transit discrepancy records for carrier claims.
+
+```
++----------------------------------------------------------------------------------------------------+
+|                                    DOC-47 STOCK TRANSFER LIFECYCLE                                |
++----------------------------------------------------------------------------------------------------+
+|  [F2] STO Requisition       [F3] Outward Dispatch       [F4] In-Transit Radar     Hub Receiving    |
+|  Source & Dest Hubs    -->  Batch Allocation       -->  Live Road Telemetry   --> Discrepancy Audit|
+|  STO-202610-0001            STD-202610-0001             Vehicle & ETA Tracking    Stock Inwarded   |
++----------------------------------------------------------------------------------------------------+
+```
+
+#### 10.31.2 Database Schema & Models
+- `StockTransferOrder` (`stock_transfer_orders` table): Stores order identification, organization ID, source and destination warehouse foreign keys, status (`DRAFT`, `APPROVED`, `IN_TRANSIT`, `PARTIALLY_RECEIVED`, `COMPLETED`, `CANCELLED`), priority, timestamps, transport metadata (vehicle, carrier, docket, E-Way bill, driver), and summary quantities/valuations.
+- `StockTransferOrderItem` (`stock_transfer_order_items` table): Tracks item-level product ID, batch ID, batch number, expiry date, requested quantity, dispatched quantity, received quantity, transit loss quantity, unit rate, and discrepancy reasoning.
+
+#### 10.31.3 RESTful API Endpoints (`/api/stock-transfer`)
+- `GET /api/stock-transfer/telemetry`: Real-time scorecards (Active In-Transit count & valuation, Pending Requisitions, Acknowledged Today, Transit Variance Units).
+- `GET /api/stock-transfer/warehouses`: Active warehouse directory for origin/destination selectors.
+- `GET /api/stock-transfer/orders`: Master register of all STO documents with filter by status and date range.
+- `GET /api/stock-transfer/orders/{order_id}`: Single STO details with complete line items and batch allocations.
+- `POST /api/stock-transfer/orders`: Creates and approves new Stock Transfer Order requisition.
+- `POST /api/stock-transfer/orders/{order_id}/dispatch`: Deducts source batch stock, assigns transport metadata, and issues Outward Delivery Challan (`STD-YYYYMM-XXXX`).
+- `POST /api/stock-transfer/orders/{order_id}/acknowledge-inward`: Credits destination batch stock, quarantines transit damages, calculates shortages, and updates STO status to `COMPLETED`.
+
+#### 10.31.4 Semantic DOM Element & Operational Hotkey Directory
+| Screen / Route | Element Selector / ID | Type & Hotkey | Functional Description & Operational Behavior |
+| :--- | :--- | :--- | :--- |
+| **Stock Transfer (`/stock-transfer`)** | `#card-active-transit` | Telemetry Card | Active In-Transit Consignments count and valuation in ₹ INR. |
+| **Stock Transfer (`/stock-transfer`)** | `#card-pending-requisitions` | Telemetry Card | Pending Requisitions awaiting outward dispatch at hubs. |
+| **Stock Transfer (`/stock-transfer`)** | `#card-acknowledged-today` | Telemetry Card | Completed transfers delivered and acknowledged today. |
+| **Stock Transfer (`/stock-transfer`)** | `#card-transit-variance` | Telemetry Card | Transit breakage and shortage units segregated in quarantine. |
+| **Stock Transfer (`/stock-transfer`)** | `#tab-sto-register` | Button `[F1]` | Switches to Master STO Register audit directory. |
+| **Stock Transfer (`/stock-transfer`)** | `#tab-create-sto` | Button `[F2]` | Switches to Create Stock Requisition Desk. |
+| **Stock Transfer (`/stock-transfer`)** | `#tab-dispatch-desk` | Button `[F3]` | Switches to Outward Dispatch & Delivery Challan Desk. |
+| **Stock Transfer (`/stock-transfer`)** | `#tab-in-transit-radar` | Button `[F4]` | Switches to In-Transit Pipeline Radar view. |
+| **Requisition Desk (`/stock-transfer`)**| `#select-source-warehouse` | Select | Origin supplying depot / mother warehouse dropdown. |
+| **Requisition Desk (`/stock-transfer`)**| `#select-dest-warehouse` | Select | Destination receiving hub / branch godown dropdown. |
+| **Requisition Desk (`/stock-transfer`)**| `#select-sto-priority` | Select | Priority selector: ROUTINE, URGENT, EMERGENCY. |
+| **Requisition Desk (`/stock-transfer`)**| `#btn-add-sto-line` | Button | Adds new line item row to requisition table. |
+| **Requisition Desk (`/stock-transfer`)**| `#btn-submit-sto` | Button `[Enter]`| Submits and approves STO requisition. |
+| **Dispatch Desk (`/stock-transfer`)** | `#select-dispatch-sto` | Select | Selects approved STO order for outward dispatch. |
+| **Dispatch Desk (`/stock-transfer`)** | `#input-dispatch-vehicle` | Text Input | Conveyance vehicle registration number (e.g. HR-26-BR-9901). |
+| **Dispatch Desk (`/stock-transfer`)** | `#input-dispatch-transporter`| Text Input | Logistics carrier / fleet company name. |
+| **Dispatch Desk (`/stock-transfer`)** | `#input-dispatch-docket` | Text Input | Transporter consignment note / Lorry Receipt (LR) #. |
+| **Dispatch Desk (`/stock-transfer`)** | `#input-dispatch-eway` | Text Input | Statutory 12-digit CBIC E-Way bill number. |
+| **Dispatch Desk (`/stock-transfer`)** | `#btn-confirm-dispatch-sto` | Button `[Enter]`| Deducts source inventory and generates Outward Delivery Challan. |
+| **Radar View (`/stock-transfer`)** | `#btn-radar-receive-{id}`| Button `[F4]` | Launches Inward Hub Acknowledgement modal for live shipment. |
+| **Inward Modal (`/stock-transfer`)** | `#modal-acknowledge-inward`| Modal Dialog | Destination receiving dock verification and discrepancy modal. |
+| **Inward Modal (`/stock-transfer`)** | `#btn-confirm-inward-ack`| Button `[Enter]`| Confirms inward stock receipt and credits destination warehouse stock. |
+| **Print Modal (`/stock-transfer`)** | `#modal-print-sto-challan`| Modal Dialog | High-contrast printable Goods Delivery Challan slip (GST Rule 55). |
+| **Print Modal (`/stock-transfer`)** | `#btn-trigger-print-challan`| Button `[Ctrl+P]`| Triggers browser print dialog for physical warehouse tag. |
+

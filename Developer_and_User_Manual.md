@@ -411,7 +411,21 @@ The ERP implements universal Marg and Tally series continuation through the clie
 
 ---
 
-## 2.8 Responsive Top Navigation & Counter Launcher Hotkeys
+## 2.8 Module 28 — DOC-47: Multi-Branch & Inter-Depot Stock Transfer Order (STO), In-Transit Telemetry & Hub Receiving Desk
+
+- **Route**: `/stock-transfer` (or Top Nav `C&F & Logistics ▾` &rarr; `Stock Transfer Orders (STO)`).
+- **Operational Purpose**: Complete inter-depot logistics orchestration across multi-branch distribution networks: inter-depot requisitioning, gate outward picking and vehicle/carrier/docket dispatch, real-time in-transit telemetry tracking with cold-chain monitoring, destination hub receiving with automated damage quarantine, and statutory Rule 55 delivery challan printing.
+- **Key Operator Steps**:
+  1. Review Telemetry 4 Scorecards: Active Transfer Orders (`#stat-card-active-sto`), Consignments In-Transit (`#stat-card-in-transit`), Total Value in Transit (`#stat-card-transit-val`), and Cumulative Transit Loss (`#stat-card-transit-loss`).
+  2. In Tab `[F2] Create STO Requisition`, choose Source Godown (`#select-source-godown`) and Destination Godown (`#select-dest-godown`), input required date and transfer reason, add line items with products and quantities, and click `Submit Transfer Requisition Order [Enter]` (`#btn-create-sto-submit`).
+  3. In Tab `[F3] Outward Dispatch & Challan`, select the approved STO and click `Dispatch Order` (`#btn-start-dispatch-{id}`). Enter transport metadata: Vehicle Registration (`#input-dispatch-vehicle`), Carrier Name (`#input-dispatch-carrier`), Docket Number (`#input-dispatch-docket`), and E-Way Bill (`#input-dispatch-ewb`). Click `Confirm Outward Dispatch & Generate Challan` (`#btn-confirm-dispatch`) to deduct source stock and transition status to `IN_TRANSIT`.
+  4. In Tab `[F4] In-Transit Radar`, monitor all active road shipments, check route progression and cold-chain temperature badges, and click `Receive at Hub` (`#btn-in-transit-receive-{id}`) upon dock arrival.
+  5. In Dock Receiving Modal (`#modal-acknowledge-inward`), enter physical received quantities and transit damaged/broken quantities. Click `Complete Inward & Update Stock` (`#btn-submit-inward-ack`). Intact units increment destination saleable stock (`dest_batch.current_stock`), while damaged units are segregated to quarantine (`dest_batch.brk_exp_stock`).
+  6. In Tab `[F1] Master Stock Transfer Register`, view transfer orders, track dispatch status, and click `Print Challan` to render the formal Rule 55 inter-branch delivery challan (`#modal-print-sto-challan`).
+
+---
+
+## 2.9 Responsive Top Navigation & Counter Launcher Hotkeys
 
 1. **Responsive 10-Item Top Navigation Menu**:
    - `Dashboard` | `Master ▾` | `Finance & Accounting ▾` | `Inventory ▾` | `Sales & Purchase ▾` | `C&F & Logistics ▾` | `Workflows [F4] ▾` | `GST & Compliance ▾` | `CRM & Admin ▾` | `Reports ▾`.
@@ -431,7 +445,7 @@ The ERP implements universal Marg and Tally series continuation through the clie
 
 ---
 
-## 2.9 Comprehensive Automated QA Test Suite Registry (21 Suites)
+## 2.10 Comprehensive Automated QA Test Suite Registry (22 Suites)
 
 | # | Test Suite Filename | Focus Area & Verified Modules | Status & Assertions |
 | :--- | :--- | :--- | :--- |
@@ -456,6 +470,7 @@ The ERP implements universal Marg and Tally series continuation through the clie
 | 19 | `verify_live_vercel_client_creation.py` | Live Vercel Auth, Presets, Client Management, Modal Form, Neon DB Write | 100% PASS (Exit Code 0) |
 | 20 | `test_procurement_po_replenishment_selenium.py` | Procurement Desk `/po`, Scorecards, Radar `[F2]`, Bulk PO `[F7]`, Builder `[F3]`, WhatsApp Slip, Convert to Inward Bill | 100% PASS (Exit Code 0) |
 | 21 | `test_grn_quality_inspection_selenium.py` | GRN Desk `/grn`, Inward Dock `[F2]`, Web Audio Barcode Scanner `[F3]`, Cold Chain `[F4]`, QA Inspection `[F8]`, GL Purchase Conversion | 100% PASS (Exit Code 0) |
+| 22 | `test_stock_transfer_in_transit_selenium.py` | Stock Transfer Desk `/stock-transfer`, Scorecards, Requisition `[F2]`, Outward Dispatch `[F3]`, In-Transit Radar `[F4]`, Damage Quarantine Inward | 100% PASS (Exit Code 0) |
 
 ---
 

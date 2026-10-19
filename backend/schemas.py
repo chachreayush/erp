@@ -1703,6 +1703,103 @@ class GRNConvertToPurchaseRequest(BaseModel):
     tax_rate: Decimal = Decimal('18.00')
 
 
+# =====================================================================
+# DOC-47: MULTI-BRANCH STOCK TRANSFER ORDER & IN-TRANSIT TELEMETRY SCHEMAS
+# =====================================================================
+
+class StockTransferOrderItemBase(BaseModel):
+    product_id: UUID4
+    product_name: str
+    batch_id: Optional[UUID4] = None
+    batch_number: Optional[str] = None
+    expiry_date: Optional[str] = None
+    requested_qty: Decimal = Decimal('0.00')
+    dispatched_qty: Decimal = Decimal('0.00')
+    received_qty: Decimal = Decimal('0.00')
+    transit_loss_qty: Decimal = Decimal('0.00')
+    unit_rate: Decimal = Decimal('0.00')
+    line_total: Decimal = Decimal('0.00')
+    loss_reason: Optional[str] = None
+
+class StockTransferOrderItemCreate(StockTransferOrderItemBase):
+    pass
+
+class StockTransferOrderItemResponse(StockTransferOrderItemBase):
+    id: UUID4
+    transfer_order_id: UUID4
+    model_config = ConfigDict(from_attributes=True)
+
+class StockTransferOrderBase(BaseModel):
+    order_number: Optional[str] = None
+    order_date: datetime = Field(default_factory=datetime.utcnow)
+    status: str = "DRAFT"
+    priority: str = "ROUTINE"
+    source_warehouse_id: UUID4
+    destination_warehouse_id: UUID4
+    expected_delivery_date: Optional[datetime] = None
+    dispatch_date: Optional[datetime] = None
+    received_date: Optional[datetime] = None
+    challan_number: Optional[str] = None
+    vehicle_number: Optional[str] = None
+    transporter_name: Optional[str] = None
+    docket_number: Optional[str] = None
+    eway_bill_number: Optional[str] = None
+    driver_name: Optional[str] = None
+    driver_phone: Optional[str] = None
+    total_items: int = 0
+    total_requested_qty: Decimal = Decimal('0.00')
+    total_dispatched_qty: Decimal = Decimal('0.00')
+    total_received_qty: Decimal = Decimal('0.00')
+    total_transit_loss_qty: Decimal = Decimal('0.00')
+    total_transfer_value: Decimal = Decimal('0.00')
+    notes: Optional[str] = None
+
+class StockTransferOrderCreate(StockTransferOrderBase):
+    items: List[StockTransferOrderItemBase] = []
+
+class StockTransferOrderResponse(StockTransferOrderBase):
+    id: UUID4
+    organization_id: UUID4
+    created_at: datetime
+    created_by: Optional[str] = None
+    dispatched_by: Optional[str] = None
+    acknowledged_by: Optional[str] = None
+    source_warehouse_name: Optional[str] = None
+    destination_warehouse_name: Optional[str] = None
+    items: List[StockTransferOrderItemResponse] = []
+    model_config = ConfigDict(from_attributes=True)
+
+class StockTransferDispatchItemPayload(BaseModel):
+    item_id: UUID4
+    batch_id: Optional[UUID4] = None
+    batch_number: Optional[str] = None
+    expiry_date: Optional[str] = None
+    dispatched_qty: Decimal
+
+class StockTransferDispatchPayload(BaseModel):
+    vehicle_number: Optional[str] = None
+    transporter_name: Optional[str] = None
+    docket_number: Optional[str] = None
+    eway_bill_number: Optional[str] = None
+    driver_name: Optional[str] = None
+    driver_phone: Optional[str] = None
+    challan_number: Optional[str] = None
+    notes: Optional[str] = None
+    items: List[StockTransferDispatchItemPayload] = []
+
+class StockTransferAcknowledgeItemPayload(BaseModel):
+    item_id: UUID4
+    received_qty: Decimal
+    damaged_qty: Decimal = Decimal('0.00')
+    loss_reason: Optional[str] = None
+
+class StockTransferAcknowledgePayload(BaseModel):
+    notes: Optional[str] = None
+    acknowledged_by: Optional[str] = None
+    items: List[StockTransferAcknowledgeItemPayload] = []
+
+
+
 
 # =====================================================================
 # DOC-18: Sales Order Management Schemas

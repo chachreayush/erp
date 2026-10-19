@@ -3055,5 +3055,92 @@ The entire DOC-46 subsystem is verified by `test_grn_quality_inspection_selenium
 
 ---
 
+## 42. DOC-47: Multi-Branch & Inter-Depot Stock Transfer Order (STO), In-Transit Telemetry & Hub Receiving Desk (`/stock-transfer`)
+
+### 42.1 Technical Architecture & Problem Statement
+In multi-depot pharmaceutical distribution and C&F warehousing networks, goods must regularly be transferred between regional mother depots, central supply centers, and branch transit godowns. Treating internal stock movements as normal commercial billing distorts trade turnover, generates false GST tax liability, and creates financial reconciliation chaos.
+
+DOC-47 introduces an audit-compliant, closed-loop **Stock Transfer Order (STO), In-Transit Pipeline Radar & Hub Receiving Desk** at `/stock-transfer`:
+1. **Requisition Stage (`STO-YYYYMM-XXXX`)**: Destination warehouse raises a replenishment requisition based on local buffer deficits.
+2. **Outward Dispatch & Goods Delivery Challan (`STD-YYYYMM-XXXX`)**: Source warehouse allocates inventory batches (FEFO), captures vehicle number, transporter docket, CBIC E-Way bill, and decrements source `batch.current_stock`.
+3. **In-Transit Virtual Godown Segregation**: Goods are placed into `IN_TRANSIT` status, preserving inventory valuation on the balance sheet while preventing double allocation.
+4. **Hub Receiving & Discrepancy Acknowledgement**: Receiving dock counts physical arrivals, segregates transit damages (`batch.brk_exp_stock`), credits accepted units (`batch.current_stock`), and auto-computes transit shortages (`dispatched - received`).
+
+```mermaid
+flowchart TD
+    Req["STO Requisition [F2]\n(STO-YYYYMM-XXXX)"] --> Disp["Outward Dispatch [F3]\n(STD-YYYYMM-XXXX)"]
+    Disp --> Decr["Decrement Source Stock\nbatch.current_stock -= dispatched_qty"]
+    Decr --> Transit["In-Transit Radar [F4]\nVirtual IN_TRANSIT Godown"]
+    Transit --> Inward["Receiving Hub Inward [F4]"]
+    Inward --> Check{"Check Condition"}
+    Check -->|Intact Units| Accept["Credit Dest Saleable Stock\nbatch.current_stock += received_qty"]
+    Check -->|Damaged Units| Damage["Quarantine Breakage Stock\nbatch.brk_exp_stock += damaged_qty"]
+    Check -->|Shortage Units| Shortage["Carrier Discrepancy Claim\nshort_qty = dispatched - received"]
+```
+
+### 42.2 Database Schemas (`backend/models.py`)
+
+#### `StockTransferOrder`
+- `id` (UUID PK): Unique identifier.
+- `organization_id` (UUID FK): Tenant isolation.
+- `order_number` (String, indexed): Sequential `STO-YYYYMM-XXXX`.
+- `order_date` (DateTime): Requisition timestamp.
+- `status` (String, indexed): `DRAFT`, `APPROVED`, `IN_TRANSIT`, `PARTIALLY_RECEIVED`, `COMPLETED`, `CANCELLED`.
+- `priority` (String): `ROUTINE`, `URGENT`, `EMERGENCY`.
+- `source_warehouse_id` (UUID FK): Origin supplying depot.
+- `destination_warehouse_id` (UUID FK): Destination receiving hub.
+- `expected_delivery_date`, `dispatch_date`, `received_date` (DateTime).
+- `challan_number` (String): Outward Delivery Challan `STD-YYYYMM-XXXX`.
+- `vehicle_number`, `transporter_name`, `docket_number`, `eway_bill_number` (String).
+- `driver_name`, `driver_phone` (String).
+- `total_items`, `total_requested_qty`, `total_dispatched_qty`, `total_received_qty`, `total_transit_loss_qty`, `total_transfer_value` (Numeric).
+
+#### `StockTransferOrderItem`
+- `id` (UUID PK): Line item PK.
+- `transfer_order_id` (UUID FK): Parent order reference.
+- `product_id` (UUID FK): Catalog product link.
+- `batch_id` (UUID FK): Allocated inventory batch link.
+- `product_name`, `batch_number`, `expiry_date` (String).
+- `requested_qty`, `dispatched_qty`, `received_qty`, `transit_loss_qty`, `unit_rate`, `line_total` (Numeric).
+- `loss_reason` (String): Discrepancy justification.
+
+### 42.3 REST API Endpoints (`backend/api/stock_transfer.py`)
+| HTTP Method | Route | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/stock-transfer/telemetry` | Aggregates 4 scorecards: active in-transit count & valuation, pending requisitions, acknowledged today, transit variance units. |
+| `GET` | `/api/stock-transfer/warehouses` | Queries active warehouses for source/destination dropdown selectors. |
+| `GET` | `/api/stock-transfer/orders` | Master register of all STO documents with filter by status and date range. |
+| `GET` | `/api/stock-transfer/orders/{order_id}` | Detailed single STO record with line items and allocated batches. |
+| `POST` | `/api/stock-transfer/orders` | Creates and approves new Stock Transfer Order requisition. |
+| `POST` | `/api/stock-transfer/orders/{order_id}/dispatch` | Deducts source batch inventory, captures transport metadata, and generates Outward Delivery Challan (`STD-YYYYMM-XXXX`). |
+| `POST` | `/api/stock-transfer/orders/{order_id}/acknowledge-inward` | Credits destination inventory, isolates damaged units in quarantine, logs transit losses, and updates status to `COMPLETED`. |
+
+### 42.4 Frontend Cockpit (`src/pages/inventory/StockTransferMaster.tsx`)
+- **Telemetry Metric Cards**:
+  1. `#card-active-transit`: Active In-Transit Consignments count and valuation in ₹ INR.
+  2. `#card-pending-requisitions`: Pending Requisitions awaiting outward dispatch.
+  3. `#card-acknowledged-today`: Delivered & Inward Acknowledged today.
+  4. `#card-transit-variance`: Transit Breakage & Shortage Units segregated in quarantine.
+- **4 Operational Tabs**:
+  - `[F1] Master STO Register` (`#tab-sto-register`): Audit directory with status filtering, live search, and action triggers (`Dispatch`, `Receive`, `Print`).
+  - `[F2] Create Requisition Desk` (`#tab-create-sto`): Requisition builder with source/dest hub selectors, priority, expected date, and dynamic line items.
+  - `[F3] Outward Dispatch & Challan Desk` (`#tab-dispatch-desk`): Order picker, carrier docket, E-Way bill, vehicle registration, batch allocation, and challan confirmation.
+  - `[F4] In-Transit Pipeline Radar` (`#tab-in-transit-radar`): Live route tracking cards, carrier details, driver phone, and 1-click inward receiving button.
+- **Interactive Modals**:
+  - `#modal-acknowledge-inward`: Destination hub dock verification modal with received vs damaged inputs and loss reasoning.
+  - `#modal-print-sto-challan`: Printable Goods Delivery Challan slip compliant with GST Rule 55.
+
+### 42.5 Automated Selenium QA Suite 22
+The entire DOC-47 subsystem is verified by `test_stock_transfer_in_transit_selenium.py`:
+- 12 comprehensive stages spanning JWT authentication, telemetry verification, warehouse verification, STO creation, outward dispatch, inward hub acknowledgement with damage segregation, and Chrome headless UI verification across all 4 operational tabs.
+- Captures 4 verified high-resolution screenshots:
+  1. `verified_sto_telemetry_scorecards.png` (143,290 bytes)
+  2. `verified_sto_requisition_workbench.png` (133,078 bytes)
+  3. `verified_sto_dispatch_workbench.png` (77,738 bytes)
+  4. `verified_sto_in_transit_radar.png` (102,466 bytes)
+
+---
+
 *End of Comprehensive Developer Manual.*
+
 

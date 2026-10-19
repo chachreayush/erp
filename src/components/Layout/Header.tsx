@@ -164,6 +164,8 @@ const inventorySubItemsMap: Record<string, { label: string; path: string }[]> = 
     { label: 'Expiry & Breakage Cockpit', path: '/inventory-dashboard' },
     { label: 'Internal Expiry Shift', path: '/stock-shift' },
     { label: 'Replenishment Radar & POs', path: '/po' },
+    { label: 'Goods Receipt Note (GRN)', path: '/grn' },
+    { label: 'Stock Transfer & In-Transit Radar', path: '/stock-transfer' },
     { label: 'Reorder Engine', path: '/inventory/replenishment' }
   ],
   'current-stock': [

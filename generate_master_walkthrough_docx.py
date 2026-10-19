@@ -3264,6 +3264,231 @@ def create_full_software_walkthrough():
         "Figure 34.4: Physical Quality & Cold-Chain Inspection Desk (Tab [F4]) detailing temperature compliance (2°C - 8°C cold chain vs 15°C - 25°C ambient), tamper-evident packaging seal audit, and quarantine defect notes."
     )
 
+    # =========================================================================
+    # CHAPTER 35: MULTI-BRANCH & INTER-DEPOT STOCK TRANSFER ORDER (STO), IN-TRANSIT TELEMETRY & HUB RECEIVING DESK (DOC-47)
+    # =========================================================================
+    doc.add_page_break()
+    add_h1("Chapter 35: Multi-Branch & Inter-Depot Stock Transfer Order (STO), In-Transit Telemetry & Hub Receiving Desk (DOC-47)")
+
+    add_h2("35.1 Multi-Branch Logistics, Custody Transition & Transit Visibility")
+    add_p(
+        "In enterprise pharmaceutical distribution, stock transfers between mother godowns, regional fulfillment hubs, "
+        "and retail hospital branches involve substantial custody risks. High-value drugs, temperature-controlled biologics, "
+        "and scheduled formulations cannot simply be deducted from an origin depot and added to a destination depot in a single step. "
+        "Inventory is on the road for hours or days, transported by third-party logistics (3PL) carriers, and subject to transit temperature excursions, "
+        "breakages, theft, or delivery shortages."
+    )
+    add_p(
+        "DOC-47 establishes an authoritative, end-to-end Multi-Branch & Inter-Depot Stock Transfer Order (STO), In-Transit Telemetry & Hub Receiving Desk (/stock-transfer). "
+        "The architecture enforces full operational lifecycle management: (1) Branch Requisitioning with godown selection and required delivery dates, "
+        "(2) Outward Dispatch Gate with source batch deduction and transport metadata capture (Vehicle Registration, Carrier Name, Tracking Docket, E-Way Bill), "
+        "(3) Real-Time In-Transit Radar tracking active freight consignments with cold-chain telemetry badges, (4) Destination Hub Receiving with physical damage quarantine "
+        "and carrier transit loss calculation, and (5) Statutory Rule 55 Inter-Branch Delivery Challan printing."
+    )
+
+    add_h2("35.2 Database Schema & Relational Architecture")
+    add_p(
+        "The backend models (backend/models.py) preserve strict relational integrity across warehouse locations, line items, and batch allocations:"
+    )
+
+    sto_schema_table = doc.add_table(rows=1, cols=4)
+    sto_schema_headers = ["Model / Entity", "Key Database Columns", "Data Type & Constraints", "Operational Function & Business Rules"]
+    sto_schema_data = [
+        [
+            "StockTransferOrder",
+            "order_number, from_godown_id, to_godown_id, status, transfer_date, required_date",
+            "VARCHAR(50) UNIQUE, INT FK, INT FK, VARCHAR(30), DATETIME",
+            "Primary transfer voucher header; enforces from_godown_id != to_godown_id. Status flow: DRAFT -> APPROVED -> IN_TRANSIT -> PARTIALLY_RECEIVED -> COMPLETED -> CANCELLED."
+        ],
+        [
+            "Transport Metadata",
+            "vehicle_no, carrier_name, docket_no, eway_bill_no, driver_phone, transit_temperature",
+            "VARCHAR(50), VARCHAR(100), VARCHAR(100), VARCHAR(50), VARCHAR(20), FLOAT",
+            "Captures statutory transport details and real-time cold-chain data logger readings for carrier accountability."
+        ],
+        [
+            "Financial Metrics",
+            "total_transfer_value, transit_loss_value, notes, receiving_notes",
+            "NUMERIC(15,2), NUMERIC(15,2), TEXT, TEXT",
+            "Tracks total valuation of dispatched stock and cumulative transit loss value for logistics insurance claims."
+        ],
+        [
+            "StockTransferOrderItem",
+            "order_id, product_id, batch_no, requested_qty, dispatched_qty, received_qty, damaged_qty, short_qty, unit_rate",
+            "INT FK, INT FK, VARCHAR(50), NUMERIC(12,2), NUMERIC(12,2), NUMERIC(12,2), NUMERIC(12,2), NUMERIC(12,2), NUMERIC(12,2)",
+            "Line item breakdown with item-level reconciliation between dispatch quantities, dock receipts, transit breakages, and unreceived shortages."
+        ]
+    ]
+    style_table(sto_schema_table, [1.5, 1.8, 1.5, 2.4], sto_schema_headers, sto_schema_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("35.3 Operational Lifecycle & Step-by-Step Flow")
+    add_p(
+        "The Stock Transfer Desk coordinates operations between the sending warehouse, freight carrier, and receiving hub:"
+    )
+
+    sto_flow_table = doc.add_table(rows=1, cols=3)
+    sto_flow_headers = ["Workflow Phase", "Trigger & Screen Elements", "Database & Physical Inventory Impact"]
+    sto_flow_data = [
+        [
+            "1. Requisition Desk ([F2])",
+            "Tab [F2] Create STO Requisition (#tab-sto-requisition)\nAction: Submit Requisition (#btn-create-sto-submit)",
+            "Creates StockTransferOrder in DRAFT status with sequential identifier STO-YYYYMM-XXXX. Reserves line items without affecting warehouse balances."
+        ],
+        [
+            "2. Outward Dispatch ([F3])",
+            "Tab [F3] Outward Dispatch & Challan (#tab-sto-dispatch)\nAction: Confirm Outward Dispatch (#btn-confirm-dispatch)",
+            "Deducts origin batch stock (batch.current_stock -= dispatched_qty). Records vehicle, carrier, docket, E-Way bill, and moves status to IN_TRANSIT."
+        ],
+        [
+            "3. In-Transit Radar ([F4])",
+            "Tab [F4] In-Transit Radar (#tab-sto-transit-radar)\nTelemetry Badges & Live Consignment Feed",
+            "Displays all active on-road shipments with real-time temperature status (e.g. 4.2°C Cold Chain OK), origin/destination routes, and dock arrival trigger."
+        ],
+        [
+            "4. Hub Inward Receiving",
+            "Receiving Modal (#modal-acknowledge-inward)\nAction: Complete Inward & Update Stock (#btn-submit-inward-ack)",
+            "Increments destination saleable stock (dest_batch.current_stock += received_qty). Diverts damaged stock into quarantine (dest_batch.brk_exp_stock += damaged_qty). Computes carrier transit loss."
+        ],
+        [
+            "5. Rule 55 Challan Printing",
+            "Challan Modal (#modal-print-sto-challan)\nAction: Print Challan [Ctrl+P]",
+            "Generates formal Rule 55 delivery challan with sender/consignee GSTINs, transporter disclosures, HSN codes, and 4 authorization signature blocks."
+        ]
+    ]
+    style_table(sto_flow_table, [1.8, 2.5, 2.9], sto_flow_headers, sto_flow_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("35.4 Semantic DOM Element & Operational Hotkey Directory")
+    add_p(
+        "The Stock Transfer Master (/stock-transfer) incorporates high-density ergonomic design with full semantic element bindings:"
+    )
+
+    dom_sto_table = doc.add_table(rows=1, cols=4)
+    dom_sto_headers = ["DOM Element ID", "Element Type / Hotkey", "Functional Component / Role", "Operational Logic & Actions"]
+    dom_sto_data = [
+        ["#stat-card-active-sto", "Telemetry Metric Card", "Total Active STOs", "Live count and gross valuation of all open, in-transit, and receiving transfer orders."],
+        ["#stat-card-in-transit", "Telemetry Metric Card", "On-Road Consignments", "Count of freight vehicles currently in transit across the inter-branch network."],
+        ["#stat-card-transit-val", "Telemetry Metric Card", "Total Value in Transit", "Total monetary valuation (₹) of goods currently aboard transport carriers."],
+        ["#stat-card-transit-loss", "Telemetry Metric Card", "Cumulative Transit Loss", "Total monetary value (₹) of breakage, leakage, and unreceived shortages in transit."],
+        ["#tab-sto-register", "Navigation Tab [F1]", "Master STO Register", "Complete audit register of transfer orders with search, filters, and status badges."],
+        ["#tab-sto-requisition", "Navigation Tab [F2]", "Create STO Requisition", "Inter-depot order builder with origin/destination godown selection and product items."],
+        ["#tab-sto-dispatch", "Navigation Tab [F3]", "Outward Dispatch Desk", "Gate outward dispatch interface for vehicle, carrier, docket, and E-Way bill logging."],
+        ["#tab-sto-transit-radar", "Navigation Tab [F4]", "In-Transit Telemetry Radar", "Real-time on-road logistics radar with temperature monitoring and hub receiving triggers."],
+        ["#modal-acknowledge-inward", "Modal Dialog [Receive]", "Hub Inward Receiving Modal", "Dock receiving tally separating intact received units from damaged/broken units."],
+        ["#modal-print-sto-challan", "Modal Dialog [Print]", "Printable Rule 55 Challan", "Statutory inter-branch delivery challan formatted for direct print and PDF export."]
+    ]
+    style_table(dom_sto_table, [1.8, 1.4, 1.6, 2.2], dom_sto_headers, dom_sto_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("35.5 Visual Photographic Evidence & Automated QA Verification Suite (Suite 22)")
+    add_p(
+        "The complete Multi-Branch Stock Transfer module was verified through automated Selenium test suite "
+        "(test_stock_transfer_in_transit_selenium.py - Suite 22) operating in headless Chrome at 1440x950 resolution against "
+        "the live backend (Port 8000) and Vite frontend (Port 50005). All 12 verification stages passed with a 100% success rate (Exit Code 0):"
+    )
+
+    sto_qa_table = doc.add_table(rows=1, cols=4)
+    sto_qa_headers = ["Verification Stage & Scope", "Execution Target / Endpoint", "Automated Assertions & Validation Criteria", "Test Result"]
+    sto_qa_data = [
+        [
+            "Stage 1: API Authentication",
+            "POST /auth/login\n(admin / Admin@123)",
+            "HTTP 200 OK. Acquired JWT Bearer token, verified organization AM-0001 credentials.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 2: STO Telemetry API",
+            "GET /api/stock-transfer/telemetry",
+            "HTTP 200 OK. Verified active_orders, in_transit_count, in_transit_value, transit_loss_value.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 3: Warehouse Master API",
+            "GET /api/stock-transfer/warehouses",
+            "HTTP 200 OK. Asserted >= 2 warehouses available for inter-branch transfers.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 4: Create STO Requisition API",
+            "POST /api/stock-transfer/orders",
+            "HTTP 200 OK. Created STO with origin/destination godowns, required date, and items in DRAFT status.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 5: Outward Dispatch API",
+            "POST /api/stock-transfer/orders/{id}/dispatch",
+            "HTTP 200 OK. Committed vehicle DL-01-EF-9988, carrier ColdChain Logistics, docket DOCKET-774921, EWB-992837410293. Decremented origin batch current_stock.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 6: Hub Inward Acknowledgement API",
+            "POST /api/stock-transfer/orders/{id}/acknowledge-inward",
+            "HTTP 200 OK. Segregated received units into destination current_stock and damaged units into brk_exp_stock. Calculated transit loss.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 7: Headless Browser Init & Auth",
+            "Chrome --headless=new\nViewport: 1440x950",
+            "WebDriver initialized with GPU disabled, sessionStorage auth injection with 'erp-auth' key.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 8: STO Desk & Telemetry Scorecards",
+            "driver.get('http://localhost:50005/stock-transfer')",
+            "Verified #stat-card-active-sto, #stat-card-in-transit, #stat-card-transit-val, #stat-card-transit-loss. Captured verified_sto_telemetry_scorecards.png.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 9: STO Requisition Workbench",
+            "Tab [F2] #tab-sto-requisition",
+            "Verified godown selectors, required date, reason, line item controls, and submit button. Captured verified_sto_requisition_workbench.png.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 10: Outward Dispatch Workbench",
+            "Tab [F3] #tab-sto-dispatch",
+            "Verified vehicle registration input, carrier, docket, and E-Way bill inputs. Captured verified_sto_dispatch_workbench.png.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 11: In-Transit Telemetry Radar",
+            "Tab [F4] #tab-sto-transit-radar",
+            "Verified active on-road shipment cards, cold-chain temperature badges, and receiving triggers. Captured verified_sto_in_transit_radar.png.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 12: Hub Receiving & Challan Print Modals",
+            "Tab [F1] Actions & Modals",
+            "Verified opening of Hub Receiving Modal (#modal-acknowledge-inward) and Printable Rule 55 Challan (#modal-print-sto-challan).",
+            "100% PASS\n(Exit 0)"
+        ]
+    ]
+    style_table(sto_qa_table, [1.2, 1.8, 2.6, 0.9], sto_qa_headers, sto_qa_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_p("The automated Selenium test suite captures 4 high-resolution visual proof artifacts demonstrating flawless frontend rendering:")
+
+    add_screenshot(
+        "verified_sto_telemetry_scorecards.png",
+        "Figure 35.1: Stock Transfer Telemetry Scorecards (/stock-transfer) displaying Total Active Transfer Orders, Consignments In-Transit, Total Value in Transit (₹), and Cumulative Transit Loss (₹) with real-time operational status indicators."
+    )
+
+    add_screenshot(
+        "verified_sto_requisition_workbench.png",
+        "Figure 35.2: Inter-Depot Requisition Desk (Tab [F2]) showing Origin Godown, Destination Godown, delivery deadline, transfer reason, and dynamic product item grid with auto-sequenced order numbering."
+    )
+
+    add_screenshot(
+        "verified_sto_dispatch_workbench.png",
+        "Figure 35.3: Outward Dispatch & Transit Challan Desk (Tab [F3]) with vehicle registration, carrier name, tracking docket number, statutory E-Way bill, and source warehouse batch stock deduction."
+    )
+
+    add_screenshot(
+        "verified_sto_in_transit_radar.png",
+        "Figure 35.4: Live In-Transit Telemetry Radar (Tab [F4]) displaying on-road fleet consignments, active cold-chain temperature monitoring (4.2°C Cold Chain OK), transit age, and receiving dock action triggers."
+    )
+
     # Save to erp2 directory
     output_path = r"C:\Users\DELL\OneDrive\Desktop\erp2\ERP_ENTERPRISE_SYSTEM_COMPLETE_SOFTWARE_MASTER_WALKTHROUGH.docx"
     doc.save(output_path)

@@ -1124,7 +1124,7 @@ Implemented and verified the production-grade Principal & C&F Operations Managem
 
 ---
 
-## Comprehensive Master QA Test Registry (21 Suites)
+## Comprehensive Master QA Test Registry (22 Suites)
 
 | # | Suite Filename | Focus Area | Result |
 | :--- | :--- | :--- | :--- |
@@ -1149,6 +1149,7 @@ Implemented and verified the production-grade Principal & C&F Operations Managem
 | 19 | `verify_live_vercel_client_creation.py` | Live Vercel Auth, Presets, Client Management, Modal Form, Neon DB Write | 100% PASS (Exit Code 0) |
 | 20 | `test_procurement_po_replenishment_selenium.py` | Procurement Desk `/po`, Scorecards, Radar `[F2]`, Bulk PO `[F7]`, Builder `[F3]`, WhatsApp Slip, Convert to Inward Bill | 100% PASS (Exit Code 0) |
 | 21 | `test_grn_quality_inspection_selenium.py` | GRN Desk `/grn`, Inward Dock `[F2]`, Web Audio Barcode Scanner `[F3]`, Cold Chain `[F4]`, QA Inspection `[F8]`, GL Purchase Conversion | 100% PASS (Exit Code 0) |
+| 22 | `test_stock_transfer_in_transit_selenium.py` | Stock Transfer Desk `/stock-transfer`, Scorecards, Requisition `[F2]`, Outward Dispatch `[F3]`, In-Transit Radar `[F4]`, Damage Quarantine Inward | 100% PASS (Exit Code 0) |
 
 ---
 
@@ -1174,6 +1175,33 @@ Implemented and verified the production-grade Principal & C&F Operations Managem
      - `verified_grn_gate_inward_workbench.png`
      - `verified_grn_barcode_rapid_scanner.png`
      - `verified_grn_qc_coldchain_inspection.png`
+
+---
+
+## DOC-47: Multi-Branch & Inter-Depot Stock Transfer Order (STO), In-Transit Telemetry & Hub Receiving Desk (`/stock-transfer`)
+
+1. **Database Schema & Relational Integrity (`models.py`)**:
+   - `models.StockTransferOrder`: Relational model connecting source and destination warehouses (`from_godown_id`, `to_godown_id` foreign keys), sequential order reference `STO-YYYYMM-XXXX`, dispatch metadata (`vehicle_no`, `carrier_name`, `docket_no`, `eway_bill_no`, `driver_phone`, `transit_temperature`), receiving notes, and comprehensive valuation metrics (`total_transfer_value`, `transit_loss_value`).
+   - `models.StockTransferOrderItem`: Line items tracking `product_id`, `batch_no`, `requested_qty`, `dispatched_qty`, `received_qty`, `damaged_qty`, `short_qty`, and unit valuation rate.
+2. **Backend API Endpoints (`backend/api/stock_transfer.py`)**:
+   - `GET /api/stock-transfer/telemetry`: Computes real-time telemetry metrics (total active STOs, on-road shipments, transit valuation ₹, cumulative transit loss ₹).
+   - `GET /api/stock-transfer/warehouses`: Lists configured branch godowns and fulfillment depots.
+   - `GET /api/stock-transfer/orders`: Returns list of transfer orders filtered by status or godown.
+   - `POST /api/stock-transfer/orders`: Creates new inter-depot STO in `DRAFT` status with sequential numbering.
+   - `POST /api/stock-transfer/orders/{order_id}/dispatch`: Deducts physical batch stock at origin warehouse (`batch.current_stock -= dispatched_qty`), commits carrier/vehicle/EWB metadata, and moves status to `IN_TRANSIT`.
+   - `POST /api/stock-transfer/orders/{order_id}/acknowledge-inward`: Segregates received units; increments destination saleable batch (`dest_batch.current_stock += received_qty`) and diverts damaged units directly into quarantine (`dest_batch.brk_exp_stock += damaged_qty`). Computes carrier transit loss value.
+3. **Frontend Architecture & DOM Catalog (`StockTransferMaster.tsx`)**:
+   - 4 Operational Tabs: `[F1]` Master Register, `[F2]` Create Requisition Desk, `[F3]` Outward Dispatch & Challan, `[F4]` In-Transit Radar.
+   - 4 Metric Scorecards: Active Orders, On-Road Fleet, In-Transit Valuation, Cumulative Transit Loss.
+   - Dock Receiving Modal (`#modal-acknowledge-inward`) with received vs broken item-level tally.
+   - Statutory Rule 55 Delivery Challan Modal (`#modal-print-sto-challan`) with company GSTINs, transport details, and 4-tier signature blocks.
+4. **Master Automated Selenium Suite (`test_stock_transfer_in_transit_selenium.py`)**:
+   - 12/12 Stages PASSED (100% Exit Code 0).
+   - 4 live visual proof screenshots captured:
+     - `verified_sto_telemetry_scorecards.png`
+     - `verified_sto_requisition_workbench.png`
+     - `verified_sto_dispatch_workbench.png`
+     - `verified_sto_in_transit_radar.png`
 
 ---
 

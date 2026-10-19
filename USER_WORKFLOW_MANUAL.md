@@ -2264,6 +2264,7 @@ The system is built for zero-mouse cashier operation. Billing operators should m
 | **Stock Shift Desk** | `/stock-shift` | Godown transfer & principal claims. | Move stock from Saleable to Quarantine, check `#check-auto-claim`, save voucher. |
 | **Procurement Desk** | `/po` | Stock replenishment radar & POs. | Review deficit scorecards, press `[F2]` for radar, click `[F7]` for bulk POs, dispatch via WhatsApp. |
 | **Goods Receipt Desk**| `/grn` | Receiving dock & physical inspection. | Match approved PO (`[F2]`), scan barcodes (`[F3]`), verify cold-chain & quarantine damage (`[F4]`), convert to GL bill. |
+| **Stock Transfer Desk**| `/stock-transfer` | Inter-branch/depot STO & transit radar. | Create STO (`[F2]`), dispatch with vehicle/carrier/EWB (`[F3]`), track in-transit telemetry (`[F4]`), receive & quarantine transit damage. |
 | **Client Management** | `/clients` | Multi-tenant client onboarding. | Click `+ Register New Client`, fill details, deploy ERP, click `Switch to ERP ->`. |
 
 ---
@@ -2308,6 +2309,131 @@ When a delivery truck arrives at the godown unloading bay from a pharmaceutical 
 
 ---
 
+## 43. DOC-47: Multi-Branch & Inter-Depot Stock Transfer Order (STO), In-Transit Telemetry & Hub Receiving Desk (`/stock-transfer`)
+
+### 43.1 Operational Workflow & Purpose
+The Multi-Branch & Inter-Depot Stock Transfer Order (STO) desk provides end-to-end logistics orchestration for moving pharmaceutical inventory across central warehouses, regional distribution centers (RDCs), and retail hospital branches. It ensures strict batch tracking, carrier accountability, temperature logging in transit, and automated segregation of transit damages upon receiving at destination godowns.
+
+Key operational capabilities:
+- **Autonomous Stock Transfer Requisitioning**: Depots request inventory based on localized deficits or seasonal demand spikes.
+- **Outward Dispatch Gate & Delivery Challan Generation**: Source warehouse confirms picking, locks batches, and records vehicle registration, carrier name, tracking docket, and statutory E-Way Bill numbers.
+- **Live In-Transit Radar & Telemetry**: Real-time visibility into active freight consignments, including temperature conditions, estimated delivery time, and dispatch age.
+- **Hub Inward Receiving & Damage Quarantine**: Destination hub performs physical tally; undamaged units flow to saleable inventory (`current_stock`), while transit breakages are automatically quarantined (`brk_exp_stock`) with transit loss values calculated.
+- **Formal Delivery Challan Printing**: Generates standardized, GST-compliant inter-branch delivery challans complete with statutory transport disclosures, security seals, and authorization signatures.
+
+---
+
+### 43.2 Step-by-Step Operator Procedures
+
+#### Step 1: Initiating an Inter-Branch Stock Transfer Requisition (`[F2]`)
+1. From the top navigation or pressing keyboard shortcut `[F2]`, switch to the **Create STO Requisition** tab.
+2. Select the **Source Godown / Origin Hub** (e.g. `Central Warehouse - North`) where stock currently resides.
+3. Select the **Destination Godown / Receiving Hub** (e.g. `South Regional Distribution Hub`).
+   - *Note*: Source and Destination hubs cannot be identical; the system alerts the operator if matching depots are selected.
+4. Input **Required Delivery Date**, **Transfer Reason** (e.g. `Seasonal Stock Balancing`, `Emergency Depletion Replenishment`), and operator **Remarks**.
+5. Add requisition line items:
+   - Select the pharmaceutical product from the catalog.
+   - Specify the batch number or leave as auto-allocate.
+   - Enter **Requested Quantity** and unit valuation rate.
+   - Click **+ Add Item** to attach additional lines if transferring multiple products.
+6. Click **Submit Transfer Requisition Order** (`#btn-create-sto-submit`).
+7. The order is committed in `DRAFT` status and assigned a unique sequential order number formatted as `STO-YYYYMM-XXXX`.
+
+#### Step 2: Picking, Packing & Outward Dispatch (`[F3]`)
+1. Once stock is physically picked and packed at the origin godown, navigate to tab `[F3] Outward Dispatch & Challan`.
+2. Locate the pending STO requisition and click **Dispatch Order** (`#btn-start-dispatch-{id}`).
+3. In the Outward Dispatch Drawer / Form, enter transport metadata:
+   - **Vehicle Registration Number** (e.g. `DL-01-EF-9988`).
+   - **Carrier / Logistics Partner** (e.g. `ColdChain Logistics Express`, `Gati KWE`).
+   - **Courier Docket / Consignment Note Number** (e.g. `DOCKET-774921`).
+   - **E-Way Bill Number** (e.g. `EWB-992837410293`).
+   - **Current Transit Temperature** (e.g. `4.2°C`).
+   - **Driver Contact Phone** (e.g. `+91-9811122334`).
+4. Enter the verified **Dispatched Quantity** for each line item.
+5. Click **Confirm Outward Dispatch & Generate Challan** (`#btn-confirm-dispatch`).
+6. System consequences:
+   - Source warehouse batch stock is immediately decremented (`batch.current_stock -= dispatched_qty`).
+   - STO status transitions to `IN_TRANSIT`.
+   - Dispatch timestamp and telemetry fields are recorded.
+
+#### Step 3: Monitoring Active Consignments on In-Transit Radar (`[F4]`)
+1. Logistics coordinators switch to tab `[F4] In-Transit Radar`.
+2. The radar displays all active in-transit shipments across the national network:
+   - Origin and Destination godown routes.
+   - Vehicle registration and carrier tracking docket numbers.
+   - Live telemetry status badges (e.g. `4.2°C Cold Chain OK`, `In-Transit 2.4 hrs`).
+   - Direct link to generate or view delivery challan.
+3. Click the **Receive at Hub** action button (`#btn-in-transit-receive-{id}`) as soon as the vehicle docks at the destination receiving bay.
+
+#### Step 4: Destination Hub Receiving & Damage Quarantine (`#modal-acknowledge-inward`)
+1. In the Receiving Desk modal, inspect physical goods unloaded from the carrier.
+2. For each line item:
+   - Verify the physical quantity received against the challan dispatched quantity.
+   - Input **Received Quantity** (e.g. if 50 were dispatched and 48 arrived intact, enter `48`).
+   - Input **Damaged / Broken Quantity** (e.g. if 2 ampoules shattered in transit, enter `2`).
+   - System automatically computes **Shortage Quantity** as `max(0, dispatched_qty - (received_qty + damaged_qty))`.
+3. Provide receiving condition notes (e.g. `Consignment arrived intact; 2 ampoules found broken in outer carton B-4`).
+4. Click **Complete Inward & Update Stock** (`#btn-submit-inward-ack`).
+5. Real-Time Stock Segregation & Financial Ledger Impact:
+   - Destination warehouse receives saleable stock: `dest_batch.current_stock += received_qty`.
+   - Transit breakages are segregated directly into quarantine stock: `dest_batch.brk_exp_stock += damaged_qty`.
+   - Total transit loss value is logged against the logistics carrier for claim recovery.
+   - Order status transitions to `COMPLETED` (or `PARTIALLY_RECEIVED` if shortages exist).
+
+#### Step 5: Printing Inter-Branch Delivery Challan (`#modal-print-sto-challan`)
+1. In the Master Register (`[F1]`) or Radar (`[F4]`), click the **Print** icon on any dispatched or completed STO.
+2. A formal GST Delivery Challan compliant with Rule 55 of CGST Rules 2017 appears:
+   - Sender & Consignee GSTIN, Drug License numbers, and Warehouse addresses.
+   - Vehicle No, Carrier Name, Docket No, and E-Way Bill No.
+   - Itemized table with HSN codes, Batch numbers, Expiry dates, and Transfer Values.
+   - Security seal verification status.
+   - Quadruple signature blocks: Dispatch Warehouse Officer, Carrier Driver, Receiving Dock Officer, and Quality Inspector.
+3. Click `Print Challan` or press `[Ctrl+P]` for physical printing or PDF export.
+
+---
+
+### 43.3 Operational DOM Catalog
+
+| Element ID / Selector | Component Type | User Interaction & Functionality |
+| :--- | :--- | :--- |
+| `#sto-nav-tabs` | Navigation Tabstrip | Switches between `[F1]` Master Register, `[F2]` Requisition, `[F3]` Outward Dispatch, `[F4]` In-Transit Radar. |
+| `#tab-sto-register` | Tab Button | Displays all STO records with search filter, status badges, and action menus. |
+| `#tab-sto-requisition` | Tab Button | Opens inter-depot requisition desk with dynamic item grid. |
+| `#tab-sto-dispatch` | Tab Button | Displays STOs awaiting dispatch and vehicle/carrier assignment form. |
+| `#tab-sto-transit-radar`| Tab Button | Shows live in-transit telemetry, vehicle routes, and receiving action triggers. |
+| `#stat-card-active-sto` | Metric Scorecard | Displays total active transfer orders. |
+| `#stat-card-in-transit` | Metric Scorecard | Displays count of vehicles currently on road. |
+| `#stat-card-transit-val` | Metric Scorecard | Displays monetary valuation of goods currently in transit (₹). |
+| `#stat-card-transit-loss`| Metric Scorecard | Displays cumulative value of transit breakage & shortages (₹). |
+| `#select-source-godown` | Dropdown Select | Selects origin warehouse / fulfillment depot. |
+| `#select-dest-godown` | Dropdown Select | Selects destination receiving branch / hospital depot. |
+| `#btn-create-sto-submit`| Action Button | Validates inputs, posts payload to `/api/stock-transfer/orders`, creates STO. |
+| `#input-dispatch-vehicle`| Text Input | Captures transport vehicle registration number (e.g. DL-01-AB-1234). |
+| `#input-dispatch-carrier`| Text Input | Captures logistics company name (e.g. Blue Dart ColdChain). |
+| `#input-dispatch-docket` | Text Input | Captures consignment docket / tracking number. |
+| `#input-dispatch-ewb` | Text Input | Captures 12-digit statutory GST E-Way Bill reference. |
+| `#btn-confirm-dispatch` | Action Button | Submits dispatch payload, deducts source stock, moves order to `IN_TRANSIT`. |
+| `#modal-acknowledge-inward`| Modal Dialog | Dock receiving interface for logging received, damaged, and shortage units. |
+| `#btn-submit-inward-ack`| Action Button | Posts inward acknowledgement, increments destination saleable and quarantine stocks. |
+| `#modal-print-sto-challan`| Modal Dialog | Renders printable Rule 55 inter-branch delivery challan. |
+
+---
+
+### 43.4 Keyboard Shortcuts Reference
+
+| Shortcut Key | Action / Functionality | Screen Scope |
+| :--- | :--- | :--- |
+| `[F1]` | Switch to Master Stock Transfer Register | Anywhere inside `/stock-transfer`. |
+| `[F2]` | Switch to Create STO Requisition Desk | Anywhere inside `/stock-transfer`. |
+| `[F3]` | Switch to Outward Dispatch & Challan Desk | Anywhere inside `/stock-transfer`. |
+| `[F4]` | Switch to In-Transit Telemetry Radar | Anywhere inside `/stock-transfer`. |
+| `[F5]` | Refresh Transfer Telemetry & Order Status | Top Header Bar. |
+| `[Enter]` | Submit Requisition / Confirm Dispatch | Active Form or Drawer. |
+| `[Esc]` | Dismiss Inward Receiving or Challan Print Modal | Active Modal Dialog. |
+
+---
+
 *End of User Workflow Manual.*
+
 
 
