@@ -1620,6 +1620,89 @@ class VendorComplaintResponse(VendorComplaintBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+# =====================================================================
+# DOC-46: Goods Receipt Note (GRN) & Inward Verification Schemas
+# =====================================================================
+
+class GoodsReceiptNoteItemBase(BaseModel):
+    po_item_id: Optional[UUID4] = None
+    product_id: Optional[UUID4] = None
+    product_name: str
+    ordered_qty: int = 0
+    challan_qty: int = 0
+    received_qty: int = 0
+    accepted_qty: int = 0
+    damaged_qty: int = 0
+    short_qty: int = 0
+    batch_number: Optional[str] = None
+    expiry_date: Optional[str] = None
+    mrp: Decimal = Decimal('0.00')
+    purchase_rate: Decimal = Decimal('0.00')
+    line_total: Decimal = Decimal('0.00')
+    quality_remarks: Optional[str] = None
+
+class GoodsReceiptNoteItemCreate(GoodsReceiptNoteItemBase):
+    pass
+
+class GoodsReceiptNoteItemResponse(GoodsReceiptNoteItemBase):
+    id: UUID4
+    grn_id: UUID4
+    model_config = ConfigDict(from_attributes=True)
+
+class GoodsReceiptNoteBase(BaseModel):
+    grn_number: str
+    date: datetime
+    po_id: Optional[UUID4] = None
+    vendor_id: UUID4
+    challan_number: Optional[str] = None
+    challan_date: Optional[datetime] = None
+    gate_entry_number: Optional[str] = None
+    vehicle_number: Optional[str] = None
+    received_by: Optional[str] = None
+    temperature_celsius: Optional[Decimal] = None
+    seal_intact: bool = True
+    inspection_status: str = "PENDING_INSPECTION"
+    status: str = "DRAFT"
+    total_received_amount: Decimal = Decimal('0.00')
+    remarks: Optional[str] = None
+
+class GoodsReceiptNoteCreate(GoodsReceiptNoteBase):
+    items: List[GoodsReceiptNoteItemBase] = []
+
+class GoodsReceiptNoteResponse(GoodsReceiptNoteBase):
+    id: UUID4
+    organization_id: UUID4
+    created_at: datetime
+    items: List[GoodsReceiptNoteItemResponse] = []
+    vendor_name: Optional[str] = None
+    po_number: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class GRNItemInspectionUpdate(BaseModel):
+    item_id: UUID4
+    accepted_qty: int
+    damaged_qty: int
+    short_qty: int
+    batch_number: Optional[str] = None
+    expiry_date: Optional[str] = None
+    mrp: Optional[Decimal] = None
+    purchase_rate: Optional[Decimal] = None
+    quality_remarks: Optional[str] = None
+
+class GRNInspectionUpdate(BaseModel):
+    temperature_celsius: Optional[Decimal] = None
+    seal_intact: Optional[bool] = None
+    inspection_status: str
+    remarks: Optional[str] = None
+    items: List[GRNItemInspectionUpdate] = []
+
+class GRNConvertToPurchaseRequest(BaseModel):
+    invoice_number: Optional[str] = None
+    invoice_date: Optional[datetime] = None
+    payment_terms_days: int = 30
+    tax_rate: Decimal = Decimal('18.00')
+
+
 
 # =====================================================================
 # DOC-18: Sales Order Management Schemas

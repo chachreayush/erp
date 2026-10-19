@@ -186,6 +186,7 @@ from api.inventory import router as inventory_router
 from api.claims import router as claims_router
 from api.replenishment import router as replenishment_router
 from api.procurement import router as procurement_router
+from api.grn import router as grn_router
 from api.orders import router as orders_router
 from api.dispatch import router as dispatch_router
 from api.billing import router as billing_router
@@ -198,6 +199,7 @@ app.include_router(inventory_router)
 app.include_router(claims_router)
 app.include_router(replenishment_router)
 app.include_router(procurement_router, prefix="/api/procurement")
+app.include_router(grn_router, prefix="/api/grn", tags=["Goods Receipt Note"])
 app.include_router(orders_router, prefix="/api/orders")
 app.include_router(dispatch_router, prefix="/api/dispatch")
 app.include_router(billing_router, prefix="/api/billing")

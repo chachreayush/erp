@@ -65,7 +65,7 @@ import DispatchManager from './pages/sales/DispatchManager'
 import OrderApprovalDashboard from './pages/sales/OrderApprovalDashboard'
 import SalesBill from './pages/sales/SalesBill'
 import PurchaseOrderMaster from './pages/procurement/PurchaseOrderMaster'
-import GoodsReceipt from './pages/procurement/GoodsReceipt'
+import GoodsReceiptNoteMaster from './pages/procurement/GoodsReceiptNoteMaster'
 import VendorComplaints from './pages/procurement/VendorComplaints'
 import PurchaseBill from './pages/purchase/PurchaseBill'
 import PurchaseList from './pages/purchase/PurchaseList'
@@ -226,7 +226,7 @@ function App() {
         <Route path="purchase/list"    element={<PurchaseList />} />
         <Route path="purchase/modify"  element={<PurchaseList />} />
         <Route path="po" element={<PurchaseOrderMaster />} />
-        <Route path="grn" element={<GoodsReceipt />} />
+        <Route path="grn" element={<GoodsReceiptNoteMaster />} />
         <Route path="vendor-complaints" element={<VendorComplaints />} />
 
         <Route path="sales-return"     element={<SalesReturnBill />} />

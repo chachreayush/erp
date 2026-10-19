@@ -397,7 +397,21 @@ The ERP implements universal Marg and Tally series continuation through the clie
 
 ---
 
-## 2.7 Responsive Top Navigation & Counter Launcher Hotkeys
+## 2.7 Module 27 — DOC-46: Goods Receipt Note (GRN), Physical Quality Inspection & Barcode Inward Verification Desk
+
+- **Route**: `/grn` (or Top Nav `Purchases ▾` &rarr; `Goods Receipt Note (GRN)`).
+- **Operational Purpose**: Complete warehouse gate inward control, physical package and seal inspection, temperature/cold-chain verification, barcode scanning tally, damage quarantine, and 1-click General Ledger purchase conversion with separate accepted and damaged stock batches.
+- **Key Operator Steps**:
+  1. Review Telemetry 4 Scorecards: Total Inward Consignments, Under Quality Inspection, Accepted & Stocked Value, and Damaged / Quarantined Units.
+  2. In Tab `[F2] Gate Inward Workbench`, select Pending Purchase Order (`#select-grn-po`) to auto-populate vendor details and line items. Enter Vehicle Number (`#input-grn-vehicle-no`), Delivery Challan No (`#input-grn-challan-no`), E-Way Bill No (`#input-grn-eway-bill`), Received Temperature (`#input-grn-temperature`), and Seal Intact checkbox (`#checkbox-grn-seal-intact`).
+  3. Enter line item quantities: Received Qty (`#input-grn-received-qty-{idx}`), Accepted Qty (`#input-grn-accepted-qty-{idx}`), and Damaged/Rejected Qty (`#input-grn-damaged-qty-{idx}`). The Shortage Qty auto-calculates as `max(0, challan_qty - received_qty)`.
+  4. In Tab `[F3] Barcode Rapid Scanner Desk`, enter or scan barcode SKU/EAN (`#input-barcode-scan`) and press Enter. The Web Audio API synthesizes a real-time verification chirp sound (`880Hz / 1760Hz`) and increments the item's scanned tally.
+  5. In Tab `[F4] Physical Quality & Cold-Chain Desk`, audit temperature limits (2°C - 8°C cold chain vs 15°C - 25°C ambient), package seal status, and quarantine remarks.
+  6. In Tab `[F1] Master GRN Register`, view inward receipts, filter by status (`PENDING_INSPECTION`, `ACCEPTED`, `REJECTED`, `CONVERTED_TO_PURCHASE`), click `Inspect [F8]` (`#btn-inspect-grn-{id}`) to approve/reject, click `Print Slip [Ctrl+P]` (`#btn-print-grn-{id}`) for physical warehouse tags, and click `Convert to Purchase Bill` (`#btn-convert-grn-purchase-{id}`) to book `PUR-GRN-XXXX` into the General Ledger.
+
+---
+
+## 2.8 Responsive Top Navigation & Counter Launcher Hotkeys
 
 1. **Responsive 10-Item Top Navigation Menu**:
    - `Dashboard` | `Master ▾` | `Finance & Accounting ▾` | `Inventory ▾` | `Sales & Purchase ▾` | `C&F & Logistics ▾` | `Workflows [F4] ▾` | `GST & Compliance ▾` | `CRM & Admin ▾` | `Reports ▾`.
@@ -417,7 +431,7 @@ The ERP implements universal Marg and Tally series continuation through the clie
 
 ---
 
-## 2.8 Comprehensive Automated QA Test Suite Registry (20 Suites)
+## 2.9 Comprehensive Automated QA Test Suite Registry (21 Suites)
 
 | # | Test Suite Filename | Focus Area & Verified Modules | Status & Assertions |
 | :--- | :--- | :--- | :--- |
@@ -441,7 +455,9 @@ The ERP implements universal Marg and Tally series continuation through the clie
 | 18 | `test_gstr2b_reconciliation_selenium.py` | GST Cockpit `[F5]`, Scorecards, Tolerance $\pm ₹1/5/10$, Dunning Modal, Ingest 2B Modal | 100% PASS (Exit Code 0) |
 | 19 | `verify_live_vercel_client_creation.py` | Live Vercel Auth, Presets, Client Management, Modal Form, Neon DB Write | 100% PASS (Exit Code 0) |
 | 20 | `test_procurement_po_replenishment_selenium.py` | Procurement Desk `/po`, Scorecards, Radar `[F2]`, Bulk PO `[F7]`, Builder `[F3]`, WhatsApp Slip, Convert to Inward Bill | 100% PASS (Exit Code 0) |
+| 21 | `test_grn_quality_inspection_selenium.py` | GRN Desk `/grn`, Inward Dock `[F2]`, Web Audio Barcode Scanner `[F3]`, Cold Chain `[F4]`, QA Inspection `[F8]`, GL Purchase Conversion | 100% PASS (Exit Code 0) |
 
 ---
 
 *End of Unified Master Manual.*
+

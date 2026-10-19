@@ -3854,9 +3854,106 @@ export async function apiGetAdminCargoTracking(params?: {
   return res.data;
 }
 
+// ==========================================
+// DOC-46: GOODS RECEIPT NOTE (GRN) & INWARD APIS
+// ==========================================
 
+export interface GrnTelemetry {
+  total_grns: number;
+  pending_inspection: number;
+  inspected_accepted: number;
+  converted_to_purchase: number;
+  total_damaged_qty: number;
+  total_inward_value: number;
+}
 
+export interface GrnItem {
+  id?: string;
+  grn_id?: string;
+  po_item_id?: string | null;
+  product_id?: string | null;
+  product_name: string;
+  ordered_qty: number;
+  challan_qty: number;
+  received_qty: number;
+  accepted_qty: number;
+  damaged_qty: number;
+  short_qty: number;
+  batch_number?: string | null;
+  expiry_date?: string | null;
+  mrp: number;
+  purchase_rate: number;
+  line_total: number;
+  quality_remarks?: string | null;
+}
 
+export interface GoodsReceiptNoteRecord {
+  id: string;
+  organization_id: string;
+  grn_number: string;
+  date: string;
+  po_id?: string | null;
+  vendor_id: string;
+  vendor_name?: string | null;
+  po_number?: string | null;
+  challan_number?: string | null;
+  challan_date?: string | null;
+  gate_entry_number?: string | null;
+  vehicle_number?: string | null;
+  received_by?: string | null;
+  temperature_celsius?: number | null;
+  seal_intact: boolean;
+  inspection_status: 'PENDING_INSPECTION' | 'ACCEPTED' | 'REJECTED' | 'PARTIAL_ACCEPT';
+  status: 'DRAFT' | 'VERIFIED' | 'CONVERTED_TO_PURCHASE' | 'CANCELLED';
+  total_received_amount: number;
+  remarks?: string | null;
+  created_at: string;
+  items: GrnItem[];
+}
 
+export async function apiGetGrnTelemetry(): Promise<GrnTelemetry> {
+  const res = await apiClient.get<GrnTelemetry>('/api/grn/telemetry');
+  return res.data;
+}
 
+export async function apiGetPendingPurchaseOrders(): Promise<any[]> {
+  const res = await apiClient.get<any[]>('/api/grn/pending-orders');
+  return res.data;
+}
 
+export async function apiGetGoodsReceiptNotes(params?: {
+  vendor_id?: string;
+  status?: string;
+  inspection_status?: string;
+}): Promise<GoodsReceiptNoteRecord[]> {
+  const res = await apiClient.get<GoodsReceiptNoteRecord[]>('/api/grn/', { params });
+  return res.data;
+}
+
+export async function apiGetGoodsReceiptNote(id: string): Promise<GoodsReceiptNoteRecord> {
+  const res = await apiClient.get<GoodsReceiptNoteRecord>(`/api/grn/${id}`);
+  return res.data;
+}
+
+export async function apiCreateGoodsReceiptNote(payload: any): Promise<GoodsReceiptNoteRecord> {
+  const res = await apiClient.post<GoodsReceiptNoteRecord>('/api/grn/', payload);
+  return res.data;
+}
+
+export async function apiUpdateGrnInspection(id: string, payload: any): Promise<GoodsReceiptNoteRecord> {
+  const res = await apiClient.patch<GoodsReceiptNoteRecord>(`/api/grn/${id}/inspection`, payload);
+  return res.data;
+}
+
+export async function apiConvertGrnToPurchase(id: string, payload: any): Promise<{
+  success: boolean;
+  message: string;
+  invoice_id: string;
+  invoice_number: string;
+  grn_number: string;
+  grand_total: number;
+  items_inwarded: number;
+}> {
+  const res = await apiClient.post(`/api/grn/${id}/convert-to-purchase`, payload);
+  return res.data;
+}

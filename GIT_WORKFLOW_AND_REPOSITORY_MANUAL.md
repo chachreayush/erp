@@ -136,6 +136,7 @@ C:\Python313\python.exe test_gst_einvoice_eway_selenium.py
 C:\Python313\python.exe test_gstr2b_reconciliation_selenium.py
 C:\Python313\python.exe test_client_management_modal_selenium.py
 C:\Python313\python.exe test_procurement_po_replenishment_selenium.py
+C:\Python313\python.exe test_grn_quality_inspection_selenium.py
 ```
 
 ### Step 4: Live Cloud Verification
@@ -157,7 +158,8 @@ This guarantees 100% production uptime, validates cloud multi-tenant client crea
 2. **Never Commit Secrets**: Ensure `.env` in `backend` and `src` is listed in `.gitignore` so database passwords and secret keys are never exposed on GitHub.
 3. **Branch Protection**: The `main` branch represents production code deployed to live pharmacies and cashiers. Ensure all changes are verified via Selenium before pushing to `main`.
 4. **Recent Production Releases**:
-   - `HEAD`: "feat(doc-45): enterprise purchase order, stock replenishment radar & vendor procurement desk"
+   - `HEAD`: "feat(doc-46): goods receipt note (grn), physical quality inspection & barcode inward verification desk"
+   - `prev`: "feat(doc-45): enterprise purchase order, stock replenishment radar & vendor procurement desk"
    - `c4f529a`: "docs: exhaustive synchronization of all enterprise developer, user and master walkthrough manuals"
    - `2e2a264`: "chore: update live vercel client registration test with synthetic react setter"
    - `e112a7c`: "fix(client-reg): add semantic DOM IDs for client registration modal and trigger elements"
@@ -170,5 +172,6 @@ This guarantees 100% production uptime, validates cloud multi-tenant client crea
 
 ---
 *End of Git Workflow Manual.*
+
 
 

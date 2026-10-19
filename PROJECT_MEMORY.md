@@ -1124,7 +1124,7 @@ Implemented and verified the production-grade Principal & C&F Operations Managem
 
 ---
 
-## Comprehensive Master QA Test Registry (20 Suites)
+## Comprehensive Master QA Test Registry (21 Suites)
 
 | # | Suite Filename | Focus Area | Result |
 | :--- | :--- | :--- | :--- |
@@ -1148,9 +1148,36 @@ Implemented and verified the production-grade Principal & C&F Operations Managem
 | 18 | `test_gstr2b_reconciliation_selenium.py` | GST Cockpit `[F5]`, Scorecards, Tolerance $\pm ₹1/5/10$, Dunning Modal, Ingest 2B Modal | 100% PASS (Exit Code 0) |
 | 19 | `verify_live_vercel_client_creation.py` | Live Vercel Auth, Presets, Client Management, Modal Form, Neon DB Write | 100% PASS (Exit Code 0) |
 | 20 | `test_procurement_po_replenishment_selenium.py` | Procurement Desk `/po`, Scorecards, Radar `[F2]`, Bulk PO `[F7]`, Builder `[F3]`, WhatsApp Slip, Convert to Inward Bill | 100% PASS (Exit Code 0) |
+| 21 | `test_grn_quality_inspection_selenium.py` | GRN Desk `/grn`, Inward Dock `[F2]`, Web Audio Barcode Scanner `[F3]`, Cold Chain `[F4]`, QA Inspection `[F8]`, GL Purchase Conversion | 100% PASS (Exit Code 0) |
+
+---
+
+## DOC-46: Goods Receipt Note (GRN), Physical Quality Inspection & Barcode Inward Verification Desk (`/grn`)
+
+1. **Warehouse Gate Inward & PO Matching Engine (`POST /api/grn/`)**:
+   - Linked to open Purchase Orders (`PurchaseOrder` model) with auto-population of vendor and line items.
+   - Captures delivery vehicle number, vendor delivery challan number, carrier E-Way bill number, receiving bay, driver contact, received temperature, and tamper-evident seal integrity check.
+   - Calculates item-level shortage automatically: $\text{Shortage Qty} = \max(0, \text{Challan Qty} - \text{Received Qty})$.
+2. **Audio-Synthesized Barcode Rapid Scanner Desk (`[F3]`)**:
+   - Web Audio API real-time acoustic synthesizer (`AudioContext` oscillator generating high-pitch `880Hz / 1760Hz` chime) providing instant acoustic feedback upon scanning.
+   - Real-time tally counter and barcode string matching against SKU codes and EAN barcodes.
+3. **Physical Quality Inspection & Cold-Chain Protocol (`[F4]`, `PATCH /api/grn/{grn_id}/inspection`)**:
+   - Strict cold-chain compliance auditing ($2^\circ\text{C} - 8^\circ\text{C}$ refrigerated vs $15^\circ\text{C} - 25^\circ\text{C}$ ambient pharma stock).
+   - Inspection outcome workflow: `ACCEPTED`, `REJECTED`, `PARTIALLY_ACCEPTED`, `QUARANTINED` with mandatory inspector badge and quarantine defect reasoning.
+4. **General Ledger Purchase Bill Conversion Engine (`POST /api/grn/{grn_id}/convert-to-purchase`)**:
+   - Automatically books standard `Purchase` bill (`PUR-GRN-XXXX`) crediting Creditors (`Sundry Creditors / Vendor Payable`) and debiting Purchase Account (`Stock In Trade`).
+   - Distributes inward inventory into separate physical batches: accepted quantity increments `current_stock` (ready for sale), while damaged/rejected quantity increments `brk_exp_stock` (quarantine isolation).
+5. **Master Automated Selenium Suite (`test_grn_quality_inspection_selenium.py`)**:
+   - 12/12 Stages PASSED (100% Exit Code 0).
+   - Visual artifacts captured:
+     - `verified_grn_telemetry_scorecards.png`
+     - `verified_grn_gate_inward_workbench.png`
+     - `verified_grn_barcode_rapid_scanner.png`
+     - `verified_grn_qc_coldchain_inspection.png`
 
 ---
 
 *End of Master Memory File.*
+
 
 

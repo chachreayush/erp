@@ -918,7 +918,83 @@ DOC-45 introduces an end-to-end Procure-to-Pay (P2P) automation engine:
 
 ---
 
-## 33. Comprehensive Automated QA Test Suite Registry (20 Suites)
+## 33. Module 33: Goods Receipt Note (GRN), Physical Quality Inspection & Barcode Inward Verification Desk (`/grn`)
+
+### 33.1 Purpose & Industrial Scope
+Receiving physical inventory at the warehouse dock requires strict verification before posting to accounts payable. Vendor deliveries regularly arrive with transit shortages against delivery challans, cold-chain temperature excursions, and damaged units. 
+
+The **Goods Receipt Note (GRN) & Physical Inward Inspection Desk** (`/grn`) bridges Purchase Orders (`PO-YYYYMM-XXXX`) to General Ledger Inward Purchase Bills (`PUR-GRN-XXXX`) via a 3-tier validation workflow:
+1. **Gate Inward Matching**: Compares physical carton counts with vendor delivery challans, computing shortage discrepancies (`short_qty = challan_qty - received_qty`).
+2. **Barcode Rapid Scanner**: Handheld dock scanning with real-time audio chirp and counter increments.
+3. **Physical QC & Cold-Chain Desk**: 2.0°C – 8.0°C range verification, tamper seal certification, and automatic damage quarantine to `brk_exp_stock`.
+
+### 33.2 Step-by-Step Operator Instructions
+
+```
+[Arrival of Delivery Vehicle at Godown Bay]
+                   │
+                   ▼
+       [Tab [F2] Gate Inward Desk]
+   - Select Approved Purchase Order
+   - Enter Gate Pass, Vehicle No, Challan No
+   - Count Physical Cartons & Record Shortages
+                   │
+                   ▼
+     [Tab [F3] Barcode Scanner Desk]
+   - Scan GS1-128 / 2D DataMatrix Cartons
+   - Audio Chirp & Live Counter Increment
+                   │
+                   ▼
+    [Tab [F4] Physical QC & Cold-Chain]
+   - Verify Cold-Chain Logger (2°C - 8°C)
+   - Verify Tamper-Evident Seals
+   - Isolate Damaged Units to Quarantine
+                   │
+                   ▼
+    [Tab [F1] Master Inward Register]
+   - Click "Convert" -> Generates GL Bill
+   - Increments Saleable & Breakage Batches
+   - Click "Print" -> Signs Official GRN Slip
+```
+
+#### Step 1: Gate Inward Registration & Shortage Calculation (`[F2]`)
+- Navigate to `/grn` and press `[F2]` or click Tab **`[F2] Gate Inward & PO Matcher`** (`#tab-grn-gate`).
+- Select the approved PO from `#select-po`. Line items, ordered quantities, and agreed rates auto-fill.
+- Enter Security Gate Entry Number (`#input-gate-pass`), Vehicle Registration (`#input-vehicle-no`), Delivery Challan Number, and Inward Temperature.
+- In the line items table, adjust `Challan Qty` and `Received Qty`. If 100 units were billed on challan but only 96 physically arrived, entering 96 automatically computes `Short Qty = 4 units`.
+- Click **`Confirm & Save Gate Inward`** (`#btn-confirm-gate-inward`). Sequential voucher `GRN-YYYYMM-XXXX` is generated.
+
+#### Step 2: High-Speed Barcode Scanning at the Bay (`[F3]`)
+- Press `[F3]` or click Tab **`[F3] Barcode Rapid Scanner Desk`** (`#tab-grn-barcode`).
+- The input `#input-barcode-scanner` auto-focuses. Scan cartons or blister strips with your barcode reader.
+- An audible 880 Hz confirmation chirp sounds. The matching medicine is identified and logged into the real-time scanning feed with a timestamp.
+
+#### Step 3: Physical QC & Cold-Chain Logging (`[F4]`)
+- Press `[F4]` or click Tab **`[F4] Physical Quality & Cold-Chain Desk`** (`#tab-grn-qc`).
+- Select the GRN to inspect from `#select-qc-grn`.
+- Adjust the Cold-Chain Thermometer slider to the exact temperature reading (e.g. `4.2°C`). If within 2.0°C – 8.0°C, the compliance badge shows green `VALID`.
+- Verify the manufacturer's tamper seal and toggle the `Tamper Seal Verified` checkbox.
+- In the Item Disposition table, inspect for cracked vials or punctured blisters. Enter damaged quantity under `Damaged / Leak`. The accepted quantity automatically recalculates.
+- Select the QC Verdict (`ACCEPTED` or `PARTIAL_ACCEPT`) and click **`Submit Physical QC & Cold-Chain Verdict`** (`#btn-submit-qc-verdict`). The GRN status updates to `VERIFIED`.
+
+#### Step 4: Converting Verified GRN to GL Purchase Bill
+- Return to **`[F1] Master Inward Register`** (`#tab-grn-register`).
+- On the verified GRN row, click the green **`Convert`** button.
+- The conversion modal opens displaying target GRN number, supplier name, and gross inward value.
+- Enter the Purchase Invoice Number, Credit Terms (e.g. 30 days), and applicable GST rate (18%).
+- Click **`Generate Purchase Bill`**:
+  - Automatically posts the purchase bill to the General Ledger (`invoices` table).
+  - Automatically increments warehouse stock in `models.Batch` (`current_stock += accepted_qty`).
+  - Automatically posts damaged stock to the Quarantined Breakage ledger (`brk_exp_stock += damaged_qty`).
+  - Marks GRN status as `CONVERTED_TO_PURCHASE`.
+
+#### Step 5: Printing Warehouse Inward Slips
+- Click the **`Print`** button on any GRN row.
+- A clean, professional inward certificate opens with complete gate entry metadata, vehicle numbers, cold-chain temperature readings, line items disposition, and physical signature blocks for Security Gate Officer, QC Inspector, and Warehouse General Manager.
+
+---
+
+## 34. Comprehensive Automated QA Test Suite Registry (21 Suites)
 
 | # | Test Suite Filename | Module Coverage | Assertions Target & Status |
 | :--- | :--- | :--- | :--- |
@@ -942,6 +1018,7 @@ DOC-45 introduces an end-to-end Procure-to-Pay (P2P) automation engine:
 | 18 | `test_gstr2b_reconciliation_selenium.py` | GST Cockpit `[F5]`, Scorecards, Tolerance $\pm ₹1/5/10$, Dunning Modal, Ingest 2B Modal | 100% PASS: Dual-ledger matching, Telemetry 4 Scorecards (₹25.06L 2B ITC, ₹17.56L Safe ITC, 61.1% match), WhatsApp Dunning, and JSON ingestion. |
 | 19 | `verify_live_vercel_client_creation.py` | Live Vercel Auth, Presets, Client Management, Modal Form, Neon DB Write | 100% PASS: Live production cloud authentication, genuine JWT acquisition, client registration (`AMC-F5BA`), and dynamic grid rendering. |
 | 20 | `test_procurement_po_replenishment_selenium.py` | Procurement Desk `/po`, Scorecards, Radar `[F2]`, Bulk PO `[F7]`, Builder `[F3]`, WhatsApp Slip, Convert to Inward Bill | 100% PASS: 10/10 Stages PASSED. Telemetry 4 Scorecards, autonomous deficit calculation, line item builder, supplier WhatsApp dispatch modal, and database purchase conversion. |
+| 21 | `test_grn_quality_inspection_selenium.py` | GRN Desk `/grn`, Scorecards, Gate Inward `[F2]`, Barcode Desk `[F3]`, Cold-Chain QC `[F4]`, GL Bill Conversion | 100% PASS: 12/12 Stages PASSED. Telemetry 4 Scorecards, shortage calculation, barcode scan stream with audio chirp, cold-chain logger (2°C-8°C), damage quarantine, and GL conversion. |
 
 ---
 

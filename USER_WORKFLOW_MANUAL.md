@@ -2263,7 +2263,48 @@ The system is built for zero-mouse cashier operation. Billing operators should m
 | **Pharma Expiry Cockpit**| `/inventory-dashboard` | Shelf-life monitoring & quarantine. | Review risk buckets, select batches on radar (`[F2]`), click `[F7]` to shift to quarantine. |
 | **Stock Shift Desk** | `/stock-shift` | Godown transfer & principal claims. | Move stock from Saleable to Quarantine, check `#check-auto-claim`, save voucher. |
 | **Procurement Desk** | `/po` | Stock replenishment radar & POs. | Review deficit scorecards, press `[F2]` for radar, click `[F7]` for bulk POs, dispatch via WhatsApp. |
+| **Goods Receipt Desk**| `/grn` | Receiving dock & physical inspection. | Match approved PO (`[F2]`), scan barcodes (`[F3]`), verify cold-chain & quarantine damage (`[F4]`), convert to GL bill. |
 | **Client Management** | `/clients` | Multi-tenant client onboarding. | Click `+ Register New Client`, fill details, deploy ERP, click `Switch to ERP ->`. |
+
+---
+
+## 42. DOC-46: Goods Receipt Note (GRN), Physical Quality Inspection & Barcode Inward Verification Desk (`/grn`)
+
+### 42.1 Operational Workflow Overview
+When a delivery truck arrives at the godown unloading bay from a pharmaceutical manufacturer or distributor:
+1. **Security Gate Entry & Delivery Challan Registration (`[F2]`)**:
+   - The receiving officer opens `/grn` and navigates to `[F2] Gate Inward & PO Matcher`.
+   - Select the approved Purchase Order (`PO-YYYYMM-XXXX`) from the dropdown. All line items, contract rates, and ordered quantities auto-populate.
+   - Enter the Security Gate Pass number, Delivery Challan / Vendor Invoice number, Challan Date, and Vehicle Registration number (e.g. `DL-01-AB-1234`).
+   - Count the physical cartons received. If the challan declares 100 units but only 96 are physically in the vehicle, enter 96 under `Received Qty`. The system automatically computes `Short Qty = 4 units`.
+   - Click `Confirm & Save Gate Inward` to issue official Goods Receipt Note `GRN-YYYYMM-XXXX`.
+
+2. **Rapid Barcode Dock Scanning (`[F3]`)**:
+   - For rapid carton-level verification, switch to `[F3] Barcode Rapid Scanner Desk`.
+   - Scan GS1-128, EAN-13, or 2D DataMatrix barcodes using a handheld USB/Bluetooth scanner.
+   - The scanner desk plays an audible synthesized verification chirp, looks up the product in the master database, increments the scanned unit counter, and updates the live dock scanning stream.
+
+3. **Physical Quality & Cold-Chain Certification (`[F4]`)**:
+   - For temperature-sensitive pharmaceutical stock (vaccines, insulin, biologics):
+   - Navigate to `[F4] Physical Quality & Cold-Chain Desk` and select the inward GRN.
+   - Adjust the interactive Cold-Chain Monitor slider to the thermometer reading on the data logger (e.g., `4.2°C`). If within 2.0°C – 8.0°C, the compliance status flags `VALID (Within Cold-Chain Limit)`. If breached (e.g. > 8.0°C), an excursion warning alerts the QC officer.
+   - Verify that the manufacturer's tamper-evident seal is intact. Check the `Tamper Seal Verified` checkbox.
+   - In the Item Disposition table, inspect individual units for damage, leakage, or broken seals. If 2 ampoules were crushed in transit, input `Damaged Qty = 2`. The accepted quantity automatically updates to `46 units`.
+   - Enter defect classification remarks (e.g., "2 ampoules shattered in transit box B-3").
+   - Select the overall QC decision (`ACCEPTED` or `PARTIAL_ACCEPT`) and click `Submit Physical QC & Cold-Chain Verdict`. The GRN status updates to `VERIFIED`.
+
+4. **1-Click General Ledger Purchase Bill Conversion**:
+   - In `[F1] Master Inward Register`, click the green `Convert` action button on the verified GRN.
+   - The modal auto-populates the purchase bill reference (`PUR-YYYYMM-XXXX`), credit terms (e.g. 30 days), and applicable GST rate (18%).
+   - Click `Generate Purchase Bill`:
+     - Creates the official purchase invoice in the General Ledger.
+     - Automatically increments physical warehouse batch inventory for saleable stock (`current_stock += accepted_qty`).
+     - Automatically segregates damaged units into Quarantined Breakage stock (`brk_exp_stock += damaged_qty`).
+     - The GRN status updates to `CONVERTED_TO_PURCHASE`.
+
+5. **Official Inward Slip Printing**:
+   - Click the `Print` button on any GRN to open the printable slip modal.
+   - Displays complete company metadata, Gate Entry pass, vehicle registration, Cold-Chain log, QC disposition, and physical signature blocks for Security Gate Officer, QC Inspector, and Warehouse General Manager.
 
 ---
 

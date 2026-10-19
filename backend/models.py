@@ -1502,6 +1502,62 @@ class PurchaseOrderItem(Base):
     
     purchase_order = relationship("PurchaseOrder", back_populates="items")
 
+class GoodsReceiptNote(Base):
+    __tablename__ = "goods_receipt_notes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    grn_number = Column(String(100), nullable=False, index=True)
+    date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    po_id = Column(UUID(as_uuid=True), ForeignKey("purchase_orders.id", ondelete="SET NULL"), nullable=True, index=True)
+    vendor_id = Column(UUID(as_uuid=True), ForeignKey("parties.id", ondelete="RESTRICT"), nullable=False)
+
+    challan_number = Column(String(100), nullable=True) # Delivery Challan / Invoice
+    challan_date = Column(DateTime, nullable=True)
+    gate_entry_number = Column(String(100), nullable=True) # Physical security gate pass
+    vehicle_number = Column(String(50), nullable=True) # e.g. DL-01-AB-1234
+    received_by = Column(String(100), nullable=True) # Receiving officer name
+
+    temperature_celsius = Column(Numeric(5, 2), nullable=True) # Cold-chain temperature e.g. 4.2°C
+    seal_intact = Column(Boolean, default=True) # Tamper-evident seal verification
+    inspection_status = Column(String(50), nullable=False, default="PENDING_INSPECTION") # PENDING_INSPECTION, ACCEPTED, REJECTED, PARTIAL_ACCEPT
+    status = Column(String(50), nullable=False, default="DRAFT") # DRAFT, VERIFIED, CONVERTED_TO_PURCHASE, CANCELLED
+
+    total_received_amount = Column(Numeric(15, 2), default=0.00)
+    remarks = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    items = relationship("GoodsReceiptNoteItem", back_populates="grn", cascade="all, delete-orphan")
+    purchase_order = relationship("PurchaseOrder")
+    vendor = relationship("Party")
+
+class GoodsReceiptNoteItem(Base):
+    __tablename__ = "goods_receipt_note_items"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    grn_id = Column(UUID(as_uuid=True), ForeignKey("goods_receipt_notes.id", ondelete="CASCADE"), nullable=False, index=True)
+    po_item_id = Column(UUID(as_uuid=True), ForeignKey("purchase_order_items.id", ondelete="SET NULL"), nullable=True)
+    product_id = Column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="SET NULL"), nullable=True)
+
+    product_name = Column(String(255), nullable=False)
+    ordered_qty = Column(Integer, nullable=False, default=0) # from PO
+    challan_qty = Column(Integer, nullable=False, default=0) # on delivery challan
+    received_qty = Column(Integer, nullable=False, default=0) # physically counted
+    accepted_qty = Column(Integer, nullable=False, default=0) # passed QC
+    damaged_qty = Column(Integer, nullable=False, default=0) # quarantined/broken
+    short_qty = Column(Integer, nullable=False, default=0) # challan - received
+
+    batch_number = Column(String(100), nullable=True)
+    expiry_date = Column(String(20), nullable=True) # MM/YY
+    mrp = Column(Numeric(10, 2), default=0.00)
+    purchase_rate = Column(Numeric(10, 2), default=0.00)
+    line_total = Column(Numeric(15, 2), default=0.00)
+    quality_remarks = Column(String(255), nullable=True)
+
+    grn = relationship("GoodsReceiptNote", back_populates="items")
+
+
 class VendorComplaint(Base):
     __tablename__ = "vendor_complaints"
 

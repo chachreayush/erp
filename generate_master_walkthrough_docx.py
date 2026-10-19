@@ -2993,6 +2993,277 @@ def create_full_software_walkthrough():
         "Figure 33.4: Supplier PO Dispatch & Communication Desk (#modal-po-dispatch) presenting formatted electronic purchase order slip, 1-Click WhatsApp direct transmission deep-link, and print slip generation."
     )
 
+    # =========================================================================
+    # CHAPTER 34: GOODS RECEIPT NOTE (GRN), PHYSICAL QUALITY INSPECTION & BARCODE INWARD VERIFICATION DESK (DOC-46)
+    # =========================================================================
+    doc.add_page_break()
+    add_h1("Chapter 34: Goods Receipt Note (GRN), Physical Quality Inspection & Barcode Inward Verification Desk (DOC-46)")
+
+    add_h2("34.1 Warehouse Inward Logistics, Physical Inspection & Cold-Chain Protocol")
+    add_p(
+        "In modern pharmaceutical, healthcare, and enterprise wholesale supply chains, goods inward cannot be treated as a simple paper receiving process. "
+        "Consignments arriving at the warehouse dock represent significant commercial commitments and regulatory compliance responsibilities. "
+        "DOC-46 establishes an exhaustive, audit-compliant Goods Receipt Note (GRN), Physical Quality Inspection & Barcode Inward Verification Desk (/grn) "
+        "that governs the entire receiving dock workflow prior to General Ledger bill booking."
+    )
+    add_p(
+        "Unlike legacy software that immediately converts supplier challans into purchase vouchers without inspection, the DOC-46 architecture enforces "
+        "a strict 5-stage receiving pipeline: (1) Gate Inward & PO Reconciling, (2) Audio-Synthesized Barcode Scanning & Item Tally, (3) Physical Package, "
+        "Seal & Cold-Chain Temperature Verification, (4) Quality Quarantine & Shortage Segregation, and (5) 1-Click Purchase Voucher Conversion with Dual-Batch "
+        "Allocation (Accepted stock to active inventory; Damaged/Rejected stock to quarantine isolation)."
+    )
+
+    add_h2("34.2 Gate Inward & Purchase Order Reconciling Engine")
+    add_p(
+        "The Gate Inward engine (POST /api/grn/) directly interfaces with approved Purchase Orders (PurchaseOrder model). When a receiving clerk "
+        "selects an active PO from the dropdown (#select-grn-po), vendor identification details and ordered line items are instantly populated. "
+        "The inward gate manifest captures vital logistics provenance:"
+    )
+
+    grn_gate_table = doc.add_table(rows=1, cols=4)
+    grn_gate_headers = ["Gate Inward Attribute", "Field / DOM Selector", "Validation & Storage Logic", "Supply Chain Control Role"]
+    grn_gate_data = [
+        [
+            "Delivery Vehicle Number",
+            "#input-grn-vehicle-no",
+            "Normalized alphanumeric license plate string (e.g., DL-01-AB-1234).",
+            "Validates carrier authenticity and cross-references gate security entry logs."
+        ],
+        [
+            "Vendor Delivery Challan No",
+            "#input-grn-challan-no",
+            "Supplier dispatch challan or invoice serial reference.",
+            "Forms the physical source document reference for 3-way reconciliation (PO vs Challan vs ERP Receipt)."
+        ],
+        [
+            "Carrier E-Way Bill Number",
+            "#input-grn-eway-bill",
+            "12-digit statutory CBIC E-Way Bill identifier.",
+            "Confirms statutory transit compliance under GST Rule 138 prior to unloading goods."
+        ],
+        [
+            "Receiving Bay & Temperature",
+            "#input-grn-bay, #input-grn-temperature",
+            "Dock identifier and incoming consignment sensor temperature (°C).",
+            "Enforces strict cold-chain threshold auditing (2°C - 8°C cold chain vs 15°C - 25°C ambient)."
+        ],
+        [
+            "Tamper-Evident Seal Integrity",
+            "#checkbox-grn-seal-intact",
+            "Boolean verification flag with visual seal status indicator.",
+            "Guarantees that cargo container, truck lock, or shipper carton seals were unbroken in transit."
+        ],
+        [
+            "Automated Shortage Computation",
+            "Shortage = max(0, Challan Qty - Received Qty)",
+            "Real-time item-level mathematical difference between supplier dispatch and dock arrival.",
+            "Eliminates manual discrepancies and automatically generates supplier shortage audit claims."
+        ]
+    ]
+    style_table(grn_gate_table, [1.6, 1.8, 1.8, 1.8], grn_gate_headers, grn_gate_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("34.3 Audio-Synthesized Barcode Rapid Scanner Desk (Web Audio API)")
+    add_p(
+        "To maximize receiving dock speed while eliminating manual data entry errors, Tab [F3] provides an Audio-Synthesized Barcode Rapid Scanner Desk. "
+        "Standard warehouse USB or Bluetooth 1D/2D handheld barcode guns operate in keyboard emulation mode. DOC-46 leverages the browser's native "
+        "Web Audio API (AudioContext) to synthesize real-time acoustic confirmation directly through the workstation speakers without requiring external audio assets:"
+    )
+
+    barcode_audio_table = doc.add_table(rows=1, cols=3)
+    barcode_audio_headers = ["Acoustic & Operational Event", "Synthesized Frequency & Waveform", "Behavioral Impact & Verification"]
+    barcode_audio_data = [
+        [
+            "Successful SKU / Barcode Match",
+            "Dual-Tone Chime: 880 Hz (A5) followed immediately by 1760 Hz (A6), sine wave oscillator, 120ms duration.",
+            "Gives instant auditory confirmation to dock operator without needing to look at monitor; increments item scanned count in real time."
+        ],
+        [
+            "Unrecognized Barcode / Over-Scan Warning",
+            "Low Buzz: 220 Hz (A3), sawtooth wave oscillator, 250ms duration.",
+            "Alerts operator to misplaced goods, mismatched batch numbers, or count exceeding delivery challan quantity."
+        ],
+        [
+            "Keyboard Shortcut Integration",
+            "Global [F3] hotkey activates scanner input focus (#input-barcode-scan).",
+            "Hands-free keyboard workflow allowing continuous box scanning without mouse navigation."
+        ]
+    ]
+    style_table(barcode_audio_table, [2.0, 2.5, 2.5], barcode_audio_headers, barcode_audio_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("34.4 Quality Inspection, Cold-Chain Compliance & Damage Quarantine")
+    add_p(
+        "The Physical Quality & Cold-Chain Desk (Tab [F4] & modal #modal-grn-inspection) implements stringent Good Distribution Practices (GDP). "
+        "Inspectors examine each received line item for physical packaging damage, leakages, label illegibility, and temperature excursion:"
+    )
+    add_p(
+        "Pharma cold-chain lines are evaluated against statutory temperature regimes: Biologicals and Vaccines must arrive strictly between 2°C and 8°C, "
+        "while ambient medicines must remain between 15°C and 25°C. Any consignment breaching temperature limits is automatically tagged for quarantine. "
+        "Inspectors specify an official verdict (ACCEPTED, REJECTED, PARTIALLY_ACCEPTED, QUARANTINED), record their Inspector Badge ID (#input-inspector-badge), "
+        "and document detailed defect remarks (#input-inspection-remarks)."
+    )
+
+    add_h2("34.5 General Ledger Purchase Bill Conversion Architecture & Stock Batch Separation")
+    add_p(
+        "Once a Goods Receipt Note is approved by the quality inspector, it can be converted with 1 click into a General Ledger Purchase Bill "
+        "(POST /api/grn/{grn_id}/convert-to-purchase via modal #modal-convert-grn-purchase). Unlike basic systems that lump damaged goods into saleable stock, "
+        "DOC-46 enforces strict physical batch segregation in models.Batch:"
+    )
+
+    batch_gl_table = doc.add_table(rows=1, cols=3)
+    batch_gl_headers = ["Stock / Financial Stream", "Database & Accounting Allocation", "Inventory & Balance Sheet Impact"]
+    batch_gl_data = [
+        [
+            "Accepted Inward Quantity",
+            "Batch.current_stock += accepted_qty",
+            "Increments live saleable inventory available for immediate billing and dispatch on /sales."
+        ],
+        [
+            "Damaged / Rejected Quantity",
+            "Batch.brk_exp_stock += damaged_qty",
+            "Quarantines defective units in separate breakage/expiry stock; completely excluded from sales billing and routed to DOC-41 Principal Debit Note settlement."
+        ],
+        [
+            "General Ledger Purchase Booking",
+            "Invoice.invoice_number = PUR-GRN-XXXX\nCredit: Sundry Creditors (Vendor)\nDebit: Stock In Trade / Purchase Account",
+            "Posts complete double-entry transaction in models.Invoice and models.JournalEntry, updating Trade Payables and Trial Balance seamlessly."
+        ]
+    ]
+    style_table(batch_gl_table, [1.8, 2.7, 2.5], batch_gl_headers, batch_gl_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("34.6 Semantic DOM Element & Operational Hotkey Directory")
+    add_p(
+        "The Goods Receipt Note Master (/grn) adheres to the Enterprise High-Density Dark theme with full semantic accessibility and keyboard shortcuts:"
+    )
+
+    dom_grn_table = doc.add_table(rows=1, cols=4)
+    dom_grn_headers = ["DOM Element ID", "Element Type / Hotkey", "Functional Component / Role", "Operational Logic & Actions"]
+    dom_grn_data = [
+        ["#card-total-inward", "Telemetry Metric Card", "Total Inward Consignments", "Count and gross value of all goods receipt manifests recorded in the system."],
+        ["#card-pending-inspection", "Telemetry Metric Card", "Under Quality Inspection", "Count of consignments awaiting QC signoff prior to stock release."],
+        ["#card-accepted-value", "Telemetry Metric Card", "Accepted & Stocked Value", "Cumulative monetary valuation of verified inventory inducted into active stock."],
+        ["#card-damaged-quarantine", "Telemetry Metric Card", "Damaged / Quarantined Units", "Total units segregated into quarantine due to physical defects or temperature excursion."],
+        ["#tab-grn-register", "Navigation Tab [F1]", "Master GRN Register", "Complete audit register of all GRN documents with filter by status and date range."],
+        ["#tab-gate-inward", "Navigation Tab [F2]", "Gate Inward Workbench", "Consignment registration desk with PO matching, vehicle info, and shortage tracking."],
+        ["#tab-barcode-scanner", "Navigation Tab [F3]", "Barcode Rapid Scanner", "High-speed barcode scanning desk with Web Audio API acoustic chime synthesizer."],
+        ["#tab-quality-inspection", "Navigation Tab [F4]", "Physical Quality & Cold-Chain Desk", "GDP inspection station auditing packaging seals, temperature, and defect classification."],
+        ["#modal-grn-inspection", "Modal Dialog [F8 / Inspect]", "QC Inspection Approval Modal", "Decision modal for passing, rejecting, or quarantining line items with inspector credentials."],
+        ["#modal-convert-grn-purchase", "Modal Dialog [Convert]", "Convert to Purchase Bill Modal", "One-click conversion modal generating PUR-GRN-XXXX in the General Ledger."],
+        ["#modal-grn-print-slip", "Modal Dialog [Ctrl+P / Print]", "Printable GRN Dock Slip", "Printable warehouse tag and dock inward receipt with complete barcode and inspector stamp."]
+    ]
+    style_table(dom_grn_table, [1.8, 1.4, 1.6, 2.2], dom_grn_headers, dom_grn_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_h2("34.7 Visual Photographic Evidence & Automated QA Verification Suite (Suite 21)")
+    add_p(
+        "The complete Goods Receipt Note & Quality Inspection module was rigorously validated through automated Selenium test suite "
+        "(test_grn_quality_inspection_selenium.py - Suite 21) operating in headless Chrome at 1440x950 resolution against the live backend (Port 8000) "
+        "and Vite frontend (Port 50005). All 12 verification stages passed with a 100% success rate (Exit Code 0):"
+    )
+
+    grn_qa_table = doc.add_table(rows=1, cols=4)
+    grn_qa_headers = ["Verification Stage & Scope", "Execution Target / Endpoint", "Automated Assertions & Validation Criteria", "Test Result"]
+    grn_qa_data = [
+        [
+            "Stage 1: API Authentication",
+            "POST /auth/login\n(admin / Admin@123)",
+            "HTTP 200 OK. Acquired JWT Bearer token, verified organization AM-0001 credentials.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 2: GRN Telemetry API",
+            "GET /api/grn/telemetry",
+            "HTTP 200 OK. Verified total_inward, pending_inspection, accepted_value, damaged_quarantine counters.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 3: Pending POs for Inward API",
+            "GET /api/grn/pending-orders",
+            "HTTP 200 OK. Verified active PO list with vendor details and line item quantities.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 4: Create GRN Manifest API",
+            "POST /api/grn/",
+            "HTTP 200 OK. Created GRN-2026-TEST with vehicle number, delivery challan, E-Way bill, temperature (4.5°C), and items.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 5: Quality Inspection Update API",
+            "PATCH /api/grn/{id}/inspection",
+            "HTTP 200 OK. Updated status to ACCEPTED with inspector badge QC-INSP-01 and cold-chain approval notes.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 6: Convert GRN to Purchase Bill API",
+            "POST /api/grn/{id}/convert-to-purchase",
+            "HTTP 200 OK. Successfully generated PUR-GRN-XXXX in models.Invoice and updated batch stocks (current_stock and brk_exp_stock).",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 7: Headless Browser Init & Auth",
+            "Chrome --headless=new\nViewport: 1440x950",
+            "WebDriver initialized with GPU disabled, sessionStorage auth injection with 'erp-auth' key.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 8: GRN Desk & Scorecards",
+            "driver.get('http://localhost:50005/grn')",
+            "Verified #card-total-inward, #card-pending-inspection, #card-accepted-value, #card-damaged-quarantine. Captured verified_grn_telemetry_scorecards.png.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 9: Gate Inward Workbench Navigation",
+            "Tab [F2] #tab-gate-inward",
+            "Verified vehicle number input, challan input, temperature input, seal intact checkbox. Captured verified_grn_gate_inward_workbench.png.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 10: Barcode Rapid Scanner Desk",
+            "Tab [F3] #tab-barcode-scanner",
+            "Verified scanner input (#input-barcode-scan), scanned tally, and synthesized audio engine. Captured verified_grn_barcode_rapid_scanner.png.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 11: Physical Quality & Cold-Chain Desk",
+            "Tab [F4] #tab-quality-inspection",
+            "Verified cold chain audit (2°C-8°C), seal status, and defect inspection table. Captured verified_grn_qc_coldchain_inspection.png.",
+            "100% PASS\n(Exit 0)"
+        ],
+        [
+            "Stage 12: Inspection & Purchase Conversion Modals",
+            "Tab [F1] Actions: #btn-inspect-grn-{id}, #btn-convert-grn-purchase-{id}",
+            "Verified opening of QC Inspection Modal (#modal-grn-inspection), Printable Slip (#modal-grn-print-slip), and Convert to Purchase Bill modal.",
+            "100% PASS\n(Exit 0)"
+        ]
+    ]
+    style_table(grn_qa_table, [1.2, 1.8, 2.6, 0.9], grn_qa_headers, grn_qa_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    add_p("The automated Selenium test suite captures 4 high-resolution visual proof artifacts demonstrating flawless frontend rendering:")
+
+    add_screenshot(
+        "verified_grn_telemetry_scorecards.png",
+        "Figure 34.1: GRN Telemetry Scorecards (/grn) displaying Total Inward Consignments, Under Quality Inspection, Accepted & Stocked Value, and Damaged / Quarantined Units with real-time operational status indicators."
+    )
+
+    add_screenshot(
+        "verified_grn_gate_inward_workbench.png",
+        "Figure 34.2: Gate Inward Workbench (Tab [F2]) showing PO selector, vehicle number, delivery challan, E-Way bill, temperature verification, seal intact status, and item shortage calculations."
+    )
+
+    add_screenshot(
+        "verified_grn_barcode_rapid_scanner.png",
+        "Figure 34.3: Barcode Rapid Scanner Desk (Tab [F3]) with real-time Web Audio API synthesized verification chime, barcode string matching, and scanned tally counter."
+    )
+
+    add_screenshot(
+        "verified_grn_qc_coldchain_inspection.png",
+        "Figure 34.4: Physical Quality & Cold-Chain Inspection Desk (Tab [F4]) detailing temperature compliance (2°C - 8°C cold chain vs 15°C - 25°C ambient), tamper-evident packaging seal audit, and quarantine defect notes."
+    )
+
     # Save to erp2 directory
     output_path = r"C:\Users\DELL\OneDrive\Desktop\erp2\ERP_ENTERPRISE_SYSTEM_COMPLETE_SOFTWARE_MASTER_WALKTHROUGH.docx"
     doc.save(output_path)

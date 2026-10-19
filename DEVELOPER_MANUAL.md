@@ -2946,6 +2946,112 @@ This master reference catalog indexes all semantic DOM identifiers and hotkeys i
    - `erp_series_payment`: Tracks active supplier payment sequence (`PAY-2026-0094`).
    - `erp_series_journal`: Tracks active GL journal sequence (`JRN-2026-0038`).
    - `erp_series_po`: Tracks active purchase order sequence (`PO-202610-0001`).
+   - `erp_series_grn`: Tracks active Goods Receipt Note sequence (`GRN-YYYYMM-XXXX`).
+
+---
+
+## 41. DOC-46: Goods Receipt Note (GRN), Physical Quality Inspection & Barcode Inward Verification Desk (`/grn`)
+
+### 41.1 Technical Problem & Architecture
+In multi-depot pharmaceutical distribution and C&F warehousing, receiving physical stock at the unloading bay is a high-risk operational checkpoint. Shipments from manufacturers and secondary logistics carriers frequently suffer from transit damage, quantity shortages against the vendor delivery challan, cold-chain temperature excursions, and compromised tamper seals. 
+
+DOC-46 provides a dedicated, keyboard-driven inward verification cockpit (`/grn`) bridging Purchase Orders (`PO-YYYYMM-XXXX`, DOC-45) to General Ledger Inward Purchase Bills (`PUR-GRN-XXXX`). It enforces a rigorous 3-stage validation pipeline:
+1. **Gate Inward & PO Matching**: Physical challan count matching against approved purchase orders with automated shortage calculation (`short_qty = challan_qty - received_qty`).
+2. **Barcode Rapid Scanner Desk**: Optical scanning of GS1-128, EAN-13, and 2D DataMatrix barcodes with real-time audio chirp synthesis and rapid counter increment.
+3. **Physical Quality & Cold-Chain Desk**: Strict ingress temperature range validation (2.0°C – 8.0°C for biologics/insulin), tamper-seal verification, and automatic damage routing to segregated Quarantined Breakage inventory (`brk_exp_stock`).
+
+```mermaid
+flowchart TD
+    PO["Approved Purchase Order (DOC-45)"] --> Gate["[F2] Gate Inward Desk"]
+    Gate --> Matcher{"Verify Challan vs Received"}
+    Matcher -->|Shortage Detected| Short["Auto-compute Shortage Qty"]
+    Matcher --> Scan["[F3] Barcode Scanner Desk"]
+    Scan --> QC["[F4] Physical QC & Cold-Chain Desk"]
+    QC --> Temp{"Cold-Chain Temp 2°C - 8°C?"}
+    Temp -->|Breached| Alert["Temperature Breach Alert"]
+    Temp -->|Compliant| Seal{"Tamper Seal Verified?"}
+    Seal --> Decision{"QC Verdict"}
+    Decision -->|Accepted Qty| Stock["Increment Saleable Batch Stock"]
+    Decision -->|Damaged Qty| Quarantine["Increment Quarantined Breakage Stock"]
+    Stock --> Bill["Convert to GL Purchase Bill (PUR-YYYYMM-XXXX)"]
+    Quarantine --> DebitNote["Generate Vendor Complaint / Claim"]
+```
+
+### 41.2 Database Models & Schema Design (`backend/models.py`)
+
+#### 1. `GoodsReceiptNote`
+- `id` (`UUID`, PK): Unique receipt identifier.
+- `organization_id` (`UUID`, FK): Multi-tenant isolation reference.
+- `grn_number` (`String(100)`, indexed): Sequential voucher code (`GRN-YYYYMM-XXXX`).
+- `date` (`DateTime`): Timestamp of receipt.
+- `po_id` (`UUID`, FK, nullable): Link to source `purchase_orders.id`.
+- `vendor_id` (`UUID`, FK): Link to supplier in `parties.id`.
+- `challan_number` (`String(100)`): Vendor delivery challan / invoice number.
+- `challan_date` (`DateTime`): Challan issuance date.
+- `gate_entry_number` (`String(100)`): Security gate physical pass tracking number.
+- `vehicle_number` (`String(50)`): Delivery vehicle registration number.
+- `received_by` (`String(100)`): Receiving dock officer name.
+- `temperature_celsius` (`Numeric(5, 2)`): Recorded cold-chain temperature.
+- `seal_intact` (`Boolean`, default True): Tamper-evident seal flag.
+- `inspection_status` (`String(50)`): `PENDING_INSPECTION`, `ACCEPTED`, `REJECTED`, or `PARTIAL_ACCEPT`.
+- `status` (`String(50)`): `DRAFT`, `VERIFIED`, `CONVERTED_TO_PURCHASE`, or `CANCELLED`.
+- `total_received_amount` (`Numeric(15, 2)`): Valuation of accepted units.
+- `remarks` (`Text`): Inspection observations and carrier condition notes.
+
+#### 2. `GoodsReceiptNoteItem`
+- `id` (`UUID`, PK): Unique line item identifier.
+- `grn_id` (`UUID`, FK): Cascading parent GRN link.
+- `po_item_id` (`UUID`, FK, nullable): Link to `purchase_order_items.id`.
+- `product_id` (`UUID`, FK, nullable): Link to master `products.id`.
+- `product_name` (`String(255)`): Snapshot description.
+- `ordered_qty` (`Integer`): Quantity ordered on PO.
+- `challan_qty` (`Integer`): Quantity on delivery challan.
+- `received_qty` (`Integer`): Physically received count at gate.
+- `accepted_qty` (`Integer`): Count passing QC inspection.
+- `damaged_qty` (`Integer`): Quarantined broken/defective units.
+- `short_qty` (`Integer`): Calculated shortage discrepancy.
+- `batch_number` (`String(100)`): Inward batch number.
+- `expiry_date` (`String(20)`): Expiry date stamp (`MM/YY`).
+- `mrp` (`Numeric(10, 2)`): Maximum Retail Price.
+- `purchase_rate` (`Numeric(10, 2)`): Contract unit purchase rate.
+- `line_total` (`Numeric(15, 2)`): Line amount (`accepted_qty * purchase_rate`).
+- `quality_remarks` (`String(255)`): Defect description.
+
+### 41.3 REST API Endpoints (`backend/api/grn.py`)
+| HTTP Method | Route | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/grn/telemetry` | Aggregates real-time counts: total GRNs, pending inspection, accepted, damaged units, gross valuation. |
+| `GET` | `/api/grn/pending-orders` | Queries approved POs (`APPROVED`, `PARTIAL`) with remaining quantities for gate matching. |
+| `GET` | `/api/grn/` | Master inward register with vendor, status, and QC filters. |
+| `GET` | `/api/grn/{grn_id}` | Complete single GRN record with nested line items. |
+| `POST` | `/api/grn/` | Registers gate inward GRN, computes shortages, and updates PO fulfillment status. |
+| `PATCH` | `/api/grn/{grn_id}/inspection` | Physical QC & Cold-Chain desk endpoint; records temperature, tamper seal, item-level damage, and advances status to `VERIFIED`. |
+| `POST` | `/api/grn/{grn_id}/convert-to-purchase` | Converts verified GRN into GL Purchase Bill (`invoices`), increments batch stock (`current_stock` & `brk_exp_stock`), and sets status to `CONVERTED_TO_PURCHASE`. |
+
+### 41.4 Frontend Implementation (`src/pages/procurement/GoodsReceiptNoteMaster.tsx`)
+- **Telemetry Scorecards**:
+  1. `card-grn-total`: Total Inward GRNs count and gross inward valuation (Rs.).
+  2. `card-grn-pending`: Gate Inward Pending QC count.
+  3. `card-grn-accepted`: Inspected & Accepted receipts count and GL converted count.
+  4. `card-grn-damaged`: Quarantined Damaged Units isolated from saleable stock.
+- **4 Operational Tabs**:
+  - `[F1] Master Inward Register`: Search filter, status filter, QC status filter, enterprise table with action triggers (`QC`, `Convert`, `Print`).
+  - `[F2] Gate Inward & PO Matcher`: PO selector, vendor metadata, gate pass, vehicle registration, delivery challan, cold-chain temp, and shortage calculator.
+  - `[F3] Barcode Rapid Scanner Desk`: Barcode input field with Web Audio API sound synthesis chirp, real-time scanning feed, and counter increment.
+  - `[F4] Physical Quality & Cold-Chain Desk`: Cold-chain temperature monitor (2.0°C – 8.0°C), tamper-seal toggle, item-level damage isolation table, and overall verdict buttons (`ACCEPTED`, `PARTIAL_ACCEPT`, `REJECTED`).
+- **Modals**:
+  - `modal-qc-inspection`: Item-by-item disposition checklist with defect logging.
+  - `modal-convert-purchase`: GL Purchase Bill conversion modal with invoice number, credit terms (days), and GST tax rates.
+  - `modal-print-preview`: Printable GRN inward slip with official signature blocks.
+
+### 41.5 Automated Selenium QA Suite 21
+The entire DOC-46 subsystem is verified by `test_grn_quality_inspection_selenium.py`:
+- 12 comprehensive stages spanning JWT authentication, telemetry verification, pending PO queries, gate inward creation, QC inspection patching, GL purchase bill conversion, and Chrome headless UI verification across all 4 operational tabs.
+- Captures 4 verified high-resolution screenshots:
+  1. `verified_grn_telemetry_scorecards.png`
+  2. `verified_grn_gate_inward_workbench.png`
+  3. `verified_grn_barcode_rapid_scanner.png`
+  4. `verified_grn_qc_coldchain_inspection.png`
 
 ---
 

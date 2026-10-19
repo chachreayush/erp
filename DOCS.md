@@ -1259,3 +1259,100 @@ The entire software stack across all 45 documents is 100% verified via 20 compre
 18. `test_gstr2b_reconciliation_selenium.py` (GSTR-2B ITC Matching Engine)
 19. `verify_live_vercel_client_creation.py` (Production Cloud Client Onboarding)
 20. `test_procurement_po_replenishment_selenium.py` (Purchase Orders & Replenishment Radar)
+21. `test_grn_quality_inspection_selenium.py` (Goods Receipt Note, QC Inspection & Barcode Inward Desk)
+
+### 10.30 DOC-46: Goods Receipt Note (GRN), Physical Quality Inspection & Barcode Inward Verification Desk (`/grn`)
+
+#### 1. Operational Overview & Industrial Problem Solved
+In pharmaceutical wholesale distribution and multi-depot C&F supply chain management, receiving inventory at the godown dock cannot simply jump from a Purchase Order (`PO-YYYYMM-XXXX`) directly into general ledger accounts payable without physical receipt and quality verification. Vendor delivery consignments regularly encounter:
+1. **Discrepant Quantities & Shortages**: The delivery challan states 100 units, but only 92 physically arrive from the carrier, requiring automated shortage detection (`short_qty = challan_qty - received_qty`).
+2. **Cold-Chain Temperature Excursions**: Temperature-sensitive biologics, vaccines, and insulin must be stored strictly within 2.0°C – 8.0°C. Breaches during road transit require immediate quarantine and recording of the exact ingress temperature before accepting custody.
+3. **Transit Breakage & Tampered Seals**: Secondary cartons arriving with broken manufacturer tamper seals, punctured blisters, or shattered ampoules must be isolated directly into a segregated Quarantined Breakage ledger (`brk_exp_stock`), preventing accidental sale.
+4. **Barcode Dock Verification**: Manual manual typing of batch codes and product names is prone to human error; the receiving desk requires rapid barcode scanning (GS1-128, EAN-13, and 2D DataMatrix) with audio-visual feedback and rapid unit counting.
+
+DOC-46 introduces the enterprise **Goods Receipt Note (GRN) & Physical Inward Inspection Desk** at route `/grn`, providing a full receiving dock workflow bridging Purchase Orders (DOC-45) to General Ledger Inward Purchase Bills (`PUR-GRN-XXXX`).
+
+#### 2. Architecture & Database Schema
+1. **`goods_receipt_notes` Table**:
+   - `id`: UUID Primary Key.
+   - `organization_id`: Tenant organization reference (UUID, indexed).
+   - `grn_number`: Unique sequential identifier (`GRN-YYYYMM-XXXX`).
+   - `date`: Inward receipt timestamp.
+   - `po_id`: Foreign key link to source `purchase_orders.id` (nullable for direct inwards).
+   - `vendor_id`: Foreign key link to `parties.id` (supplier).
+   - `challan_number`: Vendor delivery challan or invoice reference.
+   - `challan_date`: Challan issuance date.
+   - `gate_entry_number`: Security gate physical pass tracking number.
+   - `vehicle_number`: Transport conveyance registration number (e.g. `DL-01-AB-1234`).
+   - `received_by`: Warehouse receiving officer display name.
+   - `temperature_celsius`: Measured ingress cold-chain temperature (Decimal, e.g. `4.2°C`).
+   - `seal_intact`: Tamper-evident seal verification flag (Boolean).
+   - `inspection_status`: `PENDING_INSPECTION`, `ACCEPTED`, `REJECTED`, or `PARTIAL_ACCEPT`.
+   - `status`: `DRAFT`, `VERIFIED`, `CONVERTED_TO_PURCHASE`, or `CANCELLED`.
+   - `total_received_amount`: Sum of accepted line items valuation.
+   - `remarks`: Inspection findings and transit condition notes.
+2. **`goods_receipt_note_items` Table**:
+   - `id`: UUID Primary Key.
+   - `grn_id`: Cascading foreign key to `goods_receipt_notes.id`.
+   - `po_item_id`: Foreign key to `purchase_order_items.id`.
+   - `product_id`: Master product reference.
+   - `product_name`: Snapshot product description.
+   - `ordered_qty`: Quantity on source Purchase Order.
+   - `challan_qty`: Quantity declared on vendor's delivery challan.
+   - `received_qty`: Physically counted quantity at the gate.
+   - `accepted_qty`: Quantity passing physical QC inspection.
+   - `damaged_qty`: Quarantined breakage / leakage quantity.
+   - `short_qty`: Discrepancy quantity (`challan_qty - received_qty`).
+   - `batch_number`: Manufacturer batch code.
+   - `expiry_date`: Month/Year expiry date stamp (`MM/YY`).
+   - `mrp`: Maximum Retail Price.
+   - `purchase_rate`: Agreed contract unit purchase rate.
+   - `line_total`: Computed valuation (`accepted_qty * purchase_rate`).
+   - `quality_remarks`: Specific defect classification (e.g. "punctured blister").
+
+#### 3. REST API Endpoints (`/api/grn`)
+- `GET /api/grn/telemetry`: Computes real-time scorecard metrics (Total Inward GRNs, Pending QC Count, QC Inspected Count, Quarantined Damaged Units, Gross Inward Valuation).
+- `GET /api/grn/pending-orders`: Queries all approved, open purchase orders (`status in ['APPROVED', 'PARTIAL']`) with pending line items for gate inward selection.
+- `GET /api/grn/`: Queries master inward register with search, status (`DRAFT`, `VERIFIED`, `CONVERTED_TO_PURCHASE`), and QC status filters.
+- `GET /api/grn/{grn_id}`: Retrieves complete single GRN record with vendor legal names and line item details.
+- `POST /api/grn/`: Creates a new Goods Receipt Note, computes shortage discrepancies, sets initial status, and updates linked Purchase Order status (`PARTIAL` or `COMPLETED`).
+- `PATCH /api/grn/{grn_id}/inspection`: Physical QC & Cold-Chain Certification endpoint; updates ingress temperature, seal integrity, item-level accepted/damaged counts, recalculates valuation, and advances status to `VERIFIED`.
+- `POST /api/grn/{grn_id}/convert-to-purchase`: Converts verified GRN into official General Ledger Purchase Bill (`PUR-YYYYMM-XXXX`) in `invoices` table and increments batch inventory (`current_stock += accepted_qty`, `brk_exp_stock += damaged_qty`).
+
+#### 4. Frontend Workbench Features (`/grn`)
+- **4 Telemetry Scorecards**:
+  - `Total Inward GRNs`: Receipt count and total inward value (Rs.).
+  - `Gate Inward / QC Pending`: GRNs awaiting cold-chain & tamper certification.
+  - `Inspected & Accepted`: Verified stock approved for commercial conversion.
+  - `Quarantined & Damaged Units`: Isolated transit breakages routed to breakage ledger.
+- **4 Operational Tabs**:
+  - `[F1] Master Inward Register`: Comprehensive directory with live text search, status filters, QC verdict badges, cold-chain temperature badges, and quick action buttons (`QC`, `Convert`, `Print`).
+  - `[F2] Gate Inward & PO Matcher`: Inward authoring workbench with approved PO auto-populate, vendor details, gate entry pass, delivery challan reference, receiving temperature, and line item shortage calculator.
+  - `[F3] Barcode Rapid Scanner Desk`: High-speed dock scanner interface with synthesized audio chirp, real-time scanning feed, and counter increments.
+  - `[F4] Physical Quality & Cold-Chain Desk`: Thermometer cold-chain slider (2.0°C – 8.0°C standard), tamper seal toggle, item-level damage isolation table, and overall verdict buttons (`ACCEPTED`, `PARTIAL_ACCEPT`, `REJECTED`).
+- **Modals**:
+  - Quality Inspection Modal: Complete item disposition dialog with defect logging.
+  - Convert to Purchase Bill Modal: Purchase bill generator with custom invoice number, credit terms (days), and GST tax rates.
+  - Printable GRN Slip Preview: Official warehouse inward voucher with Security Gate, QC Officer, and Warehouse Manager signature blocks.
+
+#### 5. DOM Element & Automation ID Catalog
+| Module / Context | Element Selector / ID | Tag / Role | Description / Purpose |
+| :--- | :--- | :--- | :--- |
+| **GRN Workbench (`/grn`)** | `#card-grn-total` | Metric Card | Displays total inward receipts count and gross inward valuation. |
+| **GRN Workbench (`/grn`)** | `#card-grn-pending` | Metric Card | Count of gate receipts awaiting physical QC and cold-chain logging. |
+| **GRN Workbench (`/grn`)** | `#card-grn-accepted` | Metric Card | Count of verified, QC-passed receipts ready for purchase conversion. |
+| **GRN Workbench (`/grn`)** | `#card-grn-damaged` | Metric Card | Sum of quarantined damaged units isolated from saleable inventory. |
+| **GRN Workbench (`/grn`)** | `#tab-grn-register` | Button `[F1]` | Switches to Master Inward Register directory. |
+| **GRN Workbench (`/grn`)** | `#tab-grn-gate` | Button `[F2]` | Switches to Gate Inward & Purchase Order Matcher authoring tab. |
+| **GRN Workbench (`/grn`)** | `#tab-grn-barcode` | Button `[F3]` | Switches to Barcode Rapid Scanner Desk with audio-visual feed. |
+| **GRN Workbench (`/grn`)** | `#tab-grn-qc` | Button `[F4]` | Switches to Physical Quality & Cold-Chain Inspection Desk. |
+| **GRN Workbench (`/grn`)** | `#btn-new-gate-inward` | Button | Direct action button launching Gate Inward authoring tab. |
+| **Gate Inward (`/grn`)** | `#select-po` | Select | Dropdown listing approved, open Purchase Orders for auto-matching. |
+| **Gate Inward (`/grn`)** | `#select-vendor` | Select | Supplier / Vendor dropdown for direct inward receipts. |
+| **Gate Inward (`/grn`)** | `#input-gate-pass` | Text Input | Physical security gate pass tracking number. |
+| **Gate Inward (`/grn`)** | `#input-vehicle-no` | Text Input | Transport conveyance vehicle registration number. |
+| **Gate Inward (`/grn`)** | `#btn-confirm-gate-inward` | Button `[Enter]` | Validates items, calculates shortages, and saves gate inward GRN. |
+| **Barcode Desk (`/grn`)** | `#input-barcode-scanner` | Text Input | High-speed auto-focused barcode input with audio synthesis chirp. |
+| **Barcode Desk (`/grn`)** | `#btn-register-scan` | Button | Registers scanned barcode, matching catalog and incrementing counter. |
+| **QC Desk (`/grn`)** | `#select-qc-grn` | Select | Target Goods Receipt Note selector for quality inspection. |
+| **QC Desk (`/grn`)** | `#btn-submit-qc-verdict` | Button | Confirms cold-chain temperature, tamper seal, and damage quarantine. |
